@@ -29,7 +29,6 @@ REQUIRED = [
     "numpy",
     "toolz",
     "googledrivedownloader",
-    "tensorflow>=2.0.0a0",
 ]
 
 DEPENDENCY_LINKS = [
