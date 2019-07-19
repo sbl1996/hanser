@@ -27,7 +27,7 @@ def conv2d(channels, kernel_size, stride=1, padding='same', use_bias=False):
 
 
 def bn(fused=True, gamma='ones'):
-    return BatchNormalization(fused=fused, gamma_initializer=gamma)
+    return BatchNormalization(fused=fused, gamma_initializer=gamma, momentum=0.9, epsilon=1e-5)
 
 def dense(channels):
     return Dense(channels, kernel_initializer='he_normal')
