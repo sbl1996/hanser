@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from tensorflow.python.keras.layers import Layer, Conv2D, BatchNormalization, Dense
+from tensorflow.python.keras.layers import Layer, Conv2D, BatchNormalization, Dense, Conv2DTranspose
 
 
 class PadChannel(Layer):
@@ -24,6 +24,10 @@ class PadChannel(Layer):
 
 def conv2d(channels, kernel_size, stride=1, padding='same', use_bias=False):
     return Conv2D(channels, kernel_size=kernel_size, strides=stride, padding=padding, use_bias=use_bias, kernel_initializer='he_normal')
+
+
+def deconv2d(channels, kernel_size, stride=1, padding='same', use_bias=False):
+    return Conv2DTranspose(channels, kernel_size=kernel_size, strides=stride, padding=padding, use_bias=use_bias, kernel_initializer='he_normal')
 
 
 def bn(fused=True, gamma='ones'):

@@ -1,0 +1,1 @@
+from hanser.model.cifar.pyramidnet import pyramidnet
