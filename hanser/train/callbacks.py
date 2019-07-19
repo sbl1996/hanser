@@ -28,7 +28,7 @@ class LearningRateBatchScheduler(Callback):
             raise ValueError('Optimizer must have a "lr" attribute.')
         self.epochs += 1
 
-    def on_batch_begin(self, batch, logs=None):
+    def on_train_batch_begin(self, batch, logs=None):
         lr = self.schedule(self.epochs, batch)
         if not isinstance(lr, (float, np.float32, np.float64)):
             raise ValueError('The output of the "schedule" function should be float.')
