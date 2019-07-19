@@ -3,7 +3,6 @@ from toolz import curry
 import numpy as np
 
 import tensorflow as tf
-import tensorflow.python.keras.backend as K
 from tensorflow.python.keras.callbacks import Callback
 
 class LearningRateBatchScheduler(Callback):
@@ -33,7 +32,7 @@ class LearningRateBatchScheduler(Callback):
         if not isinstance(lr, (float, np.float32, np.float64)):
             raise ValueError('The output of the "schedule" function should be float.')
         if lr != self.prev_lr:
-            K.set_value(self.model.optimizer.lr, lr)
+            tf.keras.backend.set_value(self.model.optimizer.lr, lr)
             self.prev_lr = lr
 
 @curry
