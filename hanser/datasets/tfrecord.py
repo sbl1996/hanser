@@ -135,3 +135,42 @@ def convert_segmentation_dataset(split_f, output_dir, img_dir, seg_dir, image_fo
                     img_data, filenames[i], image_format, height, width, seg_data, label_format)
                 writer.write(example.SerializeToString())
         print()
+
+
+def convert_numpy_dataset(X, y, split, output_dir, num_shards=4):
+    """Converts the specified dataset split to TFRecord format.
+
+    Args:
+        split: The dataset split (e.g., train, test).
+
+    Raises:
+        RuntimeError: If loaded image and label have different shape.
+    """
+    assert len(X) == len(y)
+
+    output_dir = _check_path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    num_examples = len(X)
+    num_per_shard = int(math.ceil(num_examples / float(num_shards)))
+
+    for shard_id in range(num_shards):
+        output_f = output_dir / ('%s-%05d-of-%05d.tfrecord' % (split, shard_id, num_shards))
+        with tf.io.TFRecordWriter(str(output_f)) as writer:
+            start_idx = shard_id * num_per_shard
+            end_idx = min((shard_id + 1) * num_per_shard, num_examples)
+            for i in range(start_idx, end_idx):
+                print('\r>> Converting image %d/%d shard %d' % (i + 1, num_examples, shard_id), end='')
+                example = tf.train.Example(features=tf.train.Features(feature={
+                    'image': _bytes_feature(X[i].tobytes()),
+                    'label': _int64_feature(y[i]),
+                }))
+                writer.write(example.SerializeToString())
+        print()
+
+
+def parse_numpy_example(example_proto):
+    features = {
+        'image': tf.io.FixedLenFeature((), tf.string, default_value=''),
+        'label': tf.io.FixedLenFeature((), tf.int64, default_value=0),
+    }
+    return tf.io.parse_single_example(example_proto, features)
