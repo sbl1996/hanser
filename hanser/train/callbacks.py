@@ -5,6 +5,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.python.keras.callbacks import Callback
 
+
 class LearningRateBatchScheduler(Callback):
     """Callback to update learning rate on every batch (not epoch boundaries).
 
@@ -16,9 +17,10 @@ class LearningRateBatchScheduler(Callback):
           output (float).
   """
 
-    def __init__(self, schedule):
+    def __init__(self, schedule, steps_per_epoch):
         super().__init__()
         self.schedule = schedule
+        self.steps_per_epoch = steps_per_epoch
         self.epochs = -1
         self.prev_lr = -1
 
@@ -28,23 +30,21 @@ class LearningRateBatchScheduler(Callback):
         self.epochs += 1
 
     def on_train_batch_begin(self, batch, logs=None):
-        lr = self.schedule(self.epochs, batch)
+        epochs = self.epochs + float(batch) / self.steps_per_epoch
+        lr = self.schedule(epochs)
         if not isinstance(lr, (float, np.float32, np.float64)):
             raise ValueError('The output of the "schedule" function should be float.')
         if lr != self.prev_lr:
             tf.keras.backend.set_value(self.model.optimizer.lr, lr)
             self.prev_lr = lr
 
+
 @curry
-def step_lr_warmup(
-        current_epoch, current_batch,
-        base_lr, schedule, steps_per_epoch):
-    epoch = current_epoch + float(current_batch) / steps_per_epoch
-    warmup_lr_multiplier, warmup_end_epoch = schedule[0]
-    if epoch < warmup_end_epoch:
-        # Learning rate increases linearly per step.
-        return (base_lr * warmup_lr_multiplier *
-                epoch / warmup_end_epoch)
+def step_lr(epoch, base_lr, schedule):
+    gamma, warmup = schedule[0]
+    if epoch < warmup:
+        eta_min = base_lr * gamma
+        return eta_min + (base_lr - eta_min) * epoch / warmup
     learning_rate = base_lr
     for mult, start_epoch in schedule:
         if epoch >= start_epoch:
@@ -52,6 +52,35 @@ def step_lr_warmup(
         else:
             break
     return learning_rate
+
+
+@curry
+def cosine_lr(epoch, base_lr, total_epochs, warmup=0, gamma=0.1):
+    if epoch < warmup:
+        eta_min = base_lr * gamma
+        return eta_min + (base_lr - eta_min) * epoch / warmup
+    frac = (epoch - warmup) / (total_epochs - warmup)
+    mult = (np.cos(frac * np.pi) + 1) / 2
+    return base_lr * mult
+
+
+@curry
+def one_cycle_lr(epoch, base_lr, max_lr, step_size, end_steps, gamma, warmup=0, warmup_gamma=0.1):
+    if epoch < warmup:
+        eta_min = base_lr * warmup_gamma
+        lr = eta_min + epoch / warmup * (base_lr - eta_min)
+    elif epoch < step_size + warmup:
+        epoch -= warmup
+        lr = base_lr + epoch / step_size * (max_lr - base_lr)
+    elif epoch < (warmup + 2 * step_size):
+        epoch -= warmup + step_size
+        lr = base_lr + (step_size - epoch) / step_size * (max_lr - base_lr)
+    elif epoch < (warmup + 2 * step_size + end_steps):
+        epoch -= warmup + 2 * step_size
+        lr = base_lr * gamma + epoch / end_steps * (base_lr - base_lr * gamma)
+    else:
+        lr = base_lr * gamma
+    return lr
 
 
 class WeightDecay(Callback):
