@@ -2,8 +2,151 @@ import math
 
 import tensorflow as tf
 
-_MAX_LEVEL = 10
-_FILL_COLOR = (128, 128, 128)
+
+def _image_dimensions(image, rank):
+    """Returns the dimensions of an image tensor.
+
+    Args:
+        image: A rank-D Tensor. For 3-D  of shape: `[height, width, channels]`.
+        rank: The expected rank of the image
+
+    Returns:
+        A list of corresponding to the dimensions of the input image. Dimensions
+        that are statically known are python integers, otherwise they are integer
+        scalar tensors.
+    """
+    if image.get_shape().is_fully_defined():
+        return image.get_shape().as_list()
+    else:
+        static_shape = image.get_shape().with_rank(rank).as_list()
+        dynamic_shape = tf.unstack(tf.shape(image), rank)
+        return [
+            s if s is not None else d for s, d in zip(static_shape, dynamic_shape)
+        ]
+
+
+def resolve_shape(tensor, rank=None, scope=None):
+  """Fully resolves the shape of a Tensor.
+
+  Use as much as possible the shape components already known during graph
+  creation and resolve the remaining ones during runtime.
+
+  Args:
+    tensor: Input tensor whose shape we query.
+    rank: The rank of the tensor, provided that we know it.
+    scope: Optional name scope.
+
+  Returns:
+    shape: The full shape of the tensor.
+  """
+  with tf.name_scope(scope, 'resolve_shape', [tensor]):
+    if rank is not None:
+      shape = tensor.get_shape().with_rank(rank).as_list()
+    else:
+      shape = tensor.get_shape().as_list()
+
+    if None in shape:
+      shape_dynamic = tf.shape(tensor)
+      for i in range(len(shape)):
+        if shape[i] is None:
+          shape[i] = shape_dynamic[i]
+
+    return shape
+
+
+def resize(img, size, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR):
+    if not isinstance(size, tuple):
+        size = tf.cast(size, tf.float32)
+        h, w = img.shape[:2]
+        h = tf.cast(h, tf.float32)
+        w = tf.cast(w, tf.float32)
+        shorter = tf.minimum(h, w)
+        scale = size / shorter
+        oh = tf.cast(tf.math.ceil(h * scale), tf.int32)
+        ow = tf.cast(tf.math.ceil(w * scale), tf.int32)
+        size = tf.stack([oh, ow])
+    img = tf.image.resize(img, size, method=method, align_corners=True)
+    return img
+
+
+def pad_to_bounding_box(image, offset_height, offset_width, target_height,
+                        target_width, pad_value):
+    """Pads the given image with the given pad_value.
+
+    Works like tf.image.pad_to_bounding_box, except it can pad the image
+    with any given arbitrary pad value and also handle images whose sizes are not
+    known during graph construction.
+
+    Args:
+        image: 3-D tensor with shape [height, width, channels]
+        offset_height: Number of rows of zeros to add on top.
+        offset_width: Number of columns of zeros to add on the left.
+        target_height: Height of output image.
+        target_width: Width of output image.
+        pad_value: Value to pad the image tensor with.
+
+    Returns:
+        3-D tensor of shape [target_height, target_width, channels].
+
+    Raises:
+        ValueError: If the shape of image is incompatible with the offset_* or
+        target_* arguments.
+    """
+    with tf.name_scope(None, 'pad_to_bounding_box', [image]):
+        image = tf.convert_to_tensor(image, name='image')
+        original_dtype = image.dtype
+        if original_dtype != tf.float32 and original_dtype != tf.float64:
+            # If image dtype is not float, we convert it to int32 to avoid overflow.
+            image = tf.cast(image, tf.int32)
+        image_rank_assert = tf.Assert(
+            tf.logical_or(
+                tf.equal(tf.rank(image), 3),
+                tf.equal(tf.rank(image), 4)),
+            ['Wrong image tensor rank.'])
+        with tf.control_dependencies([image_rank_assert]):
+            image -= pad_value
+        image_shape = image.get_shape()
+        is_batch = True
+        if image_shape.ndims == 3:
+            is_batch = False
+            image = tf.expand_dims(image, 0)
+        elif image_shape.ndims is None:
+            is_batch = False
+            image = tf.expand_dims(image, 0)
+            image.set_shape([None] * 4)
+        elif image.get_shape().ndims != 4:
+            raise ValueError('Input image must have either 3 or 4 dimensions.')
+        _, height, width, _ = _image_dimensions(image, rank=4)
+        target_width_assert = tf.Assert(
+            tf.greater_equal(
+                target_width, width),
+            ['target_width must be >= width'])
+        target_height_assert = tf.Assert(
+            tf.greater_equal(target_height, height),
+            ['target_height must be >= height'])
+        with tf.control_dependencies([target_width_assert]):
+            after_padding_width = target_width - offset_width - width
+        with tf.control_dependencies([target_height_assert]):
+            after_padding_height = target_height - offset_height - height
+        offset_assert = tf.Assert(
+            tf.logical_and(
+                tf.greater_equal(after_padding_width, 0),
+                tf.greater_equal(after_padding_height, 0)),
+            ['target size not possible with the given target offsets'])
+        batch_params = tf.stack([0, 0])
+        height_params = tf.stack([offset_height, after_padding_height])
+        width_params = tf.stack([offset_width, after_padding_width])
+        channel_params = tf.stack([0, 0])
+        with tf.control_dependencies([offset_assert]):
+            paddings = tf.stack([batch_params, height_params, width_params,
+                                 channel_params])
+        padded = tf.pad(image, paddings)
+        if not is_batch:
+            padded = tf.squeeze(padded, axis=[0])
+        outputs = padded + pad_value
+        if outputs.dtype != original_dtype:
+            outputs = tf.cast(outputs, original_dtype)
+        return outputs
 
 
 def random_crop(x, size, padding, fill=128):
@@ -12,10 +155,6 @@ def random_crop(x, size, padding, fill=128):
     x = tf.pad(x, [(ph, ph), (pw, pw), (0, 0)], constant_values=fill)
     x = tf.image.random_crop(x, [height, width, x.shape[-1]])
     return x
-
-
-def invert(image):
-    return 255 - image
 
 
 def cutout(image, length):
@@ -37,6 +176,10 @@ def cutout(image, length):
     mask = tf.expand_dims(mask, -1)
     image = image * mask
     return image
+
+
+def invert(image):
+    return 255 - image
 
 
 def blend(image1, image2, factor):
@@ -340,150 +483,3 @@ def translate_y(image, pixels, replace):
     """Equivalent of PIL Translate in Y dimension."""
     image = tf.contrib.image.translate(wrap(image), [0, -pixels])
     return unwrap(image, replace)
-
-
-def _randomly_negate_tensor(tensor):
-    """With 50% prob turn the tensor negative."""
-    should_flip = tf.cast(tf.floor(tf.random_uniform([]) + 0.5), tf.bool)
-    final_tensor = tf.cond(should_flip, lambda: tensor, lambda: -tensor)
-    return final_tensor
-
-
-def _rotate_level_to_arg(level):
-    level = (level / _MAX_LEVEL) * 30.
-    level = _randomly_negate_tensor(level)
-    return level
-
-
-def _enhance_level_to_arg(level):
-    # TODO: To complex control flow, may be fixed in TF 2.0
-    # level = (level / _MAX_LEVEL) * 0.9
-    # level = _randomly_negate_tensor(level)
-    # return level
-    return (level / _MAX_LEVEL) * 1.8 + 0.1
-
-
-def _shear_level_to_arg(level):
-    level = (level / _MAX_LEVEL) * 0.3
-    level = _randomly_negate_tensor(level)
-    return level
-
-
-def _translate_level_to_arg(level):
-    level = (level / _MAX_LEVEL) * (32 * 150 / 331)
-    level = _randomly_negate_tensor(level)
-    return level
-
-
-def _posterize_level_to_arg(level):
-    level = (8, 8, 7, 7, 6, 6, 5, 5, 4, 4)[level]
-    return level
-
-
-def _solarize_level_to_arg(level):
-    level = (_MAX_LEVEL - level + 1) / _MAX_LEVEL * 256
-    return level
-
-
-NAME_TO_FUNC = {
-    "shearX": lambda img, level: shear_x(
-        img, _shear_level_to_arg(level), _FILL_COLOR),
-    "shearY": lambda img, level: shear_y(
-        img, _shear_level_to_arg(level), _FILL_COLOR),
-    'translateX': lambda img, level: translate_x(
-        img, _translate_level_to_arg(level), _FILL_COLOR),
-    'translateY': lambda img, level: translate_y(
-        img, _translate_level_to_arg(level), _FILL_COLOR),
-    "rotate": lambda img, level: rotate(
-        img, _rotate_level_to_arg(level), _FILL_COLOR),
-    "color": lambda img, level: color(
-        img, _enhance_level_to_arg(level)),
-    "posterize": lambda img, level: posterize(img, level),
-    "solarize": lambda img, level: solarize(img, level),
-    "contrast": lambda img, level: contrast(
-        img, _enhance_level_to_arg(level)),
-    "sharpness": lambda img, level: sharpness(
-        img, _enhance_level_to_arg(level)),
-    "brightness": lambda img, level: brightness(
-        img, _enhance_level_to_arg(level)),
-    "autocontrast": lambda img, level: autocontrast(img),
-    "equalize": lambda img, level: equalize(img),
-    "invert": lambda img, level: invert(img),
-}
-
-
-def _apply_func_with_prob(func, p, image, level):
-    should_apply_op = tf.cast(
-        tf.floor(tf.random_uniform([], dtype=tf.float32) + p), tf.bool)
-    augmented_image = tf.cond(
-        should_apply_op,
-        lambda: func(image, level),
-        lambda: image)
-    return augmented_image
-
-
-def select_and_apply_random_policy(policies, image):
-    """Select a random policy from `policies` and apply it to `image`."""
-
-    policy_to_select = tf.random_uniform((), maxval=len(policies), dtype=tf.int32)
-    # Note that using tf.case instead of tf.conds would result in significantly
-    # larger graphs and would even break export for some larger policies.
-    for (i, policy) in enumerate(policies):
-        image = tf.cond(
-            tf.equal(i, policy_to_select),
-            lambda: policy(image),
-            lambda: image)
-    return image
-
-
-def sub_policy(p1, op1, level1, p2, op2, level2):
-    def _apply_policy(image):
-        image = _apply_func_with_prob(NAME_TO_FUNC[op1], p1, image, level1)
-        image = _apply_func_with_prob(NAME_TO_FUNC[op2], p2, image, level2)
-        return image
-    return _apply_policy
-
-
-def cifar10_policy():
-    policies = [
-        sub_policy(0.1, "invert", 7, 0.2, "contrast", 6),
-        sub_policy(0.7, "rotate", 2, 0.3, "translateX", 9),
-        sub_policy(0.8, "sharpness", 1, 0.9, "sharpness", 3),
-        sub_policy(0.5, "shearY", 8, 0.7, "translateY", 9),
-        sub_policy(0.5, "autocontrast", 8, 0.9, "equalize", 2),
-
-        sub_policy(0.2, "shearY", 7, 0.3, "posterize", 7),
-        sub_policy(0.4, "color", 3, 0.6, "brightness", 7),
-        sub_policy(0.3, "sharpness", 9, 0.7, "brightness", 9),
-        sub_policy(0.6, "equalize", 5, 0.5, "equalize", 1),
-        sub_policy(0.6, "contrast", 7, 0.6, "sharpness", 5),
-
-        sub_policy(0.7, "color", 7, 0.5, "translateX", 8),
-        sub_policy(0.3, "equalize", 7, 0.4, "autocontrast", 8),
-        sub_policy(0.4, "translateY", 3, 0.2, "sharpness", 6),
-        sub_policy(0.9, "brightness", 6, 0.2, "color", 8),
-        sub_policy(0.5, "solarize", 2, 0.0, "invert", 3),
-
-        sub_policy(0.2, "equalize", 0, 0.6, "autocontrast", 0),
-        sub_policy(0.2, "equalize", 8, 0.8, "equalize", 4),
-        sub_policy(0.9, "color", 9, 0.6, "equalize", 6),
-        sub_policy(0.8, "autocontrast", 4, 0.2, "solarize", 8),
-        sub_policy(0.1, "brightness", 3, 0.7, "color", 0),
-
-        sub_policy(0.4, "solarize", 5, 0.9, "autocontrast", 3),
-        sub_policy(0.9, "translateY", 9, 0.7, "translateY", 9),
-        sub_policy(0.9, "autocontrast", 2, 0.8, "solarize", 3),
-        sub_policy(0.8, "equalize", 8, 0.1, "invert", 3),
-        sub_policy(0.7, "translateY", 9, 0.9, "autocontrast", 1),
-    ]
-
-    return policies
-
-
-def autoaugment(image, augmentation_name):
-    available_policies = {'CIFAR10': cifar10_policy}
-    if augmentation_name not in available_policies:
-        raise ValueError('Invalid augmentation_name: {}'.format(augmentation_name))
-    policies = available_policies[augmentation_name]()
-    image = select_and_apply_random_policy(policies, image)
-    return image

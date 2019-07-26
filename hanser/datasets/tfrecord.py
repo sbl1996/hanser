@@ -46,7 +46,7 @@ def img_seg_to_tfexample(img_data, filename, image_format, height, width, seg_da
     """Converts one image/segmentation pair to tf example.
 
     Args:
-      image_data: string of image data.
+      img_data: string of image data.
       filename: image filename.
       height: image height.
       width: image width.

@@ -5,11 +5,11 @@ from hanser.model.layers import bn, conv2d, deconv2d
 
 
 def conv_block(x, channels):
-    x = conv2d(channels, kernel_size=3)(x)
-    x = bn()(x)
+    x = conv2d(x, channels, kernel_size=3)
+    x = bn(x)
     x = ReLU()(x)
-    x = conv2d(channels, kernel_size=3)(x)
-    x = bn()(x)
+    x = conv2d(x, channels, kernel_size=3)
+    x = bn(x)
     x = ReLU()(x)
     return x
 
@@ -31,20 +31,19 @@ def unet(input_shape, num_classes, channels=64):
     x = MaxPool2D(pool_size=(2, 2), strides=(2, 2))(c3)
     x = conv_block(x, channels * 16)
 
-    x = Concatenate([c3, deconv2d(channels * 8, kernel_size=2, stride=2)(x)])
-    x = conv2d(x, channels * 8)
+    x = Concatenate()([c3, deconv2d(x, channels * 8, kernel_size=2, stride=2)])
+    x = conv_block(x, channels * 8)
 
-    x = Concatenate([c2, deconv2d(channels * 4, kernel_size=2, stride=2)(x)])
-    x = conv2d(x, channels * 4)
+    x = Concatenate()([c2, deconv2d(x, channels * 4, kernel_size=2, stride=2)])
+    x = conv_block(x, channels * 4)
 
-    x = Concatenate([c1, deconv2d(channels * 2, kernel_size=2, stride=2)(x)])
-    x = conv2d(x, channels * 2)
+    x = Concatenate()([c1, deconv2d(x, channels * 2, kernel_size=2, stride=2)])
+    x = conv_block(x, channels * 2)
 
-    x = Concatenate([c0, deconv2d(channels * 1, kernel_size=2, stride=2)(x)])
-    x = conv2d(x, channels * 1)
+    x = Concatenate()([c0, deconv2d(x, channels * 1, kernel_size=2, stride=2)])
+    x = conv_block(x, channels * 1)
 
-    x = conv2d(num_classes, kernel_size=1, use_bias=True)(x)
-    y = Softmax()(x)
+    y = conv2d(x, num_classes, kernel_size=1, use_bias=True)
 
     model = Model(inputs=inputs, outputs=y)
     return model
