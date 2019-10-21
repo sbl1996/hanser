@@ -1,5 +1,4 @@
-from tensorflow.python.keras import Model
-from tensorflow.python.keras.layers import ReLU, Input, MaxPool2D, Softmax, Concatenate
+from tensorflow.python.keras.layers import ReLU, MaxPool2D, Concatenate
 
 from hanser.model.layers import bn, conv2d, deconv2d
 
@@ -14,10 +13,8 @@ def conv_block(x, channels):
     return x
 
 
-def unet(input_shape, num_classes, channels=64):
-
-    inputs = Input(input_shape)
-    c0 = conv_block(inputs, channels * 1)
+def unet(x, num_classes, channels=64):
+    c0 = conv_block(x, channels * 1)
 
     x = MaxPool2D(pool_size=(2, 2), strides=(2, 2))(c0)
     c1 = conv_block(x, channels * 2)
@@ -43,7 +40,6 @@ def unet(input_shape, num_classes, channels=64):
     x = Concatenate()([c0, deconv2d(x, channels * 1, kernel_size=2, stride=2)])
     x = conv_block(x, channels * 1)
 
-    y = conv2d(x, num_classes, kernel_size=1, use_bias=True)
+    logits = conv2d(x, num_classes, kernel_size=1, use_bias=True)
 
-    model = Model(inputs=inputs, outputs=y)
-    return model
+    return logits
