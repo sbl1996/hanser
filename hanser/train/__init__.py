@@ -1,6 +1,7 @@
 from tensorflow.python.keras.layers import Conv2D, Dense
 from tensorflow.python.keras.regularizers import l2
 
+from hanser.train.trainer import Trainer
 
 def l2_regularizer(model, alpha):
     for layer in model.layers:
