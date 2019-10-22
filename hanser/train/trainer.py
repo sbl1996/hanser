@@ -22,6 +22,7 @@ class Trainer:
             model_dir=model_dir,
             save_summary_steps=steps_per_epoch,
             save_checkpoints_steps=steps_per_epoch * save_per_epochs,
+            keep_checkpoint_max=1,
             log_step_count_steps=steps_per_epoch,
             tpu_config=tf.contrib.tpu.TPUConfig(steps_per_epoch))
 

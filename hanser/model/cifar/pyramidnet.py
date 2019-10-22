@@ -1,5 +1,4 @@
-from tensorflow.python.keras import Model
-from tensorflow.python.keras.layers import Flatten, ReLU, GlobalAvgPool2D, Input, AvgPool2D, Add, Softmax
+from tensorflow.python.keras.layers import Flatten, ReLU, GlobalAvgPool2D, AvgPool2D, Add, Softmax
 
 from hanser.model.layers import PadChannel, bn, conv2d, dense
 
@@ -43,7 +42,7 @@ def rd(c):
     return int(round(c, 2))
 
 
-def pyramidnet(input_shape=(32, 32, 3), num_classes=10, start_channels=16, widening_fractor=84, num_layers=(18, 18, 18), block='basic'):
+def pyramidnet(x, num_classes=10, start_channels=16, widening_fractor=84, num_layers=(18, 18, 18), block='basic'):
     assert len(num_layers) == 3
     assert block in ["basic", "bottleneck"]
     if block == "basic":
@@ -54,8 +53,7 @@ def pyramidnet(input_shape=(32, 32, 3), num_classes=10, start_channels=16, widen
     add_channels = widening_fractor / sum(num_layers)
     channels = start_channels
 
-    inputs = Input(input_shape)
-    x = conv2d(inputs, start_channels, kernel_size=3)
+    x = conv2d(x, start_channels, kernel_size=3)
     x = bn(x)
 
     strides = [1, 2, 2]
@@ -70,7 +68,6 @@ def pyramidnet(input_shape=(32, 32, 3), num_classes=10, start_channels=16, widen
     x = GlobalAvgPool2D()(x)
     x = Flatten()(x)
     x = dense(x, num_classes)
-    y = Softmax()(x)
+    x = Softmax()(x)
 
-    model = Model(inputs=inputs, outputs=y)
-    return model
+    return x

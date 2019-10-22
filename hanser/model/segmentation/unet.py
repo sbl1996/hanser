@@ -28,7 +28,10 @@ def unet(x, num_classes, channels=64):
     x = MaxPool2D(pool_size=(2, 2), strides=(2, 2))(c3)
     x = conv_block(x, channels * 16)
 
-    x = Concatenate()([c3, deconv2d(x, channels * 8, kernel_size=2, stride=2)])
+    print(x.shape)
+    t = deconv2d(x, channels * 8, kernel_size=2, stride=2)
+    print(t.shape)
+    x = Concatenate()([c3, t])
     x = conv_block(x, channels * 8)
 
     x = Concatenate()([c2, deconv2d(x, channels * 4, kernel_size=2, stride=2)])
