@@ -65,6 +65,18 @@ def cosine_lr(epoch, base_lr, total_epochs, warmup=0, gamma=0.1):
 
 
 @curry
+def tf_cosine_lr(epoch, base_lr, total_epochs, warmup=0, gamma=0.1):
+    eta_min = base_lr * gamma
+    lr1 = eta_min + (base_lr - eta_min) * epoch / warmup
+
+    frac = (epoch - warmup) / (total_epochs - warmup)
+    lr2 = (tf.cos(frac * np.pi) + 1) / 2 * base_lr
+
+    lr = tf.where(epoch < warmup, lr1, lr2)
+    return lr
+
+
+@curry
 def one_cycle_lr(epoch, base_lr, max_lr, step_size, end_steps, gamma, warmup=0, warmup_gamma=0.1):
     if epoch < warmup:
         eta_min = base_lr * warmup_gamma
