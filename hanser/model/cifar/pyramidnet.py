@@ -10,7 +10,7 @@ def shortcut(x, out_channels, stride=1):
     return x
 
 
-def basicblock(x, out_channels, stride=1, training=True):
+def basicblock(x, out_channels, stride=1, training=None):
     identity = x
     x = bn(x, training)
     x = conv2d(x, out_channels, kernel_size=3)
@@ -22,7 +22,7 @@ def basicblock(x, out_channels, stride=1, training=True):
     return Add()([x, identity])
 
 
-def bottleneck(x, channels, stride=1, training=True):
+def bottleneck(x, channels, stride=1, training=None):
     identity = x
     out_channels = channels * 4
     x = bn(x, training)
@@ -42,7 +42,7 @@ def rd(c):
     return int(round(c, 2))
 
 
-def pyramidnet(x, num_classes=10, start_channels=16, widening_fractor=84, num_layers=(18, 18, 18), block='basic', training=True):
+def pyramidnet(x, num_classes=10, start_channels=16, widening_fractor=84, num_layers=(18, 18, 18), block='basic', training=None):
     assert len(num_layers) == 3
     assert block in ["basic", "bottleneck"]
     if block == "basic":

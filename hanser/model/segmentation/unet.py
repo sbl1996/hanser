@@ -3,7 +3,7 @@ from tensorflow.python.keras.layers import ReLU, MaxPool2D, Concatenate
 from hanser.model.layers import bn, conv2d, deconv2d
 
 
-def conv_block(x, channels, training=True):
+def conv_block(x, channels, training=None):
     x = conv2d(x, channels, kernel_size=3)
     x = bn(x, training)
     x = ReLU()(x)
@@ -13,7 +13,7 @@ def conv_block(x, channels, training=True):
     return x
 
 
-def unet(x, num_classes, channels=64, training=True):
+def unet(x, num_classes, channels=64, training=None):
     c0 = conv_block(x, channels * 1, training)
 
     x = MaxPool2D(pool_size=(2, 2), strides=(2, 2))(c0)

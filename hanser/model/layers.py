@@ -59,7 +59,7 @@ def deconv2d(x, channels, kernel_size, stride=1, padding='same', use_bias=False)
                            kernel_initializer='he_normal')(x)
 
 
-def bn(x, fused=None, gamma='ones', training=True):
+def bn(x, fused=None, gamma='ones', training=None):
     if fused is None:
         fused = get_default(['bn', 'fused'])
     momentum = get_default(['bn', 'momentum'])
