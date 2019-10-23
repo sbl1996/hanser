@@ -64,7 +64,7 @@ def bn(x, fused=None, gamma='ones', training=None):
         fused = get_default(['bn', 'fused'])
     momentum = get_default(['bn', 'momentum'])
     epsilon = get_default(['bn', 'epsilon'])
-    return BatchNormalization(fused=fused, gamma_initializer=gamma, momentum=momentum, epsilon=epsilon)(x, training=training)
+    return BatchNormalization(fused=fused, gamma_initializer=gamma, momentum=momentum, epsilon=epsilon)(x)
 
 
 def dense(x, channels):
