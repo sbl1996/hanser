@@ -45,26 +45,18 @@ def swish(x):
 
 
 def conv2d(x, channels, kernel_size, stride=1, padding='same', use_bias=False):
-    l2 = get_default('l2_regularizer')
-    kernel_regularizer = tf.keras.regularizers.l2(l2) if l2 else None
     return Conv2D(channels, kernel_size=kernel_size, strides=stride, padding=padding, use_bias=use_bias,
-                  kernel_initializer='he_normal', kernel_regularizer=kernel_regularizer)(x)
+                  kernel_initializer='he_normal')(x)
 
 
 def dwconv2d(x, kernel_size, stride=1, padding='same', use_bias=False):
-    l2 = get_default('l2_regularizer')
-    kernel_regularizer = tf.keras.regularizers.l2(l2) if l2 else None
     return DepthwiseConv2D(kernel_size, stride, padding, use_bias=use_bias,
-                           depthwise_initializer='he_normal', depthwise_regularizer=kernel_regularizer)(x)
+                           depthwise_initializer='he_normal')(x)
 
 
 def deconv2d(x, channels, kernel_size, stride=1, padding='same', use_bias=False):
-    l2 = get_default('l2_regularizer')
-    kernel_regularizer = tf.keras.regularizers.l2(l2) if l2 else None
-    bias_regularizer = tf.keras.regularizers.l2(l2) if (l2 and use_bias) else None
     return Conv2DTranspose(channels, kernel_size=kernel_size, strides=stride, padding=padding, use_bias=use_bias,
-                           kernel_initializer='he_normal', kernel_regularizer=kernel_regularizer,
-                           bias_regularizer=bias_regularizer)(x)
+                           kernel_initializer='he_normal')(x)
 
 
 def bn(x, fused=None, gamma='ones', training=True):
@@ -76,11 +68,7 @@ def bn(x, fused=None, gamma='ones', training=True):
 
 
 def dense(x, channels):
-    l2 = get_default('l2_regularizer')
-    kernel_regularizer = tf.keras.regularizers.l2(l2) if l2 else None
-    bias_regularizer = tf.keras.regularizers.l2(l2) if l2 else None
-    return Dense(channels, kernel_initializer='he_normal',
-                 kernel_regularizer=kernel_regularizer, bias_regularizer=bias_regularizer)(x)
+    return Dense(channels, kernel_initializer='he_normal')(x)
 
 
 def drop_connect(x, drop_rate):
