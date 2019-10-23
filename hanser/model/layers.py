@@ -67,12 +67,12 @@ def deconv2d(x, channels, kernel_size, stride=1, padding='same', use_bias=False)
                            bias_regularizer=bias_regularizer)(x)
 
 
-def bn(x, fused=None, gamma='ones'):
+def bn(x, fused=None, gamma='ones', training=True):
     if fused is None:
         fused = get_default(['bn', 'fused'])
     momentum = get_default(['bn', 'momentum'])
     epsilon = get_default(['bn', 'epsilon'])
-    return BatchNormalization(fused=fused, gamma_initializer=gamma, momentum=momentum, epsilon=epsilon)(x)
+    return BatchNormalization(fused=fused, gamma_initializer=gamma, momentum=momentum, epsilon=epsilon)(x, training=training)
 
 
 def dense(x, channels):
