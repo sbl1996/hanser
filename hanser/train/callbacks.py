@@ -3,7 +3,7 @@ from toolz import curry
 import numpy as np
 
 import tensorflow as tf
-from tensorflow.python.keras.callbacks import Callback
+from tensorflow.keras.callbacks import Callback
 
 
 class LearningRateBatchScheduler(Callback):

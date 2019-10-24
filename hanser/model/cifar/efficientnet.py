@@ -1,5 +1,5 @@
-from tensorflow.python.keras import Model
-from tensorflow.python.keras.layers import Flatten, ReLU, GlobalAvgPool2D, Input, Add, Softmax, Multiply, Dropout
+from tensorflow.keras import Model
+from tensorflow.keras.layers import Flatten, ReLU, GlobalAvgPool2D, Input, Add, Softmax, Multiply, Dropout
 
 from hanser.model.layers import bn, conv2d, dense, dwconv2d, swish, sigmoid
 

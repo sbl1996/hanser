@@ -1,5 +1,5 @@
-from tensorflow.python.keras.layers import Input
-from tensorflow.python.keras import Model
+from tensorflow.keras.layers import Input
+from tensorflow.keras import Model
 
 
 def op2model(op):

@@ -1,5 +1,5 @@
-from tensorflow.python.keras import Input, Model
-from tensorflow.python.keras.layers import Flatten, ReLU, GlobalAvgPool2D, AvgPool2D, Add, Softmax
+from tensorflow.keras import Input, Model
+from tensorflow.keras.layers import Flatten, ReLU, GlobalAvgPool2D, AvgPool2D, Add, Softmax
 
 from hanser.model.layers import PadChannel, bn, conv2d, dense
 

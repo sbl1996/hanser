@@ -1,5 +1,5 @@
-from tensorflow.python.keras.layers import Conv2D, Dense
-from tensorflow.python.keras.regularizers import l2
+from tensorflow.keras.layers import Conv2D, Dense
+from tensorflow.keras.regularizers import l2
 
 from hanser.train.trainer import Trainer
 

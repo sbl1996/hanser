@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from tensorflow.python.keras.layers import Layer, Conv2D, BatchNormalization, Dense, Conv2DTranspose, DepthwiseConv2D, \
+from tensorflow.keras.layers import Layer, Conv2D, BatchNormalization, Dense, Conv2DTranspose, DepthwiseConv2D, \
     GlobalAvgPool2D, Flatten, ReLU, Activation, Multiply
 
 from hanser.model import get_default
