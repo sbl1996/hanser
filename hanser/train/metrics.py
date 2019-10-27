@@ -1,8 +1,10 @@
+import tensorflow as tf
+
 import numpy as np
 
-import tensorflow as tf
 from hanser.math import confusion_matrix
 from tensorflow.keras.metrics import Metric
+
 
 class MeanIoU(Metric):
     """Computes the mean Intersection-Over-Union metric.
@@ -77,7 +79,7 @@ class MeanIoU(Metric):
         Returns:
           Update op.
         """
-
+        c = self.num_classes
         # Flatten the input if its rank > 1.
         if y_pred.shape.ndims > 1:
             y_pred = tf.reshape(y_pred, [-1])
@@ -87,11 +89,11 @@ class MeanIoU(Metric):
 
         if self.ignore_index is not None:
             mask = tf.not_equal(y_true, self.ignore_index)
-            y_pred = y_pred[mask]
-            y_true = y_true[mask]
+            y_pred = tf.where(mask, y_pred, tf.ones_like(y_pred) * c)
+            y_true = tf.where(mask, y_true, tf.ones_like(y_true) * c)
 
         # Accumulate the prediction to current confusion matrix.
-        current_cm = confusion_matrix(y_true, y_pred, self.num_classes)
+        current_cm = confusion_matrix(y_true, y_pred, self.num_classes + 1)[:c, :c]
         return self.total_cm.assign_add(current_cm)
 
     def result(self):
