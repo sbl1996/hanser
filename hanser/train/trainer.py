@@ -12,7 +12,7 @@ def print_results(prefix, elapsed, results):
 
 class Trainer:
 
-    def __init__(self, model, criterion, optimizer, lr_schedule, metrics=(), test_metrics=(), weight_decay=None, tpu=None, strategy=None):
+    def __init__(self, model, criterion, optimizer, lr_schedule, metrics=(), test_metrics=(), weight_decay=None, model_dir=None, tpu=None, strategy=None):
         self.model = model
         self.criterion = criterion
         self.optimizer = optimizer
@@ -20,8 +20,14 @@ class Trainer:
         self.metrics = metrics
         self.test_metrics = test_metrics
         self.weight_decay = weight_decay
+        self.model_dir = model_dir
         self.tpu = tpu
         self.strategy = strategy
+
+        if self.model_dir:
+            self.checkpoint = tf.train.Checkpoint(model=model, optimizer=optimizer)
+            self.manager = tf.train.CheckpointManager(
+                self.checkpoint, directory=model_dir, max_to_keep=1)
 
     def _train_step(self, inputs):
         images, labels = inputs
@@ -69,7 +75,18 @@ class Trainer:
         with tf.control_dependencies(update_ops):
             return tf.identity(loss)
 
-    def train_and_evaluate(self, epochs, ds_train, steps_per_epoch, ds_val, val_steps):
+    def restore(self, sess):
+        assert self.model_dir is not None, "`model_dir` should be provided."
+        if self.manager.latest_checkpoint:
+            self.checkpoint.restore(self.manager.latest_checkpoint).assert_consumed().run_restore_ops(sess)
+            print("Restored from {}".format(self.manager.latest_checkpoint))
+        else:
+            print("Initializing from scratch.")
+
+    def train_and_evaluate(self, epochs, ds_train, steps_per_epoch, ds_val, val_steps, resume=None, save_per_epochs=None):
+        if save_per_epochs or resume:
+            assert self.model_dir is not None, "`model_dir` should be provided."
+
         if self.tpu is None:
             train_it = ds_train.make_initializable_iterator()
             val_it = ds_val.make_initializable_iterator()
@@ -100,7 +117,8 @@ class Trainer:
             )
 
         with tf.Session(target=target, config=config) as sess:
-            all_variables = self.model.variables + self.optimizer.variables()
+            # all_variables = self.model.variables + self.optimizer.variables()
+            all_variables = tf.global_variables()
             for metric in self.metrics:
                 all_variables.extend(metric.variables)
             for metric in self.test_metrics:
@@ -110,6 +128,9 @@ class Trainer:
             sess.run(train_it.initializer)
             sess.run(val_it.initializer)
             #     checkpoint.restore(manager.latest_checkpoint)
+
+            if resume:
+                self.restore(sess)
 
             for epoch in range(epochs):
                 print('Epoch %s' % (epoch + 1))
@@ -134,6 +155,10 @@ class Trainer:
                     metric_results.append((m.name, sess.run(m.result())))
                     m.reset_states()
                 print_results("Val", elapsed, metric_results)
+
+                if save_per_epochs and (epoch + 1) % save_per_epochs == 0:
+                    save_path = self.manager.save()
+                    print("Saved checkpoint: %s" % save_path)
 
     def evaluate(self):
         pass
