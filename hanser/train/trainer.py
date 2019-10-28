@@ -81,7 +81,7 @@ class Trainer:
             config = None
         else:
             ds_train = self.strategy.experimental_distribute_dataset(ds_train)
-            ds_val = self.strategy.experimental_distribute_dataset(ds_train)
+            ds_val = self.strategy.experimental_distribute_dataset(ds_val)
 
             train_it = ds_train.make_initializable_iterator()
             val_it = ds_val.make_initializable_iterator()
