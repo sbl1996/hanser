@@ -86,8 +86,12 @@ class Trainer:
             train_it = ds_train.make_initializable_iterator()
             val_it = ds_val.make_initializable_iterator()
 
-            train_op = self.strategy.experimental_run_v2(self._train_step, args=(train_it.get_next(),))
-            val_op = self.strategy.experimental_run_v2(self._test_step, args=(val_it.get_next(),))
+            train_op = self.strategy.experimental_run_v2(
+                self.strategy.experimental_local_results(
+                    self._train_step, args=(train_it.get_next(),)))
+            val_op = self.strategy.experimental_run_v2(
+                self.strategy.experimental_local_results(
+                    self._test_step, args=(val_it.get_next(),)))
 
             target = self.tpu.master()
             config = tf.ConfigProto(
