@@ -45,7 +45,8 @@ class Trainer:
                 loss = loss1 + loss2
             else:
                 loss = loss1
-            # loss = loss / strategy.num_replicas_in_sync
+            if self.strategy:
+                loss = loss / self.strategy.num_replicas_in_sync
         grads = tape.gradient(loss, self.model.trainable_variables)
         update_vars = self.optimizer.apply_gradients(
             zip(grads, self.model.trainable_variables))
