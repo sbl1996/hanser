@@ -20,31 +20,31 @@ def unet(input_shape, num_classes, channels=64):
 
     c0 = conv_block(inputs, channels * 1)
 
-    # x = MaxPool2D(pool_size=(2, 2), strides=(2, 2))(c0)
-    # c1 = conv_block(x, channels * 2)
-    #
-    # x = MaxPool2D(pool_size=(2, 2), strides=(2, 2))(c1)
-    # c2 = conv_block(x, channels * 4)
-    #
-    # x = MaxPool2D(pool_size=(2, 2), strides=(2, 2))(c2)
-    # c3 = conv_block(x, channels * 8)
-    #
-    # x = MaxPool2D(pool_size=(2, 2), strides=(2, 2))(c3)
-    # x = conv_block(x, channels * 16)
-    #
-    # x = Concatenate()([c3, deconv2d(x, channels * 8, kernel_size=2, stride=2)])
-    # x = conv_block(x, channels * 8)
-    #
-    # x = Concatenate()([c2, deconv2d(x, channels * 4, kernel_size=2, stride=2)])
-    # x = conv_block(x, channels * 4)
-    #
-    # x = Concatenate()([c1, deconv2d(x, channels * 2, kernel_size=2, stride=2)])
-    # x = conv_block(x, channels * 2)
-    #
-    # x = Concatenate()([c0, deconv2d(x, channels * 1, kernel_size=2, stride=2)])
-    # x = conv_block(x, channels * 1)
+    x = MaxPool2D(pool_size=(2, 2), strides=(2, 2))(c0)
+    c1 = conv_block(x, channels * 2)
 
-    x = c0
+    x = MaxPool2D(pool_size=(2, 2), strides=(2, 2))(c1)
+    c2 = conv_block(x, channels * 4)
+
+    x = MaxPool2D(pool_size=(2, 2), strides=(2, 2))(c2)
+    c3 = conv_block(x, channels * 8)
+
+    x = MaxPool2D(pool_size=(2, 2), strides=(2, 2))(c3)
+    x = conv_block(x, channels * 16)
+
+    x = Concatenate()([c3, deconv2d(x, channels * 8, kernel_size=2, stride=2)])
+    x = conv_block(x, channels * 8)
+
+    x = Concatenate()([c2, deconv2d(x, channels * 4, kernel_size=2, stride=2)])
+    x = conv_block(x, channels * 4)
+
+    x = Concatenate()([c1, deconv2d(x, channels * 2, kernel_size=2, stride=2)])
+    x = conv_block(x, channels * 2)
+
+    x = Concatenate()([c0, deconv2d(x, channels * 1, kernel_size=2, stride=2)])
+    x = conv_block(x, channels * 1)
+
+    # x = c0
     logits = conv2d(x, num_classes, kernel_size=1, use_bias=True)
 
     model = Model(inputs=inputs, outputs=logits)
