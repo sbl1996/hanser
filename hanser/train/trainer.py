@@ -12,17 +12,19 @@ def print_results(prefix, elapsed, results):
 
 class Trainer:
 
-    def __init__(self, model, criterion, optimizer, lr_schedule, metrics=(), test_metrics=(), weight_decay=None, model_dir=None, tpu=None, strategy=None):
+    def __init__(self, model, criterion, optimizer, lr_schedule, metrics=(), test_metrics=(), model_dir=None, tpu=None, strategy=None, weight_decay=None):
         self.model = model
         self.criterion = criterion
         self.optimizer = optimizer
         self.lr_schedule = lr_schedule
         self.metrics = metrics
         self.test_metrics = test_metrics
-        self.weight_decay = weight_decay
         self.model_dir = model_dir
         self.tpu = tpu
         self.strategy = strategy
+
+        self.weight_decay = weight_decay
+        self._get_sample_weight = None
 
         if self.model_dir:
             self.checkpoint = tf.train.Checkpoint(model=model, optimizer=optimizer)
@@ -53,7 +55,11 @@ class Trainer:
             if 'loss' in metric.name:
                 update_op = metric.update_state(loss1)
             else:
-                update_op = metric.update_state(labels, preds)
+                if self._get_sample_weight is None:
+                    sample_weight = None
+                else:
+                    sample_weight = self._get_sample_weight(labels, preds)
+                update_op = metric.update_state(labels, preds, sample_weight)
             update_ops.append(update_op)
         #     update_accuracy = training_accuracy.update_state(labels, logits)
         with tf.control_dependencies(update_ops):
@@ -69,7 +75,11 @@ class Trainer:
             if 'loss' in metric.name:
                 update_op = metric.update_state(loss)
             else:
-                update_op = metric.update_state(labels, preds)
+                if self._get_sample_weight is None:
+                    sample_weight = None
+                else:
+                    sample_weight = self._get_sample_weight(labels, preds)
+                update_op = metric.update_state(labels, preds, sample_weight)
             update_ops.append(update_op)
         #     update_accuracy = training_accuracy.update_state(labels, logits)
         with tf.control_dependencies(update_ops):
@@ -83,7 +93,9 @@ class Trainer:
         else:
             print("Initializing from scratch.")
 
-    def train_and_evaluate(self, epochs, ds_train, steps_per_epoch, ds_val, val_steps, resume=None, save_per_epochs=None):
+    def train_and_evaluate(self, epochs, ds_train, steps_per_epoch, ds_val, val_steps, resume=None, save_per_epochs=None, get_sample_weight=None):
+        self._get_sample_weight = get_sample_weight
+
         if save_per_epochs or resume:
             assert self.model_dir is not None, "`model_dir` should be provided."
 
