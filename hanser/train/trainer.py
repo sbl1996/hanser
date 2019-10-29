@@ -97,8 +97,10 @@ class Trainer:
         if self.manager.latest_checkpoint:
             self.checkpoint.restore(self.manager.latest_checkpoint).assert_consumed().run_restore_ops(sess)
             print("Restored from {}".format(self.manager.latest_checkpoint))
+            return True
         else:
             print("Initializing from scratch.")
+            return False
 
     def train_and_evaluate(self, epochs, ds_train, steps_per_epoch, ds_val, val_steps, resume=True, save_per_epochs=None, get_sample_weight=None):
         self._get_sample_weight = get_sample_weight
@@ -154,10 +156,11 @@ class Trainer:
             if resume:
                 self.restore(sess)
 
-            last_epoch = sess.run(self._epoch)
+            epoch = sess.run(self._epoch)
+            max_epochs = epoch + epochs
             epoch_inc_op = self._epoch.assign_add(1)
 
-            for epoch in range(last_epoch, last_epoch + epochs):
+            while epoch < max_epochs:
                 print('Epoch %s' % (epoch + 1))
                 start = time.time()
                 for step in range(steps_per_epoch):
@@ -181,11 +184,55 @@ class Trainer:
                 elapsed = time.time() - start
                 print_results("Val", elapsed, metric_results)
 
-                sess.run(epoch_inc_op)
+                epoch = sess.run(epoch_inc_op)
 
-                if save_per_epochs and (epoch + 1) % save_per_epochs == 0:
-                    save_path = self.manager.save(epoch + 1)
+                if save_per_epochs and epoch % save_per_epochs == 0:
+                    save_path = self.manager.save(epoch)
                     print("Saved checkpoint: %s" % save_path)
 
-    def evaluate(self):
-        pass
+    def evaluate(self, ds_test, test_steps, get_sample_weight=None):
+        self._get_sample_weight = get_sample_weight
+
+        assert self.model_dir is not None, "`model_dir` should be provided."
+
+        if self.tpu is None:
+            test_it = ds_test.make_initializable_iterator()
+            test_op = self._test_step(test_it.get_next())
+
+            target = ''
+            config = None
+        else:
+            ds_test = self.strategy.experimental_distribute_dataset(ds_test)
+            test_it = ds_test.make_initializable_iterator()
+            test_op = self.strategy.experimental_local_results(
+                self.strategy.experimental_run_v2(
+                    self._test_step, args=(test_it.get_next(),)))
+
+            target = self.tpu.master()
+            config = tf.ConfigProto(
+                allow_soft_placement = True,
+                cluster_def=self.tpu.cluster_spec().as_cluster_def()
+            )
+
+        with tf.Session(target=target, config=config) as sess:
+            # all_variables = self.model.variables + self.optimizer.variables()
+            all_variables = tf.global_variables()
+            for metric in self.test_metrics:
+                all_variables.extend(metric.variables)
+
+            sess.run([v.initializer for v in all_variables])
+            sess.run(test_it.initializer)
+
+            test_metric_result_ops = [m.result() for m in self.test_metrics]
+
+            self.restore(sess)
+
+            start = time.time()
+            for step in range(test_steps):
+                sess.run(test_op)
+            metric_results = []
+            for m, r in zip(self.test_metrics, test_metric_result_ops):
+                metric_results.append((m.name, sess.run(r)))
+                m.reset_states()
+            elapsed = time.time() - start
+            print_results("Test", elapsed, metric_results)
