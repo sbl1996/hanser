@@ -26,8 +26,10 @@ class Trainer:
         self.weight_decay = weight_decay
         self._get_sample_weight = None
 
+        self._epoch = tf.Variable(0, trainable=False)
+
         if self.model_dir:
-            self.checkpoint = tf.train.Checkpoint(model=model, optimizer=optimizer)
+            self.checkpoint = tf.train.Checkpoint(model=model, optimizer=optimizer, epoch=self._epoch)
             self.manager = tf.train.CheckpointManager(
                 self.checkpoint, directory=model_dir, max_to_keep=1)
 
@@ -94,7 +96,7 @@ class Trainer:
         else:
             print("Initializing from scratch.")
 
-    def train_and_evaluate(self, epochs, ds_train, steps_per_epoch, ds_val, val_steps, resume=None, save_per_epochs=None, get_sample_weight=None):
+    def train_and_evaluate(self, epochs, ds_train, steps_per_epoch, ds_val, val_steps, resume=True, save_per_epochs=None, get_sample_weight=None):
         self._get_sample_weight = get_sample_weight
 
         if save_per_epochs or resume:
@@ -145,7 +147,9 @@ class Trainer:
             if resume:
                 self.restore(sess)
 
-            for epoch in range(epochs):
+            start = sess.run(self._epoch)
+
+            for epoch in range(start, start + epochs):
                 print('Epoch %s' % (epoch + 1))
                 start = time.time()
                 for step in range(steps_per_epoch):
@@ -169,8 +173,10 @@ class Trainer:
                     m.reset_states()
                 print_results("Val", elapsed, metric_results)
 
+                sess.run(self._epoch.assign(epoch + 1))
+
                 if save_per_epochs and (epoch + 1) % save_per_epochs == 0:
-                    save_path = self.manager.save()
+                    save_path = self.manager.save(epoch + 1)
                     print("Saved checkpoint: %s" % save_path)
 
     def evaluate(self):
