@@ -483,3 +483,17 @@ def translate_y(image, pixels, replace):
     """Equivalent of PIL Translate in Y dimension."""
     image = tf.contrib.image.translate(wrap(image), [0, -pixels])
     return unwrap(image, replace)
+
+
+def normalize(image, mean, std):
+    mean = tf.convert_to_tensor(mean, image.dtype)
+    std = tf.convert_to_tensor(std, image.dtype)
+    image = (image - mean) / std
+    return image
+
+
+def to_tensor(image, label, dtype=tf.float32):
+    image = tf.cast(image, dtype) / 255
+    label = tf.cast(label, tf.int32)
+
+    return image, label

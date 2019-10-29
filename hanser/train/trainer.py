@@ -38,6 +38,8 @@ class Trainer:
         with tf.GradientTape() as tape:
             preds = self.model(images, training=True)
             loss1 = self.criterion(labels, preds)
+            if loss1.shape.ndims != 0:
+                loss1 = tf.reduce_mean(loss1)
             if self.weight_decay is not None:
                 loss2 = self.weight_decay * tf.add_n([
                     tf.nn.l2_loss(v)
@@ -72,6 +74,8 @@ class Trainer:
         images, labels = inputs
         preds = self.model(images, training=False)
         loss = self.criterion(labels, preds)
+        if loss.shape.ndims != 0:
+            loss = tf.reduce_mean(loss)
 
         update_ops = []
         for metric in self.test_metrics:
@@ -156,21 +160,21 @@ class Trainer:
                     lr = self.lr_schedule(epoch + float(step) / steps_per_epoch)
                     tf.keras.backend.set_value(self.optimizer.lr, lr)
                     sess.run(train_op)
-                elapsed = time.time() - start
                 metric_results = []
                 for m in self.metrics:
                     metric_results.append((m.name, sess.run(m.result())))
                     m.reset_states()
+                elapsed = time.time() - start
                 print_results("Train", elapsed, metric_results)
 
                 start = time.time()
                 for step in range(val_steps):
                     sess.run(val_op)
-                elapsed = time.time() - start
                 metric_results = []
                 for m in self.test_metrics:
                     metric_results.append((m.name, sess.run(m.result())))
                     m.reset_states()
+                elapsed = time.time() - start
                 print_results("Val", elapsed, metric_results)
 
                 sess.run(self._epoch.assign(epoch + 1))
