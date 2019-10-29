@@ -163,10 +163,14 @@ class Trainer:
             while epoch < max_epochs:
                 print('Epoch %s' % (epoch + 1))
                 start = time.time()
+
+                lr = self.lr_schedule(epoch)
+                tf.keras.backend.set_value(self.optimizer.lr, lr)
                 for step in range(steps_per_epoch):
-                    lr = self.lr_schedule(epoch + float(step) / steps_per_epoch)
-                    tf.keras.backend.set_value(self.optimizer.lr, lr)
+                    # lr = self.lr_schedule(epoch + float(step) / steps_per_epoch)
+                    # tf.keras.backend.set_value(self.optimizer.lr, lr)
                     sess.run(train_op)
+                    
                 metric_results = []
                 for m, r in zip(self.metrics, metric_result_ops):
                     metric_results.append((m.name, sess.run(r)))
