@@ -148,6 +148,9 @@ class Trainer:
             sess.run(val_it.initializer)
             #     checkpoint.restore(manager.latest_checkpoint)
 
+            metric_result_tensors = [ m.result() for m in self.metrics ]
+            test_metric_result_tensors = [m.result() for m in self.test_metrics]
+
             if resume:
                 self.restore(sess)
 
@@ -161,8 +164,8 @@ class Trainer:
                     tf.keras.backend.set_value(self.optimizer.lr, lr)
                     sess.run(train_op)
                 metric_results = []
-                for m in self.metrics:
-                    metric_results.append((m.name, sess.run(m.result())))
+                for m, r in zip(self.metrics, metric_result_tensors):
+                    metric_results.append((m.name, sess.run(r)))
                     m.reset_states()
                 elapsed = time.time() - start
                 print_results("Train", elapsed, metric_results)
@@ -171,8 +174,8 @@ class Trainer:
                 for step in range(val_steps):
                     sess.run(val_op)
                 metric_results = []
-                for m in self.test_metrics:
-                    metric_results.append((m.name, sess.run(m.result())))
+                for m, r in zip(self.test_metrics, test_metric_result_tensors):
+                    metric_results.append((m.name, sess.run(r)))
                     m.reset_states()
                 elapsed = time.time() - start
                 print_results("Val", elapsed, metric_results)
