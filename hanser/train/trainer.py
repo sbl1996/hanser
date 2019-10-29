@@ -148,15 +148,16 @@ class Trainer:
             sess.run(val_it.initializer)
             #     checkpoint.restore(manager.latest_checkpoint)
 
-            metric_result_tensors = [ m.result() for m in self.metrics ]
-            test_metric_result_tensors = [m.result() for m in self.test_metrics]
+            metric_result_ops = [ m.result() for m in self.metrics ]
+            test_metric_result_ops = [m.result() for m in self.test_metrics]
 
             if resume:
                 self.restore(sess)
 
-            start = sess.run(self._epoch)
+            last_epoch = sess.run(self._epoch)
+            epoch_inc_op = self._epoch.assign_add(1)
 
-            for epoch in range(start, start + epochs):
+            for epoch in range(last_epoch, last_epoch + epochs):
                 print('Epoch %s' % (epoch + 1))
                 start = time.time()
                 for step in range(steps_per_epoch):
@@ -164,7 +165,7 @@ class Trainer:
                     tf.keras.backend.set_value(self.optimizer.lr, lr)
                     sess.run(train_op)
                 metric_results = []
-                for m, r in zip(self.metrics, metric_result_tensors):
+                for m, r in zip(self.metrics, metric_result_ops):
                     metric_results.append((m.name, sess.run(r)))
                     m.reset_states()
                 elapsed = time.time() - start
@@ -174,13 +175,13 @@ class Trainer:
                 for step in range(val_steps):
                     sess.run(val_op)
                 metric_results = []
-                for m, r in zip(self.test_metrics, test_metric_result_tensors):
+                for m, r in zip(self.test_metrics, test_metric_result_ops):
                     metric_results.append((m.name, sess.run(r)))
                     m.reset_states()
                 elapsed = time.time() - start
                 print_results("Val", elapsed, metric_results)
 
-                sess.run(self._epoch.assign(epoch + 1))
+                sess.run(epoch_inc_op)
 
                 if save_per_epochs and (epoch + 1) % save_per_epochs == 0:
                     save_path = self.manager.save(epoch + 1)
