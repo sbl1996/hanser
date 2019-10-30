@@ -43,36 +43,6 @@ def rd(c):
     return int(round(c, 2))
 
 
-def pyramidnet2(x, num_classes=10, start_channels=16, widening_fractor=84, num_layers=(18, 18, 18), block='basic'):
-    assert len(num_layers) == 3
-    assert block in ["basic", "bottleneck"]
-    if block == "basic":
-        block = basicblock
-    elif block == "bottleneck":
-        block = bottleneck
-
-    add_channels = widening_fractor / sum(num_layers)
-    channels = start_channels
-
-    x = conv2d(x, start_channels, kernel_size=3)
-    x = bn(x)
-
-    strides = [1, 2, 2]
-
-    for s, l in zip(strides, num_layers):
-        for i in range(l):
-            channels += add_channels
-            x = block(x, rd(channels), stride=s if i == 0 else 1)
-
-    x = bn(x)
-    x = ReLU()(x)
-    x = GlobalAvgPool2D()(x)
-    x = Flatten()(x)
-    x = dense(x, num_classes)
-
-    return x
-
-
 def pyramidnet(input_shape, num_classes=10, start_channels=16, widening_fractor=84, num_layers=(18, 18, 18), block='basic'):
     assert len(num_layers) == 3
     assert block in ["basic", "bottleneck"]

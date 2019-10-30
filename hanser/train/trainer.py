@@ -166,15 +166,18 @@ class Trainer:
 
                 lr = self.lr_schedule(epoch)
                 tf.keras.backend.set_value(self.optimizer.lr, lr)
+                print("Set lr")
                 for step in range(steps_per_epoch):
                     # lr = self.lr_schedule(epoch + float(step) / steps_per_epoch)
                     # tf.keras.backend.set_value(self.optimizer.lr, lr)
                     sess.run(train_op)
-                    
+                    print("Step %d" % step)
+
                 metric_results = []
                 for m, r in zip(self.metrics, metric_result_ops):
                     metric_results.append((m.name, sess.run(r)))
                     m.reset_states()
+                    print("Reset %s" % m)
                 elapsed = time.time() - start
                 print_results("Train", elapsed, metric_results)
 
