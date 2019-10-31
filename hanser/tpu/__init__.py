@@ -29,5 +29,3 @@ def local_results(strategy, values):
         return values.__class__(strategy.experimental_local_results(v) for v in values)
     else:
         raise ValueError("`values` must be PerReplica, list or tuple or PerReplica, got %s" % type(values))
-
-def run(fetches, )
