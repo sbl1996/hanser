@@ -3,6 +3,7 @@ import tensorflow as tf
 import time
 
 import numpy as np
+from hanser.tpu import local_results
 
 
 def print_results(prefix, elapsed, results):
@@ -26,6 +27,12 @@ class Trainer:
         self.tpu = tpu
         self.strategy = strategy
 
+        self._target = tpu.master() if tpu else ''
+        self._config = tf.ConfigProto(
+            allow_soft_placement=True,
+            cluster_def=tpu.cluster_spec().as_cluster_def()
+        ) if tpu else None
+
         self.weight_decay = weight_decay
         self._get_sample_weight = None
 
@@ -39,7 +46,6 @@ class Trainer:
             self.optim_ckpt = tf.train.Checkpoint(optimizer=optimizer, epoch=self._epoch)
             self.optim_ckpt_manager = tf.train.CheckpointManager(
                 self.optim_ckpt, directory=model_dir, max_to_keep=1, checkpoint_name='optim')
-
 
     def _train_step(self, inputs):
         images, labels = inputs
@@ -228,7 +234,6 @@ class Trainer:
 
         if self.tpu is None:
             test_it = ds_test.make_initializable_iterator()
-            train_op = self._train_step(test_it.get_next())
             test_op = self._test_step(test_it.get_next())
 
             target = ''
@@ -236,9 +241,6 @@ class Trainer:
         else:
             ds_test = self.strategy.experimental_distribute_dataset(ds_test)
             test_it = ds_test.make_initializable_iterator()
-            train_op = self.strategy.experimental_local_results(
-                self.strategy.experimental_run_v2(
-                    self._train_step, args=(test_it.get_next(),)))
 
             test_op = self.strategy.experimental_local_results(
                 self.strategy.experimental_run_v2(
@@ -277,71 +279,62 @@ class Trainer:
 
         assert self.model_dir is not None, "`model_dir` should be provided."
 
-        if self.tpu is None:
+        def predict_step(inputs, target):
+            output = output_transform(self.model(inputs, training=False))
+            target = target_transform(target)
+            return target, output
 
-            test_it1 = ds_test.make_initializable_iterator()
-            test_it2 = ds_test.make_initializable_iterator()
-            predict_op = output_transform(self.model(test_it1.get_next()[0], training=False))
-            target_op = target_transform(test_it2.get_next()[1])
+        ds_test = self.strategy.experimental_distribute_dataset(
+            ds_test) if self.strategy else ds_test
 
-            target = ''
-            config = None
+        test_it = ds_test.make_initializable_iterator()
+
+        if self.strategy:
+            predict_op = local_results(
+                self.strategy, self.strategy.experimental_run_v2(predict_step, test_it.get_next()))
         else:
-            ds_test = self.strategy.experimental_distribute_dataset(ds_test)
-            test_it1 = ds_test.make_initializable_iterator()
-            test_it2 = ds_test.make_initializable_iterator()
-            predict_op = self.strategy.experimental_local_results(
-                self.strategy.experimental_run_v2(
-                    lambda x: output_transform(self.model(x, training=False)), args=(test_it1.get_next()[0],)))
-
-            target_op = self.strategy.experimental_local_results(
-                self.strategy.experimental_run_v2(
-                    lambda x: target_transform(x[1]), args=(test_it2.get_next(),)))
-
-            target = self.tpu.master()
-            config = tf.ConfigProto(
-                allow_soft_placement=True,
-                cluster_def=self.tpu.cluster_spec().as_cluster_def()
-            )
+            predict_op = predict_step(*test_it.get_next())
 
         checkpoint = tf.train.Checkpoint(model=self.model)
         manager = tf.train.CheckpointManager(
             checkpoint, directory=self.model_dir, max_to_keep=1, checkpoint_name='model')
 
-        with tf.Session(target=target, config=config) as sess:
-            # all_variables = self.model.variables + self.optimizer.variables()
+        with tf.Session(target=self._target, config=self._config) as sess:
             all_variables = tf.global_variables()
 
             sess.run([v.initializer for v in all_variables])
-            sess.run(test_it1.initializer)
-            sess.run(test_it2.initializer)
+            sess.run(test_it.initializer)
 
             self.restore_model(sess, checkpoint, manager)
 
             sess_cpu = tf.Session()
             sess_cpu.run([
                 v.initializer
-                for m in metrics
-                for v in m.variables
+                for m in metrics for v in m.variables
             ])
 
             for step in range(test_steps):
-                pred = sess.run(predict_op)
-                target = sess.run(target_op)
-                if not isinstance(pred, np.ndarray):
-                    pred = np.concatenate(pred)
-                if not isinstance(target, np.ndarray):
-                    target = np.concatenate(target)
+                target, output = sess.run(predict_op)
 
-                pred = tf.convert_to_tensor(pred)
+                target = maybe_cat(target)
+                output = maybe_cat(target)
+
                 target = tf.convert_to_tensor(target)
-                if get_sample_weight is not None:
-                    weight = get_sample_weight(target, pred)
-                else:
-                    weight = None
+                output = tf.convert_to_tensor(output)
+                weight = maybe_call(get_sample_weight, target, output)
                 for m in metrics:
-                    sess_cpu.run(m.update_state(target, pred, weight))
+                    sess_cpu.run(m.update_state(target, output, weight))
             return [sess_cpu.run(m.result()) for m in metrics]
 
-    def hello(self):
-        print("Hello")
+
+def maybe_cat(x):
+    if isinstance(x, (list, tuple)) and isinstance(x[0], np.ndarray):
+        x = np.concatenate(x)
+    return x
+
+
+def maybe_call(fn, *args, default=None):
+    if fn is None:
+        return default
+    else:
+        return fn(*args)
