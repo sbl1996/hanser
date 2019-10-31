@@ -342,3 +342,6 @@ class Trainer:
                 for m in metrics:
                     sess_cpu.run(m.update_state(target, pred, weight))
             return [sess_cpu.run(m.result()) for m in metrics]
+
+    def hello(self):
+        print("Hello")

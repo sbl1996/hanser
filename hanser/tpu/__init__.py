@@ -1,7 +1,7 @@
 import os
 
 import tensorflow as tf
-
+from tensorflow.python.distribute.values import PerReplica
 
 def get_colab_tpu():
     tpu = os.environ.get('COLAB_TPU_ADDR')
@@ -21,3 +21,13 @@ def auth():
     from google.colab import auth
     auth.authenticate_user()
 
+
+def local_results(strategy, values):
+    if isinstance(values, PerReplica):
+        return strategy.experimental_local_results(values)
+    elif isinstance(values, (list, tuple)):
+        return values.__class__(strategy.experimental_local_results(v) for v in values)
+    else:
+        raise ValueError("`values` must be PerReplica, list or tuple or PerReplica, got %s" % type(values))
+
+def run(fetches, )
