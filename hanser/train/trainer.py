@@ -26,6 +26,19 @@ def run_epoch(sess, op, steps, metrics, metric_resuls_ops, name):
     print_results(name, elapsed, metric_results)
 
 
+def maybe_cat(x):
+    if isinstance(x, (list, tuple)) and isinstance(x[0], np.ndarray):
+        x = np.concatenate(x)
+    return x
+
+
+def maybe_call(fn, *args, default=None):
+    if fn is None:
+        return default
+    else:
+        return fn(*args)
+
+
 class Trainer:
 
     def __init__(self, model, criterion, optimizer, lr_schedule, metrics=(), test_metrics=(), model_dir=None, tpu=None,
@@ -112,7 +125,7 @@ class Trainer:
         assert self.model_dir is not None, "`model_dir` should be provided."
 
         if manager.latest_checkpoint:
-            checkpoint.restore(manager.latest_checkpoint).assert_consumed().run_restore_ops(sess)
+            checkpoint.restore(manager.latest_checkpoint).run_restore_ops(sess)
             print("Restored from {}".format(manager.latest_checkpoint))
             return True
         else:
@@ -219,6 +232,11 @@ class Trainer:
         assert self.model_dir is not None, "`model_dir` should be provided."
         model_ckpt, model_ckpt_manager = self._make_ckpt("model", model=self.model)
 
+        assert callable(metrics), "Define metrics as lambda: metrics."
+        g_cpu = tf.Graph()
+        with g_cpu.as_default():
+            metrics = metrics()
+
         def predict_step(inputs, target):
             output = output_transform(self.model(inputs, training=False))
             target = target_transform(target)
@@ -243,7 +261,7 @@ class Trainer:
 
             self.restore(sess, model_ckpt, model_ckpt_manager)
 
-            sess_cpu = tf.Session()
+            sess_cpu = tf.Session(graph=g_cpu)
             sess_cpu.run([
                 v.initializer
                 for m in metrics for v in m.variables
@@ -255,22 +273,13 @@ class Trainer:
                 target = maybe_cat(target)
                 output = maybe_cat(output)
 
-                target = tf.convert_to_tensor(target)
-                output = tf.convert_to_tensor(output)
-                weight = maybe_call(get_sample_weight, target, output)
-                for m in metrics:
-                    sess_cpu.run(m.update_state(target, output, weight))
-            return [sess_cpu.run(m.result()) for m in metrics]
-
-
-def maybe_cat(x):
-    if isinstance(x, (list, tuple)) and isinstance(x[0], np.ndarray):
-        x = np.concatenate(x)
-    return x
-
-
-def maybe_call(fn, *args, default=None):
-    if fn is None:
-        return default
-    else:
-        return fn(*args)
+                with g_cpu.as_default():
+                    target = tf.convert_to_tensor(target)
+                    output = tf.convert_to_tensor(output)
+                    weight = maybe_call(get_sample_weight, target, output)
+                    for m in metrics:
+                        sess_cpu.run(m.update_state(target, output, weight))
+        with g_cpu.as_default():
+            results = [sess_cpu.run(m.result()) for m in metrics]
+        sess_cpu.close()
+        return results
