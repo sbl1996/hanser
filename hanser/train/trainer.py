@@ -187,8 +187,8 @@ class Trainer:
                 print('Epoch %s' % (epoch + 1))
 
                 K.set_value(self.optimizer.lr, self.lr_schedule(epoch))
-                run_epoch(sess, train_op, steps_per_epoch, self.metrics, metric_result_ops, "Train")
 
+                run_epoch(sess, train_op, steps_per_epoch, self.metrics, metric_result_ops, "Train")
                 run_epoch(sess, val_op, val_steps, self.test_metrics, test_metric_result_ops, "Val")
 
                 epoch = sess.run(epoch_inc_op)
@@ -227,7 +227,8 @@ class Trainer:
 
             run_epoch(sess, test_op, test_steps, self.test_metrics, test_metric_result_ops, "Test")
 
-    def evaluate2(self, ds_test, test_steps, metrics, output_transform, target_transform, get_sample_weight=None):
+    def evaluate2(self, ds_test, test_steps, metrics,
+                  output_transform=lambda x: x, target_transform=lambda x: x, get_sample_weight=None):
 
         assert self.model_dir is not None, "`model_dir` should be provided."
         model_ckpt, model_ckpt_manager = self._make_ckpt("model", model=self.model)
@@ -239,7 +240,7 @@ class Trainer:
 
         def predict_step(inputs, target):
             output = output_transform(self.model(inputs, training=False))
-            target = target_transform(target)
+            # target = target_transform(target)
             return target, output
 
         ds_test = self.strategy.experimental_distribute_dataset(
@@ -277,9 +278,57 @@ class Trainer:
                     target = tf.convert_to_tensor(target)
                     output = tf.convert_to_tensor(output)
                     weight = maybe_call(get_sample_weight, target, output)
+                    target = target_transform(target_transform)
                     for m in metrics:
                         sess_cpu.run(m.update_state(target, output, weight))
         with g_cpu.as_default():
             results = [sess_cpu.run(m.result()) for m in metrics]
         sess_cpu.close()
         return results
+
+
+    def collect(self, ds_test, test_steps, output_transform, target_transform):
+
+        assert self.model_dir is not None, "`model_dir` should be provided."
+        model_ckpt, model_ckpt_manager = self._make_ckpt("model", model=self.model)
+
+        def predict_step(inputs, target):
+            output = output_transform(self.model(inputs, training=False))
+            target = target_transform(target)
+            return target, output
+
+        ds_test = self.strategy.experimental_distribute_dataset(
+            ds_test) if self.strategy else ds_test
+
+        test_it = ds_test.make_initializable_iterator()
+
+        if self.strategy:
+            predict_op = local_results(
+                self.strategy, self.strategy.experimental_run_v2(predict_step, test_it.get_next()))
+        else:
+            predict_op = predict_step(*test_it.get_next())
+
+        with tf.Session(target=self._target, config=self._config) as sess:
+            all_variables = tf.global_variables()
+
+            sess.run([v.initializer for v in all_variables])
+            sess.run(test_it.initializer)
+
+            self.restore(sess, model_ckpt, model_ckpt_manager)
+
+            targets = []
+            outputs = []
+
+            for step in range(test_steps):
+                target, output = sess.run(predict_op)
+
+                if isinstance(target, np.ndarray):
+                    targets.append(target)
+                    outputs.append(output)
+                else:
+                    targets.extend(target)
+                    outputs.extend(output)
+
+        target = np.concatenate(targets)
+        output = np.concatenate(outputs)
+        return target, output

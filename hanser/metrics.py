@@ -14,7 +14,6 @@ def iou(y_true, y_pred, num_classes, ignore_index=None):
         y_pred = y_pred[mask]
         y_true = y_true[mask]
     cm = confusion_matrix(y_true, y_pred, num_classes)
-    print(cm)
     # compute mean iou
     intersection = np.diag(cm)
     ground_truth_set = cm.sum(axis=1)
