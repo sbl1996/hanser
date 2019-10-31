@@ -1,4 +1,5 @@
 import tensorflow as tf
+import tensorflow.keras.backend as K
 
 import time
 
@@ -11,6 +12,18 @@ def print_results(prefix, elapsed, results):
     for name, val in results:
         s = s + ", %s: %.3f" % (name, val)
     print(s)
+
+
+def run_epoch(sess, op, steps, metrics, metric_resuls_ops, name):
+    start = time.time()
+    for step in range(steps):
+        sess.run(op)
+    metric_results = []
+    for m, r in zip(metrics, metric_resuls_ops):
+        metric_results.append((m.name, sess.run(r)))
+        m.reset_states()
+    elapsed = time.time() - start
+    print_results(name, elapsed, metric_results)
 
 
 class Trainer:
@@ -38,23 +51,19 @@ class Trainer:
 
         self._epoch = tf.Variable(0, trainable=False)
 
-        if self.model_dir:
-            self.model_ckpt = tf.train.Checkpoint(model=model)
-            self.model_ckpt_manager = tf.train.CheckpointManager(
-                self.model_ckpt, directory=model_dir, max_to_keep=1, checkpoint_name='model')
+    def _make_ckpt(self, name, **kwargs):
+        ckpt = tf.train.Checkpoint(**kwargs)
+        ckpt_manager = tf.train.CheckpointManager(
+            ckpt, directory=self.model_dir + "/" + name, max_to_keep=1)
+        return ckpt, ckpt_manager
 
-            self.optim_ckpt = tf.train.Checkpoint(optimizer=optimizer, epoch=self._epoch)
-            self.optim_ckpt_manager = tf.train.CheckpointManager(
-                self.optim_ckpt, directory=model_dir, max_to_keep=1, checkpoint_name='optim')
-
-    def _train_step(self, inputs):
-        images, labels = inputs
+    def _train_step(self, images, labels):
         with tf.GradientTape() as tape:
             preds = self.model(images, training=True)
             loss1 = self.criterion(labels, preds)
             if loss1.shape.ndims != 0:
                 loss1 = tf.reduce_mean(loss1)
-            if self.weight_decay is not None:
+            if self.weight_decay:
                 loss2 = self.weight_decay * tf.add_n([
                     tf.nn.l2_loss(v)
                     for v in tf.trainable_variables()
@@ -65,7 +74,7 @@ class Trainer:
                 loss = loss1
             if self.strategy:
                 loss = loss / self.strategy.num_replicas_in_sync
-        grads = tape.gradient(loss, self.model.trainable_variables)
+            grads = tape.gradient(loss, self.model.trainable_variables)
         update_vars = self.optimizer.apply_gradients(
             zip(grads, self.model.trainable_variables))
 
@@ -74,18 +83,14 @@ class Trainer:
             if 'loss' in metric.name:
                 update_op = metric.update_state(loss1)
             else:
-                if self._get_sample_weight is None:
-                    sample_weight = None
-                else:
-                    sample_weight = self._get_sample_weight(labels, preds)
+                sample_weight = maybe_call(self._get_sample_weight, labels, preds)
                 update_op = metric.update_state(labels, preds, sample_weight)
             update_ops.append(update_op)
-        #     update_accuracy = training_accuracy.update_state(labels, logits)
+
         with tf.control_dependencies(update_ops):
             return tf.identity(loss)
 
-    def _test_step(self, inputs):
-        images, labels = inputs
+    def _test_step(self, images, labels):
         preds = self.model(images, training=False)
         loss = self.criterion(labels, preds)
         if loss.shape.ndims != 0:
@@ -96,17 +101,14 @@ class Trainer:
             if 'loss' in metric.name:
                 update_op = metric.update_state(loss)
             else:
-                if self._get_sample_weight is None:
-                    sample_weight = None
-                else:
-                    sample_weight = self._get_sample_weight(labels, preds)
+                sample_weight = maybe_call(self._get_sample_weight, labels, preds)
                 update_op = metric.update_state(labels, preds, sample_weight)
             update_ops.append(update_op)
-        #     update_accuracy = training_accuracy.update_state(labels, logits)
+
         with tf.control_dependencies(update_ops):
             return tf.identity(loss)
 
-    def restore_model(self, sess, checkpoint, manager):
+    def restore(self, sess, checkpoint, manager):
         assert self.model_dir is not None, "`model_dir` should be provided."
 
         if manager.latest_checkpoint:
@@ -117,21 +119,6 @@ class Trainer:
             print("Initializing from scratch.")
             return False
 
-    def restore(self, sess):
-        assert self.model_dir is not None, "`model_dir` should be provided."
-
-        if self.model_ckpt_manager.latest_checkpoint:
-            self.model_ckpt.restore(self.model_ckpt_manager.latest_checkpoint).assert_consumed().run_restore_ops(sess)
-            print("Restored model from {}".format(self.model_ckpt_manager.latest_checkpoint))
-        else:
-            print("Initializing model from scratch.")
-
-        if self.optim_ckpt_manager.latest_checkpoint:
-            self.optim_ckpt.restore(self.optim_ckpt_manager.latest_checkpoint).assert_consumed().run_restore_ops(sess)
-            print("Restored optimizer from {}".format(self.optim_ckpt_manager.latest_checkpoint))
-        else:
-            print("Initializing optimizer from scratch.")
-
     def train_and_evaluate(self, epochs, ds_train, steps_per_epoch, ds_val, val_steps, resume=True,
                            save_per_epochs=None, get_sample_weight=None):
         self._get_sample_weight = get_sample_weight
@@ -139,35 +126,30 @@ class Trainer:
         if save_per_epochs or resume:
             assert self.model_dir is not None, "`model_dir` should be provided."
 
+            model_ckpt, model_ckpt_manager = self._make_ckpt("model", model=self.model)
+            optim_ckpt, optim_ckpt_manager = self._make_ckpt("optim", optimizer=self.optimizer, epoch=self._epoch)
+
         if self.tpu is None:
             train_it = ds_train.make_initializable_iterator()
-            train_op = self._train_step(train_it.get_next())
+            train_op = self._train_step(*train_it.get_next())
 
             val_it = ds_val.make_initializable_iterator()
-            val_op = self._test_step(val_it.get_next())
+            val_op = self._test_step(*val_it.get_next())
 
-            target = ''
-            config = None
         else:
             ds_train = self.strategy.experimental_distribute_dataset(ds_train)
             train_it = ds_train.make_initializable_iterator()
             train_op = self.strategy.experimental_local_results(
                 self.strategy.experimental_run_v2(
-                    self._train_step, args=(train_it.get_next(),)))
+                    self._train_step, train_it.get_next()))
 
             ds_val = self.strategy.experimental_distribute_dataset(ds_val)
             val_it = ds_val.make_initializable_iterator()
             val_op = self.strategy.experimental_local_results(
                 self.strategy.experimental_run_v2(
-                    self._test_step, args=(val_it.get_next(),)))
+                    self._test_step, val_it.get_next()))
 
-            target = self.tpu.master()
-            config = tf.ConfigProto(
-                allow_soft_placement=True,
-                cluster_def=self.tpu.cluster_spec().as_cluster_def()
-            )
-
-        with tf.Session(target=target, config=config) as sess:
+        with tf.Session(target=self._target, config=self._config) as sess:
             # all_variables = self.model.variables + self.optimizer.variables()
             all_variables = tf.global_variables()
             for metric in self.metrics:
@@ -175,16 +157,14 @@ class Trainer:
             for metric in self.test_metrics:
                 all_variables.extend(metric.variables)
 
-            sess.run([v.initializer for v in all_variables])
-            sess.run(train_it.initializer)
-            sess.run(val_it.initializer)
-            #     checkpoint.restore(manager.latest_checkpoint)
+            sess.run([v.initializer for v in all_variables + [train_it, val_it]])
+
+            if resume:
+                self.restore(sess, model_ckpt, model_ckpt_manager)
+                self.restore(sess, optim_ckpt, optim_ckpt_manager)
 
             metric_result_ops = [m.result() for m in self.metrics]
             test_metric_result_ops = [m.result() for m in self.test_metrics]
-
-            if resume:
-                self.restore(sess)
 
             epoch = sess.run(self._epoch)
             max_epochs = epoch + epochs
@@ -192,68 +172,35 @@ class Trainer:
 
             while epoch < max_epochs:
                 print('Epoch %s' % (epoch + 1))
-                start = time.time()
 
-                lr = self.lr_schedule(epoch)
-                tf.keras.backend.set_value(self.optimizer.lr, lr)
-                print("Set lr")
-                for step in range(steps_per_epoch):
-                    # lr = self.lr_schedule(epoch + float(step) / steps_per_epoch)
-                    # tf.keras.backend.set_value(self.optimizer.lr, lr)
-                    sess.run(train_op)
-                    print("Step %d" % step)
+                K.set_value(self.optimizer.lr, self.lr_schedule(epoch))
+                run_epoch(sess, train_op, steps_per_epoch, self.metrics, metric_result_ops, "Train")
 
-                metric_results = []
-                for m, r in zip(self.metrics, metric_result_ops):
-                    metric_results.append((m.name, sess.run(r)))
-                    m.reset_states()
-                    print("Reset %s" % m)
-                elapsed = time.time() - start
-                print_results("Train", elapsed, metric_results)
-
-                start = time.time()
-                for step in range(val_steps):
-                    sess.run(val_op)
-                metric_results = []
-                for m, r in zip(self.test_metrics, test_metric_result_ops):
-                    metric_results.append((m.name, sess.run(r)))
-                    m.reset_states()
-                elapsed = time.time() - start
-                print_results("Val", elapsed, metric_results)
+                run_epoch(sess, val_op, val_steps, self.test_metrics, test_metric_result_ops, "Val")
 
                 epoch = sess.run(epoch_inc_op)
-
                 if save_per_epochs and epoch % save_per_epochs == 0:
-                    print("Saved checkpoint: %s" % self.model_ckpt_manager.save(epoch))
-                    print("Saved optimizer: %s" % self.optim_ckpt_manager.save(epoch))
+                    print("Saved model: %s" % model_ckpt_manager.save(epoch))
+                    print("Saved optimizer: %s" % optim_ckpt_manager.save(epoch))
 
     def evaluate(self, ds_test, test_steps, get_sample_weight=None):
         self._get_sample_weight = get_sample_weight
 
         assert self.model_dir is not None, "`model_dir` should be provided."
+        model_ckpt, model_ckpt_manager = self._make_ckpt("model", model=self.model)
 
         if self.tpu is None:
             test_it = ds_test.make_initializable_iterator()
-            test_op = self._test_step(test_it.get_next())
-
-            target = ''
-            config = None
+            test_op = self._test_step(*test_it.get_next())
         else:
             ds_test = self.strategy.experimental_distribute_dataset(ds_test)
             test_it = ds_test.make_initializable_iterator()
 
             test_op = self.strategy.experimental_local_results(
                 self.strategy.experimental_run_v2(
-                    self._test_step, args=(test_it.get_next(),)))
+                    self._test_step, test_it.get_next()))
 
-            target = self.tpu.master()
-            config = tf.ConfigProto(
-                allow_soft_placement=True,
-                cluster_def=self.tpu.cluster_spec().as_cluster_def()
-            )
-
-        with tf.Session(target=target, config=config) as sess:
-            # all_variables = self.model.variables + self.optimizer.variables()
+        with tf.Session(target=self._target, config=self._config) as sess:
             all_variables = tf.global_variables()
             for metric in self.test_metrics:
                 all_variables.extend(metric.variables)
@@ -263,21 +210,14 @@ class Trainer:
 
             test_metric_result_ops = [m.result() for m in self.test_metrics]
 
-            self.restore(sess)
+            self.restore(sess, model_ckpt, model_ckpt_manager)
 
-            start = time.time()
-            for step in range(test_steps):
-                sess.run(test_op)
-            metric_results = []
-            for m, r in zip(self.test_metrics, test_metric_result_ops):
-                metric_results.append((m.name, sess.run(r)))
-                m.reset_states()
-            elapsed = time.time() - start
-            print_results("Test", elapsed, metric_results)
+            run_epoch(sess, test_op, test_steps, self.test_metrics, test_metric_result_ops, "Test")
 
     def evaluate2(self, ds_test, test_steps, metrics, output_transform, target_transform, get_sample_weight=None):
 
         assert self.model_dir is not None, "`model_dir` should be provided."
+        model_ckpt, model_ckpt_manager = self._make_ckpt("model", model=self.model)
 
         def predict_step(inputs, target):
             output = output_transform(self.model(inputs, training=False))
@@ -295,17 +235,13 @@ class Trainer:
         else:
             predict_op = predict_step(*test_it.get_next())
 
-        checkpoint = tf.train.Checkpoint(model=self.model)
-        manager = tf.train.CheckpointManager(
-            checkpoint, directory=self.model_dir, max_to_keep=1, checkpoint_name='model')
-
         with tf.Session(target=self._target, config=self._config) as sess:
             all_variables = tf.global_variables()
 
             sess.run([v.initializer for v in all_variables])
             sess.run(test_it.initializer)
 
-            self.restore_model(sess, checkpoint, manager)
+            self.restore(sess, model_ckpt, model_ckpt_manager)
 
             sess_cpu = tf.Session()
             sess_cpu.run([
@@ -317,7 +253,7 @@ class Trainer:
                 target, output = sess.run(predict_op)
 
                 target = maybe_cat(target)
-                output = maybe_cat(target)
+                output = maybe_cat(output)
 
                 target = tf.convert_to_tensor(target)
                 output = tf.convert_to_tensor(output)
