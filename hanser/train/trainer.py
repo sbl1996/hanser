@@ -16,7 +16,7 @@ def print_results(prefix, elapsed, results):
     print(s)
 
 
-def run_epoch(step_fn, iterator, steps, metrics, extra_metrics, name="Train"):
+def run_epoch(step_fn, iterator, steps, metrics, name="Train"):
     start = time.time()
     for step in range(steps):
         step_fn(iterator)
