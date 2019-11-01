@@ -29,8 +29,8 @@ def run_epoch(step_fn, iterator, steps, metrics, name):
 
 
 def maybe_cat(x):
-    if isinstance(x, (list, tuple)) and isinstance(x[0], np.ndarray):
-        x = np.concatenate(x)
+    if isinstance(x, (list, tuple)) and isinstance(x[0], tf.Tensor):
+        x = tf.concat(x, 0)
     return x
 
 
@@ -191,57 +191,36 @@ class Trainer:
         assert self.model_dir is not None, "`model_dir` should be provided."
         model_ckpt, model_ckpt_manager = self._make_ckpt("model", model=self.model)
 
-        assert callable(metrics), "Define metrics as lambda: metrics."
-        g_cpu = tf.Graph()
-        with g_cpu.as_default():
-            metrics = metrics()
+        if self.tpu:
+            assert isinstance(ds_test, DistributedDataset)
+        test_it = iter(ds_test)
 
-        def predict_step(inputs, target):
-            output = output_transform(self.model(inputs, training=False))
-            # target = target_transform(target)
-            return target, output
+        @tf.function
+        def predict_step(iterator):
+            def step_fn(inputs, target):
+                output = output_transform(self.model(inputs, training=False))
+                # target = target_transform(target)
+                return target, output
 
-        ds_test = self.strategy.experimental_distribute_dataset(
-            ds_test) if self.strategy else ds_test
+            if self.strategy:
+                return local_results(
+                    self.strategy, self.strategy.experimental_run_v2(step_fn, args=next(iterator)))
+            else:
+                return step_fn(*next(iterator))
 
-        test_it = ds_test.make_initializable_iterator()
+        self.restore(model_ckpt, model_ckpt_manager)
 
-        if self.strategy:
-            predict_op = local_results(
-                self.strategy, self.strategy.experimental_run_v2(predict_step, test_it.get_next()))
-        else:
-            predict_op = predict_step(*test_it.get_next())
+        for step in range(test_steps):
+            target, output = predict_step(test_it)
 
-        with tf.Session(target=self._target, config=self._config) as sess:
-            all_variables = tf.global_variables()
+            target = maybe_cat(target)
+            output = maybe_cat(output)
 
-            sess.run([v.initializer for v in all_variables])
-            sess.run(test_it.initializer)
-
-            self.restore(sess, model_ckpt, model_ckpt_manager)
-
-            sess_cpu = tf.Session(graph=g_cpu)
-            sess_cpu.run([
-                v.initializer
-                for m in metrics for v in m.variables
-            ])
-
-            for step in range(test_steps):
-                target, output = sess.run(predict_op)
-
-                target = maybe_cat(target)
-                output = maybe_cat(output)
-
-                with g_cpu.as_default():
-                    target = tf.convert_to_tensor(target)
-                    output = tf.convert_to_tensor(output)
-                    weight = maybe_call(get_sample_weight, target, output)
-                    target = target_transform(target_transform)
-                    for m in metrics:
-                        sess_cpu.run(m.update_state(target, output, weight))
-        with g_cpu.as_default():
-            results = [sess_cpu.run(m.result()) for m in metrics]
-        sess_cpu.close()
+            weight = maybe_call(get_sample_weight, target, output)
+            target = target_transform(target)
+            for m in metrics:
+                m.update_state(target, output, weight)
+        results = { m.name: m.result().numpy() for m in metrics }
         return results
 
     def collect(self, ds_test, test_steps, output_transform, target_transform):
