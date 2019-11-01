@@ -2,10 +2,6 @@ import math
 
 import tensorflow as tf
 
-from tensorflow.python.ops import check_ops
-from tensorflow.python.ops import control_flow_ops
-from tensorflow.python.ops import array_ops
-
 
 def _image_dimensions(image, rank):
     """Returns the dimensions of an image tensor.
@@ -29,69 +25,33 @@ def _image_dimensions(image, rank):
         ]
 
 
-def _is_tensor(x):
-    """Returns `True` if `x` is a symbolic tensor-like object.
-
-    Args:
-      x: A python object to check.
-
-    Returns:
-      `True` if `x` is a `tf.Tensor` or `tf.Variable`, otherwise `False`.
-    """
-    return isinstance(x, (tf.Tensor, tf.Variable))
-
-
-def _assert(cond, ex_type, msg):
-    """A polymorphic assert, works with tensors and boolean expressions.
-
-    If `cond` is not a tensor, behave like an ordinary assert statement, except
-    that a empty list is returned. If `cond` is a tensor, return a list
-    containing a single TensorFlow assert op.
-
-    Args:
-      cond: Something evaluates to a boolean value. May be a tensor.
-      ex_type: The exception class to use.
-      msg: The error message.
-
-    Returns:
-      A list, containing at most one assert op.
-    """
-    if _is_tensor(cond):
-        return [tf.Assert(cond, [msg])]
-    else:
-        if not cond:
-            raise ex_type(msg)
-        else:
-            return []
-
-
 def resolve_shape(tensor, rank=None, scope=None):
-    """Fully resolves the shape of a Tensor.
+  """Fully resolves the shape of a Tensor.
 
-    Use as much as possible the shape components already known during graph
-    creation and resolve the remaining ones during runtime.
+  Use as much as possible the shape components already known during graph
+  creation and resolve the remaining ones during runtime.
 
-    Args:
-      tensor: Input tensor whose shape we query.
-      rank: The rank of the tensor, provided that we know it.
-      scope: Optional name scope.
+  Args:
+    tensor: Input tensor whose shape we query.
+    rank: The rank of the tensor, provided that we know it.
+    scope: Optional name scope.
 
-    Returns:
-      shape: The full shape of the tensor.
-    """
-    with tf.name_scope(scope, 'resolve_shape', [tensor]):
-        if rank is not None:
-            shape = tensor.get_shape().with_rank(rank).as_list()
-        else:
-            shape = tensor.get_shape().as_list()
+  Returns:
+    shape: The full shape of the tensor.
+  """
+  with tf.name_scope(scope, 'resolve_shape', [tensor]):
+    if rank is not None:
+      shape = tensor.get_shape().with_rank(rank).as_list()
+    else:
+      shape = tensor.get_shape().as_list()
 
-        if None in shape:
-            shape_dynamic = tf.shape(tensor)
-            for i in range(len(shape)):
-                if shape[i] is None:
-                    shape[i] = shape_dynamic[i]
+    if None in shape:
+      shape_dynamic = tf.shape(tensor)
+      for i in range(len(shape)):
+        if shape[i] is None:
+          shape[i] = shape_dynamic[i]
 
-        return shape
+    return shape
 
 
 def resize(img, size, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR):
@@ -107,70 +67,6 @@ def resize(img, size, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR):
         size = tf.stack([oh, ow])
     img = tf.image.resize(img, size, method=method, align_corners=True)
     return img
-
-
-def _CheckAtLeast3DImage(image, require_static=True):
-    """Assert that we are working with properly shaped image.
-
-    Args:
-      image: >= 3-D Tensor of size [*, height, width, depth]
-      require_static: If `True`, requires that all dimensions of `image` are known
-        and non-zero.
-
-    Raises:
-      ValueError: if image.shape is not a [>= 3] vector.
-
-    Returns:
-      An empty list, if `image` has fully defined dimensions. Otherwise, a list
-      containing an assert op is returned.
-    """
-    try:
-        if image.get_shape().ndims is None:
-            image_shape = image.get_shape().with_rank(3)
-        else:
-            image_shape = image.get_shape().with_rank_at_least(3)
-    except ValueError:
-        raise ValueError("'image' must be at least three-dimensional.")
-    if require_static and not image_shape.is_fully_defined():
-        raise ValueError('\'image\' must be fully defined.')
-    if any(x == 0 for x in image_shape):
-        raise ValueError('all dims of \'image.shape\' must be > 0: %s' %
-                         image_shape)
-    if not image_shape.is_fully_defined():
-        return [
-            check_ops.assert_positive(
-                tf.shape(image),
-                ["all dims of 'image.shape' "
-                 'must be > 0.']),
-            check_ops.assert_greater_equal(
-                tf.rank(image),
-                3,
-                message="'image' must be at least three-dimensional.")
-        ]
-    else:
-        return []
-
-
-def _ImageDimensions(image, rank):
-    """Returns the dimensions of an image tensor.
-
-    Args:
-      image: A rank-D Tensor. For 3-D  of shape: `[height, width, channels]`.
-      rank: The expected rank of the image
-
-    Returns:
-      A list of corresponding to the dimensions of the
-      input image.  Dimensions that are statically known are python integers,
-      otherwise they are integer scalar tensors.
-    """
-    if image.get_shape().is_fully_defined():
-        return image.get_shape().as_list()
-    else:
-        static_shape = image.get_shape().with_rank(rank).as_list()
-        dynamic_shape = array_ops.unstack(array_ops.shape(image), rank)
-        return [
-            s if s is not None else d for s, d in zip(static_shape, dynamic_shape)
-        ]
 
 
 def pad_to_bounding_box(image, offset_height, offset_width, target_height,
@@ -196,9 +92,21 @@ def pad_to_bounding_box(image, offset_height, offset_width, target_height,
         ValueError: If the shape of image is incompatible with the offset_* or
         target_* arguments.
     """
-    with tf.name_scope('pad_to_bounding_box'):
-        is_batch = True
+    with tf.name_scope(None, 'pad_to_bounding_box', [image]):
+        image = tf.convert_to_tensor(image, name='image')
+        original_dtype = image.dtype
+        if original_dtype != tf.float32 and original_dtype != tf.float64:
+            # If image dtype is not float, we convert it to int32 to avoid overflow.
+            image = tf.cast(image, tf.int32)
+        image_rank_assert = tf.Assert(
+            tf.logical_or(
+                tf.equal(tf.rank(image), 3),
+                tf.equal(tf.rank(image), 4)),
+            ['Wrong image tensor rank.'])
+        with tf.control_dependencies([image_rank_assert]):
+            image -= pad_value
         image_shape = image.get_shape()
+        is_batch = True
         if image_shape.ndims == 3:
             is_batch = False
             image = tf.expand_dims(image, 0)
@@ -206,45 +114,38 @@ def pad_to_bounding_box(image, offset_height, offset_width, target_height,
             is_batch = False
             image = tf.expand_dims(image, 0)
             image.set_shape([None] * 4)
-        elif image_shape.ndims != 4:
-            raise ValueError('\'image\' must have either 3 or 4 dimensions.')
-
-        assert_ops = _CheckAtLeast3DImage(image, require_static=False)
-        batch, height, width, depth = _ImageDimensions(image, rank=4)
-
-        after_padding_width = target_width - offset_width - width
-
-        after_padding_height = target_height - offset_height - height
-
-        assert_ops += _assert(offset_height >= 0, ValueError,
-                              'offset_height must be >= 0')
-        assert_ops += _assert(offset_width >= 0, ValueError,
-                              'offset_width must be >= 0')
-        assert_ops += _assert(after_padding_width >= 0, ValueError,
-                              'width must be <= target - offset')
-        assert_ops += _assert(after_padding_height >= 0, ValueError,
-                              'height must be <= target - offset')
-        # image = control_flow_ops.with_dependencies(assert_ops, image)
-        with tf.control_dependencies(assert_ops):
-            image -= pad_value
-
-        # Do not pad on the depth dimensions.
-        paddings = array_ops.reshape(
-            array_ops.stack([
-                0, 0, offset_height, after_padding_height, offset_width,
-                after_padding_width, 0, 0
-            ]), [4, 2])
-        padded = array_ops.pad(image, paddings)
-
-        padded_shape = [
-            None if _is_tensor(i) else i
-            for i in [batch, target_height, target_width, depth]
-        ]
-        padded.set_shape(padded_shape)
-
+        elif image.get_shape().ndims != 4:
+            raise ValueError('Input image must have either 3 or 4 dimensions.')
+        _, height, width, _ = _image_dimensions(image, rank=4)
+        target_width_assert = tf.Assert(
+            tf.greater_equal(
+                target_width, width),
+            ['target_width must be >= width'])
+        target_height_assert = tf.Assert(
+            tf.greater_equal(target_height, height),
+            ['target_height must be >= height'])
+        with tf.control_dependencies([target_width_assert]):
+            after_padding_width = target_width - offset_width - width
+        with tf.control_dependencies([target_height_assert]):
+            after_padding_height = target_height - offset_height - height
+        offset_assert = tf.Assert(
+            tf.logical_and(
+                tf.greater_equal(after_padding_width, 0),
+                tf.greater_equal(after_padding_height, 0)),
+            ['target size not possible with the given target offsets'])
+        batch_params = tf.stack([0, 0])
+        height_params = tf.stack([offset_height, after_padding_height])
+        width_params = tf.stack([offset_width, after_padding_width])
+        channel_params = tf.stack([0, 0])
+        with tf.control_dependencies([offset_assert]):
+            paddings = tf.stack([batch_params, height_params, width_params,
+                                 channel_params])
+        padded = tf.pad(image, paddings)
         if not is_batch:
-            padded = array_ops.squeeze(padded, axis=[0])
+            padded = tf.squeeze(padded, axis=[0])
         outputs = padded + pad_value
+        if outputs.dtype != original_dtype:
+            outputs = tf.cast(outputs, original_dtype)
         return outputs
 
 
