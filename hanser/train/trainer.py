@@ -55,12 +55,6 @@ class Trainer:
         self.tpu = tpu
         self.strategy = strategy
 
-        self._target = tpu.master() if tpu else ''
-        self._config = tf.ConfigProto(
-            allow_soft_placement=True,
-            cluster_def=tpu.cluster_spec().as_cluster_def()
-        ) if tpu else None
-
         self.weight_decay = weight_decay
         self._get_sample_weight = None
 
