@@ -16,7 +16,7 @@ def print_results(prefix, elapsed, results):
     print(s)
 
 
-def run_epoch(step_fn, iterator, steps, metrics, name):
+def run_epoch(step_fn, iterator, steps, metrics, extra_metrics, name="Train"):
     start = time.time()
     for step in range(steps):
         step_fn(iterator)
@@ -53,6 +53,10 @@ class Trainer:
         self.test_metrics = test_metrics
         self.model_dir = model_dir
         self.tpu = tpu
+        if tpu:
+            assert strategy is not None, "`strategy` must be provided on tpu mode"
+            if model_dir:
+                assert model_dir.startswith('gs'), "Use gs://... as `model_dir` on tpu mode"
         self.strategy = strategy
 
         self.weight_decay = weight_decay
@@ -114,6 +118,7 @@ class Trainer:
                 else:
                     sample_weight = maybe_call(self._get_sample_weight, labels, preds)
                     metric.update_state(labels, preds, sample_weight)
+
         if self.tpu:
             self.strategy.experimental_run_v2(step_fn, args=next(iterator))
         else:
@@ -134,8 +139,9 @@ class Trainer:
             print("Initializing from scratch.")
             return False
 
-    def train_and_evaluate(self, epochs, ds_train, steps_per_epoch, ds_val, val_steps, resume=True,
-                           save_per_epochs=None, get_sample_weight=None):
+    def train_and_evaluate(self, epochs, ds_train, steps_per_epoch, ds_val, val_steps,
+                           resume=True, save_per_epochs=None, get_sample_weight=None,
+                           extra_metrics=(), target_transform=None, output_transform=None, extra_eval_per_epochs=None):
         self._get_sample_weight = get_sample_weight
 
         if save_per_epochs or resume:
@@ -158,15 +164,54 @@ class Trainer:
         epoch = self._epoch.numpy()
         max_epochs = epoch + epochs
 
+        if extra_metrics:
+            assert target_transform
+            assert output_transform
+            assert extra_eval_per_epochs
+            @tf.function
+            def predict_step(iterator):
+                def step_fn(inputs, target):
+                    output = output_transform(self.model(inputs, training=False))
+                    # target = target_transform(target)
+                    return target, output
+
+                if self.strategy:
+                    return local_results(
+                        self.strategy, self.strategy.experimental_run_v2(step_fn, args=next(iterator)))
+                else:
+                    return step_fn(*next(iterator))
+
         while epoch < max_epochs:
             print('Epoch %s' % (epoch + 1))
 
             K.set_value(self.optimizer.lr, self.lr_schedule(epoch))
 
             run_epoch(self._train_step, train_it, steps_per_epoch, self.metrics, "Train")
-            run_epoch(self._test_step, val_it, val_steps, self.test_metrics, "Val")
 
             epoch = self._epoch.assign_add(1).numpy()
+
+            if extra_metrics and epoch % extra_eval_per_epochs == 0:
+                start = time.time()
+                for step in range(val_steps):
+                    target, output = predict_step(val_it)
+
+                    target = maybe_cat(target)
+                    output = maybe_cat(output)
+
+                    weight = maybe_call(get_sample_weight, target, output)
+                    target = target_transform(target)
+
+                    for m in extra_metrics:
+                        m.update_state(target, output, weight)
+                metric_results = []
+                for m in extra_metrics:
+                    metric_results.append((m.name, m.result()))
+                    m.reset_states()
+                elapsed = time.time() - start
+                print_results("Eval", elapsed, metric_results)
+            else:
+                run_epoch(self._test_step, val_it, val_steps, self.test_metrics, "Val")
+
             if save_per_epochs and epoch % save_per_epochs == 0:
                 print("Saved model: %s" % model_ckpt_manager.save(epoch))
                 print("Saved optimizer: %s" % optim_ckpt_manager.save(epoch))
