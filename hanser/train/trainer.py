@@ -18,6 +18,8 @@ def print_results(prefix, elapsed, results):
 
 def run_epoch(step_fn, iterator, steps, metrics, name="Train"):
     start = time.time()
+    for m in metrics:
+        m.reset_states()
     print(steps)
     for step in range(steps):
         print(step)
@@ -26,7 +28,6 @@ def run_epoch(step_fn, iterator, steps, metrics, name="Train"):
     for m in metrics:
         print(m.name)
         metric_results.append((m.name, m.result()))
-        m.reset_states()
     elapsed = time.time() - start
     print_results(name, elapsed, metric_results)
 
@@ -98,7 +99,7 @@ class Trainer:
 
             for metric in self.metrics:
                 if 'loss' in metric.name:
-                    print(loss1.shape)
+                    print(loss1)
                     metric.update_state(loss1)
                 else:
                     sample_weight = maybe_call(self._get_sample_weight, labels, preds)
