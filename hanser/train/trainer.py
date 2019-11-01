@@ -100,6 +100,7 @@ class Trainer:
         else:
             step_fn(*next(iterator))
 
+    @tf.function
     def _test_step(self, iterator):
         def step_fn(images, labels):
             preds = self.model(images, training=False)
