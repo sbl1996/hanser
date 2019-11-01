@@ -160,7 +160,7 @@ def flip_dim(tensor_list, prob=0.5, dim=1):
         for tensor in tensor_list:
             if dim < 0 or dim >= len(tensor.get_shape().as_list()):
                 raise ValueError('dim must represent a valid dimension.')
-            flipped.append(tf.reverse_v2(tensor, [dim]))
+            flipped.append(tf.reverse(tensor, [dim]))
         return flipped
 
     is_flipped = tf.less_equal(random_value, prob)
