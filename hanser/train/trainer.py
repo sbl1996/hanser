@@ -77,7 +77,7 @@ class Trainer:
                 if self.weight_decay:
                     loss2 = self.weight_decay * tf.add_n([
                         tf.nn.l2_loss(v)
-                        for v in self.model.trainable_variables()
+                        for v in self.model.trainable_variables
                         if 'batch_normalization' not in v.name
                     ])
                     loss = loss1 + loss2
@@ -95,7 +95,10 @@ class Trainer:
                 else:
                     sample_weight = maybe_call(self._get_sample_weight, labels, preds)
                     metric.update_state(labels, preds, sample_weight)
-        self.strategy.experimental_run_v2(step_fn, *next(iterator))
+        if self.tpu:
+            self.strategy.experimental_run_v2(step_fn, *next(iterator))
+        else:
+            step_fn(*next(iterator))
 
     def _test_step(self, iterator):
         def step_fn(images, labels):
@@ -110,7 +113,10 @@ class Trainer:
                 else:
                     sample_weight = maybe_call(self._get_sample_weight, labels, preds)
                     metric.update_state(labels, preds, sample_weight)
-        self.strategy.experimental_run_v2(step_fn, *next(iterator))
+        if self.tpu:
+            self.strategy.experimental_run_v2(step_fn, *next(iterator))
+        else:
+            step_fn(*next(iterator))
 
     def restore(self, checkpoint, manager):
         assert self.model_dir is not None, "`model_dir` should be provided."
@@ -141,6 +147,9 @@ class Trainer:
             assert isinstance(ds_train, DistributedDataset)
             assert isinstance(ds_val, DistributedDataset)
 
+        train_it = iter(ds_train)
+        val_it = iter(ds_val)
+
         if resume:
             self.restore(model_ckpt, model_ckpt_manager)
             self.restore(optim_ckpt, optim_ckpt_manager)
@@ -153,8 +162,8 @@ class Trainer:
 
             K.set_value(self.optimizer.lr, self.lr_schedule(epoch))
 
-            run_epoch(self._train_step, ds_train, steps_per_epoch, self.metrics, "Train")
-            run_epoch(self._test_step, ds_val, val_steps, self.test_metrics, "Val")
+            run_epoch(self._train_step, train_it, steps_per_epoch, self.metrics, "Train")
+            run_epoch(self._test_step, val_it, val_steps, self.test_metrics, "Val")
 
             epoch = self._epoch.assign_add(1).numpy()
             if save_per_epochs and epoch % save_per_epochs == 0:
@@ -169,10 +178,11 @@ class Trainer:
 
         if self.tpu:
             assert isinstance(ds_test, DistributedDataset)
+        test_it = iter(ds_test)
 
         self.restore(model_ckpt, model_ckpt_manager)
 
-        run_epoch(self._test_step, ds_test, test_steps, self.test_metrics, "Test")
+        run_epoch(self._test_step, test_it, test_steps, self.test_metrics, "Test")
 
     def evaluate2(self, ds_test, test_steps, metrics,
                   output_transform=lambda x: x, target_transform=lambda x: x, get_sample_weight=None):
@@ -232,7 +242,6 @@ class Trainer:
             results = [sess_cpu.run(m.result()) for m in metrics]
         sess_cpu.close()
         return results
-
 
     def collect(self, ds_test, test_steps, output_transform, target_transform):
 
