@@ -19,6 +19,7 @@ def print_results(prefix, elapsed, results):
 def run_epoch(step_fn, iterator, steps, metrics, name="Train"):
     start = time.time()
     for step in range(steps):
+        print(step)
         step_fn(iterator)
     metric_results = []
     for m in metrics:
@@ -146,12 +147,6 @@ class Trainer:
             extra_metrics=(), target_transform=None, output_transform=None, extra_eval_per_epochs=None):
         self._get_sample_weight = get_sample_weight
 
-        if save_per_epochs or resume:
-            assert self.model_dir is not None, "`model_dir` should be provided."
-
-            model_ckpt, model_ckpt_manager = self._make_ckpt("model", model=self.model)
-            optim_ckpt, optim_ckpt_manager = self._make_ckpt("optim", optimizer=self.optimizer, epoch=self._epoch)
-
         if self.tpu:
             assert isinstance(ds_train, DistributedDataset)
             assert isinstance(ds_val, DistributedDataset)
@@ -159,9 +154,15 @@ class Trainer:
         train_it = iter(ds_train)
         val_it = iter(ds_val)
 
-        if resume:
-            self.restore(model_ckpt, model_ckpt_manager)
-            self.restore(optim_ckpt, optim_ckpt_manager)
+        if save_per_epochs or resume:
+            assert self.model_dir is not None, "`model_dir` should be provided."
+
+            model_ckpt, model_ckpt_manager = self._make_ckpt("model", model=self.model)
+            optim_ckpt, optim_ckpt_manager = self._make_ckpt("optim", optimizer=self.optimizer, epoch=self._epoch)
+
+            if resume:
+                self.restore(model_ckpt, model_ckpt_manager)
+                self.restore(optim_ckpt, optim_ckpt_manager)
 
         epoch = self._epoch.numpy()
         max_epochs = epoch + epochs
@@ -170,6 +171,7 @@ class Trainer:
             assert target_transform
             assert output_transform
             assert extra_eval_per_epochs
+
             @tf.function
             def predict_step(iterator):
                 def step_fn(inputs, target):
