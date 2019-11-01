@@ -42,7 +42,7 @@ def deeplabv3(backbone, num_classes):
     x = backbone(inputs)
     x = aspp(x)
     logits = conv2d(x, num_classes, kernel_size=1, use_bias=True)
-    logits = Lambda(tf.image.resize_bilinear,
+    logits = Lambda(tf.image.resize,
                     arguments=dict(size=input_shape[:2]),
                     name='upsampling_logits')(logits)
     model = Model(inputs=inputs, outputs=logits)
