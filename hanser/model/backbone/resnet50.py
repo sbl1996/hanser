@@ -16,7 +16,11 @@ WEIGHTS_PATH_NO_TOP = ('https://github.com/fchollet/deep-learning-models/'
                        'resnet50_weights_tf_dim_ordering_tf_kernels_notop.h5')
 
 import tensorflow.keras.backend as K
-from tensorflow.keras import layers, models, utils
+from tensorflow.keras import utils
+from tensorflow.keras.layers import ZeroPadding2D, Activation, Add, MaxPooling2D, Input
+from tensorflow.keras.models import Model
+
+from hanser.model.layers import conv2d, bn
 
 
 def identity_block(input_tensor, kernel_size, filters, stage, block, dilation_rate=(1, 1)):
@@ -34,35 +38,31 @@ def identity_block(input_tensor, kernel_size, filters, stage, block, dilation_ra
         Output tensor for the block.
     """
     filters1, filters2, filters3 = filters
-    if K.image_data_format() == 'channels_last':
-        bn_axis = 3
-    else:
-        bn_axis = 1
     conv_name_base = 'res' + str(stage) + block + '_branch'
     bn_name_base = 'bn' + str(stage) + block + '_branch'
 
-    x = layers.Conv2D(filters1, (1, 1),
-                      dilation_rate=dilation_rate,
-                      kernel_initializer='he_normal',
-                      name=conv_name_base + '2a')(input_tensor)
-    x = layers.BatchNormalization(axis=bn_axis, name=bn_name_base + '2a')(x)
-    x = layers.Activation('relu')(x)
+    x = conv2d(input_tensor, filters1, 1, padding='valid',
+               use_bias=True,
+               dilation=dilation_rate,
+               name=conv_name_base + '2a')
+    x = bn(x, name=bn_name_base + '2a')
+    x = Activation('relu')(x)
 
-    x = layers.Conv2D(filters2, kernel_size, padding='same',
-                      dilation_rate=dilation_rate,
-                      kernel_initializer='he_normal',
-                      name=conv_name_base + '2b')(x)
-    x = layers.BatchNormalization(axis=bn_axis, name=bn_name_base + '2b')(x)
-    x = layers.Activation('relu')(x)
+    x = conv2d(x, filters2, kernel_size,
+               use_bias=True,
+               dilation=dilation_rate,
+               name=conv_name_base + '2b')
+    x = bn(x, name=bn_name_base + '2b')
+    x = Activation('relu')(x)
 
-    x = layers.Conv2D(filters3, (1, 1),
-                      dilation_rate=dilation_rate,
-                      kernel_initializer='he_normal',
-                      name=conv_name_base + '2c')(x)
-    x = layers.BatchNormalization(axis=bn_axis, name=bn_name_base + '2c')(x)
+    x = conv2d(x, filters3, (1, 1), padding='valid',
+               use_bias=True,
+               dilation=dilation_rate,
+               name=conv_name_base + '2c')
+    x = bn(x, name=bn_name_base + '2c')
 
-    x = layers.add([x, input_tensor])
-    x = layers.Activation('relu')(x)
+    x = Add()([x, input_tensor])
+    x = Activation('relu')(x)
     return x
 
 
@@ -92,40 +92,37 @@ def conv_block(input_tensor,
     And the shortcut should have strides=(2, 2) as well
     """
     filters1, filters2, filters3 = filters
-    if K.image_data_format() == 'channels_last':
-        bn_axis = 3
-    else:
-        bn_axis = 1
     conv_name_base = 'res' + str(stage) + block + '_branch'
     bn_name_base = 'bn' + str(stage) + block + '_branch'
 
-    x = layers.Conv2D(filters1, (1, 1), strides=strides,
-                      kernel_initializer='he_normal',
-                      name=conv_name_base + '2a')(input_tensor)
-    x = layers.BatchNormalization(axis=bn_axis, name=bn_name_base + '2a')(x)
-    x = layers.Activation('relu')(x)
+    x = conv2d(input_tensor, filters1, (1, 1),
+               stride=strides, padding='valid',
+               use_bias=True,
+               name=conv_name_base + '2a')
+    x = bn(x, name=bn_name_base + '2a')
+    x = Activation('relu')(x)
 
-    x = layers.Conv2D(filters2, kernel_size, padding='same',
-                      dilation_rate=dilation_rate,
-                      kernel_initializer='he_normal',
-                      name=conv_name_base + '2b')(x)
-    x = layers.BatchNormalization(axis=bn_axis, name=bn_name_base + '2b')(x)
-    x = layers.Activation('relu')(x)
+    x = conv2d(x, filters2, kernel_size,
+               use_bias=True,
+               dilation=dilation_rate,
+               name=conv_name_base + '2b')
+    x = bn(x, name=bn_name_base + '2b')
+    x = Activation('relu')(x)
 
-    x = layers.Conv2D(filters3, (1, 1),
-                      dilation_rate=dilation_rate,
-                      kernel_initializer='he_normal',
-                      name=conv_name_base + '2c')(x)
-    x = layers.BatchNormalization(axis=bn_axis, name=bn_name_base + '2c')(x)
+    x = conv2d(x, filters3, (1, 1), padding='valid',
+               use_bias=True,
+               dilation=dilation_rate,
+               name=conv_name_base + '2c')
+    x = bn(x, name=bn_name_base + '2c')
 
-    shortcut = layers.Conv2D(filters3, (1, 1), strides=strides,
-                             kernel_initializer='he_normal',
-                             name=conv_name_base + '1')(input_tensor)
-    shortcut = layers.BatchNormalization(
-        axis=bn_axis, name=bn_name_base + '1')(shortcut)
+    shortcut = conv2d(input_tensor, filters3, (1, 1),
+                      stride=strides, padding='valid',
+                      use_bias=True,
+                      name=conv_name_base + '1')
+    shortcut = bn(shortcut, name=bn_name_base + '1')
 
-    x = layers.add([x, shortcut])
-    x = layers.Activation('relu')(x)
+    x = Add()([x, shortcut])
+    x = Activation('relu')(x)
     return x
 
 
@@ -160,22 +157,18 @@ def ResNet50(input_shape,
             or invalid input shape.
     """
 
-    img_input = layers.Input(shape=input_shape)
-    if K.image_data_format() == 'channels_last':
-        bn_axis = 3
-    else:
-        bn_axis = 1
+    img_input = Input(shape=input_shape)
 
-    x = layers.ZeroPadding2D(padding=(3, 3), name='conv1_pad')(img_input)
-    x = layers.Conv2D(64, (7, 7),
-                      strides=(2, 2),
-                      padding='valid',
-                      kernel_initializer='he_normal',
-                      name='conv1')(x)
-    x = layers.BatchNormalization(axis=bn_axis, name='bn_conv1')(x)
-    x = layers.Activation('relu')(x)
-    x = layers.ZeroPadding2D(padding=(1, 1), name='pool1_pad')(x)
-    x = layers.MaxPooling2D((3, 3), strides=(2, 2))(x)
+    x = ZeroPadding2D(padding=(3, 3), name='conv1_pad')(img_input)
+    x = conv2d(x, 64, (7, 7),
+               stride=(2, 2),
+               padding='valid',
+               use_bias=True,
+               name='conv1')
+    x = bn(x, name='bn_conv1')
+    x = Activation('relu')(x)
+    x = ZeroPadding2D(padding=(1, 1), name='pool1_pad')(x)
+    x = MaxPooling2D((3, 3), strides=(2, 2))(x)
 
     x = conv_block(x, 3, [64, 64, 256], stage=2, block='a', strides=(1, 1))
     x = identity_block(x, 3, [64, 64, 256], stage=2, block='b')
@@ -207,7 +200,7 @@ def ResNet50(input_shape,
     # any potential predecessors of `input_tensor`.
     inputs = img_input
     # Create model.
-    model = models.Model(inputs, x, name='resnet50')
+    model = Model(inputs, x, name='resnet50')
 
     # Load weights.
     if pretrained:

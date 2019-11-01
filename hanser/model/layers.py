@@ -44,10 +44,10 @@ def swish(x):
     return Multiply()([x, sigmoid(x)])
 
 
-def conv2d(x, channels, kernel_size, stride=1, padding='same', dilation=1, use_bias=False):
+def conv2d(x, channels, kernel_size, stride=1, padding='same', dilation=1, use_bias=False, name=None):
     return Conv2D(channels, kernel_size=kernel_size, strides=stride,
                   padding=padding, dilation_rate=dilation, use_bias=use_bias,
-                  kernel_initializer='he_normal')(x)
+                  kernel_initializer='he_normal', name=name)(x)
 
 
 def dwconv2d(x, kernel_size, stride=1, padding='same', use_bias=False):
@@ -60,12 +60,12 @@ def deconv2d(x, channels, kernel_size, stride=1, padding='same', use_bias=False)
                            kernel_initializer='he_normal')(x)
 
 
-def bn(x, fused=None, gamma='ones'):
+def bn(x, fused=None, gamma='ones', name=None):
     if fused is None:
         fused = get_default(['bn', 'fused'])
     momentum = get_default(['bn', 'momentum'])
     epsilon = get_default(['bn', 'epsilon'])
-    return BatchNormalization(fused=fused, gamma_initializer=gamma, momentum=momentum, epsilon=epsilon)(x)
+    return BatchNormalization(fused=fused, gamma_initializer=gamma, momentum=momentum, epsilon=epsilon, name=name)(x)
 
 
 def dense(x, channels):
