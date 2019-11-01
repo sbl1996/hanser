@@ -139,9 +139,9 @@ class Trainer:
             print("Initializing from scratch.")
             return False
 
-    def train_and_evaluate(self, epochs, ds_train, steps_per_epoch, ds_val, val_steps,
-                           resume=True, save_per_epochs=None, get_sample_weight=None,
-                           extra_metrics=(), target_transform=None, output_transform=None, extra_eval_per_epochs=None):
+    def fit(self, epochs, ds_train, steps_per_epoch, ds_val, val_steps,
+            resume=True, save_per_epochs=None, get_sample_weight=None,
+            extra_metrics=(), target_transform=None, output_transform=None, extra_eval_per_epochs=None):
         self._get_sample_weight = get_sample_weight
 
         if save_per_epochs or resume:
