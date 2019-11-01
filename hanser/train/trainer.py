@@ -22,6 +22,7 @@ def run_epoch(step_fn, iterator, steps, metrics, name="Train"):
         step_fn(iterator)
     metric_results = []
     for m in metrics:
+        print(m.name)
         metric_results.append((m.name, m.result()))
         m.reset_states()
     elapsed = time.time() - start
