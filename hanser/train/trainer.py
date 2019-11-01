@@ -96,6 +96,7 @@ class Trainer:
 
             for metric in self.metrics:
                 if 'loss' in metric.name:
+                    print(loss1.shape)
                     metric.update_state(loss1)
                 else:
                     sample_weight = maybe_call(self._get_sample_weight, labels, preds)
