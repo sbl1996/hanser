@@ -96,7 +96,7 @@ class Trainer:
                     sample_weight = maybe_call(self._get_sample_weight, labels, preds)
                     metric.update_state(labels, preds, sample_weight)
         if self.tpu:
-            self.strategy.experimental_run_v2(step_fn, *next(iterator))
+            self.strategy.experimental_run_v2(step_fn, args=next(iterator))
         else:
             step_fn(*next(iterator))
 
@@ -114,7 +114,7 @@ class Trainer:
                     sample_weight = maybe_call(self._get_sample_weight, labels, preds)
                     metric.update_state(labels, preds, sample_weight)
         if self.tpu:
-            self.strategy.experimental_run_v2(step_fn, *next(iterator))
+            self.strategy.experimental_run_v2(step_fn, args=next(iterator))
         else:
             step_fn(*next(iterator))
 
