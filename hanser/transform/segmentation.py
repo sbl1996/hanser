@@ -1,6 +1,67 @@
 import tensorflow as tf
 
 
+def get_random_scale(min_scale_factor, max_scale_factor, step_size):
+    """Gets a random scale value.
+
+    Args:
+      min_scale_factor: Minimum scale value.
+      max_scale_factor: Maximum scale value.
+      step_size: The step size from minimum to maximum value.
+
+    Returns:
+      A random scale value selected between minimum and maximum value.
+
+    Raises:
+      ValueError: min_scale_factor has unexpected value.
+    """
+    if min_scale_factor < 0 or min_scale_factor > max_scale_factor:
+        raise ValueError('Unexpected value of min_scale_factor.')
+
+    if min_scale_factor == max_scale_factor:
+        return tf.cast(min_scale_factor, tf.float32)
+
+    # When step_size = 0, we sample the value uniformly from [min, max).
+    if step_size == 0:
+        return tf.random.uniform([1],
+                                 minval=min_scale_factor,
+                                 maxval=max_scale_factor)
+
+    # When step_size != 0, we randomly select one discrete value from [min, max].
+    num_steps = int((max_scale_factor - min_scale_factor) / step_size + 1)
+    scale_factors = tf.linspace(min_scale_factor, max_scale_factor, num_steps)
+    shuffled_scale_factors = tf.random.shuffle(scale_factors)
+    return shuffled_scale_factors[0]
+
+
+def random_scale(image, label=None, scale=1.0):
+    """Randomly scales image and label.
+
+    Args:
+      image: Image with shape [height, width, 3].
+      label: Label with shape [height, width, 1].
+      scale: The value to scale image and label.
+
+    Returns:
+      Scaled image and label.
+    """
+    # No random scaling if scale == 1.
+    if scale == 1.0:
+        return image, label
+    image_shape = tf.shape(image)
+    new_dim = tf.cast(
+        tf.cast([image_shape[0], image_shape[1]], tf.float32) * scale,
+        tf.int32)
+
+    # Need squeeze and expand_dims because image interpolation takes
+    # 4D tensors as input.
+    image = tf.image.resize(image, new_dim, method='bilinear')
+    if label is not None:
+        label = tf.image.resize(label, new_dim, method='nearest')
+
+    return image, label
+
+
 def random_crop(image_list, crop_height, crop_width):
     """Crops the given list of images.
 

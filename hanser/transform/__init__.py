@@ -94,7 +94,7 @@ def resolve_shape(tensor, rank=None, scope=None):
         return shape
 
 
-def resize(img, size, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR):
+def resize(img, size, method='bilinear'):
     if not isinstance(size, tuple):
         size = tf.cast(size, tf.float32)
         h, w = img.shape[:2]
@@ -105,7 +105,7 @@ def resize(img, size, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR):
         oh = tf.cast(tf.math.ceil(h * scale), tf.int32)
         ow = tf.cast(tf.math.ceil(w * scale), tf.int32)
         size = tf.stack([oh, ow])
-    img = tf.image.resize(img, size, method=method, align_corners=True)
+    img = tf.image.resize(img, size, method=method)
     return img
 
 
