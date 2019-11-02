@@ -50,15 +50,20 @@ def conv2d(x, channels, kernel_size, stride=1, padding='same', dilation=1, use_b
                   kernel_initializer='he_normal', name=name)(x)
 
 
-def dwconv2d(x, kernel_size, stride=1, padding='same', use_bias=False):
+def dwconv2d(x, kernel_size, stride=1, padding='same', depth_multiplier=1, use_bias=False, name=None):
     return DepthwiseConv2D(kernel_size, stride, padding, use_bias=use_bias,
-                           depthwise_initializer='he_normal')(x)
+                           depth_multiplier=depth_multiplier,
+                           depthwise_initializer='he_normal',
+                           name=name)(x)
 
 
 def deconv2d(x, channels, kernel_size, stride=1, padding='same', use_bias=False):
     return Conv2DTranspose(channels, kernel_size=kernel_size, strides=stride, padding=padding, use_bias=use_bias,
                            kernel_initializer='he_normal')(x)
 
+
+def relu(x, name=None):
+    return ReLU(name=name)(x)
 
 def bn(x, fused=None, gamma='ones', name=None):
     if fused is None:
@@ -68,8 +73,8 @@ def bn(x, fused=None, gamma='ones', name=None):
     return BatchNormalization(fused=fused, gamma_initializer=gamma, momentum=momentum, epsilon=epsilon, name=name)(x)
 
 
-def dense(x, channels):
-    return Dense(channels, kernel_initializer='he_normal')(x)
+def dense(x, channels, name=None):
+    return Dense(channels, kernel_initializer='he_normal', name=name)(x)
 
 
 def drop_connect(x, drop_rate):

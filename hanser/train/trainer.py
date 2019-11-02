@@ -44,12 +44,11 @@ def maybe_call(fn, *args, default=None):
 
 class Trainer:
 
-    def __init__(self, model, criterion, optimizer, lr_schedule, metrics=(), test_metrics=(), model_dir=None, tpu=None,
+    def __init__(self, model, criterion, optimizer, metrics=(), test_metrics=(), model_dir=None, tpu=None,
                  strategy=None, weight_decay=None):
         self.model = model
         self.criterion = criterion
         self.optimizer = optimizer
-        self.lr_schedule = lr_schedule
         self.metrics = metrics
         self.test_metrics = test_metrics
         self.model_dir = model_dir
@@ -100,6 +99,7 @@ class Trainer:
                 else:
                     sample_weight = maybe_call(self._get_sample_weight, labels, preds)
                     metric.update_state(labels, preds, sample_weight)
+
         if self.tpu:
             self.strategy.experimental_run_v2(step_fn, args=next(iterator))
         else:
@@ -186,7 +186,8 @@ class Trainer:
         while epoch < max_epochs:
             print('Epoch %s' % (epoch + 1))
 
-            K.set_value(self.optimizer.lr, self.lr_schedule(epoch))
+            # K.set_value(self.optimizer.lr, self.lr_schedule(epoch))
+            # print(self.optimizer.lr(self.optimizer.iterations))
 
             run_epoch(self._train_step, train_it, steps_per_epoch, self.metrics, "Train")
 
@@ -267,51 +268,46 @@ class Trainer:
             target = target_transform(target)
             for m in metrics:
                 m.update_state(target, output, weight)
-        results = { m.name: m.result().numpy() for m in metrics }
+        results = {m.name: m.result().numpy() for m in metrics}
         return results
 
-    def collect(self, ds_test, test_steps, output_transform, target_transform):
+    def collect(self, ds_test, test_steps, output_transform=lambda x: x, target_transform=lambda x: x):
 
         assert self.model_dir is not None, "`model_dir` should be provided."
         model_ckpt, model_ckpt_manager = self._make_ckpt("model", model=self.model)
 
-        def predict_step(inputs, target):
-            output = output_transform(self.model(inputs, training=False))
-            target = target_transform(target)
-            return target, output
+        if self.tpu:
+            assert isinstance(ds_test, DistributedDataset)
+        test_it = iter(ds_test)
 
-        ds_test = self.strategy.experimental_distribute_dataset(
-            ds_test) if self.strategy else ds_test
+        @tf.function
+        def predict_step(iterator):
+            def step_fn(inputs, target):
+                output = output_transform(self.model(inputs, training=False))
+                target = target_transform(target)
+                return target, output
 
-        test_it = ds_test.make_initializable_iterator()
+            if self.strategy:
+                return local_results(
+                    self.strategy, self.strategy.experimental_run_v2(step_fn, args=next(iterator)))
+            else:
+                return step_fn(*next(iterator))
 
-        if self.strategy:
-            predict_op = local_results(
-                self.strategy, self.strategy.experimental_run_v2(predict_step, test_it.get_next()))
-        else:
-            predict_op = predict_step(*test_it.get_next())
+        self.restore(model_ckpt, model_ckpt_manager)
 
-        with tf.Session(target=self._target, config=self._config) as sess:
-            all_variables = tf.global_variables()
+        targets = []
+        outputs = []
 
-            sess.run([v.initializer for v in all_variables])
-            sess.run(test_it.initializer)
+        for step in range(test_steps):
+            target, output = predict_step(test_it)
 
-            self.restore(sess, model_ckpt, model_ckpt_manager)
+            if isinstance(target, (tuple, list)):
+                targets.extend(target)
+                outputs.extend(output)
+            else:
+                targets.append(target)
+                outputs.append(output)
 
-            targets = []
-            outputs = []
-
-            for step in range(test_steps):
-                target, output = sess.run(predict_op)
-
-                if isinstance(target, np.ndarray):
-                    targets.append(target)
-                    outputs.append(output)
-                else:
-                    targets.extend(target)
-                    outputs.extend(output)
-
-        target = np.concatenate(targets)
-        output = np.concatenate(outputs)
+        target = tf.concat(targets, 0)
+        output = tf.concat(outputs, 0)
         return target, output
