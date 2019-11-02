@@ -9,12 +9,12 @@ from hanser.model import get_default
 
 class PadChannel(Layer):
 
-    def __init__(self, out_channels, **kwargs):
+    def __init__(self, out_channels):
+        super().__init__()
         self.out_channels = out_channels
-        super().__init__(**kwargs)
 
     def call(self, x):
-        c = self.out_channels - x.shape[-1].value
+        c = tf.subtract(self.out_channels, tf.shape(x)[-1])
         return tf.pad(x, [(0, 0), (0, 0), (0, 0), (0, c)])
 
     def compute_output_shape(self, input_shape):
