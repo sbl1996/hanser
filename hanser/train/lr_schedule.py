@@ -100,7 +100,7 @@ class CosineDecayRestarts(LearningRateSchedule):
             warmup_alpha = tf.cast(self.warmup_alpha, dtype)
 
             def warmup(step):
-                completed_fraction = step / first_decay_steps
+                completed_fraction = step / warmup_steps
                 decayed = (1 - warmup_alpha) * completed_fraction + warmup_alpha
                 return decayed
 
