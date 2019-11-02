@@ -4,6 +4,7 @@ DEFAULTS = {
         'fused': True,
         'momentum': 0.9,
         'epsilon': 1e-5,
+        'tpu': False,
     }
 }
 

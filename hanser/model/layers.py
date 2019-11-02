@@ -3,6 +3,7 @@ import tensorflow as tf
 from tensorflow.keras.layers import Layer, Conv2D, BatchNormalization, Dense, Conv2DTranspose, DepthwiseConv2D, \
     GlobalAvgPool2D, Flatten, ReLU, Activation, Multiply
 
+from hanser.tpu import TpuBatchNormalization
 from hanser.model import get_default
 
 
@@ -65,12 +66,16 @@ def deconv2d(x, channels, kernel_size, stride=1, padding='same', use_bias=False)
 def relu(x, name=None):
     return ReLU(name=name)(x)
 
+
 def bn(x, fused=None, gamma='ones', name=None):
     if fused is None:
         fused = get_default(['bn', 'fused'])
     momentum = get_default(['bn', 'momentum'])
     epsilon = get_default(['bn', 'epsilon'])
-    return BatchNormalization(fused=fused, gamma_initializer=gamma, momentum=momentum, epsilon=epsilon, name=name)(x)
+    if get_default(['bn', 'tpu']):
+        return TpuBatchNormalization(fused=False, gamma_initializer=gamma, momentum=momentum, epsilon=epsilon, name=name)(x)
+    else:
+        return BatchNormalization(fused=fused, gamma_initializer=gamma, momentum=momentum, epsilon=epsilon, name=name)(x)
 
 
 def dense(x, channels, name=None):

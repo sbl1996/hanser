@@ -125,6 +125,23 @@ class Trainer:
         else:
             step_fn(*next(iterator))
 
+    def _get_predict_step(self, output_transform):
+
+        @tf.function
+        def predict_step(iterator):
+            def step_fn(inputs, target):
+                output = output_transform(self.model(inputs, training=False))
+                # target = target_transform(target)
+                return target, output
+
+            if self.strategy:
+                return local_results(
+                    self.strategy, self.strategy.experimental_run_v2(step_fn, args=next(iterator)))
+            else:
+                return step_fn(*next(iterator))
+
+        return predict_step
+
     def restore(self, checkpoint, manager):
         assert self.model_dir is not None, "`model_dir` should be provided."
 
@@ -169,19 +186,7 @@ class Trainer:
             assert target_transform
             assert output_transform
             assert extra_eval_per_epochs
-
-            @tf.function
-            def predict_step(iterator):
-                def step_fn(inputs, target):
-                    output = output_transform(self.model(inputs, training=False))
-                    # target = target_transform(target)
-                    return target, output
-
-                if self.strategy:
-                    return local_results(
-                        self.strategy, self.strategy.experimental_run_v2(step_fn, args=next(iterator)))
-                else:
-                    return step_fn(*next(iterator))
+            predict_step = self._get_predict_step(output_transform)
 
         while epoch < max_epochs:
             print('Epoch %s' % (epoch + 1))
@@ -243,18 +248,7 @@ class Trainer:
             assert isinstance(ds_test, DistributedDataset)
         test_it = iter(ds_test)
 
-        @tf.function
-        def predict_step(iterator):
-            def step_fn(inputs, target):
-                output = output_transform(self.model(inputs, training=False))
-                # target = target_transform(target)
-                return target, output
-
-            if self.strategy:
-                return local_results(
-                    self.strategy, self.strategy.experimental_run_v2(step_fn, args=next(iterator)))
-            else:
-                return step_fn(*next(iterator))
+        predict_step = self._get_predict_step(output_transform)
 
         self.restore(model_ckpt, model_ckpt_manager)
 

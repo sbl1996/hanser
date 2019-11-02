@@ -4,7 +4,7 @@ import tensorflow.keras.backend as K
 from tensorflow.keras import Model
 from tensorflow.keras.layers import ReLU, Concatenate, AvgPool2D, UpSampling2D, Input, Lambda
 
-from hanser.model.layers import conv2d, bn
+from hanser.model.layers import conv2d, bn, relu
 
 
 def aspp(x, channels=256, rates=(6, 12, 18)):
@@ -27,10 +27,10 @@ def aspp(x, channels=256, rates=(6, 12, 18)):
     im = UpSampling2D(x.shape[1:3], interpolation='bilinear')(im)
 
     x = Concatenate()([x1, x2, x3, x4, im])
-    x = ReLU()(x)
+    x = relu(x)
     x = conv2d(x, channels, kernel_size=1)
     x = bn(x)
-    x = ReLU()(x)
+    x = relu(x)
 
     return x
 
