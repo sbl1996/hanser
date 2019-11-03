@@ -1,9 +1,10 @@
 import tensorflow as tf
+import tensorflow.keras.backend as K
 
 import numpy as np
 
 from hanser.math import confusion_matrix
-from tensorflow.keras.metrics import Metric
+from tensorflow.keras.metrics import Metric, Mean
 
 
 class MeanIoU(Metric):
@@ -44,7 +45,7 @@ class MeanIoU(Metric):
     ```
     """
 
-    def __init__(self, num_classes, ignore_index=None, name=None, dtype=None):
+    def __init__(self, num_classes, ignore_index, name=None, dtype=None):
         """Creates a `MeanIoU` instance.
 
         Args:
@@ -66,7 +67,7 @@ class MeanIoU(Metric):
             initializer=tf.zeros_initializer,
             dtype=tf.int32)
 
-    def update_state(self, y_true, y_pred):
+    def update_state(self, y_true, y_pred, sample_weight=None):
         """Accumulates the confusion matrix statistics.
 
         Args:
@@ -80,6 +81,7 @@ class MeanIoU(Metric):
           Update op.
         """
         c = self.num_classes
+        y_pred = tf.math.argmax(y_pred, axis=-1, output_type=tf.int32)
         # Flatten the input if its rank > 1.
         if y_pred.shape.ndims > 1:
             y_pred = tf.reshape(y_pred, [-1])
@@ -87,10 +89,9 @@ class MeanIoU(Metric):
         if y_true.shape.ndims > 1:
             y_true = tf.reshape(y_true, [-1])
 
-        if self.ignore_index is not None:
-            mask = tf.not_equal(y_true, self.ignore_index)
-            y_pred = tf.where(mask, y_pred, tf.ones_like(y_pred) * c)
-            y_true = tf.where(mask, y_true, tf.ones_like(y_true) * c)
+        mask = tf.not_equal(y_true, self.ignore_index)
+        y_pred = tf.where(mask, y_pred, tf.ones_like(y_pred) * c)
+        y_true = tf.where(mask, y_true, tf.ones_like(y_true) * c)
 
         # Accumulate the prediction to current confusion matrix.
         current_cm = confusion_matrix(y_true, y_pred, self.num_classes + 1)[:c, :c]
@@ -103,7 +104,7 @@ class MeanIoU(Metric):
         sum_over_col = tf.cast(
             tf.reduce_sum(self.total_cm, axis=1), dtype=self._dtype)
         true_positives = tf.cast(
-            tf.diag_part(self.total_cm), dtype=self._dtype)
+            tf.linalg.diag_part(self.total_cm), dtype=self._dtype)
 
         # sum_over_row + sum_over_col =
         #     2 * true_positives + false_positives + false_negatives.
@@ -115,15 +116,39 @@ class MeanIoU(Metric):
         num_valid_entries = tf.reduce_sum(
             tf.cast(tf.not_equal(denominator, 0), dtype=self._dtype))
 
-        iou = tf.div_no_nan(true_positives, denominator)
+        iou = tf.math.divide_no_nan(true_positives, denominator)
 
-        return tf.div_no_nan(
+        return tf.math.divide_no_nan(
             tf.reduce_sum(iou, name='mean_iou'), num_valid_entries)
 
     def reset_states(self):
-        tf.keras.backend.set_value(self.total_cm, np.zeros((self.num_classes, self.num_classes), dtype=np.int32))
+        K.set_value(self.total_cm, np.zeros((self.num_classes, self.num_classes), dtype=np.int32))
 
     def get_config(self):
         config = {'num_classes': self.num_classes}
         base_config = super(MeanIoU, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+
+class SparseCategoricalAccuracy(Mean):
+
+    def __init__(self, ignore_index, name=None, dtype=None):
+        super().__init__(name=name, dtype=dtype)
+        self._ignore_index = ignore_index
+
+    def update_state(self, y_true, y_pred, sample_weight=None):
+
+        y_true = tf.cast(y_true, tf.int32)
+        y_pred = tf.math.argmax(y_pred, axis=-1, output_type=tf.int32)
+
+        matches = tf.cast(tf.equal(y_true, y_pred), K.floatx())
+        sample_weight = tf.not_equal(y_true, self._ignore_index)
+
+        return super().update_state(matches, sample_weight=sample_weight)
+
+    def get_config(self):
+        config = {
+            'ignore_index': self._ignore_index,
+        }
+        base_config = super().get_config()
         return dict(list(base_config.items()) + list(config.items()))
