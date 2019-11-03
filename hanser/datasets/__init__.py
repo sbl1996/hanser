@@ -1,10 +1,11 @@
 import tensorflow as tf
 
 
-def prepare(ds, preprocess, batch_size, training=True, buffer_size=None, drop_remainder=None):
+def prepare(ds, preprocess, batch_size, training=True, buffer_size=None, drop_remainder=None, cache=True):
     if drop_remainder is None:
         drop_remainder = training
-    ds = ds.cache()
+    if cache:
+        ds = ds.cache()
     if training:
         ds = ds.shuffle(buffer_size or 1000)
         ds = ds.repeat()

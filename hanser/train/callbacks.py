@@ -93,15 +93,3 @@ def one_cycle_lr(epoch, base_lr, max_lr, step_size, end_steps, gamma, warmup=0, 
     else:
         lr = base_lr * gamma
     return lr
-
-
-class WeightDecay(Callback):
-
-    def __init__(self, weight_decay):
-        super().__init__()
-        self.weight_decay = weight_decay
-
-    def on_train_batch_end(self, batch, logs=None):
-        for x in self.model.trainable_variables:
-            if 'batch_normalization' not in x.name and self.weight_decay != 0:
-                tf.assign_sub(x, self.weight_decay * x)
