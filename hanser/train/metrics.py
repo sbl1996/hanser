@@ -167,12 +167,12 @@ class SparseCategoricalAccuracy(Mean):
 
 
 @curry
-def sparse_categorical_accuracy(y_true, y_pred, ignore_index):
+def sparse_categorical_accuracy(y_true, y_pred, ignore_label):
     y_true = tf.cast(y_true, tf.int32)
     y_pred = tf.math.argmax(y_pred, axis=-1, output_type=tf.int32)
 
     n_correct = tf.reduce_sum(tf.cast(tf.equal(y_true, y_pred), tf.float32))
-    n_total = tf.reduce_sum(tf.cast(tf.not_equal(y_true, ignore_index), tf.float32))
+    n_total = tf.reduce_sum(tf.cast(tf.not_equal(y_true, ignore_label), tf.float32))
 
     return n_correct / n_total
 
@@ -184,11 +184,16 @@ def confusion_matrix(y_true, y_pred, num_classes):
     return tf.reshape(tf.math.bincount(y_true * c + y_pred, minlength=c * c), (c, c))
 
 
-def mean_iou(y_true, y_pred, num_classes, ignore_index=None, per_class=False):
+@curry
+def mean_iou(y_true, y_pred, num_classes, ignore_label=None, per_class=False):
+
+    if y_pred.shape.ndims - y_true.shape.ndims == 1:
+        y_pred = tf.math.argmax(y_pred, axis=-1, output_type=tf.int32)
+    # print(y_true.shape)
     y_true = tf.reshape(y_true, [-1])
     y_pred = tf.reshape(y_pred, [-1])
-    if ignore_index is not None:
-        mask = y_true != ignore_index
+    if ignore_label is not None:
+        mask = y_true != ignore_label
         y_pred = y_pred[mask]
         y_true = y_true[mask]
     cm = confusion_matrix(y_true, y_pred, num_classes)
@@ -196,9 +201,13 @@ def mean_iou(y_true, y_pred, num_classes, ignore_index=None, per_class=False):
     intersection = tf.linalg.diag_part(cm)
     ground_truth_set = tf.reduce_sum(cm, axis=1)
     predicted_set = tf.reduce_sum(cm, axis=0)
+
     union = ground_truth_set + predicted_set - intersection
-    IoU = tf.cast(intersection, tf.float32) / tf.cast(union, tf.float32)
+
+    num_valid_entries = tf.reduce_sum(tf.cast(tf.not_equal(union, 0), dtype=tf.float32))
+
+    iou = tf.math.divide_no_nan(tf.cast(intersection, tf.float32), tf.cast(union, tf.float32))
     if per_class:
-        return IoU
+        return iou
     else:
-        return tf.reduce_mean(IoU)
+        return tf.math.divide_no_nan(tf.reduce_sum(iou, name='mean_iou'), num_valid_entries)

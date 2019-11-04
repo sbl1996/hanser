@@ -5,20 +5,18 @@ from tensorflow.python.distribute.values import PerReplica
 
 from hanser.tpu.bn import TpuBatchNormalization
 
+
 def get_colab_tpu():
-    tpu = os.environ.get('COLAB_TPU_ADDR')
-    if tpu:
+    tpu_address = os.environ.get("COLAB_TPU_ADDR")
+    if tpu_address:
+        tpu_address = "grpc://" + tpu_address
         tf.keras.backend.clear_session()
-        tpu = 'grpc://' + os.environ['COLAB_TPU_ADDR']
-        resolver = tf.distribute.cluster_resolver.TPUClusterResolver(tpu)
-        # tf.config.experimental_connect_to_cluster(tpu_cluster_resolver)
-        tf.tpu.experimental.initialize_tpu_system(resolver)
-        config = tf.ConfigProto()
-        config.allow_soft_placement = True
-        cluster_spec = resolver.cluster_spec()
-        if cluster_spec:
-            config.cluster_def.CopyFrom(cluster_spec.as_cluster_def())
-        return resolver
+        tpu = tf.distribute.cluster_resolver.TPUClusterResolver(tpu_address)
+        tf.config.experimental_connect_to_cluster(tpu)
+        tf.tpu.experimental.initialize_tpu_system(tpu)
+        strategy = tf.distribute.experimental.TPUStrategy(tpu)
+        return strategy
+
 
 def auth():
     from google.colab import auth
