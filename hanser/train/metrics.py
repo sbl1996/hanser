@@ -1,9 +1,10 @@
+from toolz import curry
+
 import tensorflow as tf
 import tensorflow.keras.backend as K
 
 import numpy as np
 
-from hanser.math import confusion_matrix
 from tensorflow.keras.metrics import Metric, Mean
 
 
@@ -137,6 +138,17 @@ class SparseCategoricalAccuracy(Mean):
         self._ignore_index = ignore_index
 
     def update_state(self, y_true, y_pred, sample_weight=None):
+        # y_true = tf.cast(y_true, self._dtype)
+        # y_pred = tf.cast(y_pred, self._dtype)
+        # [y_true, y_pred], sample_weight = \
+        #     metrics_utils.ragged_assert_compatible_and_get_flat_values(
+        #         [y_true, y_pred], sample_weight)
+        # y_pred, y_true = tf_losses_utils.squeeze_or_expand_dimensions(
+        #     y_pred, y_true)
+        #
+        # matches = self._fn(y_true, y_pred, **self._fn_kwargs)
+        # return super(MeanMetricWrapper, self).update_state(
+        #     matches, sample_weight=sample_weight)
 
         y_true = tf.cast(y_true, tf.int32)
         y_pred = tf.math.argmax(y_pred, axis=-1, output_type=tf.int32)
@@ -152,3 +164,41 @@ class SparseCategoricalAccuracy(Mean):
         }
         base_config = super().get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+
+@curry
+def sparse_categorical_accuracy(y_true, y_pred, ignore_index):
+    y_true = tf.cast(y_true, tf.int32)
+    y_pred = tf.math.argmax(y_pred, axis=-1, output_type=tf.int32)
+
+    n_correct = tf.reduce_sum(tf.cast(tf.equal(y_true, y_pred), tf.float32))
+    n_total = tf.reduce_sum(tf.cast(tf.not_equal(y_true, ignore_index), tf.float32))
+
+    return n_correct / n_total
+
+
+def confusion_matrix(y_true, y_pred, num_classes):
+    y_true = tf.cast(y_true, tf.int32)
+    y_pred = tf.cast(y_pred, tf.int32)
+    c = num_classes
+    return tf.reshape(tf.math.bincount(y_true * c + y_pred, minlength=c * c), (c, c))
+
+
+def mean_iou(y_true, y_pred, num_classes, ignore_index=None, per_class=False):
+    y_true = tf.reshape(y_true, [-1])
+    y_pred = tf.reshape(y_pred, [-1])
+    if ignore_index is not None:
+        mask = y_true != ignore_index
+        y_pred = y_pred[mask]
+        y_true = y_true[mask]
+    cm = confusion_matrix(y_true, y_pred, num_classes)
+    # compute mean iou
+    intersection = tf.linalg.diag_part(cm)
+    ground_truth_set = tf.reduce_sum(cm, axis=1)
+    predicted_set = tf.reduce_sum(cm, axis=0)
+    union = ground_truth_set + predicted_set - intersection
+    IoU = tf.cast(intersection, tf.float32) / tf.cast(union, tf.float32)
+    if per_class:
+        return IoU
+    else:
+        return tf.reduce_mean(IoU)
