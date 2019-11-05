@@ -29,9 +29,17 @@ WEIGHTS_HASHES = {
                    '0f678c91647380debd923963594981b3')
 }
 
+def get_same_padding(kernel_size, stride, dilation):
+    assert dilation > 1 and stride == 2
+    k = kernel_size + (kernel_size - 1) * (dilation - 1)
+    p = k - 1
+    pl = p // 2
+    pr = p - pl
+    return pl, pr
+
 
 def block1(x, filters, kernel_size=3, stride=1,
-           conv_shortcut=True, name=None):
+           dilation=1, conv_shortcut=True, name=None):
     """A residual block.
 
     # Arguments
@@ -65,6 +73,7 @@ def block1(x, filters, kernel_size=3, stride=1,
 
     x = conv2d(x, filters, kernel_size,
                use_bias=True,
+               dilation=dilation,
                name=name + '_2_conv')
     x = bn(x, name=name + '_2_bn')
     x = relu(x, name=name + '_2_relu')
@@ -80,7 +89,7 @@ def block1(x, filters, kernel_size=3, stride=1,
     return x
 
 
-def stack1(x, filters, blocks, stride1=2, name=None):
+def stack1(x, filters, blocks, stride1=2, dilation=1, name=None):
     """A set of stacked residual blocks.
 
     # Arguments
@@ -93,9 +102,9 @@ def stack1(x, filters, blocks, stride1=2, name=None):
     # Returns
         Output tensor for the stacked blocks.
     """
-    x = block1(x, filters, stride=stride1, name=name + '_block1')
+    x = block1(x, filters, stride=stride1, dilation=dilation, name=name + '_block1')
     for i in range(2, blocks + 1):
-        x = block1(x, filters, conv_shortcut=False, name=name + '_block' + str(i))
+        x = block1(x, filters, conv_shortcut=False, dilation=dilation, name=name + '_block' + str(i))
     return x
 
 
@@ -340,12 +349,15 @@ def load_weights(model, model_name):
         model.load_weights(weights_path)
 
 
-def ResNet50(input_shape, pretrained=True):
+def ResNet50(input_shape, pretrained=True, output_stride=32):
     def stack_fn(x):
         x = stack1(x, 64, 3, stride1=1, name='conv2')
         x = stack1(x, 128, 4, name='conv3')
         x = stack1(x, 256, 6, name='conv4')
-        x = stack1(x, 512, 3, name='conv5')
+        if output_stride == 16:
+            x = stack1(x, 512, 3, stride1=1, dilation=2, name='conv5')
+        else:
+            x = stack1(x, 512, 3, name='conv5')
         return x
 
     model = ResNet(input_shape, stack_fn, False, True, 'resnet50')
