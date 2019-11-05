@@ -11,8 +11,10 @@ def cross_entropy(labels, logits, ignore_label=None):
         logits: (N, H, W, C)
     """
     labels = tf.cast(labels, tf.int32)
+    num_classes = tf.shape(logits)[-1]
+    labels = tf.reshape(labels, [-1])
+    logits = tf.reshape(logits, [-1, num_classes])
     if ignore_label is not None:
-        num_classes = tf.shape(logits)[-1]
         mask = tf.not_equal(labels, ignore_label)
         labels = tf.where(mask, labels, tf.fill(tf.shape(labels), num_classes))
         weights = tf.cast(mask, logits.dtype)
@@ -35,8 +37,10 @@ def focal_loss2(labels, logits, gamma=2, beta=1, ignore_label=None):
         logits: (N, H, W, C)
     """
     labels = tf.cast(labels, tf.int32)
+    num_classes = tf.shape(logits)[-1]
+    labels = tf.reshape(labels, [-1])
+    logits = tf.reshape(logits, [-1, num_classes])
     if ignore_label is not None:
-        num_classes = tf.shape(logits)[-1]
         mask = tf.not_equal(labels, ignore_label)
         labels = tf.where(mask, labels, tf.fill(tf.shape(labels), num_classes))
         weights = tf.cast(mask, logits.dtype)
@@ -49,7 +53,6 @@ def focal_loss2(labels, logits, gamma=2, beta=1, ignore_label=None):
         loss = tf.keras.losses.categorical_crossentropy(onehot_labels, logits, from_logits=True)
         loss = tf.reduce_sum(loss) / num_valid
     else:
-        num_classes = tf.shape(logits)[-1]
         onehot_labels = tf.one_hot(labels, num_classes, dtype=logits.dtype)
         if gamma > 1:
             logits = (onehot_labels * (gamma - 1) + 1) * logits
