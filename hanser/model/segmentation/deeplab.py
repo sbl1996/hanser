@@ -35,12 +35,13 @@ def aspp(x, channels=256, rates=(6, 12, 18)):
     return x
 
 
-def deeplabv3(backbone, num_classes):
+def deeplabv3(backbone, num_classes, with_aspp=True):
     input_shape = backbone.input_shape[1:]
     inputs = Input(input_shape)
 
     x = backbone(inputs)
-    x = aspp(x)
+    if with_aspp:
+        x = aspp(x)
     logits = conv2d(x, num_classes, kernel_size=1, use_bias=True)
     logits = Lambda(tf.image.resize,
                     arguments=dict(size=input_shape[:2]),
