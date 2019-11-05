@@ -12,9 +12,9 @@ def cross_entropy(labels, logits, ignore_label=None):
     """
     labels = tf.cast(labels, tf.int32)
     if ignore_label is not None:
-        num_classes = logits.shape[-1]
+        num_classes = tf.shape(logits)[-1]
         mask = tf.not_equal(labels, ignore_label)
-        labels = tf.where(mask, labels, tf.fill(labels.shape, num_classes))
+        labels = tf.where(mask, labels, tf.fill(tf.shape(labels), num_classes))
         weights = tf.cast(mask, logits.dtype)
         num_valid = tf.reduce_sum(weights)
         onehot_labels = tf.one_hot(labels, num_classes + 1)[..., :-1]
