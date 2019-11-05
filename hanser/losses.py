@@ -2,9 +2,30 @@ from toolz import curry
 
 import tensorflow as tf
 
-
 @curry
 def cross_entropy(labels, logits, ignore_label=None):
+    r"""
+    Args:
+        labels: (N, H, W)
+        logits: (N, H, W, C)
+    """
+    labels = tf.cast(labels, tf.int32)
+    num_classes = tf.shape(logits)[-1]
+    labels = tf.reshape(labels, [-1])
+    logits = tf.reshape(logits, [-1, num_classes])
+    if ignore_label is not None:
+        mask = tf.not_equal(labels, ignore_label)
+        labels = tf.where(mask, labels, tf.zeros_like(labels))
+        weights = tf.cast(mask, logits.dtype)
+        loss = tf.compat.v1.losses.sparse_softmax_cross_entropy(labels, logits, weights)
+    else:
+        loss = tf.keras.losses.sparse_categorical_crossentropy(labels, logits, from_logits=True)
+        loss = tf.reduce_mean(loss)
+    return loss
+
+
+@curry
+def cross_entropy2(labels, logits, ignore_label=None):
     r"""
     Args:
         labels: (N, H, W)
@@ -22,7 +43,6 @@ def cross_entropy(labels, logits, ignore_label=None):
         onehot_labels = tf.one_hot(labels, num_classes + 1)[..., :-1]
         loss = tf.keras.losses.categorical_crossentropy(onehot_labels, logits, from_logits=True)
         loss = tf.reduce_sum(loss) / num_valid
-        # loss = tf.compat.v1.losses.sparse_softmax_cross_entropy(labels, logits, weights)
     else:
         loss = tf.keras.losses.sparse_categorical_crossentropy(labels, logits, from_logits=True)
         loss = tf.reduce_mean(loss)
@@ -61,3 +81,5 @@ def focal_loss2(labels, logits, gamma=2, beta=1, ignore_label=None):
         loss = tf.keras.losses.categorical_crossentropy(onehot_labels, logits, from_logits=True)
         loss = tf.reduce_mean(loss)
     return loss
+
+
