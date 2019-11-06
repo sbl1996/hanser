@@ -89,7 +89,7 @@ def block1(x, filters, kernel_size=3, stride=1,
     return x
 
 
-def stack1(x, filters, blocks, stride1=2, dilation=1, name=None):
+def stack1(x, filters, blocks, stride1=2, dilation=None, name=None):
     """A set of stacked residual blocks.
 
     # Arguments
@@ -102,9 +102,15 @@ def stack1(x, filters, blocks, stride1=2, dilation=1, name=None):
     # Returns
         Output tensor for the stacked blocks.
     """
-    x = block1(x, filters, stride=stride1, dilation=dilation, name=name + '_block1')
+    if isinstance(dilation, (tuple, list)):
+        assert len(dilation) == blocks
+    elif isinstance(dilation, int):
+        dilation = [dilation] * blocks
+    else:
+        dilation = [1] * blocks
+    x = block1(x, filters, stride=stride1, dilation=dilation[0], name=name + '_block1')
     for i in range(2, blocks + 1):
-        x = block1(x, filters, conv_shortcut=False, dilation=dilation, name=name + '_block' + str(i))
+        x = block1(x, filters, conv_shortcut=False, dilation=dilation[i-1], name=name + '_block' + str(i))
     return x
 
 
@@ -349,12 +355,23 @@ def load_weights(model, model_name):
         model.load_weights(weights_path)
 
 
-def ResNet50(input_shape, pretrained=True, output_stride=32):
+def ResNet50(input_shape, pretrained=True, output_stride=32, multi_grad=(1, 1, 1)):
     def stack_fn(x):
         x = stack1(x, 64, 3, stride1=1, name='conv2')
         x = stack1(x, 128, 4, name='conv3')
-        x = stack1(x, 256, 6, stride1=1 if output_stride <= 8 else 2, name='conv4')
-        x = stack1(x, 512, 3, stride1=1 if output_stride <= 16 else 2, name='conv5')
+        dilation = 1
+        if output_stride <= 8:
+            dilation *= 2
+        x = stack1(x, 256, 6,
+                   stride1=1 if output_stride <= 8 else 2,
+                   dilation=dilation,
+                   name='conv4')
+        if output_stride <= 16:
+            dilation = tuple(x * dilation * 2 for x in multi_grad)
+        x = stack1(x, 512, 3,
+                   stride1=1 if output_stride <= 16 else 2,
+                   dilation=dilation,
+                   name='conv5')
         return x
 
     model = ResNet(input_shape, stack_fn, False, True, 'resnet50')
@@ -368,8 +385,19 @@ def ResNet101(input_shape, pretrained=True, output_stride=32):
     def stack_fn(x):
         x = stack1(x, 64, 3, stride1=1, name='conv2')
         x = stack1(x, 128, 4, name='conv3')
-        x = stack1(x, 256, 23, stride1=1 if output_stride <= 8 else 2, name='conv4')
-        x = stack1(x, 512, 3, stride1=1 if output_stride <= 16 else 2, name='conv5')
+        dilation = 1
+        if output_stride <= 8:
+            dilation *= 2
+        x = stack1(x, 256, 23,
+                   stride1=1 if output_stride <= 8 else 2,
+                   dilation=dilation,
+                   name='conv4')
+        if output_stride <= 16:
+            dilation *= 2
+        x = stack1(x, 512, 3,
+                   stride1=1 if output_stride <= 16 else 2,
+                   dilation=dilation,
+                   name='conv5')
         return x
 
     model = ResNet(input_shape, stack_fn, False, True, 'resnet101')
