@@ -364,12 +364,12 @@ def ResNet50(input_shape, pretrained=True, output_stride=32):
     return model
 
 
-def ResNet101(input_shape, pretrained=True):
+def ResNet101(input_shape, pretrained=True, output_stride=32):
     def stack_fn(x):
         x = stack1(x, 64, 3, stride1=1, name='conv2')
         x = stack1(x, 128, 4, name='conv3')
-        x = stack1(x, 256, 23, name='conv4')
-        x = stack1(x, 512, 3, name='conv5')
+        x = stack1(x, 256, 23, stride1=1 if output_stride <= 8 else 2, name='conv4')
+        x = stack1(x, 512, 3, stride1=1 if output_stride <= 16 else 2, name='conv5')
         return x
 
     model = ResNet(input_shape, stack_fn, False, True, 'resnet101')
