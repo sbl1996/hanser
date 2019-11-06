@@ -57,7 +57,6 @@ def block1(x, filters, kernel_size=3, stride=1,
 
     if conv_shortcut is True:
         shortcut = conv2d(x, 4 * filters, 1, stride=stride,
-                          padding='valid',
                           use_bias=True,
                           name=name + '_0_conv')
         shortcut = bn(shortcut, name=name + '_0_bn')
@@ -65,7 +64,6 @@ def block1(x, filters, kernel_size=3, stride=1,
         shortcut = x
 
     x = conv2d(x, filters, 1, stride=stride,
-               padding='valid',
                use_bias=True,
                name=name + '_1_conv')
     x = bn(x, name=name + '_1_bn')
@@ -80,7 +78,6 @@ def block1(x, filters, kernel_size=3, stride=1,
 
     x = conv2d(x, 4 * filters, 1,
                use_bias=True,
-               padding='valid',
                name=name + '_3_conv')
     x = bn(x, name=name + '_3_bn')
 
@@ -115,7 +112,7 @@ def stack1(x, filters, blocks, stride1=2, dilation=None, name=None):
 
 
 def block2(x, filters, kernel_size=3, stride=1,
-           conv_shortcut=False, name=None):
+           dilation=1, conv_shortcut=False, name=None):
     """A residual block.
 
     # Arguments
@@ -136,35 +133,31 @@ def block2(x, filters, kernel_size=3, stride=1,
 
     if conv_shortcut is True:
         shortcut = conv2d(preact, 4 * filters, 1, stride=stride,
-                          padding='valid',
                           use_bias=True,
                           name=name + '_0_conv')
     else:
         shortcut = MaxPool2D(1, strides=stride)(x) if stride > 1 else x
 
     x = conv2d(preact, filters, 1, stride=1,
-               padding='valid',
-               use_bias=True,
                name=name + '_1_conv')
     x = bn(x, name=name + '_1_bn')
     x = relu(x, name=name + '_1_relu')
 
-    x = ZeroPadding2D(padding=((1, 1), (1, 1)), name=name + '_2_pad')(x)
+    # x = ZeroPadding2D(padding=((1, 1), (1, 1)), name=name + '_2_pad')(x)
     x = conv2d(x, filters, kernel_size, stride=stride,
-               padding='valid',
+               dilation=dilation,
                name=name + '_2_conv')
     x = bn(x, name=name + '_2_bn')
     x = relu(x, name=name + '_2_relu')
 
     x = conv2d(x, 4 * filters, 1,
-               padding='valid',
                use_bias=True,
                name=name + '_3_conv')
     x = Add(name=name + '_out')([shortcut, x])
     return x
 
 
-def stack2(x, filters, blocks, stride1=2, name=None):
+def stack2(x, filters, blocks, stride1=2, dilation=None, name=None):
     """A set of stacked residual blocks.
 
     # Arguments
@@ -177,10 +170,16 @@ def stack2(x, filters, blocks, stride1=2, name=None):
     # Returns
         Output tensor for the stacked blocks.
     """
-    x = block2(x, filters, conv_shortcut=True, name=name + '_block1')
+    if isinstance(dilation, (tuple, list)):
+        assert len(dilation) == blocks
+    elif isinstance(dilation, int):
+        dilation = [dilation] * blocks
+    else:
+        dilation = [1] * blocks
+    x = block2(x, filters, conv_shortcut=True, dilation=dilation[0], name=name + '_block1')
     for i in range(2, blocks):
-        x = block2(x, filters, name=name + '_block' + str(i))
-    x = block2(x, filters, stride=stride1, name=name + '_block' + str(blocks))
+        x = block2(x, filters, dilation=dilation[i-1], name=name + '_block' + str(i))
+    x = block2(x, filters, stride=stride1, dilation=dilation[-1], name=name + '_block' + str(blocks))
     return x
 
 
@@ -422,12 +421,18 @@ def ResNet152(input_shape, pretrained=True):
     return model
 
 
-def ResNet50V2(input_shape, pretrained=True):
+def ResNet50V2(input_shape, pretrained=True, output_stride=32, multi_grad=(1, 2, 4)):
     def stack_fn(x):
         x = stack2(x, 64, 3, name='conv2')
         x = stack2(x, 128, 4, name='conv3')
-        x = stack2(x, 256, 6, name='conv4')
-        x = stack2(x, 512, 3, stride1=1, name='conv5')
+        x = stack2(x, 256, 6,
+                   stride1=1 if output_stride <= 16 else 2,
+                   name='conv4')
+        if output_stride <= 16:
+            dilation = tuple(x * 2 for x in multi_grad)
+        x = stack2(x, 512, 3, stride1=1,
+                   dilation=dilation,
+                   name='conv5')
         return x
 
     model = ResNet(input_shape, stack_fn, True, True, 'resnet50v2')
