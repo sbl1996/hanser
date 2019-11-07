@@ -5,7 +5,7 @@ from tensorflow.keras.layers import Layer, Conv2D, BatchNormalization, Dense, Co
     GlobalAvgPool2D, Flatten, ReLU, Activation, Multiply
 from tensorflow.python.keras.utils import conv_utils
 
-from hanser.tpu import TpuBatchNormalization
+from hanser.tpu import TPUBatchNormalization
 from hanser.model import get_default
 from tensorflow.python.framework import tensor_shape
 from tensorflow.python.keras.engine.input_spec import InputSpec
@@ -77,11 +77,10 @@ def bn(x, fused=None, gamma='ones', name=None):
     momentum = get_default(['bn', 'momentum'])
     epsilon = get_default(['bn', 'epsilon'])
     if get_default(['bn', 'tpu']):
-        return TpuBatchNormalization(fused=False, gamma_initializer=gamma, momentum=momentum, epsilon=epsilon,
+        return TPUBatchNormalization(fused=False, gamma_initializer=gamma, momentum=momentum, epsilon=epsilon,
                                      name=name)(x)
     else:
-        return BatchNormalization(fused=fused, gamma_initializer=gamma, momentum=momentum, epsilon=epsilon, name=name)(
-            x)
+        return BatchNormalization(fused=fused, gamma_initializer=gamma, momentum=momentum, epsilon=epsilon, name=name)(x)
 
 
 def dense(x, channels, name=None):

@@ -3,7 +3,7 @@ import os
 import tensorflow as tf
 from tensorflow.python.distribute.values import PerReplica
 
-from hanser.tpu.bn import TpuBatchNormalization
+from hanser.tpu.bn import TPUBatchNormalization
 
 
 def get_colab_tpu():
