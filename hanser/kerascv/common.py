@@ -371,7 +371,7 @@ def maxpool2d(x,
 
         if (padding[0] > 0) or (padding[1] > 0):
             import tensorflow as tf
-            x = ReflectionPad2D(padding)(x)
+            x = ReflectionPad2D(padding, name=name + "/pad")(x)
             # x = nn.Lambda(
             #     (lambda z: tf.pad(z, [[0, 0], [0, 0], list(padding), list(padding)], mode="REFLECT"))
             #     if is_channels_first() else

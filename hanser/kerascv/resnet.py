@@ -9,7 +9,7 @@ __all__ = ['resnet', 'resnet10', 'resnet12', 'resnet14', 'resnetbc14b', 'resnet1
            'res_bottleneck_block', 'res_unit', 'res_init_block']
 
 import os
-from tensorflow.keras import layers as nn
+from tensorflow.keras import layers
 from tensorflow.keras.models import Model
 from hanser.kerascv.common import conv1x1_block, conv3x3_block, conv7x7_block, maxpool2d, is_channels_first, flatten
 
@@ -164,9 +164,9 @@ def res_unit(x,
             strides=strides,
             name=name + "/body")
 
-    x = nn.add([x, identity], name=name + "/add")
+    x = layers.Add(name=name + "/add")([x, identity])
 
-    x = nn.Activation("relu", name=name + "/activ")(x)
+    x = layers.Activation("relu", name=name + "/activ")(x)
     return x
 
 
@@ -234,7 +234,7 @@ def resnet(channels,
     """
     input_shape = (in_channels, in_size[0], in_size[1]) if is_channels_first() else\
         (in_size[0], in_size[1], in_channels)
-    input = nn.Input(shape=input_shape)
+    input = layers.Input(shape=input_shape)
 
     x = res_init_block(
         x=input,
@@ -254,13 +254,13 @@ def resnet(channels,
                 conv1_stride=conv1_stride,
                 name="features/stage{}/unit{}".format(i + 1, j + 1))
             in_channels = out_channels
-    x = nn.AvgPool2D(
+    x = layers.AvgPool2D(
         pool_size=7,
         strides=1,
         name="features/final_pool")(x)
 
     x = flatten(x)
-    x = nn.Dense(
+    x = layers.Dense(
         units=classes,
         input_dim=in_channels,
         name="output")(x)
