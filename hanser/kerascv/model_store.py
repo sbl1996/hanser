@@ -503,7 +503,8 @@ def load_model(net,
 
 def download_model(net,
                    model_name,
-                   local_model_store_dir_path=os.path.join("~", ".keras", "models")):
+                   local_model_store_dir_path=os.path.join("~", ".keras", "models"),
+                   skip_mismatch=False):
     """
     Load model state dictionary from a file with downloading it if necessary.
     Parameters
@@ -519,4 +520,5 @@ def download_model(net,
         net=net,
         file_path=get_model_file(
             model_name=model_name,
-            local_model_store_dir_path=local_model_store_dir_path))
+            local_model_store_dir_path=local_model_store_dir_path),
+        skip_mismatch=skip_mismatch)
