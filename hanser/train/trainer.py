@@ -52,12 +52,9 @@ class Trainer:
         self.metrics = metrics
         self.test_metrics = test_metrics
         self.model_dir = model_dir
-        self.tpu = tpu
-        if tpu:
-            assert strategy is not None, "`strategy` must be provided on tpu mode"
-            if model_dir:
-                assert model_dir.startswith('gs'), "Use gs://... as `model_dir` on tpu mode"
         self.strategy = strategy
+        if strategy and model_dir:
+            assert model_dir.startswith('gs'), "Use gs://... as `model_dir` on tpu mode"
 
         self.weight_decay = weight_decay
         self._get_sample_weight = None
@@ -100,7 +97,7 @@ class Trainer:
                     sample_weight = maybe_call(self._get_sample_weight, labels, preds)
                     metric.update_state(labels, preds, sample_weight)
 
-        if self.tpu:
+        if self.strategy:
             self.strategy.experimental_run_v2(step_fn, args=next(iterator))
         else:
             step_fn(*next(iterator))
@@ -120,7 +117,7 @@ class Trainer:
                     sample_weight = maybe_call(self._get_sample_weight, labels, preds)
                     metric.update_state(labels, preds, sample_weight)
 
-        if self.tpu:
+        if self.strategy:
             self.strategy.experimental_run_v2(step_fn, args=next(iterator))
         else:
             step_fn(*next(iterator))
@@ -146,7 +143,7 @@ class Trainer:
         assert self.model_dir is not None, "`model_dir` should be provided."
 
         if manager.latest_checkpoint:
-            if self.tpu:
+            if self.strategy:
                 with self.strategy.scope():
                     checkpoint.restore(manager.latest_checkpoint)
             else:
@@ -162,7 +159,7 @@ class Trainer:
             extra_metrics=(), target_transform=None, output_transform=None, extra_eval_per_epochs=None):
         self._get_sample_weight = get_sample_weight
 
-        if self.tpu:
+        if self.strategy:
             assert isinstance(ds_train, DistributedDataset)
             assert isinstance(ds_val, DistributedDataset)
 
@@ -230,7 +227,7 @@ class Trainer:
         assert self.model_dir is not None, "`model_dir` should be provided."
         model_ckpt, model_ckpt_manager = self._make_ckpt("model", model=self.model)
 
-        if self.tpu:
+        if self.strategy:
             assert isinstance(ds_test, DistributedDataset)
         test_it = iter(ds_test)
 
@@ -244,7 +241,7 @@ class Trainer:
         assert self.model_dir is not None, "`model_dir` should be provided."
         model_ckpt, model_ckpt_manager = self._make_ckpt("model", model=self.model)
 
-        if self.tpu:
+        if self.strategy:
             assert isinstance(ds_test, DistributedDataset)
         test_it = iter(ds_test)
 
@@ -270,7 +267,7 @@ class Trainer:
         assert self.model_dir is not None, "`model_dir` should be provided."
         model_ckpt, model_ckpt_manager = self._make_ckpt("model", model=self.model)
 
-        if self.tpu:
+        if self.strategy:
             assert isinstance(ds_test, DistributedDataset)
         test_it = iter(ds_test)
 

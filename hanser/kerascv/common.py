@@ -370,7 +370,7 @@ def maxpool2d(x,
                 padding = (padding[0], padding[1] + 1)
 
         if (padding[0] > 0) or (padding[1] > 0):
-            # It should be ReflectionPad2D, but ReflectionPad2D is not supported on TPU
+            # TODO: It should be ReflectionPad2D, but ReflectionPad2D is not supported on TPU
             # x = ReflectionPad2D(padding, name=name + "/pad")(x)
 
             x = layers.ZeroPadding2D(padding, name=name + "/pad")(x)
@@ -443,9 +443,9 @@ def avgpool2d(x,
                 padding = (padding[0], padding[1] + 1)
 
         if (padding[0] > 0) or (padding[1] > 0):
-            # It should be ReflectionPad2D, but ReflectionPad2D is not supported on TPU
+            # TODO: It should be ReflectionPad2D, but ReflectionPad2D is not supported on TPU
             # x = ReflectionPad2D(padding, name=name + "/pad")(x)
-            
+
             x = layers.ZeroPadding2D(padding, name=name + "/pad")(x)
 
         x = layers.AvgPool2D(

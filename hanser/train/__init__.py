@@ -1,6 +1,7 @@
 from tensorflow.keras.layers import Conv2D, Dense, DepthwiseConv2D
 from tensorflow.keras.regularizers import l2
 
+from hanser.train.trainer import Trainer
 
 def l2_regularizer(model, alpha):
     reg = l2(alpha)
