@@ -12,7 +12,9 @@ import numpy as np
 from inspect import isfunction
 from tensorflow.keras.layers import BatchNormalization, Layer
 from tensorflow.keras import backend as K
-from tensorflow.keras import layers as nn
+from tensorflow.keras import layers
+
+from hanser.model.layers import ReflectionPad2D, ChannelShuffle
 
 
 def round_channels(channels,
@@ -50,7 +52,7 @@ class ReLU6(Layer):
         super(ReLU6, self).__init__(name=name, **kwargs)
 
     def call(self, x):
-        return nn.ReLU(max_value=6.0)(x)
+        return layers.ReLU(max_value=6.0)(x)
 
 
 class HSigmoid(Layer):
@@ -68,7 +70,7 @@ class HSigmoid(Layer):
         super(HSigmoid, self).__init__(name=name, **kwargs)
 
     def call(self, x):
-        return nn.ReLU(max_value=6.0)(x + 3.0) / 6.0
+        return layers.ReLU(max_value=6.0)(x + 3.0) / 6.0
 
 
 class HSwish(Layer):
@@ -85,7 +87,7 @@ class HSwish(Layer):
         super(HSwish, self).__init__(name=name, **kwargs)
 
     def call(self, x):
-        return x * nn.ReLU(max_value=6.0)(x + 3.0) / 6.0
+        return x * layers.ReLU(max_value=6.0)(x + 3.0) / 6.0
 
 
 def swish(x,
@@ -103,8 +105,8 @@ def swish(x,
     keras.backend tensor/variable/symbol
         Resulted tensor/variable/symbol.
     """
-    w = nn.Activation("sigmoid", name=name + "/sigmoid")(x)
-    x = nn.multiply([x, w], name=name + "/mul")
+    w = layers.Activation("sigmoid", name=name + "/sigmoid")(x)
+    x = layers.multiply([x, w], name=name + "/mul")
     return x
 
 
@@ -131,9 +133,9 @@ def get_activation_layer(x,
         x = activation()(x)
     elif isinstance(activation, str):
         if activation == "relu":
-            x = nn.Activation("relu", name=name)(x)
+            x = layers.Activation("relu", name=name)(x)
         elif activation == "relu6":
-            x = nn.ReLU(max_value=6.0, name=name)(x)
+            x = layers.ReLU(max_value=6.0, name=name)(x)
         elif activation == "swish":
             x = swish(x=x, name=name)
         elif activation == "hswish":
@@ -200,12 +202,12 @@ def flatten(x,
             z = K.reshape(z, shape=(-1, np.prod(K.int_shape(z)[1:])))
             update_keras_shape(z)
             return z
-        return nn.Lambda(channels_last_flatten)(x)
+        return layers.Lambda(channels_last_flatten)(x)
     else:
         if reshape:
-            x = nn.Reshape((-1,))(x)
+            x = layers.Reshape((-1,))(x)
         else:
-            x = nn.Flatten()(x)
+            x = layers.Flatten()(x)
         return x
 
 
@@ -236,7 +238,7 @@ def batchnorm(x,
             epsilon=epsilon,
             name=name)(x)
     else:
-        x = nn.BatchNormalization(
+        x = layers.BatchNormalization(
             axis=get_channel_axis(),
             momentum=momentum,
             epsilon=epsilon,
@@ -297,7 +299,7 @@ def lrn(x,
                 beta=beta,
                 knorm=k,
                 nsize=n))
-        x = nn.Lambda(
+        x = layers.Lambda(
             lambda z: gluon_lrn(
                 x=z,
                 alpha=alpha,
@@ -306,7 +308,7 @@ def lrn(x,
                 n=n))(x)
     else:
         import tensorflow as tf
-        x = nn.Lambda(
+        x = layers.Lambda(
             lambda z: tf.nn.lrn(
                 input=z,
                 depth_radius=n,
@@ -369,10 +371,11 @@ def maxpool2d(x,
 
         if (padding[0] > 0) or (padding[1] > 0):
             import tensorflow as tf
-            x = nn.Lambda(
-                (lambda z: tf.pad(z, [[0, 0], [0, 0], list(padding), list(padding)], mode="REFLECT"))
-                if is_channels_first() else
-                (lambda z: tf.pad(z, [[0, 0], list(padding), list(padding), [0, 0]], mode="REFLECT")))(x)
+            x = ReflectionPad2D(padding)(x)
+            # x = nn.Lambda(
+            #     (lambda z: tf.pad(z, [[0, 0], [0, 0], list(padding), list(padding)], mode="REFLECT"))
+            #     if is_channels_first() else
+            #     (lambda z: tf.pad(z, [[0, 0], list(padding), list(padding), [0, 0]], mode="REFLECT")))(x)
         padding_ke = "valid"
     else:
         if ceil_mode:
@@ -383,7 +386,7 @@ def maxpool2d(x,
                 assert (strides[0] <= 3)
                 padding_ke = "same"
 
-    x = nn.MaxPool2D(
+    x = layers.MaxPool2D(
         pool_size=pool_size,
         strides=strides,
         padding=padding_ke,
@@ -442,27 +445,28 @@ def avgpool2d(x,
                 padding = (padding[0], padding[1] + 1)
 
         if (padding[0] > 0) or (padding[1] > 0):
-            import tensorflow as tf
-            x = nn.Lambda(
-                (lambda z: tf.pad(z, [[0, 0], [0, 0], list(padding), list(padding)], mode="REFLECT"))
-                if is_channels_first() else
-                (lambda z: tf.pad(z, [[0, 0], list(padding), list(padding), [0, 0]], mode="REFLECT")))(x)
+            # import tensorflow as tf
+            x = ReflectionPad2D(padding)(x)
+            # x = nn.Lambda(
+            #     (lambda z: tf.pad(z, [[0, 0], [0, 0], list(padding), list(padding)], mode="REFLECT"))
+            #     if is_channels_first() else
+            #     (lambda z: tf.pad(z, [[0, 0], list(padding), list(padding), [0, 0]], mode="REFLECT")))(x)
 
-        x = nn.AvgPool2D(
+        x = layers.AvgPool2D(
             pool_size=pool_size,
             strides=1,
             padding="valid",
             name=name + "/pool")(x)
 
         if (strides[0] > 1) or (strides[1] > 1):
-            x = nn.AvgPool2D(
+            x = layers.AvgPool2D(
                 pool_size=1,
                 strides=strides,
                 padding="valid",
                 name=name + "/stride")(x)
         return x
 
-    x = nn.AvgPool2D(
+    x = layers.AvgPool2D(
         pool_size=pool_size,
         strides=strides,
         padding=padding_ke,
@@ -522,10 +526,7 @@ def conv2d(x,
     if K.backend() == "tensorflow":
         if (padding[0] > 0) or (padding[1] > 0):
             import tensorflow as tf
-            x = nn.Lambda(
-                (lambda z: tf.pad(z, [[0, 0], [0, 0], list(padding), list(padding)]))
-                if is_channels_first() else
-                (lambda z: tf.pad(z, [[0, 0], list(padding), list(padding), [0, 0]])))(x)
+            x = layers.ZeroPadding2D(padding, name=name + "/pad")(x)
             if not ((padding[0] == padding[1]) and (kernel_size[0] == kernel_size[1]) and
                     (kernel_size[0] // 2 == padding[0])):
                 extra_pad = True
@@ -536,7 +537,7 @@ def conv2d(x,
         elif (padding[0] == padding[1]) and (kernel_size[0] == kernel_size[1]) and (kernel_size[0] // 2 == padding[0]):
             padding_ke = "same"
         else:
-            x = nn.ZeroPadding2D(
+            x = layers.ZeroPadding2D(
                 padding=padding,
                 name=name + "/pad")(x)
             padding_ke = "valid"
@@ -545,7 +546,7 @@ def conv2d(x,
     if groups == 1:
         if extra_pad:
             name = name + "/conv"
-        x = nn.Conv2D(
+        x = layers.Conv2D(
             filters=out_channels,
             kernel_size=kernel_size,
             strides=strides,
@@ -557,7 +558,7 @@ def conv2d(x,
         assert (dilation[0] == 1) and (dilation[1] == 1)
         if extra_pad:
             name = name + "/conv"
-        x = nn.DepthwiseConv2D(
+        x = layers.DepthwiseConv2D(
             kernel_size=kernel_size,
             strides=strides,
             padding=padding_ke,
@@ -571,11 +572,11 @@ def conv2d(x,
         out_group_channels = out_channels // groups
         group_list = []
         for gi in range(groups):
-            xi = nn.Lambda(
+            xi = layers.Lambda(
                 (lambda z: z[:, gi * in_group_channels:(gi + 1) * in_group_channels, :, :])
                 if is_channels_first() else
                 (lambda z: z[:, :, :, gi * in_group_channels:(gi + 1) * in_group_channels]))(x)
-            xi = nn.Conv2D(
+            xi = layers.Conv2D(
                 filters=out_group_channels,
                 kernel_size=kernel_size,
                 strides=strides,
@@ -584,7 +585,7 @@ def conv2d(x,
                 use_bias=use_bias,
                 name=name + "/convgroup{}".format(gi + 1))(xi)
             group_list.append(xi)
-        x = nn.concatenate(group_list, axis=get_channel_axis(), name=name + "/concat")
+        x = layers.concatenate(group_list, axis=get_channel_axis(), name=name + "/concat")
         if none_batch and (x._keras_shape[0] is not None):
             x._keras_shape = (None, ) + x._keras_shape[1:]
 
@@ -1134,7 +1135,7 @@ def pre_conv_block(x,
     x = batchnorm(
         x=x,
         name=name + "/bn")
-    x = nn.Activation("relu", name=name + "/activ")(x)
+    x = layers.Activation("relu", name=name + "/activ")(x)
     if return_preact:
         x_pre_activ = x
     x = conv2d(
@@ -1244,23 +1245,23 @@ def channel_shuffle(x,
     keras.backend tensor/variable/symbol
         Resulted tensor/variable/symbol.
     """
-
-    if is_channels_first():
-        batch, channels, height, width = x._keras_shape
-    else:
-        batch, height, width, channels = x._keras_shape
-
-    # assert (channels % groups == 0)
-    channels_per_group = channels // groups
-
-    if is_channels_first():
-        x = K.reshape(x, shape=(-1, groups, channels_per_group, height, width))
-        x = K.permute_dimensions(x, pattern=(0, 2, 1, 3, 4))
-        x = K.reshape(x, shape=(-1, channels, height, width))
-    else:
-        x = K.reshape(x, shape=(-1, height, width, groups, channels_per_group))
-        x = K.permute_dimensions(x, pattern=(0, 1, 2, 4, 3))
-        x = K.reshape(x, shape=(-1, height, width, channels))
+    x = ChannelShuffle(groups)(x)
+    # if is_channels_first():
+    #     batch, channels, height, width = x._keras_shape
+    # else:
+    #     batch, height, width, channels = x._keras_shape
+    #
+    # # assert (channels % groups == 0)
+    # channels_per_group = channels // groups
+    #
+    # if is_channels_first():
+    #     x = K.reshape(x, shape=(-1, groups, channels_per_group, height, width))
+    #     x = K.permute_dimensions(x, pattern=(0, 2, 1, 3, 4))
+    #     x = K.reshape(x, shape=(-1, channels, height, width))
+    # else:
+    #     x = K.reshape(x, shape=(-1, height, width, groups, channels_per_group))
+    #     x = K.permute_dimensions(x, pattern=(0, 1, 2, 4, 3))
+    #     x = K.reshape(x, shape=(-1, height, width, channels))
 
     update_keras_shape(x)
     return x
@@ -1283,8 +1284,8 @@ def channel_shuffle_lambda(channels,
         Channel shuffle layer.
     """
     assert (channels % groups == 0)
-
-    return nn.Lambda(channel_shuffle, arguments={"groups": groups}, **kwargs)
+    return ChannelShuffle(groups, **kwargs)
+    # return nn.Lambda(channel_shuffle, arguments={"groups": groups}, **kwargs)
 
 
 def se_block(x,
@@ -1321,7 +1322,7 @@ def se_block(x,
     mid_channels = channels // reduction if not round_mid else round_channels(float(channels) / reduction)
     pool_size = x._keras_shape[2:4] if is_channels_first() else x._keras_shape[1:3]
 
-    w = nn.AvgPool2D(
+    w = layers.AvgPool2D(
         pool_size=pool_size,
         name=name + "/pool")(x)
     w = conv1x1(
@@ -1340,8 +1341,8 @@ def se_block(x,
         out_channels=channels,
         use_bias=True,
         name=name + "/conv2")
-    w = HSigmoid(name=name + "/hsigmoid")(w) if approx_sigmoid else nn.Activation("sigmoid", name=name + "/sigmoid")(w)
-    x = nn.multiply([x, w], name=name + "/mul")
+    w = HSigmoid(name=name + "/hsigmoid")(w) if approx_sigmoid else layers.Activation("sigmoid", name=name + "/sigmoid")(w)
+    x = layers.multiply([x, w], name=name + "/mul")
     return x
 
 
