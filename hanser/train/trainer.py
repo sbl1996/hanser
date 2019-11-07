@@ -235,19 +235,20 @@ class Trainer:
 
         run_epoch(self._test_step, test_it, test_steps, self.test_metrics, "Test")
 
-    def evaluate2(self, ds_test, test_steps, metrics,
+    def evaluate2(self, ds_test, test_steps, metrics, resume=True,
                   output_transform=lambda x: x, target_transform=lambda x: x, get_sample_weight=None):
-
-        assert self.model_dir is not None, "`model_dir` should be provided."
-        model_ckpt, model_ckpt_manager = self._make_ckpt("model", model=self.model)
 
         if self.strategy:
             assert isinstance(ds_test, DistributedDataset)
-        test_it = iter(ds_test)
+
+        if resume:
+            assert self.model_dir is not None, "`model_dir` should be provided."
+            model_ckpt, model_ckpt_manager = self._make_ckpt("model", model=self.model)
+            self.restore(model_ckpt, model_ckpt_manager)
 
         predict_step = self._get_predict_step(output_transform)
 
-        self.restore(model_ckpt, model_ckpt_manager)
+        test_it = iter(ds_test)
 
         for step in range(test_steps):
             target, output = predict_step(test_it)
