@@ -370,12 +370,10 @@ def maxpool2d(x,
                 padding = (padding[0], padding[1] + 1)
 
         if (padding[0] > 0) or (padding[1] > 0):
-            import tensorflow as tf
-            x = ReflectionPad2D(padding, name=name + "/pad")(x)
-            # x = nn.Lambda(
-            #     (lambda z: tf.pad(z, [[0, 0], [0, 0], list(padding), list(padding)], mode="REFLECT"))
-            #     if is_channels_first() else
-            #     (lambda z: tf.pad(z, [[0, 0], list(padding), list(padding), [0, 0]], mode="REFLECT")))(x)
+            # It should be ReflectionPad2D, but ReflectionPad2D is not supported on TPU
+            # x = ReflectionPad2D(padding, name=name + "/pad")(x)
+
+            x = layers.ZeroPadding2D(padding, name=name + "/pad")(x)
         padding_ke = "valid"
     else:
         if ceil_mode:
@@ -445,12 +443,10 @@ def avgpool2d(x,
                 padding = (padding[0], padding[1] + 1)
 
         if (padding[0] > 0) or (padding[1] > 0):
-            # import tensorflow as tf
-            x = ReflectionPad2D(padding)(x)
-            # x = nn.Lambda(
-            #     (lambda z: tf.pad(z, [[0, 0], [0, 0], list(padding), list(padding)], mode="REFLECT"))
-            #     if is_channels_first() else
-            #     (lambda z: tf.pad(z, [[0, 0], list(padding), list(padding), [0, 0]], mode="REFLECT")))(x)
+            # It should be ReflectionPad2D, but ReflectionPad2D is not supported on TPU
+            # x = ReflectionPad2D(padding, name=name + "/pad")(x)
+            
+            x = layers.ZeroPadding2D(padding, name=name + "/pad")(x)
 
         x = layers.AvgPool2D(
             pool_size=pool_size,
