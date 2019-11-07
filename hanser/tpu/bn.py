@@ -15,7 +15,7 @@ class TPUBatchNormalization(BatchNormalization):
 
     def _cross_replica_average(self, t, num_groups=1):
         """Calculates the average value of input tensor across TPU replicas."""
-        num_shards = tpu_function.get_tpu_context().number_of_shards
+        num_shards = tpu_function.get_tpu_context().number_of_shards or 8
         num_shards_per_group = 1
         group_assignment = None
         if num_groups > 0:
