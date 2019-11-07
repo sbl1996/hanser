@@ -8,6 +8,9 @@ import time
 import numpy as np
 from hanser.tpu import local_results
 
+@tf.function
+def identity(x):
+    return x
 
 def print_results(prefix, elapsed, results):
     s = "%s \tcost: %ds" % (prefix, elapsed)
@@ -236,7 +239,7 @@ class Trainer:
         run_epoch(self._test_step, test_it, test_steps, self.test_metrics, "Test")
 
     def evaluate2(self, ds_test, test_steps, metrics, resume=True,
-                  output_transform=lambda x: x, target_transform=lambda x: x, get_sample_weight=None):
+                  output_transform=identity, target_transform=identity, get_sample_weight=None):
 
         if self.strategy:
             assert isinstance(ds_test, DistributedDataset)
@@ -263,13 +266,16 @@ class Trainer:
         results = {m.name: m.result().numpy() for m in metrics}
         return results
 
-    def collect(self, ds_test, test_steps, output_transform=lambda x: x, target_transform=lambda x: x):
-
-        assert self.model_dir is not None, "`model_dir` should be provided."
-        model_ckpt, model_ckpt_manager = self._make_ckpt("model", model=self.model)
+    def collect(self, ds_test, test_steps, resume=True, output_transform=identity, target_transform=identity):
 
         if self.strategy:
             assert isinstance(ds_test, DistributedDataset)
+
+        if resume:
+            assert self.model_dir is not None, "`model_dir` should be provided."
+            model_ckpt, model_ckpt_manager = self._make_ckpt("model", model=self.model)
+            self.restore(model_ckpt, model_ckpt_manager)
+
         test_it = iter(ds_test)
 
         @tf.function
@@ -284,8 +290,6 @@ class Trainer:
                     self.strategy, self.strategy.experimental_run_v2(step_fn, args=next(iterator)))
             else:
                 return step_fn(*next(iterator))
-
-        self.restore(model_ckpt, model_ckpt_manager)
 
         targets = []
         outputs = []
