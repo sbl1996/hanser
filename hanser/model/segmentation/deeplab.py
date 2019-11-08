@@ -5,7 +5,7 @@ from tensorflow.keras import Model
 from tensorflow.keras.layers import ReLU, Concatenate, AvgPool2D, UpSampling2D, Input, Lambda
 
 from hanser.model.layers import conv2d, bn, relu
-from hanser.model.backbone.resnet import stack1, load_weights
+from hanser.model.backbone.resnet import stack1, load_weights, ResNet
 
 
 def ASPP(x, channels=256, rates=(6, 12, 18)):
@@ -35,7 +35,7 @@ def ASPP(x, channels=256, rates=(6, 12, 18)):
     return x
 
 
-def ResNet(model_name, input_shape, pretrained=True, output_stride=32, multi_grad=(1, 1, 1)):
+def get_resnet(model_name, input_shape, pretrained=True, output_stride=32, multi_grad=(1, 1, 1)):
     assert model_name in ['resnet50', 'resnet101']
 
     def stack_fn(x):
@@ -60,7 +60,7 @@ def ResNet(model_name, input_shape, pretrained=True, output_stride=32, multi_gra
 
 def deeplabv3(input_shape, backbone, output_stride, multi_grad=(1, 1, 1), aspp=True, num_classes=21):
     assert backbone in ['resnet50', 'resnet101']
-    backbone = ResNet(backbone, input_shape, output_stride=output_stride, multi_grad=multi_grad)
+    backbone = get_resnet(backbone, input_shape, output_stride=output_stride, multi_grad=multi_grad)
 
     inputs = Input(input_shape)
     x = backbone(inputs)
