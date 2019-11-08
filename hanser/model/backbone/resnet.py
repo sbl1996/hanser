@@ -354,23 +354,12 @@ def load_weights(model, model_name):
         model.load_weights(weights_path)
 
 
-def ResNet50(input_shape, pretrained=True, output_stride=32, multi_grad=(1, 1, 1)):
+def ResNet50(input_shape, pretrained=True):
     def stack_fn(x):
         x = stack1(x, 64, 3, stride1=1, name='conv2')
         x = stack1(x, 128, 4, name='conv3')
-        dilation = 1
-        if output_stride <= 8:
-            dilation *= 2
-        x = stack1(x, 256, 6,
-                   stride1=1 if output_stride <= 8 else 2,
-                   dilation=dilation,
-                   name='conv4')
-        if output_stride <= 16:
-            dilation = tuple(x * dilation * 2 for x in multi_grad)
-        x = stack1(x, 512, 3,
-                   stride1=1 if output_stride <= 16 else 2,
-                   dilation=dilation,
-                   name='conv5')
+        x = stack1(x, 256, 6, name='conv4')
+        x = stack1(x, 512, 3, name='conv5')
         return x
 
     model = ResNet(input_shape, stack_fn, False, True, 'resnet50')
@@ -380,23 +369,12 @@ def ResNet50(input_shape, pretrained=True, output_stride=32, multi_grad=(1, 1, 1
     return model
 
 
-def ResNet101(input_shape, pretrained=True, output_stride=32, multi_grad=(1, 1, 1)):
+def ResNet101(input_shape, pretrained=True):
     def stack_fn(x):
         x = stack1(x, 64, 3, stride1=1, name='conv2')
         x = stack1(x, 128, 4, name='conv3')
-        dilation = 1
-        if output_stride <= 8:
-            dilation *= 2
-        x = stack1(x, 256, 23,
-                   stride1=1 if output_stride <= 8 else 2,
-                   dilation=dilation,
-                   name='conv4')
-        if output_stride <= 16:
-            dilation = tuple(x * dilation * 2 for x in multi_grad)
-        x = stack1(x, 512, 3,
-                   stride1=1 if output_stride <= 16 else 2,
-                   dilation=dilation,
-                   name='conv5')
+        x = stack1(x, 256, 23, name='conv4')
+        x = stack1(x, 512, 3, name='conv5')
         return x
 
     model = ResNet(input_shape, stack_fn, False, True, 'resnet101')
