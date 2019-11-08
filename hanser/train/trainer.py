@@ -5,12 +5,13 @@ from tensorflow.python.distribute.input_lib import DistributedDataset
 
 import time
 
-import numpy as np
 from hanser.tpu import local_results
+
 
 @tf.function
 def identity(x):
     return x
+
 
 def print_results(prefix, elapsed, results):
     s = "%s \tcost: %ds" % (prefix, elapsed)
@@ -47,8 +48,8 @@ def maybe_call(fn, *args, default=None):
 
 class Trainer:
 
-    def __init__(self, model, criterion, optimizer, metrics=(), test_metrics=(), model_dir=None, tpu=None,
-                 strategy=None, weight_decay=None):
+    def __init__(self, model, criterion, optimizer, metrics=(), test_metrics=(), model_dir=None,
+                 strategy=None, weight_decay=None, bfloat16=False):
         self.model = model
         self.criterion = criterion
         self.optimizer = optimizer
@@ -59,6 +60,7 @@ class Trainer:
         if strategy and model_dir:
             assert model_dir.startswith('gs'), "Use gs://... as `model_dir` on tpu mode"
 
+        self.bfloat16 = bfloat16
         self.weight_decay = weight_decay
         self._get_sample_weight = None
 
@@ -75,6 +77,8 @@ class Trainer:
         def step_fn(images, labels):
             with tf.GradientTape() as tape:
                 preds = self.model(images, training=True)
+                if self.bfloat16:
+                    preds = tf.cast(preds, tf.float32)
                 loss1 = self.criterion(labels, preds)
                 if loss1.shape.ndims != 0:
                     loss1 = tf.reduce_mean(loss1)
@@ -109,6 +113,8 @@ class Trainer:
     def _test_step(self, iterator):
         def step_fn(images, labels):
             preds = self.model(images, training=False)
+            if self.bfloat16:
+                preds = tf.cast(preds, tf.float32)
             loss = self.criterion(labels, preds)
             if loss.shape.ndims != 0:
                 loss = tf.reduce_mean(loss)
@@ -130,7 +136,10 @@ class Trainer:
         @tf.function
         def predict_step(iterator):
             def step_fn(inputs, target):
-                output = output_transform(self.model(inputs, training=False))
+                output = self.model(inputs, training=False)
+                if self.bfloat16:
+                    output = tf.cast(output, tf.float32)
+                output = output_transform(output)
                 # target = target_transform(target)
                 return target, output
 
@@ -157,9 +166,16 @@ class Trainer:
             print("Initializing from scratch.")
             return False
 
-    def fit(self, epochs, ds_train, steps_per_epoch, ds_val, val_steps,
-            resume=True, save_per_epochs=None, get_sample_weight=None,
-            extra_metrics=(), target_transform=None, output_transform=None, extra_eval_per_epochs=None):
+    def resume(self):
+        model_ckpt, model_ckpt_manager = self._make_ckpt("model", model=self.model)
+        optim_ckpt, optim_ckpt_manager = self._make_ckpt("optim", optimizer=self.optimizer, epoch=self._epoch)
+
+        self.restore(model_ckpt, model_ckpt_manager)
+        self.restore(optim_ckpt, optim_ckpt_manager)
+
+    def fit(self, epochs, ds_train, steps_per_epoch, ds_val, val_steps, val_freq=1, save_per_epochs=None,
+            get_sample_weight=None,
+            extra_metrics=(), target_transform=None, output_transform=None, extra_eval_freq=None):
         self._get_sample_weight = get_sample_weight
 
         if self.strategy:
@@ -169,15 +185,11 @@ class Trainer:
         train_it = iter(ds_train)
         val_it = iter(ds_val)
 
-        if save_per_epochs or resume:
+        if save_per_epochs:
             assert self.model_dir is not None, "`model_dir` should be provided."
 
             model_ckpt, model_ckpt_manager = self._make_ckpt("model", model=self.model)
             optim_ckpt, optim_ckpt_manager = self._make_ckpt("optim", optimizer=self.optimizer, epoch=self._epoch)
-
-            if resume:
-                self.restore(model_ckpt, model_ckpt_manager)
-                self.restore(optim_ckpt, optim_ckpt_manager)
 
         epoch = self._epoch.numpy()
         max_epochs = epoch + epochs
@@ -185,20 +197,20 @@ class Trainer:
         if extra_metrics:
             assert target_transform
             assert output_transform
-            assert extra_eval_per_epochs
+            assert extra_eval_freq
             predict_step = self._get_predict_step(output_transform)
 
         while epoch < max_epochs:
             print('Epoch %s' % (epoch + 1))
 
-            # K.set_value(self.optimizer.lr, self.lr_schedule(epoch))
-            # print(self.optimizer.lr(self.optimizer.iterations))
-
             run_epoch(self._train_step, train_it, steps_per_epoch, self.metrics, "Train")
 
             epoch = self._epoch.assign_add(1).numpy()
 
-            if extra_metrics and epoch % extra_eval_per_epochs == 0:
+            if epoch % val_freq == 0:
+                run_epoch(self._test_step, val_it, val_steps, self.test_metrics, "Val")
+
+            if extra_metrics and epoch % extra_eval_freq == 0:
                 start = time.time()
                 for step in range(val_steps):
                     target, output = predict_step(val_it)
@@ -217,8 +229,6 @@ class Trainer:
                     m.reset_states()
                 elapsed = time.time() - start
                 print_results("Eval", elapsed, metric_results)
-            else:
-                run_epoch(self._test_step, val_it, val_steps, self.test_metrics, "Val")
 
             if save_per_epochs and epoch % save_per_epochs == 0:
                 print("Saved model: %s" % model_ckpt_manager.save(epoch))
@@ -227,27 +237,17 @@ class Trainer:
     def evaluate(self, ds_test, test_steps, get_sample_weight=None):
         self._get_sample_weight = get_sample_weight
 
-        assert self.model_dir is not None, "`model_dir` should be provided."
-        model_ckpt, model_ckpt_manager = self._make_ckpt("model", model=self.model)
-
         if self.strategy:
             assert isinstance(ds_test, DistributedDataset)
         test_it = iter(ds_test)
 
-        self.restore(model_ckpt, model_ckpt_manager)
-
         run_epoch(self._test_step, test_it, test_steps, self.test_metrics, "Test")
 
-    def evaluate2(self, ds_test, test_steps, metrics, resume=True,
+    def evaluate2(self, ds_test, test_steps, metrics,
                   output_transform=identity, target_transform=identity, get_sample_weight=None):
 
         if self.strategy:
             assert isinstance(ds_test, DistributedDataset)
-
-        if resume:
-            assert self.model_dir is not None, "`model_dir` should be provided."
-            model_ckpt, model_ckpt_manager = self._make_ckpt("model", model=self.model)
-            self.restore(model_ckpt, model_ckpt_manager)
 
         predict_step = self._get_predict_step(output_transform)
 
@@ -266,16 +266,10 @@ class Trainer:
         results = {m.name: m.result().numpy() for m in metrics}
         return results
 
-    def collect(self, ds_test, test_steps, resume=True, output_transform=identity, target_transform=identity):
+    def collect(self, ds_test, test_steps, output_transform=identity, target_transform=identity):
 
         if self.strategy:
             assert isinstance(ds_test, DistributedDataset)
-
-        if resume:
-            assert self.model_dir is not None, "`model_dir` should be provided."
-            model_ckpt, model_ckpt_manager = self._make_ckpt("model", model=self.model)
-            self.restore(model_ckpt, model_ckpt_manager)
-
         test_it = iter(ds_test)
 
         @tf.function
