@@ -78,8 +78,11 @@ def ssd(input_shape, backbone, num_levels=4, multi_grad=(1, 1, 1), num_anchors=6
         cs.append(stack1(cs[-1], 256, 1, stride1=2, name='conv%d' % (i + 6)))
 
     num_outputs = num_anchors * (4 + num_classes)
+    bias_initializer = tf.keras.initializers.Constant(-4.595)
     ps = [
-        conv2d(c, num_outputs, kernel_size=3, use_bias=True, name='pred%d' % (i + 3))
+        conv2d(c, num_outputs, kernel_size=3, use_bias=True,
+               bias_initializer=bias_initializer,
+               name='pred%d' % (i + 3))
         for i, c in enumerate(cs)
     ]
 
