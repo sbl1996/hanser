@@ -67,6 +67,34 @@ def img_seg_to_tfexample(img_data, filename, image_format, height, width, seg_da
     }))
 
 
+def parse_voc_example(example_proto):
+    features = {
+        'image':
+            tf.io.FixedLenFeature((), tf.string),
+        'image/filename':
+            tf.io.FixedLenFeature((), tf.string),
+        'objects/bbox':
+            tf.io.FixedLenSequenceFeature((4,), tf.float32, allow_missing=True),
+        'objects/is_difficult':
+            tf.io.FixedLenSequenceFeature((), tf.int64, allow_missing=True),
+        'objects/is_truncated':
+            tf.io.FixedLenSequenceFeature((), tf.int64, allow_missing=True),
+        'objects/label':
+            tf.io.FixedLenSequenceFeature((), tf.int64, allow_missing=True),
+        'objects/pose':
+            tf.io.FixedLenSequenceFeature((), tf.int64, allow_missing=True),
+        'labels':
+            tf.io.FixedLenSequenceFeature((), tf.int64, allow_missing=True),
+        'labels_no_difficult':
+            tf.io.FixedLenSequenceFeature((), tf.int64, allow_missing=True),
+    }
+    data = tf.io.parse_single_example(example_proto, features)
+    img = tf.image.decode_image(data['image'])
+    img.set_shape([None, None, 3])
+    data['image'] = img
+    return data
+
+
 def parse_tfexample_to_img_seg(example_proto):
     features = {
         'image/encoded':

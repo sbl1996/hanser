@@ -2,6 +2,7 @@ from toolz import curry
 
 import tensorflow as tf
 
+
 @curry
 def cross_entropy(labels, logits, ignore_label=None):
     r"""
@@ -83,3 +84,33 @@ def focal_loss2(labels, logits, gamma=2, beta=1, ignore_label=None):
     return loss
 
 
+def focal_loss(logits, targets, alpha, gamma):
+    """Compute the focal loss between `logits` and the golden `target` values.
+
+    Focal loss = -(1-pt)^gamma * log(pt)
+    where pt is the probability of being classified to the true class.
+
+    Args:
+    logits: A float32 tensor of size [batch, height_in, width_in,
+      num_predictions].
+    targets: A float32 tensor of size [batch, height_in, width_in,
+      num_predictions].
+    alpha: A float32 scalar multiplying alpha to the loss from positive examples
+      and (1-alpha) to the loss from negative examples.
+    gamma: A float32 scalar modulating loss from hard and easy examples.
+
+    Returns:
+    loss: A float32 scalar representing normalized total loss.
+    """
+    positive_label_mask = tf.equal(targets, 1.0)
+    cross_entropy = (
+        tf.nn.sigmoid_cross_entropy_with_logits(labels=targets, logits=logits))
+    probs = tf.sigmoid(logits)
+    probs_gt = tf.where(positive_label_mask, probs, 1.0 - probs)
+    # With small gamma, the implementation could produce NaN during back prop.
+    modulator = tf.pow(1.0 - probs_gt, gamma)
+    loss = modulator * cross_entropy
+    weighted_loss = tf.where(positive_label_mask, alpha * loss,
+                             (1.0 - alpha) * loss)
+    total_loss = tf.reduce_sum(weighted_loss)
+    return total_loss
