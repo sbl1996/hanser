@@ -7,6 +7,23 @@ from hanser.ops import index_put, to_float
 from hanser.transform.detection import random_colors
 
 
+def iou_mn(boxes1, boxes2):
+    boxes2 = boxes2.T
+    y_min1, x_min1, y_max1, x_max1 = np.split(boxes1, 4, axis=1)
+    y_min2, x_min2, y_max2, x_max2 = np.split(boxes2, 4, axis=0)
+    y_min = np.maximum(y_min1, y_min2)
+    x_min = np.maximum(x_min1, x_min2)
+    y_max = np.minimum(y_max1, y_max2)
+    x_max = np.minimum(x_max1, x_max2)
+    inter_h = np.maximum(0.0, y_max - y_min)
+    inter_w = np.maximum(0.0, x_max - x_min)
+    inter_area = inter_h * inter_w
+    areas1 = (y_max1 - y_min1) * (x_max1 - x_min1)
+    areas2 = (y_max2 - y_min2) * (x_max2 - x_min2)
+    union_area = areas1 + areas2 - inter_area
+    return np.where(inter_area == 0, 0.0, inter_area / union_area)
+
+
 def generate_mlvl_anchors(grid_sizes, anchor_sizes):
     mlvl_anchors = []
     for (ly, lx), sizes in zip(grid_sizes, anchor_sizes):
@@ -261,3 +278,23 @@ def draw_bboxes2(img, boxes, classes=None, categories=None, fontsize=8, linewidt
             ax.text(box[0], box[1] + label_offset, text,
                     color=color, size=fontsize, backgroundcolor="none")
     return fig, ax
+
+
+class BBox:
+    LTWH = 0  # [xmin, ymin, width, height]
+    LTRB = 1  # [xmin, ymin, xmax,  ymax]
+    XYWH = 2  # [cx,   cy,   width, height]
+
+    def __init__(self, image_id, category_id, bbox, score=None, is_difficult=False, area=None, segmentation=None, **kwargs):
+        self.image_id = image_id
+        self.category_id = category_id
+        self.score = score
+        self.is_difficult = is_difficult
+        self.bbox = bbox
+        self.area = area
+        self.segmentation = segmentation
+
+    def __repr__(self):
+        return "BBox(image_id=%s, category_id=%s, bbox=%s, score=%s, is_difficult=%s, area=%s)" % (
+            self.image_id, self.category_id, self.bbox, self.score, self.is_difficult, self.area
+        )

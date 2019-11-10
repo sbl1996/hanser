@@ -7,6 +7,8 @@
 import io
 import os
 import sys
+import glob
+
 from shutil import rmtree
 from setuptools import find_packages, setup, Command, Extension
 
@@ -14,6 +16,8 @@ from setuptools import find_packages, setup, Command, Extension
 #     requirements = f.read().splitlines()
 
 # Package meta-data.
+from torch.utils.cpp_extension import BuildExtension
+
 NAME = 'hanser'
 IMPORT_NAME = 'hanser'
 DESCRIPTION = "HrvvI's extension to TensorFlow"
@@ -28,6 +32,7 @@ REQUIRED = [
     "Pillow",
     "numpy",
     "toolz",
+    "pybind11",
     "googledrivedownloader",
 ]
 
@@ -58,6 +63,40 @@ if not VERSION:
         exec(f.read(), about)
 else:
     about['__version__'] = VERSION
+
+
+def get_pybind_include(user=False):
+    import pybind11
+    return pybind11.get_include(user)
+
+
+def get_numpy_extensions():
+    extensions_dir = os.path.join(here, IMPORT_NAME, 'csrc', 'numpy')
+
+    main_file = glob.glob(os.path.join(extensions_dir, '*.cpp'))
+
+    extra_compile_args = []
+    if sys.platform == 'darwin':
+        extra_compile_args += ['-stdlib=libc++',
+                               '-mmacosx-version-min=10.9']
+
+    include_dirs = [
+        extensions_dir,
+        get_pybind_include(),
+        get_pybind_include(user=True),
+    ]
+
+    ext_modules = [
+        Extension(
+            IMPORT_NAME + '._numpy',
+            main_file,
+            include_dirs=include_dirs,
+            extra_compile_args=extra_compile_args,
+        )
+    ]
+
+    return ext_modules
+
 
 class UploadCommand(Command):
     """Support setup.py upload."""
@@ -125,8 +164,10 @@ setup(
     dependency_links=DEPENDENCY_LINKS,
     # include_package_data=True,
     license='MIT',
+    ext_modules=get_numpy_extensions(),
     # $ setup.py publish support.
     cmdclass={
         'upload': UploadCommand,
+        'build_ext': BuildExtension,
     },
 )

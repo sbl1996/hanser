@@ -1,3 +1,4 @@
+from hanser.detection.eval import average_precision
 from toolz import curry, get
 
 import numpy as np
@@ -8,8 +9,7 @@ import tensorflow.keras.backend as K
 from tensorflow.keras.metrics import Metric, Mean
 
 
-from horch.detection import BBox
-from horch.detection.eval import average_precision
+from hanser.detection import BBox
 
 
 class MeanIoU(Metric):

@@ -7,6 +7,7 @@ from hanser.datasets.tfrecord import parse_voc_example
 from hanser.transform.detection import get_random_scale, resize_and_crop_image, resize_and_crop_boxes, VOC_CATEGORIES, resize_with_pad
 
 from hanser.detection import tlbr2tlhw, iou, generate_mlvl_anchors, match_anchors, draw_bboxes
+from hanser.detection import iou_mn as iou1
 
 
 def get_anchors():
@@ -64,7 +65,8 @@ def test_iou():
     n = 100
     boxes1 = tlbr2tlhw(tf.random.normal([m, 4]))
     boxes2 = tlbr2tlhw(tf.random.normal([n, 4]))
-    ious = iou(boxes1, boxes2).numpy()
+    # ious = iou(boxes1, boxes2).numpy()
+    ious = iou1(boxes1.numpy(), boxes2.numpy())
     from horch._numpy import iou_mn
     expected = iou_mn(boxes1.numpy(), boxes2.numpy())
     np.testing.assert_allclose(ious, expected)
