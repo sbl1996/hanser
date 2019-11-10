@@ -305,7 +305,7 @@ class Trainer:
 
 
 def misc_concat(values):
-    if isinstance(values, (tuple, dict)):
+    if isinstance(values, (tuple, list)):
         val = values[0]
         if tf.is_tensor(val):
             return tf.concat(values, 0)
