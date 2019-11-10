@@ -27,8 +27,8 @@ def local_results(strategy, values):
     if isinstance(values, PerReplica):
         return strategy.experimental_local_results(values)
     elif isinstance(values, (list, tuple)):
-        return values.__class__(local_results(v) for v in values)
+        return values.__class__(local_results(strategy, v) for v in values)
     elif isinstance(values, dict):
-        return { k: local_results(v) for k, v in values.items() }
+        return { k: local_results(strategy, v) for k, v in values.items() }
     else:
         return values
