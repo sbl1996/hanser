@@ -29,8 +29,9 @@ def get_resnet(model_name, input_shape, pretrained=True, multi_grad=(1, 1, 1)):
 
 
 def flat(p, c):
+    b = tf.shape(p)[0]
     ly, lx, o = p.shape[1:]
-    p = tf.reshape(p, [-1, ly * lx * (o // c), c])
+    p = tf.reshape(p, [b, ly * lx * (o // c), c])
     return p
 
 

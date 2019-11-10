@@ -1,6 +1,6 @@
 import tensorflow as tf
 from hanser.losses import focal_loss
-from hanser.ops import index_put, g, to_float, nonzero
+from hanser.ops import index_put, to_float
 from toolz import curry
 
 
@@ -101,6 +101,8 @@ def detection_loss(labels, preds, alpha=0.25, gamma=2.0):
     num_classes = tf.shape(cls_p)[-1]
     cls_t = tf.one_hot(cls_t, num_classes)
     normalizer = to_float(total_pos)
+    print(loc_t.shape)
+    print(loc_p.shape)
     loc_loss = tf.compat.v1.losses.huber_loss(loc_t, loc_p, loc_t != 0, reduction='weighted_sum') / normalizer
     cls_loss = focal_loss(cls_p, cls_t, alpha, gamma) / normalizer
     return loc_loss + cls_loss
