@@ -27,6 +27,8 @@ def local_results(strategy, values):
     if isinstance(values, PerReplica):
         return strategy.experimental_local_results(values)
     elif isinstance(values, (list, tuple)):
-        return values.__class__(strategy.experimental_local_results(v) for v in values)
+        return values.__class__(local_results(v) for v in values)
+    elif isinstance(values, dict):
+        return { k: local_results(v) for k, v in values.items() }
     else:
-        raise ValueError("`values` must be PerReplica, list or tuple or PerReplica, got %s" % type(values))
+        return values

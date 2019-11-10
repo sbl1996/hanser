@@ -305,15 +305,20 @@ class Trainer:
 
 
 def misc_concat(values):
-    val = values[0]
-    if tf.is_tensor(val):
-        return tf.concat(values, 0)
-    elif isinstance(val, dict):
-        d = {}
-        for k in val.keys():
-            d[k] = misc_concat([ v[k] for v in values ])
-        return d
-    elif isinstance(val, list):
-        return [ v for l in values for v in l ]
+    if isinstance(values, (tuple, dict)):
+        val = values[0]
+        if tf.is_tensor(val):
+            return tf.concat(values, 0)
+        elif isinstance(val, dict):
+            d = {}
+            for k in val.keys():
+                d[k] = misc_concat([v[k] for v in values])
+            return d
+        elif isinstance(val, (tuple, list)):
+            return val.__class__(v for l in values for v in l)
+        else:
+            return values
+    elif isinstance(values, dict):
+        return {k: misc_concat(v) for k, v in values.items()}
     else:
         return values
