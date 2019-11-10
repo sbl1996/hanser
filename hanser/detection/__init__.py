@@ -87,6 +87,16 @@ def match_anchors(boxes, classes, anchors, pos_thresh=0.5):
     #     ignore = tf.zeros_like(cls_t, dtype=tf.bool)
     return loc_t, cls_t, n_pos
 
+# huber loss
+def smooth_l1_loss(labels, preds, weights, delta=1.0):
+    error = preds - labels
+    abs_error = tf.math.abs(error)
+    quadratic = tf.math.minimum(abs_error, delta)
+    linear = abs_error - quadratic
+    losses = (quadratic * quadratic) * 0.5 + linear * delta
+    losses = losses * weights
+    return tf.reduce_sum(losses)
+
 
 @curry
 def detection_loss(labels, preds, alpha=0.25, gamma=2.0):
@@ -101,8 +111,8 @@ def detection_loss(labels, preds, alpha=0.25, gamma=2.0):
     num_classes = tf.shape(cls_p)[-1]
     cls_t = tf.one_hot(cls_t, num_classes)
     normalizer = to_float(total_pos)
-    print(loc_t.shape)
-    print(loc_p.shape)
-    loc_loss = tf.compat.v1.losses.huber_loss(loc_t, loc_p, loc_t != 0, reduction='weighted_sum') / normalizer
+    weights = to_float(loc_t != 0)
+    loc_loss = smooth_l1_loss(loc_t, loc_p, weights) / normalizer
+#     loc_loss = tf.compat.v1.losses.huber_loss(loc_t, loc_p, weights, reduction='weighted_sum') / normalizer
     cls_loss = focal_loss(cls_p, cls_t, alpha, gamma) / normalizer
     return loc_loss + cls_loss
