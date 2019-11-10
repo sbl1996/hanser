@@ -3,6 +3,7 @@ import colorsys
 
 import tensorflow as tf
 from hanser.ops import to_float, to_int
+from hanser.transform import pad_to_bounding_box
 
 
 def get_random_scale(height, width, output_size, scale_min, scale_max):
@@ -30,7 +31,7 @@ def scale_box(boxes, scales):
     return tf.reshape(tf.reshape(boxes, [-1, 2, 2]) * scales, [-1, 4])
 
 
-def resize_with_pad(image, boxes, target_height, target_width):
+def resize_with_pad(image, boxes, target_height, target_width, pad_value):
     height = tf.shape(image)[0]
     width = tf.shape(image)[1]
     img_scale = tf.minimum(
@@ -41,7 +42,7 @@ def resize_with_pad(image, boxes, target_height, target_width):
     scaled_width = to_int(to_float(width) * img_scale)
     boxes = scale_box(boxes, to_float([scaled_height, scaled_width]) / to_float([target_height, target_width]))
     image = tf.image.resize(image, (scaled_height,  scaled_width))
-    image = tf.image.pad_to_bounding_box(image, 0, 0, target_height, target_width)
+    image = pad_to_bounding_box(image, 0, 0, target_height, target_width, pad_value)
     return image, boxes
 
 
