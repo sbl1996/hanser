@@ -1,11 +1,15 @@
-from toolz import curry
+from toolz import curry, get
+
+import numpy as np
+import pandas as pd
 
 import tensorflow as tf
 import tensorflow.keras.backend as K
-
-import numpy as np
-
 from tensorflow.keras.metrics import Metric, Mean
+
+
+from horch.detection import BBox
+from horch.detection.eval import average_precision
 
 
 class MeanIoU(Metric):
@@ -211,3 +215,122 @@ def mean_iou(y_true, y_pred, num_classes, ignore_label=None, per_class=False):
         return iou
     else:
         return tf.math.divide_no_nan(tf.reduce_sum(iou, name='mean_iou'), num_valid_entries)
+
+
+class MeanAveragePrecision:
+    """Computes the mean Intersection-Over-Union metric.
+
+    Mean Intersection-Over-Union is a common evaluation metric for semantic image
+    segmentation, which first computes the IOU for each semantic class and then
+    computes the average over classes. IOU is defined as follows:
+      IOU = true_positive / (true_positive + false_positive + false_negative).
+    The predictions are accumulated in a confusion matrix, weighted by
+    `sample_weight` and the metric is then calculated from it.
+
+    If `sample_weight` is `None`, weights default to 1.
+    Use `sample_weight` of 0 to mask values.
+
+    Usage:
+
+    ```python
+    m = tf.keras.metrics.MeanIoU(num_classes=2)
+    m.update_state([0, 0, 1, 1], [0, 1, 0, 1])
+
+      # cm = [[1, 1],
+              [1, 1]]
+      # sum_row = [2, 2], sum_col = [2, 2], true_positives = [1, 1]
+      # iou = true_positives / (sum_row + sum_col - true_positives))
+      # result = (1 / (2 + 2 - 1) + 1 / (2 + 2 - 1)) / 2 = 0.33
+    print('Final result: ', m.result().numpy())  # Final result: 0.33
+    ```
+
+    Usage with tf.keras API:
+
+    ```python
+    model = tf.keras.Model(inputs, outputs)
+    model.compile(
+      'sgd',
+      loss='mse',
+      metrics=[tf.keras.metrics.MeanIoU(num_classes=2)])
+    ```
+    """
+
+    def __init__(self, iou_threshold=0.5, interpolation='11point', ignore_difficult=True, name=None, dtype=None):
+        """Creates a `MeanIoU` instance.
+
+        Args:
+          num_classes: The possible number of labels the prediction task can have.
+            This value must be provided, since a confusion matrix of dimension =
+            [num_classes, num_classes] will be allocated.
+          name: (Optional) string name of the metric instance.
+          dtype: (Optional) data type of the metric result.
+        """
+        self.name = name
+        self.dtype = dtype
+        self.iou_threshold = iou_threshold
+        self.interpolation = interpolation
+        self.ignore_difficult = ignore_difficult
+
+        self.gts = []
+        self.dts = []
+
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        """Accumulates the confusion matrix statistics.
+
+        Args:
+          y_true: The ground truth values.
+          y_pred: The predicted values.
+          sample_weight: Optional weighting of each example. Defaults to 1. Can be a
+            `Tensor` whose rank is either 0, or the same rank as `y_true`, and must
+            be broadcastable to `y_true`.
+
+        Returns:
+          Update op.
+        """
+        all_dets = y_pred
+        all_bboxes, all_classes, all_is_difficults, image_ids = [
+            t.numpy()
+            for t in get(['bbox', 'label', 'is_difficult', 'image_id'], y_true)
+        ]
+
+        for dts, bboxes, classes, is_difficults, image_id in zip(all_dets, all_bboxes, all_classes, all_is_difficults, image_ids):
+            for d in dts:
+                d = {**d, 'image_id': image_id}
+                self.dts.append(d)
+            for bbox, cls, is_difficult in zip(bboxes, classes, is_difficults):
+                self.gts.append({
+                    'image_id': image_id,
+                    'bbox': bbox,
+                    'category_id': cls,
+                    'is_difficult': bool(is_difficult),
+                })
+
+    def result(self):
+        dts = [BBox(**ann) for ann in self.dts]
+        gts = [BBox(**ann) for ann in self.gts]
+
+        aps = average_precision(dts, gts, self.iou_threshold, self.interpolation == '11point', self.ignore_difficult)
+        mAP = np.mean(list(aps.values()))
+        # if self.class_names:
+        #     num_classes = len(self.class_names)
+        #     d = {}
+        #     for i in range(num_classes):
+        #         d[self.class_names[i]] = aps.get(i + 1, 0) * 100
+        #     d['ALL'] = mAP * 100
+        #     d = pd.DataFrame({'mAP': d}).transpose()
+        #     pd.set_option('precision', 1)
+        #     print(d)
+        return tf.convert_to_tensor(mAP)
+
+    def reset_states(self):
+        self.gts = []
+        self.dts = []
+
+    def get_config(self):
+        config = {
+            'iou_threshold': self.iou_threshold,
+            'interpolation': self.interpolation,
+            'ignore_difficult': self.ignore_difficult,
+        }
+        base_config = super().get_config()
+        return dict(list(base_config.items()) + list(config.items()))

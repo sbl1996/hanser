@@ -4,10 +4,9 @@ import numpy as np
 import tensorflow as tf
 
 from hanser.datasets.tfrecord import parse_voc_example
-from hanser.transform.detection import get_random_scale, resize_and_crop_image, resize_and_crop_boxes, draw_bboxes, \
-    VOC_CATEGORIES, resize_with_pad
+from hanser.transform.detection import get_random_scale, resize_and_crop_image, resize_and_crop_boxes, VOC_CATEGORIES, resize_with_pad
 
-from hanser.detection import tlbr2tlwh, iou, generate_mlvl_anchors, match_anchors
+from hanser.detection import tlbr2tlhw, iou, generate_mlvl_anchors, match_anchors, draw_bboxes
 
 
 def get_anchors():
@@ -63,8 +62,8 @@ def test_resize_and_crop():
 def test_iou():
     m = 1000
     n = 100
-    boxes1 = tlbr2tlwh(tf.random.normal([m, 4]))
-    boxes2 = tlbr2tlwh(tf.random.normal([n, 4]))
+    boxes1 = tlbr2tlhw(tf.random.normal([m, 4]))
+    boxes2 = tlbr2tlhw(tf.random.normal([n, 4]))
     ious = iou(boxes1, boxes2).numpy()
     from horch._numpy import iou_mn
     expected = iou_mn(boxes1.numpy(), boxes2.numpy())
@@ -75,13 +74,14 @@ def test_anchor_match():
     files = glob('/Users/hrvvi/tensorflow_datasets/voc/2007/4.0.0/voc-train.*')
     ds = tf.data.TFRecordDataset(files).map(parse_voc_example)
     it = iter(ds)
+
     d = next(it)
     image = d['image']
     height, width = image.shape[:2]
     boxes, classes = d['objects/bbox'], d['objects/label'] + 1
 
     output_size = 320
-    image, boxes = resize_with_pad(image, boxes, output_size, output_size)
+    image, boxes = resize_with_pad(image, boxes, output_size, output_size, 0)
 
     anchors = get_anchors() / output_size
     grid_sizes = [

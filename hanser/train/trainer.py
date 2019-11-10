@@ -66,6 +66,11 @@ class Trainer:
 
         self._epoch = tf.Variable(0, trainable=False)
 
+    def _maybe_cat(self, values):
+        if self.strategy:
+            return misc_concat(values)
+        return values
+
     def _make_ckpt(self, name, **kwargs):
         ckpt = tf.train.Checkpoint(**kwargs)
         ckpt_manager = tf.train.CheckpointManager(
@@ -131,7 +136,7 @@ class Trainer:
         else:
             step_fn(*next(iterator))
 
-    def _get_predict_step(self, output_transform):
+    def _get_predict_step(self):
 
         @tf.function
         def predict_step(iterator):
@@ -139,7 +144,7 @@ class Trainer:
                 output = self.model(inputs, training=False)
                 if self.bfloat16:
                     output = tf.cast(output, tf.float32)
-                output = output_transform(output)
+                # output = output_transform(output)
                 # target = target_transform(target)
                 return target, output
 
@@ -175,7 +180,7 @@ class Trainer:
 
     def fit(self, epochs, ds_train, steps_per_epoch, ds_val, val_steps, val_freq=1, save_per_epochs=None,
             get_sample_weight=None,
-            extra_metrics=(), target_transform=None, output_transform=None, extra_eval_freq=None):
+            extra_metrics=(), target_transform=identity, output_transform=identity, extra_eval_freq=1):
         self._get_sample_weight = get_sample_weight
 
         if self.strategy:
@@ -198,7 +203,7 @@ class Trainer:
             assert target_transform
             assert output_transform
             assert extra_eval_freq
-            predict_step = self._get_predict_step(output_transform)
+            predict_step = self._get_predict_step()
 
         while epoch < max_epochs:
             print('Epoch %s' % (epoch + 1))
@@ -215,10 +220,11 @@ class Trainer:
                 for step in range(val_steps):
                     target, output = predict_step(val_it)
 
-                    target = maybe_cat(target)
-                    output = maybe_cat(output)
+                    target = self._maybe_cat(target)
+                    output = self._maybe_cat(output)
 
                     weight = maybe_call(get_sample_weight, target, output)
+                    output = output_transform(output)
                     target = target_transform(target)
 
                     for m in extra_metrics:
@@ -249,18 +255,20 @@ class Trainer:
         if self.strategy:
             assert isinstance(ds_test, DistributedDataset)
 
-        predict_step = self._get_predict_step(output_transform)
+        predict_step = self._get_predict_step()
 
         test_it = iter(ds_test)
 
         for step in range(test_steps):
             target, output = predict_step(test_it)
 
-            target = maybe_cat(target)
-            output = maybe_cat(output)
+            target = self._maybe_cat(target)
+            output = self._maybe_cat(output)
 
             weight = maybe_call(get_sample_weight, target, output)
+            output = output_transform(output)
             target = target_transform(target)
+
             for m in metrics:
                 m.update_state(target, output, weight)
         results = {m.name: m.result().numpy() for m in metrics}
@@ -272,21 +280,10 @@ class Trainer:
             assert isinstance(ds_test, DistributedDataset)
         test_it = iter(ds_test)
 
-        @tf.function
-        def predict_step(iterator):
-            def step_fn(inputs, target):
-                output = output_transform(self.model(inputs, training=False))
-                target = target_transform(target)
-                return target, output
-
-            if self.strategy:
-                return local_results(
-                    self.strategy, self.strategy.experimental_run_v2(step_fn, args=next(iterator)))
-            else:
-                return step_fn(*next(iterator))
-
         targets = []
         outputs = []
+
+        predict_step = self._get_predict_step()
 
         for step in range(test_steps):
             target, output = predict_step(test_it)
@@ -298,6 +295,25 @@ class Trainer:
                 targets.append(target)
                 outputs.append(output)
 
-        target = tf.concat(targets, 0)
-        output = tf.concat(outputs, 0)
+        target = misc_concat(targets)
+        output = misc_concat(outputs)
+
+        output = output_transform(output)
+        target = target_transform(target)
+
         return target, output
+
+
+def misc_concat(values):
+    val = values[0]
+    if tf.is_tensor(val):
+        return tf.concat(values, 0)
+    elif isinstance(val, dict):
+        d = {}
+        for k in val.keys():
+            d[k] = misc_concat([ v[k] for v in values ])
+        return d
+    elif isinstance(val, list):
+        return [ v for l in values for v in l ]
+    else:
+        return values

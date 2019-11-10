@@ -89,36 +89,6 @@ def random_colors(N, bright=True):
     return colors
 
 
-def draw_bboxes(img, boxes, classes=None, categories=None, fontsize=8, linewidth=2, colors=None, label_offset=16, figsize=(10, 10)):
-    import matplotlib.pyplot as plt
-    from matplotlib.patches import Rectangle
-
-    if not colors:
-        if categories:
-            colors = random_colors(len(categories))
-        else:
-            colors = ['w' for _ in range(100)]
-
-    boxes = boxes.reshape(-1, 2, 2)[..., ::-1].reshape(-1, 4)
-    # boxes = (boxes.reshape(-1, 2, 2) * np.array(img.shape[:2]))[..., ::-1].reshape(-1, 4)
-    boxes[:, 2:] -= boxes[:, :2]
-
-    fig, ax = plt.subplots(1, figsize=figsize)
-    ax.imshow(img)
-    for box, cls in zip(boxes, classes):
-        color = colors[cls]
-        rect = Rectangle(box[:2], box[2], box[3], linewidth=linewidth,
-                         alpha=0.7, edgecolor=color, facecolor='none')
-
-        ax.add_patch(rect)
-        if categories:
-            text = "%s" % categories[cls]
-            # text = "%s %.2f" % (categories[cls], ann['score'])
-            ax.text(box[0], box[1] + label_offset, text,
-                    color=color, size=fontsize, backgroundcolor="none")
-    return fig, ax
-
-
 #
 # def draw_bboxes(images, bboxes):
 #     rank = images.ndim

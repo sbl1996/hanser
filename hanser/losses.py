@@ -84,7 +84,7 @@ def focal_loss2(labels, logits, gamma=2, beta=1, ignore_label=None):
     return loss
 
 
-def focal_loss(logits, targets, alpha, gamma):
+def focal_loss(targets, logits, alpha, gamma):
     """Compute the focal loss between `logits` and the golden `target` values.
 
     Focal loss = -(1-pt)^gamma * log(pt)
