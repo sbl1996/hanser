@@ -234,7 +234,7 @@ def resnet(channels,
     """
     input_shape = (in_channels, in_size[0], in_size[1]) if is_channels_first() else\
         (in_size[0], in_size[1], in_channels)
-    input = layers.Input(shape=input_shape)
+    input = layers.Input(shape=input_shape, name='input')
 
     x = res_init_block(
         x=input,
@@ -254,12 +254,9 @@ def resnet(channels,
                 conv1_stride=conv1_stride,
                 name="features/stage{}/unit{}".format(i + 1, j + 1))
             in_channels = out_channels
-    x = layers.AvgPool2D(
-        pool_size=7,
-        strides=1,
-        name="features/final_pool")(x)
+    x = layers.GlobalAvgPool2D(name="features/final_pool")(x)
 
-    x = flatten(x)
+    # x = flatten(x)
     x = layers.Dense(
         units=classes,
         input_dim=in_channels,
@@ -276,7 +273,7 @@ def get_resnet(blocks,
                conv1_stride=True,
                width_scale=1.0,
                model_name=None,
-               pretrained=False,
+               pretrained=True,
                root=os.path.join("~", ".keras", "models"),
                **kwargs):
     """
@@ -293,7 +290,7 @@ def get_resnet(blocks,
         Scale factor for width of layers.
     model_name : str or None, default None
         Model name for loading pretrained model.
-    pretrained : bool, default False
+    pretrained : bool, default True
         Whether to load the pretrained weights for model.
     root : str, default '~/.keras/models'
         Location for keeping the model parameters.
@@ -555,7 +552,7 @@ def resnet50(**kwargs):
     ResNet-50 model from 'Deep Residual Learning for Image Recognition,' https://arxiv.org/abs/1512.03385.
     Parameters:
     ----------
-    pretrained : bool, default False
+    pretrained : bool, default True
         Whether to load the pretrained weights for model.
     root : str, default '~/.keras/models'
         Location for keeping the model parameters.

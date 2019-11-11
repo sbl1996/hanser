@@ -91,17 +91,17 @@ def coords_to_target(boxes, anchors):
 
 
 def target_to_coords(target, anchors):
-    # boxes: YXHW
-    # anchors: TLBR
+    # boxes: YXHW (..., #anchors, 4)
+    # anchors: TLBR (#anchors, 4)
     # return: TLBR
 
     anchors_yx = (anchors[:, :2] + anchors[:, 2:]) / 2
     anchors_hw = anchors[:, 2:] - anchors[:, :2]
 
-    boxes_yx = (target[:, :2] * anchors_hw) + anchors_yx
-    boxes_hw = tf.exp(target[:, 2:]) * anchors_hw
+    boxes_yx = (target[..., :2] * anchors_hw) + anchors_yx
+    boxes_hw = tf.exp(target[..., 2:]) * anchors_hw
     boxes_hw_half = boxes_hw / 2
-    boxes = tf.concat([boxes_yx - boxes_hw_half, boxes_yx + boxes_hw_half], axis=1)
+    boxes = tf.concat([boxes_yx - boxes_hw_half, boxes_yx + boxes_hw_half], axis=-1)
     return boxes
 
 
@@ -194,6 +194,20 @@ def detect(loc_p, cls_p, anchors, iou_threshold=0.5, conf_threshold=0.1, topk=10
             'score': scores[i].numpy()
         })
     return dets
+
+
+def batched_detect(loc_p, cls_p, anchors, iou_threshold=0.5, conf_threshold=0.1, topk=100):
+    scores = tf.sigmoid(cls_p[..., 1:])
+    boxes = target_to_coords(loc_p, anchors)
+    boxes = tf.expand_dims(boxes, 2)
+    boxes, scores, classes, n_valids = tf.image.combined_non_max_suppression(
+        boxes, scores, 20, topk, iou_threshold, conf_threshold)
+    return {
+        'bbox': boxes,
+        'score': scores,
+        'label': classes,
+        'n_valid': n_valids,
+    }
 
 
 def pad_to_fixed_size(data, pad_value, output_shape):

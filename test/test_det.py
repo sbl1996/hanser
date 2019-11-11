@@ -6,7 +6,7 @@ import tensorflow as tf
 from hanser.datasets.tfrecord import parse_voc_example
 from hanser.transform.detection import get_random_scale, resize_and_crop_image, resize_and_crop_boxes, VOC_CATEGORIES, resize_with_pad
 
-from hanser.detection import tlbr2tlhw, iou, generate_mlvl_anchors, match_anchors, draw_bboxes
+from hanser.detection import tlbr2tlhw, iou, generate_mlvl_anchors, match_anchors, draw_bboxes, yxhw2tlbr
 from hanser.detection import iou_mn as iou1
 
 
@@ -93,3 +93,27 @@ def test_anchor_match():
     anchors = tf.concat([tf.reshape(a, [-1, 4]) for a in mlvl_anchors], axis=0)
     loc_t, cls_t, ignore = match_anchors(boxes, classes, anchors)
     print(len(cls_t[cls_t != 0]) / len(boxes))
+
+
+def test_batched_detect():
+    batch_size = 10
+    num_anchors = 10000
+    num_classes = 21
+    anchors = tf.random.normal([num_anchors, 4])
+    loc_p = tf.random.normal([batch_size, num_anchors, 4])
+    cls_p = tf.random.normal([batch_size, num_anchors, num_classes])
+
+
+def test_combined_nms():
+    batch_size = 10
+    num_boxes = 10000
+    num_classes = 21
+    boxes = tf.random.normal([batch_size, num_boxes, 4])
+    boxes = yxhw2tlbr(boxes)
+    scores = tf.random.uniform([batch_size, num_boxes, num_classes])
+    max_output_size_per_class = 20
+    max_total_size = 100
+    score_threshold = 0.1
+    boxes1 = tf.expand_dims(boxes, 2)
+    tf.image.combined_non_max_suppression(boxes1, scores, 20, 100, 0.5, 0.5)
+    # boxes, scores, classes, n_valids = tf.image.combined_non_max_suppression(boxes1, scores, 20, 100, 0.5, 0.1)

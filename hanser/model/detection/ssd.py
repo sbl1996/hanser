@@ -7,27 +7,6 @@ from hanser.model.layers import conv2d, bn, relu
 from hanser.model.backbone.resnet import stack1, load_weights, ResNet, block1
 
 
-def get_resnet(model_name, input_shape, pretrained=True, multi_grad=(1, 1, 1)):
-    assert model_name in ['resnet50', 'resnet101']
-
-    def stack_fn(x):
-        x = stack1(x, 64, 3, stride1=1, name='conv2')
-        x = stack1(x, 128, 4, name='conv3')
-        x = stack1(x, 256, {'resnet50': 6, 'resnet101': 23}[model_name], name='conv4')
-        dilation = tuple(d * 2 for d in multi_grad)
-        x = stack1(x, 512, 3,
-                   stride1=1,
-                   dilation=dilation,
-                   name='conv5')
-        return x
-
-    model = ResNet(input_shape, stack_fn, False, True, model_name)
-    if pretrained:
-        load_weights(model, model_name)
-
-    return model
-
-
 def flat(p, c):
     b = tf.shape(p)[0]
     ly, lx, o = p.shape[1:]
@@ -67,13 +46,11 @@ class DetCat(Layer):
         return dict(list(base_config.items()) + list(config.items()))
 
 
-def ssd(input_shape, backbone, num_levels=4, multi_grad=(1, 1, 1), num_anchors=6, num_classes=21):
-    assert backbone in ['resnet50', 'resnet101']
-    backbone = get_resnet(backbone, input_shape, multi_grad=multi_grad)
+def ssd(backbone, num_levels=4, num_anchors=6, num_classes=21):
+    assert backbone.output_stride == 16
+    assert len(backbone.outputs) == 2
 
-    c3 = backbone.get_layer('conv4_block1_1_conv').input
-    c4 = backbone.output
-    cs = [c3, c4]
+    cs = list(backbone.outputs)
     for i in range(num_levels-2):
         cs.append(stack1(cs[-1], 256, 1, stride1=2, name='conv%d' % (i + 6)))
 

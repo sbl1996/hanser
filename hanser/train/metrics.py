@@ -287,22 +287,36 @@ class MeanAveragePrecision:
         Returns:
           Update op.
         """
-        all_dets = y_pred
-        all_bboxes, all_classes, all_is_difficults, image_ids = [
+        all_dt_bboxes, all_dt_classes, all_dt_scores, all_dt_n_valids = [
+            t.numpy()
+            for t in get(['bbox', 'label', 'score', 'n_valid'], y_pred)
+        ]
+
+        all_gt_bboxes, all_gt_classes, all_is_difficults, image_ids = [
             t.numpy()
             for t in get(['bbox', 'label', 'is_difficult', 'image_id'], y_true)
         ]
 
-        for dts, bboxes, classes, is_difficults, image_id in zip(all_dets, all_bboxes, all_classes, all_is_difficults, image_ids):
-            for d in dts:
-                d = {**d, 'image_id': image_id}
-                self.dts.append(d)
-            for bbox, cls, is_difficult in zip(bboxes, classes, is_difficults):
+        all_gt_n_valids = np.sum(all_gt_classes != 0, axis=1)
+        all_gt_classes -= 1
+        batch_size, num_dets = all_dt_bboxes.shape[:2]
+        for i in range(batch_size):
+            image_id = image_ids[i]
+            n_valid = all_dt_n_valids[i]
+            for j in range(n_valid):
+                self.dts.append({
+                    'image_id': image_id,
+                    'bbox': all_dt_bboxes[i, j],
+                    'category_id': all_dt_classes[i, j],
+                    'score': all_dt_scores[i, j],
+                })
+
+            for j in range(all_gt_n_valids[i]):
                 self.gts.append({
                     'image_id': image_id,
-                    'bbox': bbox,
-                    'category_id': cls,
-                    'is_difficult': bool(is_difficult),
+                    'bbox': all_gt_bboxes[i, j],
+                    'category_id': all_gt_classes[i, j],
+                    'is_difficult': all_is_difficults[i, j]
                 })
 
     def result(self):

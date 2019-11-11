@@ -29,6 +29,7 @@ WEIGHTS_HASHES = {
                    '0f678c91647380debd923963594981b3')
 }
 
+
 def get_same_padding(kernel_size, stride, dilation):
     assert dilation > 1 and stride == 2
     k = kernel_size + (kernel_size - 1) * (dilation - 1)
@@ -107,7 +108,7 @@ def stack1(x, filters, blocks, stride1=2, dilation=None, name=None):
         dilation = [1] * blocks
     x = block1(x, filters, stride=stride1, dilation=dilation[0], name=name + '_block1')
     for i in range(2, blocks + 1):
-        x = block1(x, filters, conv_shortcut=False, dilation=dilation[i-1], name=name + '_block' + str(i))
+        x = block1(x, filters, conv_shortcut=False, dilation=dilation[i - 1], name=name + '_block' + str(i))
     return x
 
 
@@ -127,7 +128,8 @@ def block2(x, filters, kernel_size=3, stride=1,
     # Returns
         Output tensor for the residual block.
     """
-
+    if stride == 2:
+        dilation = 1
     preact = bn(x, name=name + '_preact_bn')
     preact = relu(preact, name=name + '_preact_relu')
 
@@ -178,7 +180,7 @@ def stack2(x, filters, blocks, stride1=2, dilation=None, name=None):
         dilation = [1] * blocks
     x = block2(x, filters, conv_shortcut=True, dilation=dilation[0], name=name + '_block1')
     for i in range(2, blocks):
-        x = block2(x, filters, dilation=dilation[i-1], name=name + '_block' + str(i))
+        x = block2(x, filters, dilation=dilation[i - 1], name=name + '_block' + str(i))
     x = block2(x, filters, stride=stride1, dilation=dilation[-1], name=name + '_block' + str(blocks))
     return x
 
@@ -399,18 +401,12 @@ def ResNet152(input_shape, pretrained=True):
     return model
 
 
-def ResNet50V2(input_shape, pretrained=True, output_stride=32, multi_grad=(1, 2, 4)):
+def ResNet50V2(input_shape, pretrained=True):
     def stack_fn(x):
         x = stack2(x, 64, 3, name='conv2')
         x = stack2(x, 128, 4, name='conv3')
-        x = stack2(x, 256, 6,
-                   stride1=1 if output_stride <= 16 else 2,
-                   name='conv4')
-        if output_stride <= 16:
-            dilation = tuple(x * 2 for x in multi_grad)
-        x = stack2(x, 512, 3, stride1=1,
-                   dilation=dilation,
-                   name='conv5')
+        x = stack2(x, 256, 6, name='conv4')
+        x = stack2(x, 512, 3, stride1=1, name='conv5')
         return x
 
     model = ResNet(input_shape, stack_fn, True, True, 'resnet50v2')
@@ -478,3 +474,159 @@ def ResNeXt101(input_shape, pretrained=True):
         load_weights(model, 'resnext101')
 
     return model
+
+
+def get_resnext(depth, input_shape, output_stride=32, pretrained=True):
+    if pretrained:
+        assert depth in [50, 101]
+    config = {
+        50: [
+            [128, 3, 1, 1],
+            [256, 4, 2, 1],
+            [512, 6, 2, 1],
+            [1024, 3, 2, 1],
+        ],
+        101: [
+            [128, 3, 1, 1],
+            [256, 4, 2, 1],
+            [512, 23, 2, 1],
+            [1024, 3, 2, 1],
+        ]
+    }[depth]
+    name = 'resnext%d' % depth
+    if output_stride == 16:
+        config[-1][2] = 1
+        config[-1][3] = 2
+
+    def stack_fn(x):
+        for i, (c, n, s, d) in enumerate(config):
+            x = stack3(x, c, n, stride1=s, name='conv%d' % (i + 2))
+        return x
+
+    model = ResNet(input_shape, stack_fn, False, False, name)
+    if pretrained:
+        load_weights(model, name)
+
+    return model
+
+
+def get_resnetv2(depth, input_shape, output_stride=32, pretrained=True):
+    if pretrained:
+        assert depth in [50, 101, 152]
+    config = {
+        50: [
+            [64, 3, 2, 1],
+            [128, 4, 2, 1],
+            [256, 6, 2, 1],
+            [512, 3, 1, 1],
+        ],
+        101: [
+            [64, 3, 2, 1],
+            [128, 4, 2, 1],
+            [256, 23, 2, 1],
+            [512, 3, 1, 1],
+        ],
+        152: [
+            [64, 3, 2, 1],
+            [128, 8, 2, 1],
+            [256, 36, 2, 1],
+            [512, 3, 1, 1],
+        ],
+    }[depth]
+
+    if output_stride == 16:
+        config[-2][2] = 1
+        config[-1][3] = 2
+
+    name = 'resnet%dv2' % depth
+
+    def stack_fn(x):
+        for i, (c, n, s, d) in enumerate(config):
+            x = stack2(x, c, n, stride1=s, name='conv%d' % (i + 2))
+        return x
+
+    model = ResNet(input_shape, stack_fn, True, True, name)
+    if pretrained:
+        load_weights(model, name)
+
+    return model
+
+
+def get_resnet(depth, input_shape, output_stride=32, pretrained=True):
+    if pretrained:
+        assert depth in [50, 101, 152]
+
+    config = {
+        50: [
+            [64, 3, 1, 1],
+            [128, 4, 2, 1],
+            [256, 6, 2, 1],
+            [512, 3, 2, 1],
+        ],
+        101: [
+            [64, 3, 1, 1],
+            [128, 4, 2, 1],
+            [256, 23, 2, 1],
+            [512, 3, 2, 1],
+        ],
+        152: [
+            [64, 3, 1, 1],
+            [128, 8, 2, 1],
+            [256, 36, 2, 1],
+            [512, 3, 2, 1],
+        ],
+    }[depth]
+
+    name = 'resnet%d' % depth
+    if output_stride == 16:
+        config[-1][2] = 1
+        config[-1][3] = 2
+
+    def stack_fn(x):
+        for i, (c, n, s, d) in enumerate(config):
+            x = stack1(x, c, n, stride1=s, name='conv%d' % (i + 2))
+        return x
+
+    model = ResNet(input_shape, stack_fn, False, True, name)
+    if pretrained:
+        load_weights(model, name)
+
+    return model
+
+
+def resnet_backbone(output_stride, **kwargs):
+    model = get_resnet(output_stride=output_stride, **kwargs)
+    if output_stride == 16:
+        c3 = model.get_layer('conv4_block1_1_conv').input
+        c4 = model.output
+        cs = [c3, c4]
+    elif output_stride == 32:
+        c3 = model.get_layer('conv4_block1_1_conv').input
+        c4 = model.get_layer('conv5_block1_1_conv').input
+        c5 = model.output
+        cs = [c3, c4, c5]
+    else:
+        raise ValueError('Invalid output_stride: %d' % output_stride)
+
+    backbone = Model(inputs=model.inputs, outputs=cs)
+    backbone.output_stride = output_stride
+    return backbone
+
+
+def resnetv2_backbone(output_stride, **kwargs):
+    model = get_resnetv2(output_stride=output_stride, **kwargs)
+    if output_stride == 16:
+        c3 = model.get_layer('conv3_block4_2_conv').input
+        c4 = model.output
+        cs = [c3, c4]
+    elif output_stride == 32:
+        c3 = model.get_layer('conv3_block4_2_conv').input
+        c4 = model.get_layer('conv4_block6_2_conv').input
+        c5 = model.output
+        cs = [c3, c4, c5]
+    else:
+        raise ValueError('Invalid output_stride: %d' % output_stride)
+
+    backbone = Model(inputs=model.inputs, outputs=cs)
+    backbone.output_stride = output_stride
+    return backbone

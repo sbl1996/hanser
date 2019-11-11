@@ -14,7 +14,7 @@ from tensorflow.keras.layers import BatchNormalization, Layer
 from tensorflow.keras import backend as K
 from tensorflow.keras import layers
 
-from hanser.model.layers import ReflectionPad2D, ChannelShuffle
+from hanser.model.layers import ChannelShuffle
 
 
 def round_channels(channels,
@@ -519,25 +519,13 @@ def conv2d(x,
         dilation = (dilation, dilation)
 
     extra_pad = False
-    if K.backend() == "tensorflow":
-        if (padding[0] > 0) or (padding[1] > 0):
-            import tensorflow as tf
-            x = layers.ZeroPadding2D(padding, name=name + "/pad")(x)
-            if not ((padding[0] == padding[1]) and (kernel_size[0] == kernel_size[1]) and
-                    (kernel_size[0] // 2 == padding[0])):
-                extra_pad = True
-        padding_ke = "valid"
-    else:
-        if (padding[0] == padding[1]) and (padding[0] == 0):
-            padding_ke = "valid"
-        elif (padding[0] == padding[1]) and (kernel_size[0] == kernel_size[1]) and (kernel_size[0] // 2 == padding[0]):
-            padding_ke = "same"
-        else:
-            x = layers.ZeroPadding2D(
-                padding=padding,
-                name=name + "/pad")(x)
-            padding_ke = "valid"
-            extra_pad = True
+    if (padding[0] > 0) or (padding[1] > 0):
+        x = layers.ZeroPadding2D(padding, name=name + "/pad")(x)
+        extra_pad = True
+        # if not ((padding[0] == padding[1]) and (kernel_size[0] == kernel_size[1]) and
+        #         (kernel_size[0] // 2 == padding[0])):
+        #     extra_pad = True
+    padding_ke = "valid"
 
     if groups == 1:
         if extra_pad:

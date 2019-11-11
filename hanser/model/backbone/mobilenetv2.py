@@ -77,32 +77,45 @@ import os
 import warnings
 import numpy as np
 
-from . import correct_pad
-from . import get_submodules_from_kwargs
-from . import imagenet_utils
-from .imagenet_utils import decode_predictions
-from .imagenet_utils import _obtain_input_shape
+import tensorflow as tf
+import tensorflow.keras.backend as K
+
+from tensorflow.keras import Model
+from tensorflow.keras.layers import Input, Conv2D, ZeroPadding2D, BatchNormalization, ReLU, DepthwiseConv2D, Add
+from tensorflow.keras.utils import get_file
+
+from hanser.model.layers import conv2d, bn
+
+
+def correct_pad(inputs, kernel_size):
+    """Returns a tuple for zero-padding for 2D convolution with downsampling.
+
+    # Arguments
+        input_size: An integer or tuple/list of 2 integers.
+        kernel_size: An integer or tuple/list of 2 integers.
+
+    # Returns
+        A tuple.
+    """
+    input_size = K.int_shape(inputs)[1:3]
+
+    if isinstance(kernel_size, int):
+        kernel_size = (kernel_size, kernel_size)
+
+    if input_size[0] is None:
+        adjust = (1, 1)
+    else:
+        adjust = (1 - input_size[0] % 2, 1 - input_size[1] % 2)
+
+    correct = (kernel_size[0] // 2, kernel_size[1] // 2)
+
+    return ((correct[0] - adjust[0], correct[0]),
+            (correct[1] - adjust[1], correct[1]))
+
 
 # TODO Change path to v1.1
 BASE_WEIGHT_PATH = ('https://github.com/JonathanCMitchell/mobilenet_v2_keras/'
                     'releases/download/v1.1/')
-
-backend = None
-layers = None
-models = None
-keras_utils = None
-
-
-def preprocess_input(x, **kwargs):
-    """Preprocesses a numpy array encoding a batch of images.
-
-    # Arguments
-        x: a 4D numpy array consists of RGB values within [0, 255].
-
-    # Returns
-        Preprocessed array.
-    """
-    return imagenet_utils.preprocess_input(x, mode='tf', **kwargs)
 
 
 # This function is taken from the original tf repo.
@@ -121,14 +134,10 @@ def _make_divisible(v, divisor, min_value=None):
     return new_v
 
 
-def MobileNetV2(input_shape=None,
+def MobileNetV2(input_shape,
                 alpha=1.0,
-                include_top=True,
-                weights='imagenet',
-                input_tensor=None,
-                pooling=None,
-                classes=1000,
-                **kwargs):
+                output_stride=32,
+                feature_levels=None):
     """Instantiates the MobileNetV2 architecture.
 
     # Arguments
@@ -183,246 +192,91 @@ def MobileNetV2(input_shape=None,
             or invalid input shape or invalid alpha, rows when
             weights='imagenet'
     """
-    global backend, layers, models, keras_utils
-    backend, layers, models, keras_utils = get_submodules_from_kwargs(kwargs)
 
-    if not (weights in {'imagenet', None} or os.path.exists(weights)):
-        raise ValueError('The `weights` argument should be either '
-                         '`None` (random initialization), `imagenet` '
-                         '(pre-training on ImageNet), '
-                         'or the path to the weights file to be loaded.')
+    rows = input_shape[0]
+    cols = input_shape[1]
 
-    if weights == 'imagenet' and include_top and classes != 1000:
-        raise ValueError('If using `weights` as `"imagenet"` with `include_top` '
-                         'as true, `classes` should be 1000')
+    if alpha not in [0.35, 0.50, 0.75, 1.0, 1.3, 1.4]:
+        raise ValueError('If imagenet weights are being loaded, '
+                         'alpha can be one of `0.35`, `0.50`, `0.75`, '
+                         '`1.0`, `1.3` or `1.4` only.')
 
-    # Determine proper input shape and default size.
-    # If both input_shape and input_tensor are used, they should match
-    if input_shape is not None and input_tensor is not None:
-        try:
-            is_input_t_tensor = backend.is_keras_tensor(input_tensor)
-        except ValueError:
-            try:
-                is_input_t_tensor = backend.is_keras_tensor(
-                    keras_utils.get_source_inputs(input_tensor))
-            except ValueError:
-                raise ValueError('input_tensor: ', input_tensor,
-                                 'is not type input_tensor')
-        if is_input_t_tensor:
-            if backend.image_data_format == 'channels_first':
-                if backend.int_shape(input_tensor)[1] != input_shape[1]:
-                    raise ValueError('input_shape: ', input_shape,
-                                     'and input_tensor: ', input_tensor,
-                                     'do not meet the same shape requirements')
-            else:
-                if backend.int_shape(input_tensor)[2] != input_shape[1]:
-                    raise ValueError('input_shape: ', input_shape,
-                                     'and input_tensor: ', input_tensor,
-                                     'do not meet the same shape requirements')
-        else:
-            raise ValueError('input_tensor specified: ', input_tensor,
-                             'is not a keras tensor')
+    if rows != cols or rows not in [96, 128, 160, 192, 224]:
+        rows = 224
+        warnings.warn('`input_shape` is undefined or non-square, '
+                      'or `rows` is not in [96, 128, 160, 192, 224].'
+                      ' Weights for input shape (224, 224) will be'
+                      ' loaded as the default.')
 
-    # If input_shape is None, infer shape from input_tensor
-    if input_shape is None and input_tensor is not None:
-
-        try:
-            backend.is_keras_tensor(input_tensor)
-        except ValueError:
-            raise ValueError('input_tensor: ', input_tensor,
-                             'is type: ', type(input_tensor),
-                             'which is not a valid type')
-
-        if input_shape is None and not backend.is_keras_tensor(input_tensor):
-            default_size = 224
-        elif input_shape is None and backend.is_keras_tensor(input_tensor):
-            if backend.image_data_format() == 'channels_first':
-                rows = backend.int_shape(input_tensor)[2]
-                cols = backend.int_shape(input_tensor)[3]
-            else:
-                rows = backend.int_shape(input_tensor)[1]
-                cols = backend.int_shape(input_tensor)[2]
-
-            if rows == cols and rows in [96, 128, 160, 192, 224]:
-                default_size = rows
-            else:
-                default_size = 224
-
-    # If input_shape is None and no input_tensor
-    elif input_shape is None:
-        default_size = 224
-
-    # If input_shape is not None, assume default size
-    else:
-        if backend.image_data_format() == 'channels_first':
-            rows = input_shape[1]
-            cols = input_shape[2]
-        else:
-            rows = input_shape[0]
-            cols = input_shape[1]
-
-        if rows == cols and rows in [96, 128, 160, 192, 224]:
-            default_size = rows
-        else:
-            default_size = 224
-
-    input_shape = _obtain_input_shape(input_shape,
-                                      default_size=default_size,
-                                      min_size=32,
-                                      data_format=backend.image_data_format(),
-                                      require_flatten=include_top,
-                                      weights=weights)
-
-    if backend.image_data_format() == 'channels_last':
-        row_axis, col_axis = (0, 1)
-    else:
-        row_axis, col_axis = (1, 2)
-    rows = input_shape[row_axis]
-    cols = input_shape[col_axis]
-
-    if weights == 'imagenet':
-        if alpha not in [0.35, 0.50, 0.75, 1.0, 1.3, 1.4]:
-            raise ValueError('If imagenet weights are being loaded, '
-                             'alpha can be one of `0.35`, `0.50`, `0.75`, '
-                             '`1.0`, `1.3` or `1.4` only.')
-
-        if rows != cols or rows not in [96, 128, 160, 192, 224]:
-            rows = 224
-            warnings.warn('`input_shape` is undefined or non-square, '
-                          'or `rows` is not in [96, 128, 160, 192, 224].'
-                          ' Weights for input shape (224, 224) will be'
-                          ' loaded as the default.')
-
-    if input_tensor is None:
-        img_input = layers.Input(shape=input_shape)
-    else:
-        if not backend.is_keras_tensor(input_tensor):
-            img_input = layers.Input(tensor=input_tensor, shape=input_shape)
-        else:
-            img_input = input_tensor
-
-    channel_axis = 1 if backend.image_data_format() == 'channels_first' else -1
+    inputs = Input(shape=input_shape)
 
     first_block_filters = _make_divisible(32 * alpha, 8)
-    x = layers.ZeroPadding2D(padding=correct_pad(backend, img_input, 3),
-                             name='Conv1_pad')(img_input)
-    x = layers.Conv2D(first_block_filters,
-                      kernel_size=3,
-                      strides=(2, 2),
-                      padding='valid',
-                      use_bias=False,
-                      name='Conv1')(x)
-    x = layers.BatchNormalization(axis=channel_axis,
-                                  epsilon=1e-3,
-                                  momentum=0.999,
-                                  name='bn_Conv1')(x)
-    x = layers.ReLU(6., name='Conv1_relu')(x)
+    x = ZeroPadding2D(padding=correct_pad(inputs, 3),
+                      name='Conv1_pad')(inputs)
+    x = conv2d(x, first_block_filters,
+               kernel_size=3,
+               stride=2,
+               padding='valid',
+               name='Conv1')
+    x = bn(x, name='bn_Conv1')
+    x = ReLU(6., name='Conv1_relu')(x)
 
-    x = _inverted_res_block(x, filters=16, alpha=alpha, stride=1,
-                            expansion=1, block_id=0)
+    config = [
+        # t, c, n, s
+        [1, 16, 1, 1],
+        [6, 24, 2, 2],
+        [6, 32, 3, 2],
+        [6, 64, 4, 2],
+        [6, 96, 3, 1],
+        [6, 160, 3, 1 if output_stride <= 16 else 2],
+        [6, 320, 1, 1],
+    ]
 
-    x = _inverted_res_block(x, filters=24, alpha=alpha, stride=2,
-                            expansion=6, block_id=1)
-    x = _inverted_res_block(x, filters=24, alpha=alpha, stride=1,
-                            expansion=6, block_id=2)
+    block_id = 0
+    for t, c, n, s in config:
+        x = _inverted_res_block(x, filters=c, alpha=alpha, stride=s,
+                                expansion=t, block_id=block_id)
+        block_id += 1
+        for i in range(1, n):
+            x = _inverted_res_block(x, filters=c, alpha=alpha, stride=1,
+                                    expansion=t, block_id=block_id)
+            block_id += 1
 
-    x = _inverted_res_block(x, filters=32, alpha=alpha, stride=2,
-                            expansion=6, block_id=3)
-    x = _inverted_res_block(x, filters=32, alpha=alpha, stride=1,
-                            expansion=6, block_id=4)
-    x = _inverted_res_block(x, filters=32, alpha=alpha, stride=1,
-                            expansion=6, block_id=5)
+    last_block_filters = _make_divisible(1280 * alpha, 8) if alpha > 1.0 else 1280
 
-    x = _inverted_res_block(x, filters=64, alpha=alpha, stride=2,
-                            expansion=6, block_id=6)
-    x = _inverted_res_block(x, filters=64, alpha=alpha, stride=1,
-                            expansion=6, block_id=7)
-    x = _inverted_res_block(x, filters=64, alpha=alpha, stride=1,
-                            expansion=6, block_id=8)
-    x = _inverted_res_block(x, filters=64, alpha=alpha, stride=1,
-                            expansion=6, block_id=9)
+    x = conv2d(x, last_block_filters,
+               kernel_size=1,
+               name='Conv_1')
+    x = bn(x, name='Conv_1_bn')
+    x = ReLU(6., name='out_relu')(x)
 
-    x = _inverted_res_block(x, filters=96, alpha=alpha, stride=1,
-                            expansion=6, block_id=10)
-    x = _inverted_res_block(x, filters=96, alpha=alpha, stride=1,
-                            expansion=6, block_id=11)
-    x = _inverted_res_block(x, filters=96, alpha=alpha, stride=1,
-                            expansion=6, block_id=12)
-
-    x = _inverted_res_block(x, filters=160, alpha=alpha, stride=2,
-                            expansion=6, block_id=13)
-    x = _inverted_res_block(x, filters=160, alpha=alpha, stride=1,
-                            expansion=6, block_id=14)
-    x = _inverted_res_block(x, filters=160, alpha=alpha, stride=1,
-                            expansion=6, block_id=15)
-
-    x = _inverted_res_block(x, filters=320, alpha=alpha, stride=1,
-                            expansion=6, block_id=16)
-
-    # no alpha applied to last conv as stated in the paper:
-    # if the width multiplier is greater than 1 we
-    # increase the number of output channels
-    if alpha > 1.0:
-        last_block_filters = _make_divisible(1280 * alpha, 8)
-    else:
-        last_block_filters = 1280
-
-    x = layers.Conv2D(last_block_filters,
-                      kernel_size=1,
-                      use_bias=False,
-                      name='Conv_1')(x)
-    x = layers.BatchNormalization(axis=channel_axis,
-                                  epsilon=1e-3,
-                                  momentum=0.999,
-                                  name='Conv_1_bn')(x)
-    x = layers.ReLU(6., name='out_relu')(x)
-
-    if include_top:
-        x = layers.GlobalAveragePooling2D()(x)
-        x = layers.Dense(classes, activation='softmax',
-                         use_bias=True, name='Logits')(x)
-    else:
-        if pooling == 'avg':
-            x = layers.GlobalAveragePooling2D()(x)
-        elif pooling == 'max':
-            x = layers.GlobalMaxPooling2D()(x)
-
-    # Ensure that the model takes into account
-    # any potential predecessors of `input_tensor`.
-    if input_tensor is not None:
-        inputs = keras_utils.get_source_inputs(input_tensor)
-    else:
-        inputs = img_input
-
-    # Create model.
-    model = models.Model(inputs, x,
-                         name='mobilenetv2_%0.2f_%s' % (alpha, rows))
+    model = Model(inputs, x, name='mobilenetv2_%0.2f_%s' % (alpha, rows))
 
     # Load weights.
-    if weights == 'imagenet':
-        if include_top:
-            model_name = ('mobilenet_v2_weights_tf_dim_ordering_tf_kernels_' +
-                          str(alpha) + '_' + str(rows) + '.h5')
-            weight_path = BASE_WEIGHT_PATH + model_name
-            weights_path = keras_utils.get_file(
-                model_name, weight_path, cache_subdir='models')
-        else:
-            model_name = ('mobilenet_v2_weights_tf_dim_ordering_tf_kernels_' +
-                          str(alpha) + '_' + str(rows) + '_no_top' + '.h5')
-            weight_path = BASE_WEIGHT_PATH + model_name
-            weights_path = keras_utils.get_file(
-                model_name, weight_path, cache_subdir='models')
-        model.load_weights(weights_path)
-    elif weights is not None:
-        model.load_weights(weights)
+    model_name = ('mobilenet_v2_weights_tf_dim_ordering_tf_kernels_' +
+                  str(alpha) + '_' + str(rows) + '_no_top' + '.h5')
+    weight_path = BASE_WEIGHT_PATH + model_name
+    weights_path = get_file(model_name, weight_path, cache_subdir='models')
+    model.load_weights(weights_path)
 
+    if feature_levels:
+        features = []
+        block_ids = []
+        i = 0
+        for t, c, n, s in config:
+            if s == 2:
+                block_ids.append(i)
+            i += n
+        for i in block_ids:
+            features.append(model.get_layer('block_%d_expand_relu' % i).output)
+        features.append(x)
+        features = [features[l - 1] for l in feature_levels]
+        return model, features
     return model
 
 
 def _inverted_res_block(inputs, expansion, stride, alpha, filters, block_id):
-    channel_axis = 1 if backend.image_data_format() == 'channels_first' else -1
-
-    in_channels = backend.int_shape(inputs)[channel_axis]
+    in_channels = K.int_shape(inputs)[-1]
     pointwise_conv_filters = int(filters * alpha)
     pointwise_filters = _make_divisible(pointwise_conv_filters, 8)
     x = inputs
@@ -430,49 +284,33 @@ def _inverted_res_block(inputs, expansion, stride, alpha, filters, block_id):
 
     if block_id:
         # Expand
-        x = layers.Conv2D(expansion * in_channels,
-                          kernel_size=1,
-                          padding='same',
-                          use_bias=False,
-                          activation=None,
-                          name=prefix + 'expand')(x)
-        x = layers.BatchNormalization(axis=channel_axis,
-                                      epsilon=1e-3,
-                                      momentum=0.999,
-                                      name=prefix + 'expand_BN')(x)
-        x = layers.ReLU(6., name=prefix + 'expand_relu')(x)
+        x = conv2d(x, expansion * in_channels,
+                   kernel_size=1,
+                   name=prefix + 'expand')
+        x = bn(x, name=prefix + 'expand_BN')
+        x = ReLU(6., name=prefix + 'expand_relu')(x)
     else:
         prefix = 'expanded_conv_'
 
     # Depthwise
     if stride == 2:
-        x = layers.ZeroPadding2D(padding=correct_pad(backend, x, 3),
-                                 name=prefix + 'pad')(x)
-    x = layers.DepthwiseConv2D(kernel_size=3,
-                               strides=stride,
-                               activation=None,
-                               use_bias=False,
-                               padding='same' if stride == 1 else 'valid',
-                               name=prefix + 'depthwise')(x)
-    x = layers.BatchNormalization(axis=channel_axis,
-                                  epsilon=1e-3,
-                                  momentum=0.999,
-                                  name=prefix + 'depthwise_BN')(x)
+        x = ZeroPadding2D(padding=correct_pad(x, 3),
+                          name=prefix + 'pad')(x)
+    x = DepthwiseConv2D(kernel_size=3,
+                        strides=stride,
+                        use_bias=False,
+                        padding='same' if stride == 1 else 'valid',
+                        name=prefix + 'depthwise')(x)
+    x = bn(x, name=prefix + 'depthwise_BN')
 
-    x = layers.ReLU(6., name=prefix + 'depthwise_relu')(x)
+    x = ReLU(6., name=prefix + 'depthwise_relu')(x)
 
     # Project
-    x = layers.Conv2D(pointwise_filters,
-                      kernel_size=1,
-                      padding='same',
-                      use_bias=False,
-                      activation=None,
-                      name=prefix + 'project')(x)
-    x = layers.BatchNormalization(axis=channel_axis,
-                                  epsilon=1e-3,
-                                  momentum=0.999,
-                                  name=prefix + 'project_BN')(x)
+    x = conv2d(x, pointwise_filters,
+               kernel_size=1,
+               name=prefix + 'project')
+    x = bn(x, name=prefix + 'project_BN')
 
     if in_channels == pointwise_filters and stride == 1:
-        return layers.Add(name=prefix + 'add')([inputs, x])
+        return Add(name=prefix + 'add')([inputs, x])
     return x
