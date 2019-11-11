@@ -7,6 +7,20 @@ from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import array_ops
 
 
+def random_apply(funcs, image):
+    """Select a random policy from `policies` and apply it to `image`."""
+
+    funcs_to_select = tf.random.uniform((), maxval=len(funcs), dtype=tf.int32)
+    # Note that using tf.case instead of tf.conds would result in significantly
+    # larger graphs and would even break export for some larger policies.
+    for (i, policy) in enumerate(funcs):
+        image = tf.cond(
+            tf.equal(i, funcs_to_select),
+            lambda: policy(image),
+            lambda: image)
+    return image
+
+
 def _image_dimensions(image, rank):
     """Returns the dimensions of an image tensor.
 

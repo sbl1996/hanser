@@ -6,6 +6,20 @@ from hanser.ops import to_float, to_int
 from hanser.transform import pad_to_bounding_box
 
 
+def random_apply(funcs, image, boxes):
+    """Select a random policy from `policies` and apply it to `image`."""
+
+    funcs_to_select = tf.random.uniform((), maxval=len(funcs), dtype=tf.int32)
+    # Note that using tf.case instead of tf.conds would result in significantly
+    # larger graphs and would even break export for some larger policies.
+    for (i, func) in enumerate(funcs):
+        image, boxes = tf.cond(
+            tf.equal(i, funcs_to_select),
+            lambda: func(image, boxes),
+            lambda: (image, boxes))
+    return image, boxes
+
+
 def get_random_scale(height, width, output_size, scale_min, scale_max):
     random_scale_factor = tf.random.uniform((), scale_min, scale_max)
     scaled_size = to_int(random_scale_factor * output_size)
@@ -25,6 +39,17 @@ def get_random_scale(height, width, output_size, scale_min, scale_max):
     offset_x = to_int(offset_x)
 
     return img_scale, scaled_height, scaled_width, offset_x, offset_y
+
+
+def random_sample(image, bboxes):
+    begin, size, box = tf.image.sample_distorted_bounding_box(
+        tf.shape(image), bboxes,
+        min_object_covered=0.1,
+        aspect_ratio_range=(0.5, 2.0),
+        area_range=(0.1, 1.0),
+    )
+    image = tf.slice(image, begin, size)
+
 
 
 def scale_box(boxes, scales):
