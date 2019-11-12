@@ -49,10 +49,10 @@ def swish(x):
     return Multiply()([x, sigmoid(x)])
 
 
-def conv2d(x, channels, kernel_size, stride=1, padding='same', dilation=1, use_bias=False, bias_initializer='zeros', name=None):
+def conv2d(x, channels, kernel_size, stride=1, padding='same', dilation=1, use_bias=False, kernel_initializer='he_normal', bias_initializer='zeros', name=None):
     return Conv2D(channels, kernel_size=kernel_size, strides=stride,
                   padding=padding, dilation_rate=dilation, use_bias=use_bias,
-                  kernel_initializer='he_normal', bias_initializer=bias_initializer,
+                  kernel_initializer=kernel_initializer, bias_initializer=bias_initializer,
                   name=name)(x)
 
 

@@ -2,7 +2,7 @@ import tensorflow as tf
 
 from tensorflow.keras import Model
 from tensorflow.keras.layers import Layer
-from tensorflow.keras.initializers import Constant
+from tensorflow.keras.initializers import Constant, RandomNormal
 
 from hanser.model.layers import conv2d, bn, relu
 from hanser.model.backbone.resnet import stack1
@@ -41,12 +41,14 @@ def ssd(backbone, num_extras=2, num_anchors=6, num_classes=21):
 
     loc_ps = [
         conv2d(c, num_anchors * 4, kernel_size=3, use_bias=True,
+               kernel_initializer=RandomNormal(0, 0.01),
                name='loc_head%d' % (i + 3))
         for i, c in enumerate(cs)
     ]
 
     cls_ps = [
         conv2d(c, num_anchors * num_classes, kernel_size=3, use_bias=True,
+               kernel_initializer=RandomNormal(0, 0.01),
                bias_initializer=Constant(-4.595),
                name='cls_head%d' % (i + 3))
         for i, c in enumerate(cs)
