@@ -136,12 +136,12 @@ class Trainer:
         else:
             step_fn(*next(iterator))
 
-    def _get_predict_step(self):
+    def _get_predict_step(self, debug=False):
 
         @tf.function
         def predict_step(iterator):
             def step_fn(inputs, target):
-                output = self.model(inputs, training=False)
+                output = self.model(inputs, training=debug)
                 if self.bfloat16:
                     output = tf.cast(output, tf.float32)
                 # output = output_transform(output)
@@ -178,9 +178,12 @@ class Trainer:
         self.restore(model_ckpt, model_ckpt_manager)
         self.restore(optim_ckpt, optim_ckpt_manager)
 
-    def fit(self, epochs, ds_train, steps_per_epoch, ds_val, val_steps, val_freq=1, save_per_epochs=None,
-            get_sample_weight=None,
-            extra_metrics=(), target_transform=identity, output_transform=identity, extra_eval_freq=1):
+    def fit(self, epochs, ds_train, steps_per_epoch,
+            ds_val, val_steps, val_freq=1,
+            save_per_epochs=None, get_sample_weight=None,
+            extra_metrics=(), extra_eval_freq=1,
+            target_transform=identity, output_transform=identity,
+            debug=False):
         self._get_sample_weight = get_sample_weight
 
         if self.strategy:
@@ -203,7 +206,7 @@ class Trainer:
             assert target_transform
             assert output_transform
             assert extra_eval_freq
-            predict_step = self._get_predict_step()
+            predict_step = self._get_predict_step(debug)
 
         while epoch < max_epochs:
             print('Epoch %s' % (epoch + 1))

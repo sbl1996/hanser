@@ -134,10 +134,10 @@ def _make_divisible(v, divisor, min_value=None):
     return new_v
 
 
-def MobileNetV2(input_shape,
-                alpha=1.0,
+def MobileNetV2(alpha=1.0,
+                input_shape=(224, 224, 3),
                 output_stride=32,
-                feature_levels=None):
+                pretrained=True):
     """Instantiates the MobileNetV2 architecture.
 
     # Arguments
@@ -228,9 +228,12 @@ def MobileNetV2(input_shape,
         [6, 32, 3, 2],
         [6, 64, 4, 2],
         [6, 96, 3, 1],
-        [6, 160, 3, 1 if output_stride <= 16 else 2],
+        [6, 160, 3, 2],
         [6, 320, 1, 1],
     ]
+
+    if output_stride == 16:
+        config[5][3] = 1
 
     block_id = 0
     for t, c, n, s in config:
@@ -252,26 +255,14 @@ def MobileNetV2(input_shape,
 
     model = Model(inputs, x, name='mobilenetv2_%0.2f_%s' % (alpha, rows))
 
-    # Load weights.
-    model_name = ('mobilenet_v2_weights_tf_dim_ordering_tf_kernels_' +
-                  str(alpha) + '_' + str(rows) + '_no_top' + '.h5')
-    weight_path = BASE_WEIGHT_PATH + model_name
-    weights_path = get_file(model_name, weight_path, cache_subdir='models')
-    model.load_weights(weights_path)
+    if pretrained:
+        # Load weights.
+        model_name = ('mobilenet_v2_weights_tf_dim_ordering_tf_kernels_' +
+                      str(alpha) + '_' + str(rows) + '_no_top' + '.h5')
+        weight_path = BASE_WEIGHT_PATH + model_name
+        weights_path = get_file(model_name, weight_path, cache_subdir='models')
+        model.load_weights(weights_path, by_name=True)
 
-    if feature_levels:
-        features = []
-        block_ids = []
-        i = 0
-        for t, c, n, s in config:
-            if s == 2:
-                block_ids.append(i)
-            i += n
-        for i in block_ids:
-            features.append(model.get_layer('block_%d_expand_relu' % i).output)
-        features.append(x)
-        features = [features[l - 1] for l in feature_levels]
-        return model, features
     return model
 
 
@@ -314,3 +305,22 @@ def _inverted_res_block(inputs, expansion, stride, alpha, filters, block_id):
     if in_channels == pointwise_filters and stride == 1:
         return Add(name=prefix + 'add')([inputs, x])
     return x
+
+
+def mobilenetv2_backbone(input_shape, alpha=1.0, output_stride=32, pretrained=True):
+    model = MobileNetV2(alpha, input_shape, output_stride, pretrained)
+    if output_stride == 16:
+        c3 = model.get_layer('block_6_expand_relu').output
+        c4 = model.output
+        cs = [c3, c4]
+    elif output_stride == 32:
+        c3 = model.get_layer('block_6_expand_relu').output
+        c4 = model.get_layer('block_13_expand_relu').output
+        c5 = model.output
+        cs = [c3, c4, c5]
+    else:
+        raise ValueError('Invalid output_stride: %d' % output_stride)
+
+    backbone = Model(inputs=model.inputs, outputs=cs)
+    backbone.output_stride = output_stride
+    return backbone

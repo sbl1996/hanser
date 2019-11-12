@@ -89,7 +89,7 @@ def coords_to_target(boxes, anchors):
     anchors_hw = anchors[:, 2:] - anchors[:, :2]
     tytx = (boxes_yx - anchors_yx) / anchors_hw
     thtw = tf.math.log(boxes_hw / anchors_hw)
-    return tf.concat([tytx, thtw], axis=1)
+    return tf.concat([tytx * 10, thtw * 5], axis=1)
 
 
 def target_to_coords(target, anchors):
@@ -100,8 +100,8 @@ def target_to_coords(target, anchors):
     anchors_yx = (anchors[:, :2] + anchors[:, 2:]) / 2
     anchors_hw = anchors[:, 2:] - anchors[:, :2]
 
-    boxes_yx = (target[..., :2] * anchors_hw) + anchors_yx
-    boxes_hw = tf.exp(target[..., 2:]) * anchors_hw
+    boxes_yx = (target[..., :2] / 10 * anchors_hw) + anchors_yx
+    boxes_hw = tf.exp(target[..., 2:] / 5) * anchors_hw
     boxes_hw_half = boxes_hw / 2
     boxes = tf.concat([boxes_yx - boxes_hw_half, boxes_yx + boxes_hw_half], axis=-1)
     return boxes
@@ -155,23 +155,54 @@ def smooth_l1_loss(labels, preds, weights, delta=1.0):
 
 
 @curry
-def detection_loss(labels, preds, alpha=0.25, gamma=2.0):
+def detection_loss(labels, preds, cls_loss='focal', neg_pos_ratio=3, alpha=0.25, gamma=2.0):
     loc_t = labels['loc_t']
     cls_t = labels['cls_t']
     n_pos = labels['n_pos']
-    total_pos = tf.reduce_sum(n_pos)
 
     loc_p = preds['loc_p']
     cls_p = preds['cls_p']
 
-    num_classes = tf.shape(cls_p)[-1]
-    cls_t = tf.one_hot(cls_t, num_classes)
+    if cls_loss == 'focal':
+        delta = 1.0
+        box_loss_weight = 10
+    else:
+        delta = 1.0
+        box_loss_weight = 1.0
+
+    total_pos = tf.reduce_sum(n_pos)
     normalizer = to_float(total_pos)
     weights = to_float(loc_t != 0)
-    loc_loss = smooth_l1_loss(loc_t, loc_p, weights) / normalizer
-    #     loc_loss = tf.compat.v1.losses.huber_loss(loc_t, loc_p, weights, reduction='weighted_sum') / normalizer
-    cls_loss = focal_loss(cls_t, cls_p, alpha, gamma) / normalizer
-    return loc_loss + cls_loss
+    loc_loss = smooth_l1_loss(loc_t, loc_p, weights, delta=delta) / normalizer
+
+    if cls_loss == 'focal':
+        num_classes = tf.shape(cls_p)[-1]
+        cls_t = tf.one_hot(cls_t, num_classes)
+        cls_loss = focal_loss(cls_t, cls_p, alpha, gamma) / normalizer
+    else:
+        weights = tf.cast(tf.not_equal(cls_t, 0), cls_p.dtype)
+        cls_losses = tf.nn.sparse_softmax_cross_entropy_with_logits(cls_t, cls_p)
+        cls_loss_pos = tf.reduce_sum(cls_losses * weights)
+        cls_loss_neg = hard_negative_mining(cls_losses * (1 - weights), n_pos, neg_pos_ratio)
+        cls_loss = (cls_loss_pos + cls_loss_neg) / normalizer
+
+    return box_loss_weight * loc_loss + cls_loss
+
+
+def hard_negative_mining(losses, n_pos, neg_pos_ratio):
+
+    def body(i, losses, n_pos, loss):
+        n_neg = n_pos[i] * neg_pos_ratio
+        hard_neg_losses = tf.math.top_k(losses[i], n_neg, sorted=False)[0]
+        loss = loss + tf.reduce_sum(hard_neg_losses)
+        return [i + 1, losses, n_pos, loss]
+
+    loss = tf.while_loop(
+        lambda i, losses, n_pos, loss: i < tf.shape(losses)[0],
+        body,
+        [0, losses, n_pos, 0.0]
+    )[-1]
+    return loss
 
 
 def detect(loc_p, cls_p, anchors, iou_threshold=0.5, conf_threshold=0.1, topk=100):
@@ -242,7 +273,8 @@ def draw_bboxes(img, anns, categories=None, fontsize=8, linewidth=2, colors=None
     return fig, ax
 
 
-def draw_bboxes2(img, boxes, classes=None, categories=None, fontsize=8, linewidth=2, colors=None, label_offset=16, figsize=(10, 10)):
+def draw_bboxes2(img, boxes, classes=None, categories=None, fontsize=8, linewidth=2, colors=None, label_offset=16,
+                 figsize=(10, 10)):
     import matplotlib.pyplot as plt
     from matplotlib.patches import Rectangle
 
@@ -277,7 +309,8 @@ class BBox:
     LTRB = 1  # [xmin, ymin, xmax,  ymax]
     XYWH = 2  # [cx,   cy,   width, height]
 
-    def __init__(self, image_id, category_id, bbox, score=None, is_difficult=False, area=None, segmentation=None, **kwargs):
+    def __init__(self, image_id, category_id, bbox, score=None, is_difficult=False, area=None, segmentation=None,
+                 **kwargs):
         self.image_id = image_id
         self.category_id = category_id
         self.score = score
