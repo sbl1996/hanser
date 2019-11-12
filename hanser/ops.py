@@ -29,3 +29,13 @@ def to_float(x):
 
 def to_int(x):
     return tf.cast(x, tf.int32)
+
+
+def choice(t, p=None):
+    t = tf.convert_to_tensor(t)
+    if p is None:
+        p = tf.fill(t.shape, 1.0)
+    p = to_float(p)[None]
+    p = tf.math.log(p)
+    i = tf.random.categorical(p, 1)[0, 0]
+    return t[i]

@@ -210,30 +210,6 @@ def batched_detect(loc_p, cls_p, anchors, iou_threshold=0.5, conf_threshold=0.1,
     }
 
 
-def pad_to_fixed_size(data, pad_value, output_shape):
-    """Pad data to a fixed length at the first dimension.
-
-  Args:
-    data: Tensor to be padded to output_shape.
-    pad_value: A constant value assigned to the paddings.
-    output_shape: The output shape of a 2D tensor.
-
-  Returns:
-    The Padded tensor with output_shape [max_num_instances, dimension].
-  """
-    max_num_instances = output_shape[0]
-    data = tf.reshape(data, [-1, *output_shape[1:]])
-    num_instances = tf.shape(data)[0]
-    assert_length = tf.Assert(
-        tf.less_equal(num_instances, max_num_instances), [num_instances])
-    with tf.control_dependencies([assert_length]):
-        pad_length = max_num_instances - num_instances
-    paddings = tf.fill([pad_length, *output_shape[1:]], tf.cast(pad_value, data.dtype))
-    padded_data = tf.concat([data, paddings], axis=0)
-    padded_data = tf.reshape(padded_data, output_shape)
-    return padded_data
-
-
 def draw_bboxes(img, anns, categories=None, fontsize=8, linewidth=2, colors=None, label_offset=16, figsize=(10, 10)):
     import matplotlib.pyplot as plt
     from matplotlib.patches import Rectangle
