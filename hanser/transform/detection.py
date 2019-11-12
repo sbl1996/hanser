@@ -1,8 +1,4 @@
-import random
-import colorsys
-
 import tensorflow as tf
-from hanser.detection import yxhw2tlbr
 from hanser.ops import to_float, to_int, choice
 from hanser.transform import pad_to_bounding_box
 
@@ -48,14 +44,6 @@ def get_random_scale(height, width, output_size, scale_min, scale_max):
     offset_x = to_int(offset_x)
 
     return img_scale, scaled_height, scaled_width, offset_x, offset_y
-
-
-def random_bboxes(shape):
-    shape = tf.TensorShape(shape)
-    yxhw = tf.random.uniform(shape.concatenate(4))
-    boxes = yxhw2tlbr(yxhw)
-    boxes = tf.clip_by_value(boxes, 0, 1)
-    return boxes
 
 
 def hflip(image, bboxes, classes):
@@ -147,19 +135,6 @@ def resize_and_crop_boxes(boxes, classes, scaled_height, scaled_width, output_si
     boxes = boxes[indices]
     classes = classes[indices]
     return boxes, classes
-
-
-def random_colors(N, bright=True):
-    """
-    Generate random colors.
-    To get visually distinct colors, generate them in HSV space then
-    convert to RGB.
-    """
-    brightness = 1.0 if bright else 0.7
-    hsv = [(i / N, 1, brightness) for i in range(N)]
-    colors = list(map(lambda c: colorsys.hsv_to_rgb(*c), hsv))
-    random.shuffle(colors)
-    return colors
 
 
 #

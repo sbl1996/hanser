@@ -1,10 +1,12 @@
+import colorsys
+import random
+
 from toolz import curry
 
 import numpy as np
 import tensorflow as tf
 from hanser.losses import focal_loss
 from hanser.ops import index_put, to_float
-from hanser.transform.detection import random_colors
 
 
 def iou_mn(boxes1, boxes2):
@@ -288,3 +290,24 @@ class BBox:
         return "BBox(image_id=%s, category_id=%s, bbox=%s, score=%s, is_difficult=%s, area=%s)" % (
             self.image_id, self.category_id, self.bbox, self.score, self.is_difficult, self.area
         )
+
+
+def random_colors(N, bright=True):
+    """
+    Generate random colors.
+    To get visually distinct colors, generate them in HSV space then
+    convert to RGB.
+    """
+    brightness = 1.0 if bright else 0.7
+    hsv = [(i / N, 1, brightness) for i in range(N)]
+    colors = list(map(lambda c: colorsys.hsv_to_rgb(*c), hsv))
+    random.shuffle(colors)
+    return colors
+
+
+def random_bboxes(shape):
+    shape = tf.TensorShape(shape)
+    yxhw = tf.random.uniform(shape.concatenate(4))
+    boxes = yxhw2tlbr(yxhw)
+    boxes = tf.clip_by_value(boxes, 0, 1)
+    return boxes
