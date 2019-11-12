@@ -46,12 +46,12 @@ class DetCat(Layer):
         return dict(list(base_config.items()) + list(config.items()))
 
 
-def ssd(backbone, num_levels=4, num_anchors=6, num_classes=21):
-    assert backbone.output_stride == 16
-    assert len(backbone.outputs) == 2
+def ssd(backbone, num_extras=2, num_anchors=6, num_classes=21):
+    # assert backbone.output_stride == 16
+    # assert len(backbone.outputs) == 2
 
     cs = list(backbone.outputs)
-    for i in range(num_levels-2):
+    for i in range(num_extras):
         cs.append(stack1(cs[-1], 256, 1, stride1=2, name='conv%d' % (i + 6)))
 
     num_outputs = num_anchors * (4 + num_classes)

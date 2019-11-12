@@ -353,7 +353,7 @@ def load_weights(model, model_name):
                                 BASE_WEIGHTS_PATH + file_name,
                                 cache_subdir='models',
                                 file_hash=file_hash)
-        model.load_weights(weights_path)
+        model.load_weights(weights_path, by_name=True)
 
 
 def ResNet50(input_shape, pretrained=True):

@@ -83,11 +83,12 @@ def VGG16(input_shape, output_stride=32, pretrained=True):
         elif l == 'M2':
             x = MaxPool2D((2, 2), strides=(2, 2), name='block%d_pool' % block_id)(x)
             block_id += 1
-            layer_id = 1
+            layer_id = 0
         else:
             x = conv2d(x, l, (3, 3),
                        use_bias=True,
                        name='block%d_conv%d' % (block_id, layer_id))
+            x = bn(x, name='block%d_bn%d' % (block_id, layer_id))
             x = relu(x, name='block%d_relu%d' % (block_id, layer_id))
         layer_id += 1
 
@@ -99,7 +100,7 @@ def VGG16(input_shape, output_stride=32, pretrained=True):
             WEIGHTS_PATH_NO_TOP,
             cache_subdir='models',
             file_hash='6d6bbae143d832006294945121d1f1fc')
-        model.load_weights(weights_path)
+        model.load_weights(weights_path, by_name=True)
 
     return model
 
