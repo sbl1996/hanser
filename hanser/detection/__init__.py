@@ -155,7 +155,7 @@ def smooth_l1_loss(labels, preds, weights, delta=1.0):
 
 
 @curry
-def detection_loss(labels, preds, cls_loss='focal', neg_pos_ratio=3, alpha=0.25, gamma=2.0):
+def detection_loss(labels, preds, cls_loss='focal', neg_pos_ratio=3, alpha=0.25, gamma=2.0, tpu=False):
     loc_t = labels['loc_t']
     cls_t = labels['cls_t']
     n_pos = labels['n_pos']
@@ -183,7 +183,10 @@ def detection_loss(labels, preds, cls_loss='focal', neg_pos_ratio=3, alpha=0.25,
         weights = tf.cast(tf.not_equal(cls_t, 0), cls_p.dtype)
         cls_losses = tf.nn.sparse_softmax_cross_entropy_with_logits(cls_t, cls_p)
         cls_loss_pos = tf.reduce_sum(cls_losses * weights)
-        cls_loss_neg = hard_negative_mining(cls_losses * (1 - weights), n_pos, neg_pos_ratio)
+        if tpu:
+            cls_loss_neg = tpu_hard_negative_mining(cls_losses * (1 - weights), n_pos, neg_pos_ratio)
+        else:
+            cls_loss_neg = hard_negative_mining(cls_losses * (1 - weights), n_pos, neg_pos_ratio)
         cls_loss = (cls_loss_pos + cls_loss_neg) / normalizer
 
     return box_loss_weight * loc_loss + cls_loss
@@ -203,6 +206,17 @@ def hard_negative_mining(losses, n_pos, neg_pos_ratio):
         [0, losses, n_pos, 0.0]
     )[-1]
     return loss
+
+
+def tpu_hard_negative_mining(losses, n_pos, neg_pos_ratio, max_pos=1000):
+    shape = tf.shape(losses)
+    batch_size = shape[0]
+    # num_anchors = shape[1]
+    ind = tf.tile(tf.range(max_pos, dtype=tf.int32)[None], [batch_size, 1])
+    weights = tf.cast(ind < n_pos[:, None] * neg_pos_ratio, tf.float32)
+    losses = tf.math.top_k(losses, k=max_pos, sorted=True)[0]
+    return tf.reduce_sum(weights * losses)
+
 
 
 def detect(loc_p, cls_p, anchors, iou_threshold=0.5, conf_threshold=0.1, topk=100):
