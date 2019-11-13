@@ -166,7 +166,7 @@ def detection_loss(labels, preds, cls_loss='focal', neg_pos_ratio=3, alpha=0.25,
 
     if cls_loss == 'focal':
         delta = 1.0
-        box_loss_weight = 10
+        box_loss_weight = 1.0
     else:
         delta = 1.0
         box_loss_weight = 1.0

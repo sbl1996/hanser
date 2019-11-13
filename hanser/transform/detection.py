@@ -17,7 +17,13 @@ def random_choice(funcs, image, boxes, classes, is_difficults):
     return image, boxes, classes, is_difficults
 
 
-def random_apply(func, p, image, boxes, classes, is_difficults):
+def random_apply(func, p, *args):
+    if tf.random.normal(()) < p:
+        return func(*args)
+    return args
+
+
+def random_apply2(func, p, image, boxes, classes, is_difficults):
     return tf.cond(
         tf.random.normal(()) < p,
         lambda: func(image, boxes, classes, is_difficults),

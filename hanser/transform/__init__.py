@@ -619,19 +619,30 @@ def to_tensor(image, label, dtype=tf.float32):
     return image, label
 
 
-def color_jitter_branch(i, image):
-    return tf.switch_case(
-        i,
-        [
-            lambda: tf.clip_by_value(tf.image.adjust_brightness(image, brightness), 0, 1),
-            lambda: tf.clip_by_value(tf.image.adjust_contrast(image, 1 - contrast, 1 + contrast), 0, 1),
-            lambda: tf.clip_by_value(tf.image.adjust_saturation(image, 1 - saturation, 1 + saturation), 0, 1),
-            lambda: tf.clip_by_value(tf.image.adjust_hue(image, hue), 0, 1),
-        ]
-    )
-
-
 def color_jitter(image, brightness, contrast, saturation, hue):
+    image = tf.cast(image, tf.float32) / 255
+
+    order = tf.random.shuffle(tf.range(4))
+    for i in order:
+        if i == 0:
+            if tf.random.uniform(()) < 0.5:
+                image = tf.clip_by_value(tf.image.random_brightness(image, brightness), 0, 1)
+        elif i == 1:
+            if tf.random.uniform(()) < 0.5:
+                image = tf.clip_by_value(tf.image.random_contrast(image, 1 - contrast, 1 + contrast), 0, 1)
+        elif i == 2:
+            if tf.random.uniform(()) < 0.5:
+                image = tf.clip_by_value(tf.image.random_saturation(image, 1 - saturation, 1 + saturation), 0, 1)
+        else:
+            if tf.random.uniform(()) < 0.5:
+                image = tf.clip_by_value(tf.image.random_hue(image, hue), 0, 1)
+
+    image = tf.cast(image * 255, tf.uint8)
+
+    return image
+
+
+def color_jitter2(image, brightness, contrast, saturation, hue):
     image = tf.cast(image, tf.float32) / 255
 
     def branch_fn(i):
@@ -649,22 +660,6 @@ def color_jitter(image, brightness, contrast, saturation, hue):
         lambda i, im: [i + 1, random_apply(branch_fn(order[i]), 0.5, image)],
         [0, image],
     )[1]
-
-    # image = random_apply(
-    #     lambda image: tf.clip_by_value(tf.image.adjust_brightness(image, brightness), 0, 1),
-    #     0.5, image)
-    #
-    # image = random_apply(
-    #     lambda image: tf.clip_by_value(tf.image.adjust_contrast(image, 1 - contrast, 1 + contrast), 0, 1),
-    #     0.5, image)
-    #
-    # image = random_apply(
-    #     lambda image: tf.clip_by_value(tf.image.adjust_saturation(image, 1 - saturation, 1 + saturation), 0, 1),
-    #     0.5, image)
-    #
-    # image = random_apply(
-    #     lambda image: tf.clip_by_value(tf.image.adjust_hue(image, hue), 0, 1),
-    #     0.5, image)
 
     image = tf.cast(image * 255, tf.uint8)
 
