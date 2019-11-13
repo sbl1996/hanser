@@ -1,6 +1,19 @@
 import tensorflow as tf
 from hanser.ops import to_float, to_int, choice
-from hanser.transform import pad_to_bounding_box
+from hanser.transform import pad_to_bounding_box, brightness as adjust_brightness
+
+
+def color_jitter(image, brightness, contrast, saturation, hue):
+    image = tf.cast(image, tf.float32) / 255
+    image = tf.image.adjust_brightness(image, brightness)
+    image = tf.clip_by_value(image, 0, 1)
+    image = tf.image.adjust_contrast(image, 1 - contrast, 1 + contrast)
+    image = tf.clip_by_value(image, 0, 1)
+    image = tf.image.adjust_saturation(image, 1 - saturation, 1 + saturation)
+    image = tf.clip_by_value(image, 0, 1)
+    image = tf.image.adjust_hue(image, hue)
+    image = tf.cast(image * 255, tf.uint8)
+    return image
 
 
 def random_choice(funcs, image, boxes, classes):
@@ -109,7 +122,7 @@ def resize_with_pad(image, boxes, target_height, target_width, pad_value):
     scaled_height = to_int(to_float(height) * img_scale)
     scaled_width = to_int(to_float(width) * img_scale)
     boxes = scale_box(boxes, to_float([scaled_height, scaled_width]) / to_float([target_height, target_width]))
-    image = tf.image.resize(image, (scaled_height,  scaled_width))
+    image = tf.image.resize(image, (scaled_height, scaled_width))
     image = pad_to_bounding_box(image, 0, 0, target_height, target_width, pad_value)
     return image, boxes
 
@@ -117,9 +130,9 @@ def resize_with_pad(image, boxes, target_height, target_width, pad_value):
 def resize_and_crop_image(image, scaled_height, scaled_width, output_size, offset_x, offset_y):
     image = tf.compat.v1.image.resize_bilinear(image[None], (scaled_height, scaled_width), align_corners=True)[0]
     image = image[
-        offset_y:offset_y + output_size,
-        offset_x:offset_x + output_size,
-    ]
+            offset_y:offset_y + output_size,
+            offset_x:offset_x + output_size,
+            ]
     image = tf.image.pad_to_bounding_box(
         image, 0, 0, output_size, output_size
     )
