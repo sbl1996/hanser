@@ -5,7 +5,7 @@ import tensorflow as tf
 
 from hanser.datasets.tfrecord import parse_voc_example
 from hanser.transform.detection import get_random_scale, resize_and_crop_image, resize_and_crop_boxes, resize_with_pad, \
-    random_sample_crop, random_apply, random_hflip
+    random_sample_crop, random_apply, random_hflip, expand
 from hanser.datasets.voc import VOC_CATEGORIES
 
 from hanser.detection import tlbr2tlhw, iou, generate_mlvl_anchors, match_anchors, draw_bboxes2, yxhw2tlbr
@@ -128,20 +128,21 @@ def test_transform():
     it = iter(ds)
 
     d = next(it)
-    image = d['image']
-    height, width = image.shape[:2]
-    bboxes, classes = d['objects/bbox'], d['objects/label'] + 1
+    image = tf.cast(d['image'], tf.float32)
+    bboxes, classes, is_difficults = d['objects/bbox'], d['objects/label'] + 1, d['objects/is_difficult']
+    classes = tf.cast(classes, tf.int32)
+
     mean_rgb = tf.convert_to_tensor([127.5, 127.5, 127.5], tf.float32)
 
-    image, bboxes, classes = random_apply(
-        random_sample_crop, 0.5, image, bboxes, classes
-    )
-
-    image, bboxes, classes = random_hflip(image, bboxes, classes, 0.5)
-
-    output_size = 320
+    if tf.random.normal(()) < 0.5:
+        image, bboxes = expand(image, bboxes, 4.0, mean_rgb)
+    if tf.random.normal(()) < 0.5:
+        image, bboxes, classes, is_difficults = random_sample_crop(
+            image, bboxes, classes, is_difficults)
+    image, bboxes = random_hflip(image, bboxes, 0.5)
+    output_size = 300
     image = tf.image.resize(image, (output_size, output_size))
-
-    # image, bboxes = resize_with_pad(image, bboxes, output_size, output_size, mean_rgb)
+    #
+    # # image, bboxes = resize_with_pad(image, bboxes, output_size, output_size, mean_rgb)
 
     draw_bboxes2(image.numpy().astype(np.uint8), bboxes.numpy(), classes.numpy(), VOC_CATEGORIES)

@@ -142,6 +142,24 @@ def scale_box(boxes, scales):
     return tf.reshape(tf.reshape(boxes, [-1, 2, 2]) * scales, [-1, 4])
 
 
+def expand(image, boxes, max_scale, mean):
+    shape = tf.shape(image)
+    h = shape[0]
+    w = shape[1]
+    scale = tf.random.uniform((), 1.0, max_scale)
+    new_h = to_int(to_float(h) * scale)
+    new_w = to_int(to_float(w) * scale)
+
+    offset_y = tf.random.uniform((), 0, new_h - h, dtype=tf.int32)
+    offset_x = tf.random.uniform((), 0, new_w - w, dtype=tf.int32)
+
+    image = pad_to_bounding_box(image, offset_y, offset_x, new_h, new_w, mean)
+    boxes = tf.reshape(boxes, [-1, 2, 2])
+    boxes = boxes / scale + tf.cast([offset_y, offset_x], tf.float32) / tf.cast([new_h, new_w], tf.float32)
+    boxes = tf.reshape(boxes, [-1, 4])
+    return image, boxes
+
+
 def resize_with_pad(image, boxes, target_height, target_width, pad_value):
     height = tf.shape(image)[0]
     width = tf.shape(image)[1]

@@ -47,25 +47,42 @@ def extra_block(x, filters, stride, padding, name):
     return x
 
 
-def ssd(backbone, num_anchors=6, num_classes=21):
-
-    if isinstance(num_anchors, int):
-        num_anchors = [num_anchors] * 6
-
+def ssd(backbone, num_anchors, num_classes):
+    size = backbone.input_shape[2]
     c3, c4 = list(backbone.outputs)
-    c5 = extra_block(c4, 256, stride=2,
-                     padding='same',
-                     name='block6')
-    c6 = extra_block(c5, 128, stride=2,
-                     padding='same',
-                     name='block7')
-    c7 = extra_block(c6, 128, stride=1,
-                     padding='valid',
-                     name='block8')
-    c8 = extra_block(c7, 128, stride=1,
-                     padding='valid',
-                     name='block9')
-    cs = [c3, c4, c5, c6, c7, c8]
+    if size == 300:
+        c5 = extra_block(c4, 256, stride=2,
+                         padding='same',
+                         name='block6')
+        c6 = extra_block(c5, 128, stride=2,
+                         padding='same',
+                         name='block7')
+        c7 = extra_block(c6, 128, stride=1,
+                         padding='valid',
+                         name='block8')
+        c8 = extra_block(c7, 128, stride=1,
+                         padding='valid',
+                         name='block9')
+        cs = [c3, c4, c5, c6, c7, c8]
+    elif size == 512:
+        c5 = extra_block(c4, 256, stride=2,
+                         padding='same',
+                         name='block6')
+        c6 = extra_block(c5, 128, stride=2,
+                         padding='same',
+                         name='block7')
+        c7 = extra_block(c6, 128, stride=2,
+                         padding='same',
+                         name='block8')
+        c8 = extra_block(c7, 128, stride=2,
+                         padding='same',
+                         name='block9')
+        c9 = extra_block(c8, 128, stride=2,
+                         padding='same',
+                         name='block10')
+        cs = [c3, c4, c5, c6, c7, c8, c9]
+    else:
+        raise ValueError('Only 300 or 512 are supported.')
 
     loc_ps = [
         conv2d(c, num_anchors[i] * 4, kernel_size=3, use_bias=True,
@@ -77,7 +94,7 @@ def ssd(backbone, num_anchors=6, num_classes=21):
     cls_ps = [
         conv2d(c, num_anchors[i] * num_classes, kernel_size=3, use_bias=True,
                kernel_initializer=RandomNormal(0, 0.01),
-               bias_initializer=Constant(-4.595),
+               # bias_initializer=Constant(-4.595),
                name='cls_head%d' % (i + 3))
         for i, c in enumerate(cs)
     ]

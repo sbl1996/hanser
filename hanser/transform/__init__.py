@@ -620,6 +620,7 @@ def to_tensor(image, label, dtype=tf.float32):
 
 
 def color_jitter(image, brightness, contrast, saturation, hue):
+    dtype = image.dtype
     image = tf.cast(image, tf.float32) / 255
 
     order = tf.random.shuffle(tf.range(4))
@@ -637,7 +638,7 @@ def color_jitter(image, brightness, contrast, saturation, hue):
             if tf.random.uniform(()) < 0.5:
                 image = tf.clip_by_value(tf.image.random_hue(image, hue), 0, 1)
 
-    image = tf.cast(image * 255, tf.uint8)
+    image = tf.cast(image * 255, dtype)
 
     return image
 
