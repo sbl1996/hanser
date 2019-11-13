@@ -244,8 +244,11 @@ def detect(loc_p, cls_p, anchors, iou_threshold=0.5, conf_threshold=0.1, topk=10
     return dets
 
 
-def batched_detect(loc_p, cls_p, anchors, iou_threshold=0.5, conf_threshold=0.1, topk=200):
-    scores = tf.math.softmax(cls_p, -1)[..., 1:]
+def batched_detect(loc_p, cls_p, anchors, iou_threshold=0.5, conf_threshold=0.1, topk=200, conf_strategy='softmax'):
+    if conf_strategy == 'sigmoid':
+        scores = tf.sigmoid(cls_p[..., 1:])
+    else:
+        scores = tf.math.softmax(cls_p, -1)[..., 1:]
     boxes = target_to_coords(loc_p, anchors)
     boxes = tf.expand_dims(boxes, 2)
     boxes, scores, classes, n_valids = tf.image.combined_non_max_suppression(

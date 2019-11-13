@@ -51,7 +51,11 @@ def average_precision(detections: List[BBox], ground_truths: List[BBox], iou_thr
             continue
 
         c_gts = gts[c]
-        n_positive = len([d for ds in c_gts.values() for d in ds if not (ignore_difficult and d.is_difficult)])
+        if ignore_difficult:
+            n_positive = len([d for ds in c_gts.values() for d in ds if not d.is_difficult])
+        else:
+            n_positive = len([d for ds in c_gts.values() for d in ds])
+        # n_positive = len([d for ds in c_gts.values() for d in ds if not (ignore_difficult and d.is_difficult)])
         c_dts = sorted([d for ds in dts[c].values() for d in ds], key=lambda b: b.score, reverse=True)
         TP = np.zeros(len(c_dts), dtype=np.uint8)
         FP = np.zeros(len(c_dts), dtype=np.uint8)
