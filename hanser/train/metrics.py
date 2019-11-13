@@ -331,8 +331,8 @@ class MeanAveragePrecision:
             for i in range(num_classes):
                 d[self.class_names[i]] = aps.get(i, 0) * 100
             d['ALL'] = mAP * 100
-            d = pd.DataFrame({'mAP': d}).transpose()
-            pd.set_option('precision', 1)
+            # d = pd.DataFrame({'mAP': d}).transpose()
+            # pd.set_option('precision', 1)
             print(d)
         return tf.convert_to_tensor(mAP)
 
