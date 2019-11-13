@@ -253,12 +253,12 @@ class Trainer:
         run_epoch(self._test_step, test_it, test_steps, self.test_metrics, "Test")
 
     def evaluate2(self, ds_test, test_steps, metrics,
-                  output_transform=identity, target_transform=identity, get_sample_weight=None):
+                  output_transform=identity, target_transform=identity, get_sample_weight=None, debug=False):
 
         if self.strategy:
             assert isinstance(ds_test, DistributedDataset)
 
-        predict_step = self._get_predict_step()
+        predict_step = self._get_predict_step(debug)
 
         test_it = iter(ds_test)
 
