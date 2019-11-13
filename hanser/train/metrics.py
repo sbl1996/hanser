@@ -325,7 +325,6 @@ class MeanAveragePrecision:
         gts = [BBox(**ann) for ann in self.gts]
 
         aps = average_precision(dts, gts, self.iou_threshold, self.interpolation == '11point', self.ignore_difficult)
-        print(aps)
         mAP = np.mean(list(aps.values()))
         if self.class_names:
             num_classes = len(self.class_names)

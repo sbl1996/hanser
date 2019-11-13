@@ -1,19 +1,6 @@
 import tensorflow as tf
 from hanser.ops import to_float, to_int, choice
-from hanser.transform import pad_to_bounding_box, brightness as adjust_brightness
-
-
-def color_jitter(image, brightness, contrast, saturation, hue):
-    image = tf.cast(image, tf.float32) / 255
-    image = tf.image.adjust_brightness(image, brightness)
-    image = tf.clip_by_value(image, 0, 1)
-    image = tf.image.adjust_contrast(image, 1 - contrast, 1 + contrast)
-    image = tf.clip_by_value(image, 0, 1)
-    image = tf.image.adjust_saturation(image, 1 - saturation, 1 + saturation)
-    image = tf.clip_by_value(image, 0, 1)
-    image = tf.image.adjust_hue(image, hue)
-    image = tf.cast(image * 255, tf.uint8)
-    return image
+from hanser.transform import pad_to_bounding_box
 
 
 def random_choice(funcs, image, boxes, classes):

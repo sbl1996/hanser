@@ -6,7 +6,15 @@ from tensorflow.python.ops import check_ops
 from tensorflow.python.ops import array_ops
 
 
-def random_apply(funcs, image):
+def random_apply(func, p, image):
+    return tf.cond(
+        tf.random.normal(()) < p,
+        lambda: func(image),
+        lambda: image,
+    )
+
+
+def random_choice(funcs, image):
     """Select a random policy from `policies` and apply it to `image`."""
 
     funcs_to_select = tf.random.uniform((), maxval=len(funcs), dtype=tf.int32)
@@ -610,3 +618,44 @@ def to_tensor(image, label, dtype=tf.float32):
     label = tf.cast(label, tf.int32)
 
     return image, label
+
+
+def color_jitter(image, brightness, contrast, saturation, hue):
+    image = tf.cast(image, tf.float32) / 255
+
+    funcs = [
+        lambda image: tf.clip_by_value(tf.image.adjust_brightness(image, brightness), 0, 1),
+        lambda image: tf.clip_by_value(tf.image.adjust_contrast(image, 1 - contrast, 1 + contrast), 0, 1),
+        lambda image: tf.clip_by_value(tf.image.adjust_saturation(image, 1 - saturation, 1 + saturation), 0, 1),
+        lambda image: tf.clip_by_value(tf.image.adjust_hue(image, hue), 0, 1),
+    ]
+    n = len(funcs)
+    order = tf.random.shuffle(tf.range(4))
+
+    image = tf.while_loop(
+        lambda i, im, order, funcs: i < n,
+        lambda i, im, order, funcs: [i + 1,
+                                     random_apply(funcs[order[i]], 0.5, im),
+                                     order, funcs],
+        [0, image, order, funcs],
+    )[1]
+
+    # image = random_apply(
+    #     lambda image: tf.clip_by_value(tf.image.adjust_brightness(image, brightness), 0, 1),
+    #     0.5, image)
+    #
+    # image = random_apply(
+    #     lambda image: tf.clip_by_value(tf.image.adjust_contrast(image, 1 - contrast, 1 + contrast), 0, 1),
+    #     0.5, image)
+    #
+    # image = random_apply(
+    #     lambda image: tf.clip_by_value(tf.image.adjust_saturation(image, 1 - saturation, 1 + saturation), 0, 1),
+    #     0.5, image)
+    #
+    # image = random_apply(
+    #     lambda image: tf.clip_by_value(tf.image.adjust_hue(image, hue), 0, 1),
+    #     0.5, image)
+
+    image = tf.cast(image * 255, tf.uint8)
+
+    return image
