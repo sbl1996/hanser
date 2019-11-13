@@ -1,5 +1,6 @@
 from collections import defaultdict
 
+import tensorflow as tf
 from tensorflow.keras.layers import Input
 from tensorflow.keras import Model
 
@@ -48,3 +49,11 @@ def replace_layer(layers, input_shape, layer_names, create_layer_funcs):
         new_output_tensor_of[layer.name].append(x)
 
     return Model(inputs=inputs, outputs=x)
+
+
+def decimate(tensor, m):
+    for d in range(tensor.ndim):
+        if m[d] is not None:
+            indices = tf.range(0, tensor.shape[d], m[d])
+            tensor = tf.gather(tensor, indices, axis=d)
+    return tensor

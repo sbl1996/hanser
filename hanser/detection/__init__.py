@@ -35,9 +35,10 @@ def generate_mlvl_anchors(grid_sizes, anchor_sizes):
         size = tf.tile(tf.reshape(sizes, [1, 1, n, 2]), [ly, lx, 1, 1])
         anchors = tf.concat([cy, cx, size], 3)
         anchors = yxhw2tlbr(anchors)
-        anchors = tf.clip_by_value(anchors, 0.0, 1.0)
         mlvl_anchors.append(anchors)
-    return mlvl_anchors
+    anchors = tf.concat([tf.reshape(a, [-1, 4]) for a in mlvl_anchors], axis=0)
+    anchors = tf.clip_by_value(anchors, 0.0, 1.0)
+    return anchors
 
 
 def yxhw2tlbr(boxes):
@@ -243,12 +244,12 @@ def detect(loc_p, cls_p, anchors, iou_threshold=0.5, conf_threshold=0.1, topk=10
     return dets
 
 
-def batched_detect(loc_p, cls_p, anchors, iou_threshold=0.5, conf_threshold=0.1, topk=100):
+def batched_detect(loc_p, cls_p, anchors, iou_threshold=0.5, conf_threshold=0.1, topk=200):
     scores = tf.sigmoid(cls_p[..., 1:])
     boxes = target_to_coords(loc_p, anchors)
     boxes = tf.expand_dims(boxes, 2)
     boxes, scores, classes, n_valids = tf.image.combined_non_max_suppression(
-        boxes, scores, 20, topk, iou_threshold, conf_threshold)
+        boxes, scores, 100, topk, iou_threshold, conf_threshold)
     return {
         'bbox': boxes,
         'score': scores,
