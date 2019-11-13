@@ -633,11 +633,9 @@ def color_jitter(image, brightness, contrast, saturation, hue):
     order = tf.random.shuffle(tf.range(4))
 
     image = tf.while_loop(
-        lambda i, im, order, funcs: i < n,
-        lambda i, im, order, funcs: [i + 1,
-                                     random_apply(funcs[order[i]], 0.5, im),
-                                     order, funcs],
-        [0, image, order, funcs],
+        lambda i, im: i < n,
+        lambda i, im: [i + 1, random_apply(funcs[order[i]], 0.5, im)]
+        [0, image],
     )[1]
 
     # image = random_apply(
