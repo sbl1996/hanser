@@ -255,7 +255,7 @@ class MeanAveragePrecision:
     ```
     """
 
-    def __init__(self, iou_threshold=0.5, interpolation='11point', ignore_difficult=True, name=None, dtype=None):
+    def __init__(self, iou_threshold=0.5, interpolation='11point', ignore_difficult=True, class_names=None, name=None, dtype=None):
         """Creates a `MeanIoU` instance.
 
         Args:
@@ -270,6 +270,7 @@ class MeanAveragePrecision:
         self.iou_threshold = iou_threshold
         self.interpolation = interpolation
         self.ignore_difficult = ignore_difficult
+        self.class_names = class_names
 
         self.gts = []
         self.dts = []
@@ -324,16 +325,17 @@ class MeanAveragePrecision:
         gts = [BBox(**ann) for ann in self.gts]
 
         aps = average_precision(dts, gts, self.iou_threshold, self.interpolation == '11point', self.ignore_difficult)
+        print(aps)
         mAP = np.mean(list(aps.values()))
-        # if self.class_names:
-        #     num_classes = len(self.class_names)
-        #     d = {}
-        #     for i in range(num_classes):
-        #         d[self.class_names[i]] = aps.get(i + 1, 0) * 100
-        #     d['ALL'] = mAP * 100
-        #     d = pd.DataFrame({'mAP': d}).transpose()
-        #     pd.set_option('precision', 1)
-        #     print(d)
+        if self.class_names:
+            num_classes = len(self.class_names)
+            d = {}
+            for i in range(num_classes):
+                d[self.class_names[i]] = aps.get(i, 0) * 100
+            d['ALL'] = mAP * 100
+            d = pd.DataFrame({'mAP': d}).transpose()
+            pd.set_option('precision', 1)
+            print(d)
         return tf.convert_to_tensor(mAP)
 
     def reset_states(self):
