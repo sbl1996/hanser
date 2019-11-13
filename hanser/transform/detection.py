@@ -1,20 +1,28 @@
 import tensorflow as tf
 from hanser.ops import to_float, to_int, choice
-from hanser.transform import pad_to_bounding_box, random_apply as random_apply2
+from hanser.transform import pad_to_bounding_box
 
 
-def random_choice(funcs, image, boxes, classes, is_difficults):
-    """Select a random policy from `policies` and apply it to `image`."""
-
+def random_choice(funcs, *args):
     funcs_to_select = tf.random.uniform((), maxval=len(funcs), dtype=tf.int32)
-    # Note that using tf.case instead of tf.conds would result in significantly
-    # larger graphs and would even break export for some larger policies.
     for (i, func) in enumerate(funcs):
-        image, boxes, classes, is_difficults = tf.cond(
-            tf.equal(i, funcs_to_select),
-            lambda: func(image, boxes, classes, is_difficults),
-            lambda: (image, boxes, classes, is_difficults))
-    return image, boxes, classes, is_difficults
+        if funcs_to_select == i:
+            args = func(*args)
+    return args
+
+
+# def random_choice(funcs, image, boxes, classes, is_difficults):
+#     """Select a random policy from `policies` and apply it to `image`."""
+#
+#     funcs_to_select = tf.random.uniform((), maxval=len(funcs), dtype=tf.int32)
+#     # Note that using tf.case instead of tf.conds would result in significantly
+#     # larger graphs and would even break export for some larger policies.
+#     for (i, func) in enumerate(funcs):
+#         image, boxes, classes, is_difficults = tf.cond(
+#             tf.equal(i, funcs_to_select),
+#             lambda: func(image, boxes, classes, is_difficults),
+#             lambda: (image, boxes, classes, is_difficults))
+#     return image, boxes, classes, is_difficults
 
 
 def random_apply(func, p, *args):
@@ -23,12 +31,12 @@ def random_apply(func, p, *args):
     return args
 
 
-def random_apply2(func, p, image, boxes, classes, is_difficults):
-    return tf.cond(
-        tf.random.normal(()) < p,
-        lambda: func(image, boxes, classes, is_difficults),
-        lambda: (image, boxes, classes, is_difficults)
-    )
+# def random_apply2(func, p, image, boxes, classes, is_difficults):
+#     return tf.cond(
+#         tf.random.normal(()) < p,
+#         lambda: func(image, boxes, classes, is_difficults),
+#         lambda: (image, boxes, classes, is_difficults)
+#     )
 
 
 def get_random_scale(height, width, output_size, scale_min, scale_max):
@@ -52,18 +60,18 @@ def get_random_scale(height, width, output_size, scale_min, scale_max):
     return img_scale, scaled_height, scaled_width, offset_x, offset_y
 
 
-def hflip(image, bboxes, classes, is_difficults):
+def hflip(image, bboxes):
     image = tf.image.flip_left_right(image)
     bboxes = tf.reshape(bboxes, [-1, 2, 2])
     bboxes_y = bboxes[..., 0]
     bboxes_x = bboxes[..., 1]
     bboxes_x = (1 - bboxes_x)[..., ::-1]
     bboxes = tf.reshape(tf.stack([bboxes_y, bboxes_x], axis=-1), [-1, 4])
-    return image, bboxes, classes, is_difficults
+    return image, bboxes
 
 
-def random_hflip(image, bboxes, classes, is_difficults, p=0.5):
-    return random_apply(hflip, p, image, bboxes, classes, is_difficults)
+def random_hflip(image, bboxes, p=0.5):
+    return random_apply(hflip, p, image, bboxes)
 
 
 def filter_bboxes(bboxes, classes, is_difficults):
@@ -95,11 +103,39 @@ def random_sample_crop(
     bboxes = tf.reshape((tf.reshape(bboxes, [-1, 2, 2]) - yx1) / size, [-1, 4])
     bboxes, classes, is_difficults = filter_bboxes(bboxes, classes, is_difficults)
     bboxes = tf.clip_by_value(bboxes, 0, 1)
-    return tf.cond(
-        tf.shape(bboxes)[0] == 0,
-        lambda: (ori_image, ori_bboxes, ori_classes, ori_diff),
-        lambda: (image, bboxes, classes, is_difficults)
-    )
+    if tf.shape(bboxes)[0] == 0:
+        return ori_image, ori_bboxes, ori_classes, ori_diff
+    return image, bboxes, classes, is_difficults
+
+
+# def random_sample_crop(
+#         image, bboxes, classes, is_difficults,
+#         min_ious=(0.1, 0.3, 0.5, 0.7, 0.9),
+#         aspect_ratio_range=(0.5, 2.0)):
+#     ori_image = image
+#     ori_bboxes = bboxes
+#     ori_classes = classes
+#     ori_diff = is_difficults
+#
+#     min_object_covered = choice(min_ious)
+#     begin, size, box = tf.image.sample_distorted_bounding_box(
+#         tf.shape(image), bboxes[None],
+#         min_object_covered=min_object_covered,
+#         aspect_ratio_range=aspect_ratio_range,
+#         area_range=(0.1, 1.0),
+#     )
+#     image = tf.slice(image, begin, size)
+#     yx1 = box[0, 0, :2]
+#     yx2 = box[0, 0, 2:]
+#     size = yx2 - yx1
+#     bboxes = tf.reshape((tf.reshape(bboxes, [-1, 2, 2]) - yx1) / size, [-1, 4])
+#     bboxes, classes, is_difficults = filter_bboxes(bboxes, classes, is_difficults)
+#     bboxes = tf.clip_by_value(bboxes, 0, 1)
+#     return tf.cond(
+#         tf.shape(bboxes)[0] == 0,
+#         lambda: (ori_image, ori_bboxes, ori_classes, ori_diff),
+#         lambda: (image, bboxes, classes, is_difficults)
+#     )
 
 
 def scale_box(boxes, scales):

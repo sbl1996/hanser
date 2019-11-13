@@ -144,6 +144,20 @@ def match_anchors(boxes, classes, anchors, pos_thresh=0.5):
     return loc_t, cls_t, n_pos
 
 
+def huber_loss2(labels, preds, weights, delta=3.0):
+    error = preds - labels
+    abs_error = tf.math.abs(error)
+
+    d2 = delta * delta
+    losses = tf.where(
+        abs_error < (1 / d2),
+        0.5 * d2 * (abs_error * abs_error),
+        abs_error - 0.5 / d2
+    )
+    losses = losses * weights
+    return tf.reduce_sum(losses)
+
+
 # huber loss
 def smooth_l1_loss(labels, preds, weights, delta=1.0):
     error = preds - labels
@@ -164,23 +178,18 @@ def detection_loss(labels, preds, cls_loss='focal', neg_pos_ratio=3, alpha=0.25,
     loc_p = preds['loc_p']
     cls_p = preds['cls_p']
 
-    if cls_loss == 'focal':
-        delta = 1.0
-        box_loss_weight = 1.0
-    else:
-        delta = 1.0
-        box_loss_weight = 1.0
-
     total_pos = tf.reduce_sum(n_pos)
     normalizer = to_float(total_pos)
-    weights = to_float(loc_t != 0)
-    loc_loss = smooth_l1_loss(loc_t, loc_p, weights, delta=delta) / normalizer
 
     if cls_loss == 'focal':
+        weights = to_float(loc_t != 0)
+        loc_loss = huber_loss2(loc_t, loc_p, weights, delta=3.0) / normalizer
         num_classes = tf.shape(cls_p)[-1]
         cls_t = tf.one_hot(cls_t, num_classes)
         cls_loss = focal_loss(cls_t, cls_p, alpha, gamma) / normalizer
     else:
+        weights = to_float(loc_t != 0)
+        loc_loss = smooth_l1_loss(loc_t, loc_p, weights, delta=1.0) / normalizer
         weights = tf.cast(tf.not_equal(cls_t, 0), cls_p.dtype)
         cls_losses = tf.nn.sparse_softmax_cross_entropy_with_logits(cls_t, cls_p)
         cls_loss_pos = tf.reduce_sum(cls_losses * weights)
@@ -190,7 +199,7 @@ def detection_loss(labels, preds, cls_loss='focal', neg_pos_ratio=3, alpha=0.25,
             cls_loss_neg = hard_negative_mining(cls_losses * (1 - weights), n_pos, neg_pos_ratio)
         cls_loss = (cls_loss_pos + cls_loss_neg) / normalizer
 
-    return box_loss_weight * loc_loss + cls_loss
+    return loc_loss + cls_loss
 
 
 def hard_negative_mining(losses, n_pos, neg_pos_ratio):

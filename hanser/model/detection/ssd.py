@@ -77,7 +77,7 @@ def ssd(backbone, num_anchors=6, num_classes=21):
     cls_ps = [
         conv2d(c, num_anchors[i] * num_classes, kernel_size=3, use_bias=True,
                kernel_initializer=RandomNormal(0, 0.01),
-               # bias_initializer=Constant(-4.595),
+               bias_initializer=Constant(-4.595),
                name='cls_head%d' % (i + 3))
         for i, c in enumerate(cs)
     ]
