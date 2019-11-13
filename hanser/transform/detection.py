@@ -1,27 +1,27 @@
 import tensorflow as tf
 from hanser.ops import to_float, to_int, choice
-from hanser.transform import pad_to_bounding_box
+from hanser.transform import pad_to_bounding_box, random_apply as random_apply2
 
 
-def random_choice(funcs, image, boxes, classes):
+def random_choice(funcs, image, boxes, classes, is_difficults):
     """Select a random policy from `policies` and apply it to `image`."""
 
     funcs_to_select = tf.random.uniform((), maxval=len(funcs), dtype=tf.int32)
     # Note that using tf.case instead of tf.conds would result in significantly
     # larger graphs and would even break export for some larger policies.
     for (i, func) in enumerate(funcs):
-        image, boxes = tf.cond(
+        image, boxes, classes, is_difficults = tf.cond(
             tf.equal(i, funcs_to_select),
-            lambda: func(image, boxes, classes),
-            lambda: (image, boxes, classes))
-    return image, boxes
+            lambda: func(image, boxes, classes, is_difficults),
+            lambda: (image, boxes, classes, is_difficults))
+    return image, boxes, classes, is_difficults
 
 
-def random_apply(func, p, image, boxes, classes):
+def random_apply(func, p, image, boxes, classes, is_difficults):
     return tf.cond(
         tf.random.normal(()) < p,
-        lambda: func(image, boxes, classes),
-        lambda: (image, boxes, classes)
+        lambda: func(image, boxes, classes, is_difficults),
+        lambda: (image, boxes, classes, is_difficults)
     )
 
 
@@ -46,33 +46,34 @@ def get_random_scale(height, width, output_size, scale_min, scale_max):
     return img_scale, scaled_height, scaled_width, offset_x, offset_y
 
 
-def hflip(image, bboxes, classes):
+def hflip(image, bboxes, classes, is_difficults):
     image = tf.image.flip_left_right(image)
     bboxes = tf.reshape(bboxes, [-1, 2, 2])
     bboxes_y = bboxes[..., 0]
     bboxes_x = bboxes[..., 1]
     bboxes_x = (1 - bboxes_x)[..., ::-1]
     bboxes = tf.reshape(tf.stack([bboxes_y, bboxes_x], axis=-1), [-1, 4])
-    return image, bboxes, classes
+    return image, bboxes, classes, is_difficults
 
 
-def random_hflip(image, bboxes, classes, p=0.5):
-    return random_apply(hflip, p, image, bboxes, classes)
+def random_hflip(image, bboxes, classes, is_difficults, p=0.5):
+    return random_apply(hflip, p, image, bboxes, classes, is_difficults)
 
 
-def filter_bboxes(bboxes, classes):
+def filter_bboxes(bboxes, classes, is_difficults):
     centers = (bboxes[..., :2] + bboxes[:, 2:]) / 2
     mask = tf.reduce_all((centers > 0) & (centers < 1), axis=-1)
-    return bboxes[mask], classes[mask]
+    return bboxes[mask], classes[mask], is_difficults[mask]
 
 
 def random_sample_crop(
-        image, bboxes, classes,
+        image, bboxes, classes, is_difficults,
         min_ious=(0.1, 0.3, 0.5, 0.7, 0.9),
         aspect_ratio_range=(0.5, 2.0)):
     ori_image = image
     ori_bboxes = bboxes
     ori_classes = classes
+    ori_diff = is_difficults
 
     min_object_covered = choice(min_ious)
     begin, size, box = tf.image.sample_distorted_bounding_box(
@@ -86,12 +87,12 @@ def random_sample_crop(
     yx2 = box[0, 0, 2:]
     size = yx2 - yx1
     bboxes = tf.reshape((tf.reshape(bboxes, [-1, 2, 2]) - yx1) / size, [-1, 4])
-    bboxes, classes = filter_bboxes(bboxes, classes)
+    bboxes, classes, is_difficults = filter_bboxes(bboxes, classes, is_difficults)
     bboxes = tf.clip_by_value(bboxes, 0, 1)
     return tf.cond(
         tf.shape(bboxes)[0] == 0,
-        lambda: (ori_image, ori_bboxes, ori_classes),
-        lambda: (image, bboxes, classes)
+        lambda: (ori_image, ori_bboxes, ori_classes, ori_diff),
+        lambda: (image, bboxes, classes, is_difficults)
     )
 
 

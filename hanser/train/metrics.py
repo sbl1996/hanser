@@ -303,8 +303,7 @@ class MeanAveragePrecision:
         batch_size, num_dets = all_dt_bboxes.shape[:2]
         for i in range(batch_size):
             image_id = image_ids[i]
-            n_valid = all_dt_n_valids[i]
-            for j in range(n_valid):
+            for j in range(all_dt_n_valids[i]):
                 self.dts.append({
                     'image_id': image_id,
                     'bbox': all_dt_bboxes[i, j],
