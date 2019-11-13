@@ -361,7 +361,6 @@ def solarize_add(image, addition=0, threshold=128):
     return tf.where(image < threshold, added_image, image)
 
 
-
 def color(image, factor):
     """Equivalent of PIL Color."""
     degenerate = tf.image.grayscale_to_rgb(tf.image.rgb_to_grayscale(image))
@@ -620,21 +619,34 @@ def to_tensor(image, label, dtype=tf.float32):
     return image, label
 
 
+def color_jitter_branch(i, image):
+    return tf.switch_case(
+        i,
+        [
+            lambda: tf.clip_by_value(tf.image.adjust_brightness(image, brightness), 0, 1),
+            lambda: tf.clip_by_value(tf.image.adjust_contrast(image, 1 - contrast, 1 + contrast), 0, 1),
+            lambda: tf.clip_by_value(tf.image.adjust_saturation(image, 1 - saturation, 1 + saturation), 0, 1),
+            lambda: tf.clip_by_value(tf.image.adjust_hue(image, hue), 0, 1),
+        ]
+    )
+
+
 def color_jitter(image, brightness, contrast, saturation, hue):
     image = tf.cast(image, tf.float32) / 255
 
-    funcs = [
-        lambda image: tf.clip_by_value(tf.image.adjust_brightness(image, brightness), 0, 1),
-        lambda image: tf.clip_by_value(tf.image.adjust_contrast(image, 1 - contrast, 1 + contrast), 0, 1),
-        lambda image: tf.clip_by_value(tf.image.adjust_saturation(image, 1 - saturation, 1 + saturation), 0, 1),
-        lambda image: tf.clip_by_value(tf.image.adjust_hue(image, hue), 0, 1),
-    ]
-    n = len(funcs)
+    def branch_fn(i):
+        def func(image):
+            return tf.switch_case(i, [
+                lambda: tf.clip_by_value(tf.image.random_brightness(image, brightness), 0, 1),
+                lambda: tf.clip_by_value(tf.image.random_contrast(image, 1 - contrast, 1 + contrast), 0, 1),
+                lambda: tf.clip_by_value(tf.image.random_saturation(image, 1 - saturation, 1 + saturation), 0, 1),
+                lambda: tf.clip_by_value(tf.image.random_hue(image, hue), 0, 1),
+            ])
+        return func
     order = tf.random.shuffle(tf.range(4))
-
     image = tf.while_loop(
-        lambda i, im: i < n,
-        lambda i, im: [i + 1, random_apply(funcs[order[i]], 0.5, im)],
+        lambda i, im: i < 4,
+        lambda i, im: [i + 1, random_apply(branch_fn(order[i]), 0.5, image)],
         [0, image],
     )[1]
 
