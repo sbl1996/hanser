@@ -150,8 +150,10 @@ def expand(image, boxes, max_scale, mean):
     new_h = to_int(to_float(h) * scale)
     new_w = to_int(to_float(w) * scale)
 
-    offset_y = tf.random.uniform((), 0, new_h - h, dtype=tf.int32)
-    offset_x = tf.random.uniform((), 0, new_w - w, dtype=tf.int32)
+    offset_y = tf.random.uniform((), 0, new_h - h + 1, dtype=tf.int32)
+    # offset_y = new_h - h
+    offset_x = tf.random.uniform((), 0, new_w - w + 1, dtype=tf.int32)
+    # offset_x = new_w - w
 
     image = pad_to_bounding_box(image, offset_y, offset_x, new_h, new_w, mean)
     boxes = tf.reshape(boxes, [-1, 2, 2])

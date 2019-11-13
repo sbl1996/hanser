@@ -136,9 +136,9 @@ def test_transform():
 
     if tf.random.normal(()) < 0.5:
         image, bboxes = expand(image, bboxes, 4.0, mean_rgb)
-    if tf.random.normal(()) < 0.5:
-        image, bboxes, classes, is_difficults = random_sample_crop(
-            image, bboxes, classes, is_difficults)
+    # if tf.random.normal(()) < 0.5:
+    #     image, bboxes, classes, is_difficults = random_sample_crop(
+    #         image, bboxes, classes, is_difficults)
     image, bboxes = random_hflip(image, bboxes, 0.5)
     output_size = 300
     image = tf.image.resize(image, (output_size, output_size))
