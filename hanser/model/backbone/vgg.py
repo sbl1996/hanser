@@ -94,7 +94,7 @@ def VGG16(input_shape, use_bn=True, pretrained=True):
 
 def vgg_backbone(input_shape, output_stride, pretrained=True):
     assert output_stride == 16
-    model = VGG16(input_shape, pretrained)
+    model = VGG16(input_shape, pretrained=pretrained)
 
     c3 = model.get_layer('block4_pool').input
     c4 = model.output
