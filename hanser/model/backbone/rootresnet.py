@@ -122,7 +122,7 @@ def get_root_resnet(depth, input_shape):
     return model
 
 
-def resnet_backbone(depth, input_shape):
+def root_resnet_backbone(depth, input_shape):
     model = get_root_resnet(depth, input_shape)
     c3 = model.get_layer('conv4_block2_out').output
     c4 = model.output
