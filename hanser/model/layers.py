@@ -13,8 +13,8 @@ from tensorflow.python.keras.engine.input_spec import InputSpec
 
 class PadChannel(Layer):
 
-    def __init__(self, out_channels):
-        super().__init__()
+    def __init__(self, out_channels, name=None):
+        super().__init__(name=name)
         self.out_channels = out_channels
 
     def call(self, x):

@@ -1,8 +1,8 @@
 import tensorflow.keras.backend as K
 from tensorflow.keras import Model
-from tensorflow.keras.layers import Add, MaxPool2D, Input
+from tensorflow.keras.layers import Add, MaxPool2D, Input, AvgPool2D
 
-from hanser.model.layers import conv2d, bn, relu
+from hanser.model.layers import conv2d, bn, relu, PadChannel
 
 
 def block1(x, filters, kernel_size=3, stride=1,
@@ -44,6 +44,48 @@ def block1(x, filters, kernel_size=3, stride=1,
     return x
 
 
+def shortcut(x, out_channels, stride=1):
+    if stride == 2:
+        x = AvgPool2D()(x)
+    x = PadChannel(out_channels)(x)
+    return x
+
+
+def block2(x, filters, kernel_size=3, stride=1,
+           conv_shortcut=True, name=None):
+    """A residual block.
+
+    # Arguments
+        x: input tensor.
+        filters: integer, filters of the bottleneck layer.
+        kernel_size: default 3, kernel size of the bottleneck layer.
+        stride: default 1, stride of the first layer.
+        conv_shortcut: default True, use convolution shortcut if True,
+            otherwise identity shortcut.
+        name: string, block label.
+
+    # Returns
+        Output tensor for the residual block.
+    """
+    if stride == 2:
+        shortcut = AvgPool2D(padding='same', name=name + '_0_pool')(x)
+        shortcut = PadChannel(filters, name=name + '_0_pad')(shortcut)
+    else:
+        shortcut = x
+
+    x = bn(x, name=name + '_1_bn')
+    x = conv2d(x, filters, kernel_size,
+               name=name + '_1_conv')
+
+    x = bn(x, name=name + '_2_bn')
+    x = relu(x, name=name + '_2_relu')
+    x = conv2d(x, filters, kernel_size, stride=stride,
+               name=name + '_2_conv')
+
+    x = Add(name=name + '_add')([shortcut, x])
+    return x
+
+
 def stack1(x, filters, blocks, stride1=2, name=None):
     """A set of stacked residual blocks.
 
@@ -57,9 +99,9 @@ def stack1(x, filters, blocks, stride1=2, name=None):
     # Returns
         Output tensor for the stacked blocks.
     """
-    x = block1(x, filters, stride=stride1, name=name + '_block1')
+    x = block2(x, filters, stride=stride1, name=name + '_block1')
     for i in range(2, blocks + 1):
-        x = block1(x, filters, conv_shortcut=False, name=name + '_block' + str(i))
+        x = block2(x, filters, conv_shortcut=False, name=name + '_block' + str(i))
     return x
 
 
@@ -70,17 +112,14 @@ def RootResNet(input_shape,
     inputs = Input(shape=input_shape)
 
     x = conv2d(inputs, 64, 3,
-               use_bias=True,
                name='conv1_conv1')
     x = bn(x, name='conv1_bn1')
     x = relu(x, name='conv1_relu1')
     x = conv2d(x, 64, 3,
-               use_bias=True,
                name='conv1_conv2')
     x = bn(x, name='conv1_bn2')
     x = relu(x, name='conv1_relu2')
     x = conv2d(x, 64, 3,
-               use_bias=True,
                name='conv1_conv3')
     x = bn(x, name='conv1_bn3')
     x = relu(x, name='conv1_relu3')
@@ -124,7 +163,12 @@ def get_root_resnet(depth, input_shape):
 
 def root_resnet_backbone(depth, input_shape):
     model = get_root_resnet(depth, input_shape)
-    c3 = model.get_layer('conv4_block2_out').output
+    if depth == 18:
+        c3 = model.get_layer('conv4_block2_add').output
+    elif depth == 34:
+        c3 = model.get_layer('conv4_block4_add').output
+    else:
+        raise ValueError('Invalid depth: %d' % depth)
     c4 = model.output
     cs = [c3, c4]
 
