@@ -2,7 +2,7 @@ import tensorflow as tf
 import tensorflow.keras.backend as K
 
 from tensorflow.keras.layers import Layer, Conv2D, BatchNormalization, Dense, Conv2DTranspose, DepthwiseConv2D, \
-    GlobalAvgPool2D, Flatten, ReLU, Activation, Multiply
+    GlobalAvgPool2D, Flatten, ReLU, Activation, Multiply, Concatenate, Add
 from tensorflow.python.keras.utils import conv_utils
 
 from hanser.tpu import TPUBatchNormalization
@@ -56,8 +56,9 @@ def conv2d(x, channels, kernel_size, stride=1, padding='same', dilation=1, use_b
                   name=name)(x)
 
 
-def dwconv2d(x, kernel_size, stride=1, padding='same', depth_multiplier=1, use_bias=False, name=None):
+def dwconv2d(x, kernel_size, stride=1, padding='same', depth_multiplier=1, use_bias=False, dilation=1, name=None):
     return DepthwiseConv2D(kernel_size, stride, padding, use_bias=use_bias,
+                           dilation_rate=dilation,
                            depth_multiplier=depth_multiplier,
                            depthwise_initializer='he_normal',
                            name=name)(x)
@@ -72,16 +73,18 @@ def relu(x, name=None):
     return ReLU(name=name)(x)
 
 
-def bn(x, fused=None, gamma='ones', name=None):
+def bn(x, fused=None, gamma='ones', affine=True, name=None):
     if fused is None:
         fused = get_default(['bn', 'fused'])
     momentum = get_default(['bn', 'momentum'])
     epsilon = get_default(['bn', 'epsilon'])
+    center = scale = affine
     if get_default(['bn', 'tpu']):
         return TPUBatchNormalization(fused=False, gamma_initializer=gamma, momentum=momentum, epsilon=epsilon,
-                                     name=name)(x)
+                                     center=center, scale=scale, name=name)(x)
     else:
-        return BatchNormalization(fused=fused, gamma_initializer=gamma, momentum=momentum, epsilon=epsilon, name=name)(x)
+        return BatchNormalization(fused=fused, gamma_initializer=gamma, momentum=momentum, epsilon=epsilon,
+                                  center=center, scale=scale, name=name)(x)
 
 
 def dense(x, channels, name=None):
@@ -97,6 +100,18 @@ def drop_connect(x, drop_rate):
     binary_tensor = tf.floor(random_tensor)
     x = tf.div(x, keep_prob) * binary_tensor
     return x
+
+
+def cat(xs, name=None):
+    return Concatenate(name=name)(xs)
+
+
+def add(xs, name=None):
+    return Add(name=name)(xs)
+
+
+def mul(xs, name=None):
+    return Multiply(name=name)(xs)
 
 
 class DropConnect(Layer):
@@ -280,3 +295,4 @@ def get_custom_objects():
         'ReflectionPad2D': ReflectionPad2D,
         'ChannelShuffle': ChannelShuffle,
     }
+

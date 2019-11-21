@@ -175,3 +175,4 @@ def root_resnet_backbone(depth, input_shape):
     backbone = Model(inputs=model.inputs, outputs=cs)
     backbone.output_stride = 16
     return backbone
+
