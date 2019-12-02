@@ -288,7 +288,15 @@ def _download(url, path=None, overwrite=False, sha1_hash=None, retries=5, verify
             # pylint: disable=W0703
             try:
                 print("Downloading {} from {}...".format(fname, url))
-                r = requests.get(url, stream=True, verify=verify_ssl)
+                proxies = {}
+                http_proxy = os.environ.get('HTTP_PROXY')
+                https_proxy = os.environ.get('HTTPS_PROXY')
+                if http_proxy:
+                    proxies['http'] = http_proxy
+                if https_proxy:
+                    proxies['https'] = https_proxy
+                print("Using proxies: %s" % proxies)
+                r = requests.get(url, stream=True, verify=verify_ssl, proxies=proxies)
                 if r.status_code != 200:
                     raise RuntimeError("Failed downloading url {}".format(url))
                 with open(fname, "wb") as f:

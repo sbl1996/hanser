@@ -143,23 +143,19 @@ class SparseCategoricalAccuracy(Mean):
         self._ignore_index = ignore_index
 
     def update_state(self, y_true, y_pred, sample_weight=None):
-        # y_true = tf.cast(y_true, self._dtype)
-        # y_pred = tf.cast(y_pred, self._dtype)
-        # [y_true, y_pred], sample_weight = \
-        #     metrics_utils.ragged_assert_compatible_and_get_flat_values(
-        #         [y_true, y_pred], sample_weight)
-        # y_pred, y_true = tf_losses_utils.squeeze_or_expand_dimensions(
-        #     y_pred, y_true)
-        #
-        # matches = self._fn(y_true, y_pred, **self._fn_kwargs)
-        # return super(MeanMetricWrapper, self).update_state(
-        #     matches, sample_weight=sample_weight)
+        matches_list = []
+        sample_weights = []
+        for k, t in y_true.items():
+            t = tf.cast(t, tf.int32)
+            p = tf.math.argmax(y_pred[k], axis=-1, output_type=tf.int32)
 
-        y_true = tf.cast(y_true, tf.int32)
-        y_pred = tf.math.argmax(y_pred, axis=-1, output_type=tf.int32)
+            matches = tf.cast(tf.equal(t, p), K.floatx())
+            sample_weight = tf.not_equal(t, self._ignore_index)
 
-        matches = tf.cast(tf.equal(y_true, y_pred), K.floatx())
-        sample_weight = tf.not_equal(y_true, self._ignore_index)
+            matches_list.append(matches)
+            sample_weights.append(sample_weight)
+        matches = tf.concat(matches_list, axis=0)
+        sample_weight = tf.concat(sample_weights, axis=0)
 
         return super().update_state(matches, sample_weight=sample_weight)
 

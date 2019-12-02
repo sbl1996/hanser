@@ -12,11 +12,11 @@ class Weight(Layer):
     def __init__(self, num_units, num_op_types, **kwargs):
         super().__init__(**kwargs)
         self.alphas = []
-        self.num_units = num_units
+        self.num_edges = sum(range(2, 2 + num_units))
         self.num_op_tyeps = num_op_types
 
     def build(self, input_shape):
-        for i in range(self.num_units):
+        for i in range(self.num_edges):
             self.alphas.append(
                 self.add_weight(
                     shape=(self.num_op_tyeps,),

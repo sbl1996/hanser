@@ -106,7 +106,6 @@ def ssd(backbone, num_anchors, num_classes):
 
 
 def ssd2(backbone, num_extras=2, num_anchors=6, num_classes=21):
-
     cs = list(backbone.outputs)
     for i in range(num_extras):
         cs.append(stack1(cs[-1], 256, 1, stride1=2, name='extra_res%d' % (i + 1)))

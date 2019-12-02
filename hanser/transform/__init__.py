@@ -1,9 +1,84 @@
 import math
 
 import tensorflow as tf
-
+import tensorflow_addons as tfa
 from tensorflow.python.ops import check_ops
 from tensorflow.python.ops import array_ops
+
+CROP_PADDING = 32
+
+
+def distorted_bounding_box_crop(image_bytes,
+                                bbox,
+                                min_object_covered=0.1,
+                                aspect_ratio_range=(0.75, 1.33),
+                                area_range=(0.05, 1.0),
+                                max_attempts=100):
+    shape = tf.image.extract_jpeg_shape(image_bytes)
+    sample_distorted_bounding_box = tf.image.sample_distorted_bounding_box(
+        shape,
+        bounding_boxes=bbox,
+        min_object_covered=min_object_covered,
+        aspect_ratio_range=aspect_ratio_range,
+        area_range=area_range,
+        max_attempts=max_attempts,
+        use_image_if_no_bounding_boxes=True)
+    bbox_begin, bbox_size, _ = sample_distorted_bounding_box
+
+    # Crop the image to the specified bounding box.
+    offset_y, offset_x, _ = tf.unstack(bbox_begin)
+    target_height, target_width, _ = tf.unstack(bbox_size)
+    crop_window = tf.stack([offset_y, offset_x, target_height, target_width])
+    image = tf.image.decode_and_crop_jpeg(image_bytes, crop_window, channels=3)
+    return image
+
+
+def _at_least_x_are_equal(a, b, x):
+    """At least `x` of `a` and `b` `Tensors` are equal."""
+    match = tf.equal(a, b)
+    match = tf.cast(match, tf.int32)
+    return tf.greater_equal(tf.reduce_sum(match), x)
+
+
+def decode_and_random_crop(image_bytes, image_size):
+    """Make a random crop of image_size."""
+    bbox = tf.constant([0.0, 0.0, 1.0, 1.0], dtype=tf.float32, shape=[1, 1, 4])
+    image = distorted_bounding_box_crop(
+        image_bytes,
+        bbox,
+        min_object_covered=0.1,
+        aspect_ratio_range=(3. / 4, 4. / 3.),
+        area_range=(0.08, 1.0),
+        max_attempts=10)
+    original_shape = tf.image.extract_jpeg_shape(image_bytes)
+    bad = _at_least_x_are_equal(original_shape, tf.shape(image), 3)
+
+    image = tf.cond(
+        bad,
+        lambda: decode_and_center_crop(image_bytes, image_size),
+        lambda: tf.image.resize(image, [image_size, image_size], method='bicubic')
+    )
+
+    return image
+
+
+def decode_and_center_crop(image_bytes, image_size):
+    shape = tf.image.extract_jpeg_shape(image_bytes)
+    image_height = shape[0]
+    image_width = shape[1]
+
+    padded_center_crop_size = tf.cast(
+        ((image_size / (image_size + CROP_PADDING)) *
+         tf.cast(tf.minimum(image_height, image_width), tf.float32)),
+        tf.int32)
+
+    offset_height = ((image_height - padded_center_crop_size) + 1) // 2
+    offset_width = ((image_width - padded_center_crop_size) + 1) // 2
+    crop_window = tf.stack([offset_height, offset_width,
+                            padded_center_crop_size, padded_center_crop_size])
+    image = tf.image.decode_and_crop_jpeg(image_bytes, crop_window, channels=3)
+    image = tf.image.resize(image, [image_size, image_size], method='bicubic')
+    return image
 
 
 def random_apply(func, p, image):
@@ -116,7 +191,7 @@ def resolve_shape(tensor, rank=None, scope=None):
 
 
 def resize(img, size, method='bilinear'):
-    if not isinstance(size, tuple):
+    if not isinstance(size, (tuple, list)):
         size = tf.cast(size, tf.float32)
         h, w = img.shape[:2]
         h = tf.cast(h, tf.float32)
@@ -416,7 +491,7 @@ def rotate(image, degrees, replace):
     # In practice, we should randomize the rotation degrees by flipping
     # it negatively half the time, but that's done on 'degrees' outside
     # of the function.
-    image = tf.contrib.image.rotate(wrap(image), radians)
+    image = tfa.image.rotate(wrap(image), radians)
     return unwrap(image, replace)
 
 
@@ -448,7 +523,7 @@ def unwrap(image, replace):
     flattened_image = tf.reshape(image, [-1, image_shape[2]])
 
     # Find all pixels where the last channel is zero.
-    alpha_channel = flattened_image[:, 3]
+    alpha_channel = flattened_image[:, 3][:, None]
 
     replace = tf.concat([replace, tf.ones([1], image.dtype)], 0)
 
@@ -556,7 +631,7 @@ def sharpness(image, factor):
     kernel = tf.tile(kernel, [1, 1, 3, 1])
     strides = [1, 1, 1, 1]
     degenerate = tf.nn.depthwise_conv2d(
-        image, kernel, strides, padding='VALID', rate=[1, 1])
+        image, kernel, strides, padding='VALID', dilations=[1, 1])
     degenerate = tf.clip_by_value(degenerate, 0.0, 255.0)
     degenerate = tf.squeeze(tf.cast(degenerate, tf.uint8), [0])
 
@@ -577,8 +652,10 @@ def shear_x(image, magnitude, replace):
     # with a matrix form of:
     # [1  level
     #  0  1].
-    image = tf.contrib.image.transform(
-        wrap(image), [1., magnitude, 0., 0., 1., 0., 0., 0.])
+    transform_or_transforms = tf.convert_to_tensor(
+        [1., magnitude, 0., 0., 1., 0., 0., 0.], name="transforms", dtype=tf.dtypes.float32)
+    image = tfa.image.transform(
+        wrap(image), transform_or_transforms)
     return unwrap(image, replace)
 
 
@@ -588,20 +665,24 @@ def shear_y(image, magnitude, replace):
     # with a matrix form of:
     # [1  0
     #  level  1].
-    image = tf.contrib.image.transform(
-        wrap(image), [1., 0., 0., magnitude, 1., 0., 0., 0.])
+    transform_or_transforms = tf.convert_to_tensor(
+        [1., 0., 0., magnitude, 1., 0., 0., 0.], name="transforms", dtype=tf.dtypes.float32)
+    image = tfa.image.transform(
+        wrap(image), transform_or_transforms)
     return unwrap(image, replace)
 
 
 def translate_x(image, pixels, replace):
-    """Equivalent of PIL Translate in X dimension."""
-    image = tf.contrib.image.translate(wrap(image), [-pixels, 0])
+    translations = tf.convert_to_tensor(
+        [-pixels, 0], name="translations", dtype=tf.dtypes.float32)
+    image = tfa.image.translate(wrap(image), translations)
     return unwrap(image, replace)
 
 
 def translate_y(image, pixels, replace):
-    """Equivalent of PIL Translate in Y dimension."""
-    image = tf.contrib.image.translate(wrap(image), [0, -pixels])
+    translations = tf.convert_to_tensor(
+        [-pixels, 0], name="translations", dtype=tf.dtypes.float32)
+    image = tfa.image.translate(wrap(image), translations)
     return unwrap(image, replace)
 
 
@@ -654,7 +735,9 @@ def color_jitter2(image, brightness, contrast, saturation, hue):
                 lambda: tf.clip_by_value(tf.image.random_saturation(image, 1 - saturation, 1 + saturation), 0, 1),
                 lambda: tf.clip_by_value(tf.image.random_hue(image, hue), 0, 1),
             ])
+
         return func
+
     order = tf.random.shuffle(tf.range(4))
     image = tf.while_loop(
         lambda i, im: i < 4,

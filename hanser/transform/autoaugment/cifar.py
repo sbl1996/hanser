@@ -1,7 +1,8 @@
 import math
 
 import tensorflow as tf
-from hanser.transform import sharpness, shear_x, shear_y, solarize, autocontrast, translate_x, translate_y, rotate, color, posterize, contrast, brightness, equalize, invert
+from hanser.transform import sharpness, shear_x, shear_y, solarize, solarize_add, autocontrast, translate_x, translate_y, rotate, \
+    color, posterize, contrast, brightness, equalize, invert
 
 _MAX_LEVEL = 10
 _FILL_COLOR = (128, 128, 128)
@@ -65,6 +66,7 @@ NAME_TO_FUNC = {
         img, _enhance_level_to_arg(level)),
     "posterize": lambda img, level: posterize(img, level),
     "solarize": lambda img, level: solarize(img, level),
+    "solarize_add": lambda img, level: solarize_add(img, level),
     "contrast": lambda img, level: contrast(
         img, _enhance_level_to_arg(level)),
     "sharpness": lambda img, level: sharpness(

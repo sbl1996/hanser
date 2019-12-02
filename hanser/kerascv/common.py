@@ -2,7 +2,7 @@
     Common routines for models in Keras.
 """
 
-__all__ = ['round_channels', 'HSwish', 'is_channels_first', 'get_channel_axis', 'update_keras_shape', 'flatten',
+__all__ = ['round_channels', 'HSwish', 'is_channels_first', 'get_channel_axis',
            'batchnorm', 'lrn', 'maxpool2d', 'avgpool2d', 'conv2d', 'conv1x1', 'conv3x3', 'depthwise_conv3x3',
            'conv_block', 'conv1x1_block', 'conv3x3_block', 'conv7x7_block', 'dwconv3x3_block', 'dwconv5x5_block',
            'pre_conv_block', 'pre_conv1x1_block', 'pre_conv3x3_block', 'channel_shuffle_lambda', 'se_block']
@@ -169,46 +169,46 @@ def get_channel_axis():
     return 1 if is_channels_first() else -1
 
 
-def update_keras_shape(x):
-    """
-    Update Keras shape property.
-    Parameters:
-    ----------
-    x : keras.backend tensor/variable/symbol
-        Input tensor/variable/symbol.
-    """
-    if not hasattr(x, "_keras_shape"):
-        x._keras_shape = tuple([int(d) if (d is not None) and (d != 0) else None for d in x.shape])
+# def update_keras_shape(x):
+#     """
+#     Update Keras shape property.
+#     Parameters:
+#     ----------
+#     x : keras.backend tensor/variable/symbol
+#         Input tensor/variable/symbol.
+#     """
+#     if not hasattr(x, "_keras_shape"):
+#         x._keras_shape = tuple([int(d) if (d is not None) and (d != 0) else None for d in x.shape])
 
 
-def flatten(x,
-            reshape=False):
-    """
-    Flattens the input to two dimensional.
-    Parameters:
-    ----------
-    x : keras.backend tensor/variable/symbol
-        Input tensor/variable/symbol.
-    reshape : bool, default False
-        Whether do reshape instead of flatten.
-    Returns
-    -------
-    keras.backend tensor/variable/symbol
-        Resulted tensor/variable/symbol.
-    """
-    if not is_channels_first():
-        def channels_last_flatten(z):
-            z = K.permute_dimensions(z, pattern=(0, 3, 1, 2))
-            z = K.reshape(z, shape=(-1, np.prod(K.int_shape(z)[1:])))
-            update_keras_shape(z)
-            return z
-        return layers.Lambda(channels_last_flatten)(x)
-    else:
-        if reshape:
-            x = layers.Reshape((-1,))(x)
-        else:
-            x = layers.Flatten()(x)
-        return x
+# def flatten(x,
+#             reshape=False):
+#     """
+#     Flattens the input to two dimensional.
+#     Parameters:
+#     ----------
+#     x : keras.backend tensor/variable/symbol
+#         Input tensor/variable/symbol.
+#     reshape : bool, default False
+#         Whether do reshape instead of flatten.
+#     Returns
+#     -------
+#     keras.backend tensor/variable/symbol
+#         Resulted tensor/variable/symbol.
+#     """
+#     if not is_channels_first():
+#         def channels_last_flatten(z):
+#             z = K.permute_dimensions(z, pattern=(0, 3, 1, 2))
+#             z = K.reshape(z, shape=(-1, np.prod(K.int_shape(z)[1:])))
+#             update_keras_shape(z)
+#             return z
+#         return layers.Lambda(channels_last_flatten)(x)
+#     else:
+#         if reshape:
+#             x = layers.Reshape((-1,))(x)
+#         else:
+#             x = layers.Flatten()(x)
+#         return x
 
 
 def batchnorm(x,
@@ -551,7 +551,7 @@ def conv2d(x,
     else:
         assert (in_channels % groups == 0)
         assert (out_channels % groups == 0)
-        none_batch = (x._keras_shape[0] is None)
+        none_batch = (x.shape[0] is None)
         in_group_channels = in_channels // groups
         out_group_channels = out_channels // groups
         group_list = []
@@ -570,8 +570,8 @@ def conv2d(x,
                 name=name + "/convgroup{}".format(gi + 1))(xi)
             group_list.append(xi)
         x = layers.concatenate(group_list, axis=get_channel_axis(), name=name + "/concat")
-        if none_batch and (x._keras_shape[0] is not None):
-            x._keras_shape = (None, ) + x._keras_shape[1:]
+        # if none_batch and (x.shape[0] is not None):
+        #     x._keras_shape = (None, ) + x._keras_shape[1:]
 
     return x
 
@@ -1247,7 +1247,7 @@ def channel_shuffle(x,
     #     x = K.permute_dimensions(x, pattern=(0, 1, 2, 4, 3))
     #     x = K.reshape(x, shape=(-1, height, width, channels))
 
-    update_keras_shape(x)
+    # update_keras_shape(x)
     return x
 
 
@@ -1302,9 +1302,10 @@ def se_block(x,
     keras.backend tensor/variable/symbol
         Resulted tensor/variable/symbol.
     """
-    assert(len(x._keras_shape) == 4)
+    assert(len(x.shape) == 4)
     mid_channels = channels // reduction if not round_mid else round_channels(float(channels) / reduction)
-    pool_size = x._keras_shape[2:4] if is_channels_first() else x._keras_shape[1:3]
+    # pool_size = x._keras_shape[2:4] if is_channels_first() else x._keras_shape[1:3]
+    pool_size = x.shape[1:3]
 
     w = layers.AvgPool2D(
         pool_size=pool_size,
