@@ -136,27 +136,26 @@ class MeanIoU(Metric):
         return dict(list(base_config.items()) + list(config.items()))
 
 
-class SparseCategoricalAccuracy(Mean):
+class MultiMutualExclusiveAccuracy(Mean):
 
-    def __init__(self, ignore_index, name=None, dtype=None):
+    def __init__(self, ignore_index=-1, name=None, dtype=None):
         super().__init__(name=name, dtype=dtype)
         self._ignore_index = ignore_index
 
     def update_state(self, y_true, y_pred, sample_weight=None):
-        matches_list = []
-        sample_weights = []
-        for k, t in y_true.items():
+        y_trues = []
+        y_preds = []
+        for t, p in zip(y_true.values(), y_pred.values()):
             t = tf.cast(t, tf.int32)
-            p = tf.math.argmax(y_pred[k], axis=-1, output_type=tf.int32)
-
-            matches = tf.cast(tf.equal(t, p), K.floatx())
-            sample_weight = tf.not_equal(t, self._ignore_index)
-
-            matches_list.append(matches)
-            sample_weights.append(sample_weight)
-        matches = tf.concat(matches_list, axis=0)
-        sample_weight = tf.concat(sample_weights, axis=0)
-
+            mask = tf.not_equal(t, self._ignore_index)
+            t = tf.where(mask, t, tf.zeros_like(t))
+            p = tf.math.argmax(p, axis=-1, output_type=tf.int32)
+            p = tf.where(mask, p, tf.zeros_like(p))
+            y_trues.append(t)
+            y_preds.append(p)
+        y_true = tf.reduce_sum(y_trues, axis=1)
+        y_pred = tf.reduce_sum(y_preds, axis=1)
+        matches = y_true == y_pred
         return super().update_state(matches, sample_weight=sample_weight)
 
     def get_config(self):
