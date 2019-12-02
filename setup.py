@@ -33,7 +33,7 @@ REQUIRED = [
     "numpy",
     "toolz",
     "pybind11",
-    "tensorflow_addons",
+    # "tensorflow_addons",
     "googledrivedownloader",
 ]
 
