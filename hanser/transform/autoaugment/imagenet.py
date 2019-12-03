@@ -275,16 +275,15 @@ def autoaugment(image, augmentation_name):
     return image
 
 
-def rand_augment(image, num_layers, magnitude, transform=True):
+def rand_augment(image, num_layers, magnitude):
     CONSTS['cutout_const'] = 40
     CONSTS['translate_const'] = 100
 
     available_ops = [
         'autocontrast', 'equalize', 'invert', 'solarize_add', 'posterize',
         'solarize', 'color', 'contrast', 'brightness', 'sharpness', 'cutout',
+        'shearX', 'shearY', 'translateX', 'translateY', 'rotate',
     ]
-    if transform:
-        available_ops.extend(['shearX', 'shearY', 'translateX', 'translateY', 'rotate'])
 
     for layer_num in range(num_layers):
         op_to_select = tf.random.uniform(
