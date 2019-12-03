@@ -1,7 +1,7 @@
 import math
 
 import tensorflow as tf
-# import tensorflow_addons as tfa
+import tensorflow_addons as tfa
 from tensorflow.python.ops import check_ops
 from tensorflow.python.ops import array_ops
 
@@ -472,7 +472,6 @@ def posterize(image, bits):
 
 
 def rotate(image, degrees, replace):
-    import tensorflow_addons as tfa
     """Rotates the image by degrees either clockwise or counterclockwise.
 
     Args:
@@ -648,7 +647,6 @@ def sharpness(image, factor):
 
 
 def shear_x(image, magnitude, replace):
-    import tensorflow_addons as tfa
     """Equivalent of PIL Shearing in X dimension."""
     # Shear parallel to x axis is a projective transform
     # with a matrix form of:
@@ -662,7 +660,6 @@ def shear_x(image, magnitude, replace):
 
 
 def shear_y(image, magnitude, replace):
-    import tensorflow_addons as tfa
     """Equivalent of PIL Shearing in Y dimension."""
     # Shear parallel to y axis is a projective transform
     # with a matrix form of:
@@ -676,7 +673,6 @@ def shear_y(image, magnitude, replace):
 
 
 def translate_x(image, pixels, replace):
-    import tensorflow_addons as tfa
     translations = tf.convert_to_tensor(
         [-pixels, 0], name="translations", dtype=tf.dtypes.float32)
     image = tfa.image.translate(wrap(image), translations)
@@ -684,7 +680,6 @@ def translate_x(image, pixels, replace):
 
 
 def translate_y(image, pixels, replace):
-    import tensorflow_addons as tfa
     translations = tf.convert_to_tensor(
         [-pixels, 0], name="translations", dtype=tf.dtypes.float32)
     image = tfa.image.translate(wrap(image), translations)
