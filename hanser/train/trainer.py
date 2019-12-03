@@ -291,12 +291,8 @@ class Trainer:
         for step in range(test_steps):
             target, output = predict_step(test_it)
 
-            if isinstance(target, (tuple, list)):
-                targets.extend(target)
-                outputs.extend(output)
-            else:
-                targets.append(target)
-                outputs.append(output)
+            targets.append(target)
+            outputs.append(output)
 
         target = misc_concat(targets)
         output = misc_concat(outputs)

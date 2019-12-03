@@ -5,7 +5,7 @@ import pandas as pd
 
 import tensorflow as tf
 import tensorflow.keras.backend as K
-from tensorflow.keras.metrics import Metric, Mean
+from tensorflow.keras.metrics import Metric, Mean, SparseCategoricalAccuracy
 
 
 from hanser.detection import BBox
@@ -136,34 +136,35 @@ class MeanIoU(Metric):
         return dict(list(base_config.items()) + list(config.items()))
 
 
-class MultiMutualExclusiveAccuracy(Mean):
+class MeanAccuracy(Metric):
 
-    def __init__(self, ignore_index=-1, name=None, dtype=None):
+    def __init__(self, output_keys, ignore_index=-1, name=None, dtype=None):
         super().__init__(name=name, dtype=dtype)
+        self.output_keys = output_keys
+        self._metrics = {
+            c: SparseCategoricalAccuracy(c, dtype)
+            for c in self.output_keys
+        }
         self._ignore_index = ignore_index
 
     def update_state(self, y_true, y_pred, sample_weight=None):
         y_trues = []
         y_preds = []
-        for t, p in zip(y_true.values(), y_pred.values()):
-            t = tf.cast(t, tf.int32)
+        for k, m in self._metrics.items():
+            t = y_true[k]
+            p = y_pred[k]
             mask = tf.not_equal(t, self._ignore_index)
-            t = tf.where(mask, t, tf.zeros_like(t))
-            p = tf.math.argmax(p, axis=-1, output_type=tf.int32)
-            p = tf.where(mask, p, tf.zeros_like(p))
-            y_trues.append(t)
-            y_preds.append(p)
-        y_true = tf.reduce_sum(y_trues, axis=1)
-        y_pred = tf.reduce_sum(y_preds, axis=1)
-        matches = y_true == y_pred
-        return super().update_state(matches, sample_weight=sample_weight)
+            sample_weight = tf.cast(mask, tf.float32)
+            m.update_state(t, p, sample_weight)
 
-    def get_config(self):
-        config = {
-            'ignore_index': self._ignore_index,
-        }
-        base_config = super().get_config()
-        return dict(list(base_config.items()) + list(config.items()))
+    def result(self):
+        accs = [m.result() for m in self._metrics.values()]
+        return tf.reduce_mean(accs)
+
+    def reset_status(self):
+        for m in self._metrics.values():
+            m.reset_status()
+
 
 
 @curry
