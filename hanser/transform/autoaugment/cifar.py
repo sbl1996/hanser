@@ -51,6 +51,14 @@ def _solarize_level_to_arg(level):
     return level
 
 
+def _shear_x(img, level):
+    return shear_x(img, _shear_level_to_arg(level), _FILL_COLOR)
+
+
+def _shear_y(img, level):
+    return shear_x(img, _shear_level_to_arg(level), _FILL_COLOR)
+
+
 NAME_TO_FUNC = {
     "shearX": lambda img, level: shear_x(
         img, _shear_level_to_arg(level), _FILL_COLOR),

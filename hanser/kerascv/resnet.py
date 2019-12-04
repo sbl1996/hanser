@@ -11,7 +11,7 @@ __all__ = ['resnet', 'resnet10', 'resnet12', 'resnet14', 'resnetbc14b', 'resnet1
 import os
 from tensorflow.keras import layers
 from tensorflow.keras.models import Model
-from hanser.kerascv.common import conv1x1_block, conv3x3_block, conv7x7_block, maxpool2d, is_channels_first, flatten
+from hanser.kerascv.common import conv1x1_block, conv3x3_block, conv7x7_block, maxpool2d, is_channels_first
 
 
 def res_block(x,
@@ -232,8 +232,7 @@ def resnet(channels,
     classes : int, default 1000
         Number of classification classes.
     """
-    input_shape = (in_channels, in_size[0], in_size[1]) if is_channels_first() else\
-        (in_size[0], in_size[1], in_channels)
+    input_shape = (in_size[0], in_size[1], in_channels)
     input = layers.Input(shape=input_shape, name='input')
 
     x = res_init_block(
@@ -256,7 +255,6 @@ def resnet(channels,
             in_channels = out_channels
     x = layers.GlobalAvgPool2D(name="features/final_pool")(x)
 
-    # x = flatten(x)
     x = layers.Dense(
         units=classes,
         input_dim=in_channels,

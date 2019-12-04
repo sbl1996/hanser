@@ -140,7 +140,6 @@ class CosineDecayRestarts(LearningRateSchedule):
                 lambda: warmup(global_step_recomp),
                 lambda: cosine_decay(global_step_recomp - warmup_steps),
             )
-
             return tf.multiply(initial_learning_rate, decayed, name=name)
 
     #
