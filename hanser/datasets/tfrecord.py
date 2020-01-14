@@ -42,27 +42,27 @@ def _int64_feature(value):
     return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
 
 
-def img_seg_to_tfexample(img_data, filename, image_format, height, width, seg_data, label_format):
+def image_label_to_tfexample(imgae_data, filename, image_format, height, width, label_data, label_format):
     """Converts one image/segmentation pair to tf example.
 
     Args:
-      img_data: string of image data.
+      imgae_data: string of image data.
       filename: image filename.
       height: image height.
       width: image width.
-      seg_data: string of semantic segmentation data.
+      label_data: string of semantic segmentation data.
 
     Returns:
       tf example of one image/segmentation pair.
     """
     return tf.train.Example(features=tf.train.Features(feature={
-        'image/encoded': _bytes_feature(img_data),
+        'image/encoded': _bytes_feature(imgae_data),
         'image/filename': _bytes_feature(filename),
         'image/format': _bytes_feature(image_format),
         'image/height': _int64_feature(height),
         'image/width': _int64_feature(width),
         'image/channels': _int64_feature(3),
-        'image/segmentation/class/encoded': _bytes_feature(seg_data),
+        'image/segmentation/class/encoded': _bytes_feature(label_data),
         'image/segmentation/class/format': _bytes_feature(label_format),
     }))
 
@@ -119,7 +119,7 @@ def _check_path(fp):
     return Path(fp).expanduser().absolute()
 
 
-def convert_segmentation_dataset(split_f, output_dir, img_dir, seg_dir, image_format='jpg', label_format='png',
+def convert_segmentation_dataset(split_f, output_dir, image_dir, label_dir, image_format='jpg', label_format='png',
                                  num_shards=4):
     """Converts the specified dataset split to TFRecord format.
 
@@ -131,8 +131,8 @@ def convert_segmentation_dataset(split_f, output_dir, img_dir, seg_dir, image_fo
   """
     split_f = _check_path(split_f)
     output_dir = _check_path(output_dir)
-    img_dir = _check_path(img_dir)
-    seg_dir = _check_path(seg_dir)
+    image_dir = _check_path(image_dir)
+    label_dir = _check_path(label_dir)
 
     output_dir.mkdir(parents=True, exist_ok=True)
     split = split_f.stem
@@ -150,17 +150,17 @@ def convert_segmentation_dataset(split_f, output_dir, img_dir, seg_dir, image_fo
             for i in range(start_idx, end_idx):
                 print('\r>> Converting image %d/%d shard %d' % (i + 1, len(filenames), shard_id), end='')
 
-                img_f = img_dir / (filenames[i] + '.' + image_format)
-                img_data, (width, height) = read_img(img_f)
+                image_fp = image_dir / (filenames[i] + '.' + image_format)
+                image_data, (width, height) = read_img(image_fp)
 
-                seg_f = seg_dir / (filenames[i] + '.' + label_format)
-                seg_data, (seg_width, seg_height) = read_seg(seg_f, format=label_format)
+                label_fp = label_dir / (filenames[i] + '.' + label_format)
+                label_data, (label_width, label_height) = read_seg(label_fp, format=label_format)
 
-                if height != seg_height or width != seg_width:
+                if height != label_height or width != label_width:
                     raise RuntimeError('Shape mismatched between image and label.')
 
-                example = img_seg_to_tfexample(
-                    img_data, filenames[i], image_format, height, width, seg_data, label_format)
+                example = image_label_to_tfexample(
+                    image_data, filenames[i], image_format, height, width, label_data, label_format)
                 writer.write(example.SerializeToString())
         print()
 

@@ -8,14 +8,13 @@ __all__ = ['round_channels', 'HSwish', 'is_channels_first', 'get_channel_axis',
            'pre_conv_block', 'pre_conv1x1_block', 'pre_conv3x3_block', 'channel_shuffle_lambda', 'se_block']
 
 import math
-import numpy as np
 from inspect import isfunction
 from tensorflow.keras.layers import BatchNormalization, Layer
 from tensorflow.keras import backend as K
 from tensorflow.keras import layers
 
 from hanser.model.layers import ChannelShuffle
-
+from hanser.model import get_default
 
 def round_channels(channels,
                    divisor=8):
@@ -212,7 +211,7 @@ def get_channel_axis():
 
 
 def batchnorm(x,
-              momentum=0.9,
+              momentum=None,
               epsilon=1e-5,
               name=None):
     """
@@ -232,17 +231,13 @@ def batchnorm(x,
     keras.backend tensor/variable/symbol
         Resulted tensor/variable/symbol.
     """
-    if K.backend() == "mxnet":
-        x = GluonBatchNormalization(
-            momentum=momentum,
-            epsilon=epsilon,
-            name=name)(x)
-    else:
-        x = layers.BatchNormalization(
-            axis=get_channel_axis(),
-            momentum=momentum,
-            epsilon=epsilon,
-            name=name)(x)
+    if momentum is None:
+        momentum = get_default(['bn', 'momentum'])
+    x = BatchNormalization(
+        axis=get_channel_axis(),
+        momentum=momentum,
+        epsilon=epsilon,
+        name=name)(x)
     return x
 
 
@@ -1329,150 +1324,3 @@ def se_block(x,
     w = HSigmoid(name=name + "/hsigmoid")(w) if approx_sigmoid else layers.Activation("sigmoid", name=name + "/sigmoid")(w)
     x = layers.multiply([x, w], name=name + "/mul")
     return x
-
-
-class GluonBatchNormalization(BatchNormalization):
-    """
-    Batch normalization layer wrapper for implementation of the Gluon type of BatchNorm default parameters.
-    Parameters
-    ----------
-    momentum : float, default 0.9
-        Momentum for the moving average.
-    epsilon : float, default 1e-5
-        Small float added to variance to avoid dividing by zero.
-    center : bool, default True
-        If True, add offset of `beta` to normalized tensor.
-        If False, `beta` is ignored.
-    scale : bool, default True
-        If True, multiply by `gamma`. If False, `gamma` is not used.
-        When the next layer is linear (also e.g. `nn.relu`),
-        this can be disabled since the scaling
-        will be done by the next layer.
-    beta_initializer : str, default 'zeros'
-        Initializer for the beta weight.
-    gamma_initializer : str, default 'ones'
-        Initializer for the gamma weight.
-    moving_mean_initializer : str, default 'zeros'
-        Initializer for the moving mean.
-    moving_variance_initializer : str, default 'ones'
-        Initializer for the moving variance.
-    beta_regularizer : str or None, default None
-        Optional regularizer for the beta weight.
-    gamma_regularizer : str or None, default None
-        Optional regularizer for the gamma weight.
-    beta_constraint : str or None, default None
-        Optional constraint for the beta weight.
-    gamma_constraint : str or None, default None
-        Optional constraint for the gamma weight.
-    fix_gamma : bool, default False
-        Fix gamma while training.
-    """
-    def __init__(self,
-                 momentum=0.9,
-                 epsilon=1e-5,
-                 center=True,
-                 scale=True,
-                 beta_initializer="zeros",
-                 gamma_initializer="ones",
-                 moving_mean_initializer="zeros",
-                 moving_variance_initializer="ones",
-                 beta_regularizer=None,
-                 gamma_regularizer=None,
-                 beta_constraint=None,
-                 gamma_constraint=None,
-                 fix_gamma=False,
-                 **kwargs):
-        super(GluonBatchNormalization, self).__init__(
-            axis=get_channel_axis(),
-            momentum=momentum,
-            epsilon=epsilon,
-            center=center,
-            scale=scale,
-            beta_initializer=beta_initializer,
-            gamma_initializer=gamma_initializer,
-            moving_mean_initializer=moving_mean_initializer,
-            moving_variance_initializer=moving_variance_initializer,
-            beta_regularizer=beta_regularizer,
-            gamma_regularizer=gamma_regularizer,
-            beta_constraint=beta_constraint,
-            gamma_constraint=gamma_constraint,
-            **kwargs)
-        self.fix_gamma = fix_gamma
-
-    def call(self, inputs, training=None):
-        if K.backend() == "mxnet":
-
-            from keras.backend.mxnet_backend import keras_mxnet_symbol, KerasSymbol
-            import mxnet as mx
-
-            @keras_mxnet_symbol
-            def gluon_batchnorm(x,
-                                gamma,
-                                beta,
-                                moving_mean,
-                                moving_var,
-                                momentum=0.9,
-                                axis=1,
-                                epsilon=1e-5,
-                                fix_gamma=False):
-                """
-                Apply native MXNet/Gluon batch normalization on x with given moving_mean, moving_var, beta and gamma.
-                Parameters
-                ----------
-                x : keras.backend tensor/variable/symbol
-                    Input tensor/variable/symbol.
-                gamma : keras.backend tensor/variable/symbol
-                    Tensor by which to scale the input.
-                beta : keras.backend tensor/variable/symbol
-                    Tensor by which to center the input.
-                moving_mean : keras.backend tensor/variable/symbol
-                    Moving mean.
-                moving_var : keras.backend tensor/variable/symbol
-                    Moving variance.
-                momentum : float, default 0.9
-                    Momentum for the moving average.
-                axis : int, default 1
-                    Axis along which BatchNorm is applied. Axis usually represent axis of 'channels'. MXNet follows
-                    'channels_first'.
-                epsilon : float, default 1e-5
-                    Small float added to variance to avoid dividing by zero.
-                fix_gamma : bool, default False
-                    Fix gamma while training.
-                Returns
-                -------
-                keras.backend tensor/variable/symbol
-                    Resulted tensor/variable/symbol.
-                """
-                if isinstance(x, KerasSymbol):
-                    x = x.symbol
-                if isinstance(moving_mean, KerasSymbol):
-                    moving_mean = moving_mean.symbol
-                if isinstance(moving_var, KerasSymbol):
-                    moving_var = moving_var.symbol
-                if isinstance(beta, KerasSymbol):
-                    beta = beta.symbol
-                if isinstance(gamma, KerasSymbol):
-                    gamma = gamma.symbol
-                return KerasSymbol(mx.sym.BatchNorm(
-                    data=x,
-                    gamma=gamma,
-                    beta=beta,
-                    moving_mean=moving_mean,
-                    moving_var=moving_var,
-                    momentum=momentum,
-                    axis=axis,
-                    eps=epsilon,
-                    fix_gamma=fix_gamma))
-
-            return gluon_batchnorm(
-                x=inputs,
-                gamma=self.gamma,
-                beta=self.beta,
-                moving_mean=self.moving_mean,
-                moving_var=self.moving_variance,
-                momentum=self.momentum,
-                axis=self.axis,
-                epsilon=self.epsilon,
-                fix_gamma=self.fix_gamma)
-        else:
-            super(GluonBatchNormalization, self).call(inputs, training)

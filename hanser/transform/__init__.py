@@ -707,16 +707,16 @@ def color_jitter(image, brightness, contrast, saturation, hue):
     order = tf.random.shuffle(tf.range(4))
     for i in order:
         if i == 0:
-            if tf.random.uniform(()) < 0.5:
+            if brightness != 0 and tf.random.uniform(()) < 0.5:
                 image = tf.clip_by_value(tf.image.random_brightness(image, brightness), 0, 1)
         elif i == 1:
-            if tf.random.uniform(()) < 0.5:
+            if contrast != 0 and tf.random.uniform(()) < 0.5:
                 image = tf.clip_by_value(tf.image.random_contrast(image, 1 - contrast, 1 + contrast), 0, 1)
         elif i == 2:
-            if tf.random.uniform(()) < 0.5:
+            if saturation != 0 and tf.random.uniform(()) < 0.5:
                 image = tf.clip_by_value(tf.image.random_saturation(image, 1 - saturation, 1 + saturation), 0, 1)
         else:
-            if tf.random.uniform(()) < 0.5:
+            if hue != 0 and tf.random.uniform(()) < 0.5:
                 image = tf.clip_by_value(tf.image.random_hue(image, hue), 0, 1)
 
     image = tf.cast(image * 255, dtype)

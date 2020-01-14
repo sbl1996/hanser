@@ -231,3 +231,43 @@ def flip_dim(tensor_list, prob=0.5, dim=1):
     # outputs.append(is_flipped)
 
     return outputs
+
+
+def rot90(tensor_list, prob=0.5, k=1):
+    """Randomly flips a dimension of the given tensor.
+
+    The decision to randomly flip the `Tensors` is made together. In other words,
+    all or none of the images pass in are flipped.
+
+    Note that tf.random_flip_left_right and tf.random_flip_up_down isn't used so
+    that we can control for the probability as well as ensure the same decision
+    is applied across the images.
+
+    Args:
+        tensor_list: A list of `Tensors` with the same number of dimensions.
+        prob: The probability of a left-right flip.
+        k: A scalar integer. The number of times the image is rotated by 90 degrees.
+
+    Returns:
+        outputs: A list of the possibly flipped `Tensors` as well as an indicator
+        `Tensor` at the end whose value is `True` if the inputs were flipped and
+        `False` otherwise.
+
+    Raises:
+        ValueError: If dim is negative or greater than the dimension of a `Tensor`.
+    """
+    random_value = tf.random.uniform([])
+
+    def rotate():
+        rotated = []
+        for tensor in tensor_list:
+            rotated.append(tf.image.rot90(tensor, k=k))
+        return rotated
+
+    is_rotated = tf.less_equal(random_value, prob)
+    outputs = tf.cond(is_rotated, rotate, lambda: tensor_list)
+    if not isinstance(outputs, (list, tuple)):
+        outputs = [outputs]
+
+    return outputs
+

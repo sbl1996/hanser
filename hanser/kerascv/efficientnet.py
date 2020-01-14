@@ -213,6 +213,7 @@ def effi_inv_res_unit(x,
 def effi_init_block(x,
                     in_channels,
                     out_channels,
+                    stride,
                     bn_epsilon,
                     activation,
                     tf_mode,
@@ -250,7 +251,7 @@ def effi_init_block(x,
         x=x,
         in_channels=in_channels,
         out_channels=out_channels,
-        strides=2,
+        strides=stride,
         padding=(0 if tf_mode else 1),
         bn_epsilon=bn_epsilon,
         activation=activation,
@@ -268,6 +269,7 @@ def efficientnet_model(channels,
                        tf_mode=False,
                        bn_epsilon=1e-5,
                        in_channels=3,
+                       init_stride=2,
                        in_size=(224, 224),
                        classes=1000):
     """
@@ -310,6 +312,7 @@ def efficientnet_model(channels,
         x=input,
         in_channels=in_channels,
         out_channels=init_block_channels,
+        stride=init_stride,
         bn_epsilon=bn_epsilon,
         activation=activation,
         tf_mode=tf_mode,
@@ -401,42 +404,42 @@ def get_efficientnet(version,
     """
 
     if version == "b0":
-        assert (in_size == (224, 224))
+        # assert (in_size == (224, 224))
         depth_factor = 1.0
         width_factor = 1.0
         dropout_rate = 0.2
     elif version == "b1":
-        assert (in_size == (240, 240))
+        # assert (in_size == (240, 240))
         depth_factor = 1.1
         width_factor = 1.0
         dropout_rate = 0.2
     elif version == "b2":
-        assert (in_size == (260, 260))
+        # assert (in_size == (260, 260))
         depth_factor = 1.2
         width_factor = 1.1
         dropout_rate = 0.3
     elif version == "b3":
-        assert (in_size == (300, 300))
+        # assert (in_size == (300, 300))
         depth_factor = 1.4
         width_factor = 1.2
         dropout_rate = 0.3
     elif version == "b4":
-        assert (in_size == (380, 380))
+        # assert (in_size == (380, 380))
         depth_factor = 1.8
         width_factor = 1.4
         dropout_rate = 0.4
     elif version == "b5":
-        assert (in_size == (456, 456))
+        # assert (in_size == (456, 456))
         depth_factor = 2.2
         width_factor = 1.6
         dropout_rate = 0.4
     elif version == "b6":
-        assert (in_size == (528, 528))
+        # assert (in_size == (528, 528))
         depth_factor = 2.6
         width_factor = 1.8
         dropout_rate = 0.5
     elif version == "b7":
-        assert (in_size == (600, 600))
+        # assert (in_size == (600, 600))
         depth_factor = 3.1
         width_factor = 2.0
         dropout_rate = 0.5
@@ -471,6 +474,10 @@ def get_efficientnet(version,
     if width_factor > 1.0:
         assert (int(final_block_channels * width_factor) == round_channels(final_block_channels * width_factor))
         final_block_channels = round_channels(final_block_channels * width_factor)
+
+    if 'strides_per_stage' in kwargs:
+        strides_per_stage = kwargs['strides_per_stage']
+        del kwargs['strides_per_stage']
 
     net = efficientnet_model(
         channels=channels,

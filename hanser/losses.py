@@ -1,6 +1,27 @@
 from toolz import curry
 
 import tensorflow as tf
+import tensorflow.keras.backend as K
+
+@curry
+def f1_loss(y_true, y_pred, eps=1e-8):
+    tp = tf.reduce_sum(y_pred * y_true)
+    fp = tf.reduce_sum((1 - y_pred) * y_true)
+    fn = tf.reduce_sum(y_pred * (1 - y_true))
+
+    p = tp / (tp + fp + eps)
+    r = tp / (tp + fn + eps)
+
+    f1 = 2 * p * r / (p + r + eps)
+    return 1 - tf.reduce_mean(f1)
+
+
+@curry
+def weighted_bce(y_true, y_pred, pos_weight, from_logits=True):
+    losses = K.binary_crossentropy(y_true, y_pred, from_logits)
+    weight = tf.where(tf.equal(y_true, 1), pos_weight, 1.)
+    losses = losses * weight
+    return tf.reduce_mean(losses)
 
 
 @curry
@@ -10,6 +31,7 @@ def cross_entropy(labels, logits, ignore_label=None, reduction='weighted_sum_by_
         labels: (N, H, W)
         logits: (N, H, W, C)
     """
+
     labels = tf.cast(labels, tf.int32)
     num_classes = tf.shape(logits)[-1]
     labels = tf.reshape(labels, [-1])
