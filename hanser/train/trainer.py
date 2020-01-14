@@ -62,7 +62,7 @@ class Trainer:
 
         self.bfloat16 = bfloat16
         if self.bfloat16:
-            assert isinstance(optimizer, tf.keras.mixed_precision.LossScaleOptimizer)
+            assert isinstance(optimizer, tf.keras.mixed_precision.experimental.LossScaleOptimizer)
         self.weight_decay = weight_decay
         self._get_sample_weight = None
 
