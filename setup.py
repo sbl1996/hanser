@@ -16,7 +16,6 @@ from setuptools import find_packages, setup, Command, Extension
 #     requirements = f.read().splitlines()
 
 # Package meta-data.
-from torch.utils.cpp_extension import BuildExtension
 
 NAME = 'hanser'
 IMPORT_NAME = 'hanser'
@@ -169,6 +168,5 @@ setup(
     # $ setup.py publish support.
     cmdclass={
         'upload': UploadCommand,
-        'build_ext': BuildExtension,
     },
 )
