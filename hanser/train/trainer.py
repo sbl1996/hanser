@@ -4,6 +4,7 @@ import tensorflow.keras.backend as K
 from tensorflow.python.distribute.input_lib import DistributedDataset
 
 import time
+from datetime import datetime
 
 from hanser.tpu import local_results
 
@@ -28,7 +29,7 @@ def run_epoch(step_fn, iterator, steps, metrics, name="Train"):
         step_fn(iterator)
     metric_results = []
     for m in metrics:
-        metric_results.append((m.name, m.result()))
+        metric_results.append((m.name, m.result().numpy()))
     elapsed = time.time() - start
     print_results(name, elapsed, metric_results)
 
@@ -118,7 +119,7 @@ class Trainer:
                     metric.update_state(labels, preds, sample_weight)
 
         if self.strategy:
-            self.strategy.experimental_run_v2(step_fn, args=next(iterator))
+            self.strategy.run(step_fn, args=next(iterator))
         else:
             step_fn(*next(iterator))
 
@@ -140,7 +141,7 @@ class Trainer:
                     metric.update_state(labels, preds, sample_weight)
 
         if self.strategy:
-            self.strategy.experimental_run_v2(step_fn, args=next(iterator))
+            self.strategy.run(step_fn, args=next(iterator))
         else:
             step_fn(*next(iterator))
 
@@ -158,7 +159,7 @@ class Trainer:
 
             if self.strategy:
                 return local_results(
-                    self.strategy, self.strategy.experimental_run_v2(step_fn, args=next(iterator)))
+                    self.strategy, self.strategy.run(step_fn, args=next(iterator)))
             else:
                 return step_fn(*next(iterator))
 
@@ -242,7 +243,7 @@ class Trainer:
                         m.update_state(target, output, weight)
                 metric_results = []
                 for m in extra_metrics:
-                    metric_results.append((m.name, m.result()))
+                    metric_results.append((m.name, m.result().numpy()))
                     m.reset_states()
                 elapsed = time.time() - start
                 print_results("Eval", elapsed, metric_results)
