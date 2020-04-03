@@ -62,8 +62,8 @@ class Trainer:
             assert model_dir.startswith('gs'), "Use gs://... as `model_dir` on tpu mode"
 
         self.bfloat16 = bfloat16
-        if self.bfloat16:
-            assert isinstance(optimizer, tf.keras.mixed_precision.experimental.LossScaleOptimizer)
+        # if self.bfloat16:
+        #     assert isinstance(optimizer, tf.keras.mixed_precision.experimental.LossScaleOptimizer)
         self.weight_decay = weight_decay
         self._get_sample_weight = None
 
@@ -101,13 +101,13 @@ class Trainer:
                     loss = loss1
                 if self.strategy:
                     loss = loss / self.strategy.num_replicas_in_sync
-                if self.bfloat16:
-                    scaled_loss = self.optimizer.get_scaled_loss(loss)
-            if self.bfloat16:
-                scaled_gradients = tape.gradient(scaled_loss, self.model.trainable_variables)
-                grads = self.optimizer.get_unscaled_gradients(scaled_gradients)
-            else:
-                grads = tape.gradient(loss, self.model.trainable_variables)
+                # if self.bfloat16:
+                #     scaled_loss = self.optimizer.get_scaled_loss(loss)
+            # if self.bfloat16:
+            #     scaled_gradients = tape.gradient(scaled_loss, self.model.trainable_variables)
+            #     grads = self.optimizer.get_unscaled_gradients(scaled_gradients)
+            # else:
+            grads = tape.gradient(loss, self.model.trainable_variables)
             self.optimizer.apply_gradients(
                 zip(grads, self.model.trainable_variables))
 
