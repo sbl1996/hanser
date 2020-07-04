@@ -98,7 +98,8 @@ trainer.summary()
 criterion = SparseCategoricalCrossentropy(from_logits=True)
 
 base_lr = 0.1
-lr_shcedule = cosine_lr(base_lr=base_lr * mul, epochs=200, min_lr=1e-5,
+epochs = 300
+lr_shcedule = cosine_lr(base_lr=base_lr * mul, epochs=epochs, min_lr=1e-5,
                         warmup_epoch=5, warmup_min_lr=base_lr)
 optimizer = SGD(base_lr * mul, momentum=0.9, nesterov=True)
 metrics = [tf.keras.metrics.SparseCategoricalAccuracy(name='acc')]
@@ -107,6 +108,6 @@ trainer.compile(optimizer=optimizer, loss=criterion, metrics=metrics)
 
 callbacks = [LearningRateBatchScheduler(lr_shcedule, steps_per_epoch)]
 
-trainer.fit(ds_train, epochs=200, steps_per_epoch=steps_per_epoch,
+trainer.fit(ds_train, epochs=epochs, steps_per_epoch=steps_per_epoch,
             validation_data=ds_test, validation_steps=test_steps,
             validation_freq=5, verbose=2, callbacks=callbacks)

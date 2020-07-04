@@ -14,7 +14,7 @@ from hanser.models.cifar.pyramidnest import PyramidNeSt
 from hanser.datasets import prepare
 from hanser.transform import random_crop, cutout, normalize, to_tensor
 from hanser.train.callbacks import cosine_lr, LearningRateBatchScheduler
-
+import tensorflow_addons as tfa
 
 def load_cifar10(split):
     ds = tfds.as_numpy(tfds.load('cifar10', split=split))
@@ -94,6 +94,7 @@ criterion = SparseCategoricalCrossentropy(from_logits=True)
 base_lr = 0.1
 lr_shcedule = cosine_lr(base_lr=base_lr * mul, epochs=200, min_lr=1e-5,
                         warmup_epoch=5, warmup_min_lr=base_lr)
+# optimizer = tfa.optimizers.SGDW(2e-4, base_lr * mul, momentum=0.9, nesterov=True)
 optimizer = SGD(base_lr * mul, momentum=0.9, nesterov=True)
 
 metrics = [tf.keras.metrics.SparseCategoricalAccuracy(name='acc')]

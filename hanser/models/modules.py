@@ -124,7 +124,7 @@ class SplAtConv2d(Layer):
                  dilation=1, groups=1, bias=None, radix=2, reduction=4, name=None):
         super().__init__(name=name)
         inter_channels = min(max(in_channels * radix // reduction, 32), in_channels)
-        inter_channels = round_channels(inter_channels, groups)
+        inter_channels = round_channels(inter_channels, groups * radix)
         self.radix = radix
         self.cardinality = groups
         self.channels = channels

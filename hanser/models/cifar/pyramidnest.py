@@ -78,14 +78,14 @@ class PyramidNeSt(Model):
     def _make_layer(self, num_layers, groups, stride, radix, name):
         self.channels = self.channels + self.add_channel
         layers = [
-            Bottleneck(self.in_channels, round_channels(self.channels, groups),
+            Bottleneck(self.in_channels, round_channels(self.channels, groups * radix),
                        groups, stride=stride, radix=radix, name=name + "/unit1")]
-        self.in_channels = round_channels(self.channels, groups) * Bottleneck.expansion
+        self.in_channels = round_channels(self.channels, groups * radix) * Bottleneck.expansion
         for i in range(1, num_layers):
             self.channels = self.channels + self.add_channel
-            layers.append(Bottleneck(self.in_channels, round_channels(self.channels, groups),
+            layers.append(Bottleneck(self.in_channels, round_channels(self.channels, groups * radix),
                                      groups, radix=radix, name=f"{name}/unit{i + 1}"))
-            self.in_channels = round_channels(self.channels, groups) * Bottleneck.expansion
+            self.in_channels = round_channels(self.channels, groups * radix) * Bottleneck.expansion
         return Sequential(layers, name=name)
 
     def call(self, x):
