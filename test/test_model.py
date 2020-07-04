@@ -13,6 +13,8 @@ from tensorflow.keras.models import Model
 from hanser.models.cifar.pyramidnest import PyramidNeSt
 from hanser.datasets import prepare
 from hanser.transform import random_crop, cutout, normalize, to_tensor
+from hanser.train.callbacks import cosine_lr, LearningRateBatchScheduler
+
 
 def load_cifar10(split):
     ds = tfds.as_numpy(tfds.load('cifar10', split=split))
@@ -25,9 +27,9 @@ def load_cifar10(split):
     y = np.stack(y)
     return x, y
 
+
 @curry
 def preprocess(image, label, training):
-
     if training:
         image = random_crop(image, (32, 32), (4, 4))
         image = tf.image.random_flip_left_right(image)
@@ -38,9 +40,10 @@ def preprocess(image, label, training):
 
     # image = tf.cast(image, tf.bfloat16)
     # if training:
-        # image = cutout(image, 16)
+    # image = cutout(image, 16)
 
     return image, label
+
 
 x_train, y_train = load_cifar10('train')
 x_test, y_test = load_cifar10('test')
@@ -48,15 +51,15 @@ x_test, y_test = load_cifar10('test')
 ds = tf.data.Dataset.from_tensor_slices((x_train, y_train))
 ds_test = tf.data.Dataset.from_tensor_slices((x_test, y_test))
 
+mul = 8
 num_train_examples = 5000
 num_test_examples = 1000
 ds = ds.take(num_train_examples)
 ds_test = ds_test.take(num_test_examples)
-batch_size = 2
+batch_size = 2 * mul
 eval_batch_size = batch_size * 2
 steps_per_epoch = num_train_examples // batch_size
 test_steps = math.ceil(num_test_examples / eval_batch_size)
-
 
 ds_train = prepare(ds, preprocess(training=True), batch_size, training=True, buffer_size=10000)
 ds_test = prepare(ds_test, preprocess(training=False), eval_batch_size, training=False)
@@ -78,24 +81,36 @@ class Trainer(Model):
         self.compiled_metrics.update_state(y, y_pred)
         return {m.name: m.result() for m in self.metrics}
 
+
 input_shape = (32, 32, 3)
 model = PyramidNeSt(4, 12, 20, 1, 1, 10)
-# model.build((None,) + input_shape)
-# model.call(tf.keras.Input(input_shape))
 input = tf.keras.Input(input_shape)
 trainer = Trainer(inputs=input, outputs=model(input))
 trainer.summary()
 
 criterion = SparseCategoricalCrossentropy(from_logits=True)
-optimizer = SGD(1e-2, momentum=0.9, nesterov=True)
+
+base_lr = 0.1
+lr_shcedule = cosine_lr(base_lr=base_lr * mul, epochs=200, min_lr=1e-5,
+                        warmup_epoch=5, warmup_min_lr=base_lr)
+optimizer = SGD(base_lr * mul, momentum=0.9, nesterov=True)
+
+
+class PrintLR(tf.keras.callbacks.Callback):
+
+    def on_epoch_end(self, epoch, logs=None):
+        lr = float(tf.keras.backend.get_value(self.model.optimizer.learning_rate))
+        print("\nEpoch %05d: Learning rate is %6.4f." % (epoch, lr))
+
 
 metrics = [tf.keras.metrics.SparseCategoricalAccuracy()]
 trainer.compile(optimizer=optimizer, loss=criterion, metrics=metrics)
 
-trainer.fit(ds_train, epochs=200, steps_per_epoch=steps_per_epoch,
-          validation_data=ds_test, validation_steps=test_steps,
-          validation_freq=10, verbose=1)
+callbacks = [LearningRateBatchScheduler(lr_shcedule, steps_per_epoch), PrintLR()]
 
+trainer.fit(ds_train, epochs=200, steps_per_epoch=steps_per_epoch,
+            validation_data=ds_test, validation_steps=test_steps,
+            validation_freq=10, verbose=1, callbacks=callbacks)
 
 it = iter(ds_train)
 x, y = next(it)

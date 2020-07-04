@@ -7,15 +7,6 @@ from tensorflow.keras.callbacks import Callback
 
 
 class LearningRateBatchScheduler(Callback):
-    """Callback to update learning rate on every batch (not epoch boundaries).
-
-  N.B. Only support Keras optimizers, not TF optimizers.
-
-  Args:
-      schedule: a function that takes an epoch index and a batch index as input
-          (both integer, indexed from 0) and returns a new learning rate as
-          output (float).
-  """
 
     def __init__(self, schedule, steps_per_epoch):
         super().__init__()
@@ -55,13 +46,13 @@ def step_lr(epoch, base_lr, schedule):
 
 
 @curry
-def cosine_lr(epoch, base_lr, total_epochs, warmup=0, gamma=0.1):
-    if epoch < warmup:
-        eta_min = base_lr * gamma
-        return eta_min + (base_lr - eta_min) * epoch / warmup
-    frac = (epoch - warmup) / (total_epochs - warmup)
+def cosine_lr(epoch, base_lr, epochs, min_lr, warmup_min_lr, warmup_epoch=5):
+    if epoch < warmup_epoch:
+        eta_min = warmup_min_lr
+        return eta_min + (base_lr - eta_min) * epoch / warmup_epoch
+    frac = (epoch - warmup_epoch) / (epochs - warmup_epoch)
     mult = (np.cos(frac * np.pi) + 1) / 2
-    return base_lr * mult
+    return min_lr + (base_lr - min_lr) * mult
 
 
 @curry

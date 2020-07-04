@@ -255,7 +255,7 @@ class Trainer:
         run_epoch(self._test_step, test_it, test_steps, self.test_metrics, "Test")
 
     def evaluate2(self, ds_test, test_steps, metrics,
-                  output_transform=identity, target_transform=identity, get_sample_weight=None, debug=False):
+                  output_transform=tf.identity, target_transform=tf.identity, get_sample_weight=None, debug=False):
 
         if self.strategy:
             assert isinstance(ds_test, DistributedDataset)
@@ -279,7 +279,7 @@ class Trainer:
         results = {m.name: m.result().numpy() for m in metrics}
         return results
 
-    def collect(self, ds_test, test_steps, output_transform=identity, target_transform=identity):
+    def collect(self, ds_test, test_steps, output_transform=tf.identity, target_transform=tf.identity):
 
         if self.strategy:
             assert isinstance(ds_test, DistributedDataset)
