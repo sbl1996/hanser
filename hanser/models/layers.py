@@ -1,8 +1,10 @@
 from typing import Union, Tuple, Optional
 
+import tensorflow as tf
 from tensorflow.keras import Sequential
 from tensorflow.keras.initializers import VarianceScaling, RandomNormal
-from tensorflow.keras.layers import BatchNormalization, Dense, DepthwiseConv2D, Activation, AvgPool2D, MaxPool2D, GlobalAvgPool2D
+from tensorflow.keras.layers import BatchNormalization, Dense, DepthwiseConv2D, \
+    Activation, AvgPool2D, MaxPool2D, Layer, InputSpec
 from tensorflow.keras.regularizers import l2
 
 from hanser.models.conv import Conv2D
@@ -116,7 +118,6 @@ def Act(activation='default', name=None):
 
 
 def Pool2d(kernel_size, stride, padding='same', type='avg', ceil_mode=False, name=None):
-
     if isinstance(padding, str):
         padding = padding.upper()
 
@@ -131,8 +132,30 @@ def Pool2d(kernel_size, stride, padding='same', type='avg', ceil_mode=False, nam
         raise ValueError("Unsupported pool type: %s" % type)
 
 
-def GlobalAvgPool(name=None):
-    return GlobalAvgPool2D(name=name)
+class GlobalAvgPool(Layer):
+    """Abstract class for different global pooling 2D layers.
+  """
+
+    def __init__(self, keep_dim=False, **kwargs):
+        super().__init__(**kwargs)
+        self.keep_dim = keep_dim
+        self.input_spec = InputSpec(ndim=4)
+        self._supports_ragged_inputs = True
+
+    def compute_output_shape(self, input_shape):
+        input_shape = tf.TensorShape(input_shape).as_list()
+        if self.keep_dim:
+            return tf.TensorShape([input_shape[0], 1, 1, input_shape[3]])
+        else:
+            return tf.TensorShape([input_shape[0], input_shape[3]])
+
+    def call(self, inputs):
+        return tf.reduce_mean(inputs, axis=[1, 2], keepdims=self.keep_dim)
+
+    def get_config(self):
+        config = {'keep_dim': self.keep_dim}
+        base_config = super().get_config()
+        return dict(list(base_config.items()) + list(config.items()))
 
 
 def get_weight_decay():
@@ -147,5 +170,4 @@ def Linear(in_channels, out_channels, act=None, name=None):
                  kernel_initializer=kernel_initializer,
                  kernel_regularizer=get_weight_decay(),
                  bias_regularizer=get_weight_decay(),
-                 activity_regularizer=get_weight_decay(),
                  name=name)

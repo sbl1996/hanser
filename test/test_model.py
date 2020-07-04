@@ -95,22 +95,14 @@ lr_shcedule = cosine_lr(base_lr=base_lr * mul, epochs=200, min_lr=1e-5,
                         warmup_epoch=5, warmup_min_lr=base_lr)
 optimizer = SGD(base_lr * mul, momentum=0.9, nesterov=True)
 
-
-class PrintLR(tf.keras.callbacks.Callback):
-
-    def on_epoch_end(self, epoch, logs=None):
-        lr = float(tf.keras.backend.get_value(self.model.optimizer.learning_rate))
-        print("\nEpoch %05d: Learning rate is %6.4f." % (epoch, lr))
-
-
-metrics = [tf.keras.metrics.SparseCategoricalAccuracy()]
+metrics = [tf.keras.metrics.SparseCategoricalAccuracy(name='acc')]
 trainer.compile(optimizer=optimizer, loss=criterion, metrics=metrics)
 
-callbacks = [LearningRateBatchScheduler(lr_shcedule, steps_per_epoch), PrintLR()]
+callbacks = [LearningRateBatchScheduler(lr_shcedule, steps_per_epoch)]
 
 trainer.fit(ds_train, epochs=200, steps_per_epoch=steps_per_epoch,
             validation_data=ds_test, validation_steps=test_steps,
-            validation_freq=10, verbose=1, callbacks=callbacks)
+            validation_freq=2, verbose=1, callbacks=callbacks)
 
 it = iter(ds_train)
 x, y = next(it)

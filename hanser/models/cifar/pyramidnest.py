@@ -1,9 +1,8 @@
-import tensorflow as tf
 from tensorflow.keras import Model
 from tensorflow.keras.layers import Layer
 
 from hanser.models.layers import Pool2d, Conv2d, BN, Act, GlobalAvgPool, Linear, Sequential
-from hanser.models.modules import PadChannel
+from hanser.models.modules import PadChannel, SplAtConv2d
 
 __all__ = [
     "PyramidNeSt"
@@ -30,7 +29,8 @@ class Bottleneck(Layer):
             BN(in_channels, name=name + "bn0"),
             Conv2d(in_channels, channels, kernel_size=1, bn=True, act='default', name=name + "conv1"),
             *([Pool2d(3, 2, name=name + "pool")] if stride != 1 else []),
-            Conv2d(channels, channels, kernel_size=3, groups=groups, bn=True, act='default', name=name + "conv2"),
+            SplAtConv2d(channels, channels, kernel_size=3, groups=groups, radix=radix, name=name + "conv2")
+            if radix != 0 else Conv2d(channels, channels, kernel_size=3, groups=groups, bn=True, act='default', name=name + "conv2"),
             Conv2d(channels, out_channels, kernel_size=1, bn=True, name=name + "conv3"),
         ]
         self.branch1 = Sequential(branch1, name=name + "/branch1")
