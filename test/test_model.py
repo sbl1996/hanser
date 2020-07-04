@@ -82,6 +82,7 @@ class Trainer(Model):
         return {m.name: m.result() for m in self.metrics}
 
 
+
 input_shape = (32, 32, 3)
 model = PyramidNeSt(4, 12, 20, 1, 1, 10)
 input = tf.keras.Input(input_shape)
