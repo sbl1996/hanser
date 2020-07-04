@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 from tensorflow.keras import Sequential
-from tensorflow.keras.layers import Layer, InputSpec
+from tensorflow.keras.layers import Layer, InputSpec, Softmax
 
 from hanser.models.layers import Linear, Conv2d, BN, Act, GlobalAvgPool
 
@@ -87,6 +87,8 @@ class rSoftMax(Layer):
         self.radix = radix
         self.cardinality = cardinality
         self.input_spec = InputSpec(ndim=4)
+        if self.radix > 1:
+            self.softmax = Softmax(axis=1, dtype='float32')
 
     def compute_output_shape(self, input_shape):
         return tf.TensorShape(input_shape)
@@ -98,7 +100,7 @@ class rSoftMax(Layer):
             ic = c // self.cardinality // self.radix
             x = tf.reshape(x, [b, self.cardinality, self.radix, ic])
             x = tf.transpose(x, [0, 2, 1, 3])
-            x = tf.nn.softmax(x, axis=1)
+            x = self.softmax(x)
             x = tf.reshape(x, [b, 1, 1, c])
         else:
             x = tf.sigmoid(x)

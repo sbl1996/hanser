@@ -68,19 +68,28 @@ ds_test = prepare(ds_test, preprocess(training=False), eval_batch_size, training
 class Trainer(Model):
 
     def train_step(self, data):
-        print(data)
         x, y = data
         with tf.GradientTape() as tape:
             y_pred = self(x, training=True)
+            # y_pred = tf.cast(y_pred, tf.float32)
             loss = self.compiled_loss(
                 y, y_pred, regularization_losses=self.losses)
-            trainable_variables = self.trainable_variables
-            gradients = tape.gradient(loss, trainable_variables)
-            self.optimizer.apply_gradients(zip(gradients, trainable_variables))
+
+        trainable_variables = self.trainable_variables
+        gradients = tape.gradient(loss, trainable_variables)
+        self.optimizer.apply_gradients(zip(gradients, trainable_variables))
 
         self.compiled_metrics.update_state(y, y_pred)
         return {m.name: m.result() for m in self.metrics}
 
+    def test_step(self, data):
+        x, y = data
+        y_pred = self(x, training=False)
+        y_pred = tf.cast(y_pred, tf.float32)
+        self.compiled_loss(y, y_pred)
+
+        self.compiled_metrics.update_state(y, y_pred)
+        return {m.name: m.result() for m in self.metrics}
 
 
 input_shape = (32, 32, 3)
