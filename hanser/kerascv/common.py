@@ -13,8 +13,8 @@ from tensorflow.keras.layers import BatchNormalization, Layer
 from tensorflow.keras import backend as K
 from tensorflow.keras import layers
 
-from hanser.model.layers import ChannelShuffle
-from hanser.model import get_default
+from hanser.models.legacy.layers import ChannelShuffle
+from hanser.models import get_default
 
 def round_channels(channels,
                    divisor=8):

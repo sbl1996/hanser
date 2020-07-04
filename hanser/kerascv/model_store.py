@@ -174,7 +174,7 @@ imgclsmob_repo_url = 'https://github.com/osmr/imgclsmob'
 
 def get_model_name_suffix_data(model_name):
     if model_name not in _model_sha1:
-        raise ValueError("Pretrained model for {name} is not available.".format(name=model_name))
+        raise ValueError("Pretrained models for {name} is not available.".format(name=model_name))
     error, sha1_hash, repo_release_tag = _model_sha1[model_name]
     return error, sha1_hash, repo_release_tag
 
@@ -182,18 +182,18 @@ def get_model_name_suffix_data(model_name):
 def get_model_file(model_name,
                    local_model_store_dir_path=os.path.join("~", ".keras", "models")):
     """
-    Return location for the pretrained on local file system. This function will download from online model zoo when
-    model cannot be found or has mismatch. The root directory will be created if it doesn't exist.
+    Return location for the pretrained on local file system. This function will download from online models zoo when
+    models cannot be found or has mismatch. The root directory will be created if it doesn't exist.
     Parameters
     ----------
     model_name : str
-        Name of the model.
+        Name of the models.
     local_model_store_dir_path : str, default $KERAS_HOME/models
-        Location for keeping the model parameters.
+        Location for keeping the models parameters.
     Returns
     -------
     file_path
-        Path to the requested pretrained model file.
+        Path to the requested pretrained models file.
     """
     error, sha1_hash, repo_release_tag = get_model_name_suffix_data(model_name)
     short_sha1 = sha1_hash[:8]
@@ -207,7 +207,7 @@ def get_model_file(model_name,
         if _check_sha1(file_path, sha1_hash):
             return file_path
         else:
-            logging.warning("Mismatch in the content of model file detected. Downloading again.")
+            logging.warning("Mismatch in the content of models file detected. Downloading again.")
     else:
         logging.info("Model file not found. Downloading to {}.".format(file_path))
 
@@ -398,7 +398,7 @@ def _load_weights_from_hdf5_group(f,
     if len(layer_names) != len(filtered_layers):
         raise ValueError("You are trying to load a weight file "
                          "containing " + str(len(layer_names)) +
-                         " layers into a model with " +
+                         " layers into a models with " +
                          str(len(filtered_layers)) + " layers.")
 
     weight_value_tuples = []
@@ -414,7 +414,7 @@ def _load_weights_from_hdf5_group(f,
         if len(weight_values) != len(symbolic_weights):
             raise ValueError("Layer #" + str(k) +
                              " (named `" + layer.name +
-                             "` in the current model) was found to "
+                             "` in the current models) was found to "
                              "correspond to layer " + name +
                              " in the save file. "
                              "However the new layer " + layer.name +
@@ -478,7 +478,7 @@ def load_model(net,
                file_path,
                skip_mismatch=False):
     """
-    Load model state dictionary from a file.
+    Load models state dictionary from a file.
     Parameters
     ----------
     net : Model
@@ -514,15 +514,15 @@ def download_model(net,
                    local_model_store_dir_path=os.path.join("~", ".keras", "models"),
                    skip_mismatch=False):
     """
-    Load model state dictionary from a file with downloading it if necessary.
+    Load models state dictionary from a file with downloading it if necessary.
     Parameters
     ----------
     net : Module
         Network in which weights are loaded.
     model_name : str
-        Name of the model.
+        Name of the models.
     local_model_store_dir_path : str, default $TORCH_HOME/models
-        Location for keeping the model parameters.
+        Location for keeping the models parameters.
     """
     load_model(
         net=net,

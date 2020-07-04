@@ -1,4 +1,4 @@
-"""ResNet50 model for Keras.
+"""ResNet50 models for Keras.
 
 # Reference:
 
@@ -136,7 +136,7 @@ def ResNet50(input_shape,
     """Instantiates the ResNet50 architecture.
 
     Optionally loads weights pre-trained on ImageNet.
-    Note that the data format convention used by the model is
+    Note that the data format convention used by the models is
     the one specified in your Keras config at `~/.keras/keras.json`.
 
     # Arguments
@@ -147,13 +147,13 @@ def ResNet50(input_shape,
             It should have exactly 3 inputs channels,
             and width and height should be no smaller than 32.
             E.g. `(200, 200, 3)` would be one valid value.
-        pretrained: whether to load pretrained model.
+        pretrained: whether to load pretrained models.
         classes: optional number of classes to classify images
             into, only to be specified if `include_top` is True, and
             if no `weights` argument is specified.
 
     # Returns
-        A Keras model instance.
+        A Keras models instance.
 
     # Raises
         ValueError: in case of invalid argument for `weights`,
@@ -203,10 +203,10 @@ def ResNet50(input_shape,
     x = identity_block(x, 3, [512, 512, 2048], stage=5, block='b', dilation_rate=dilation_rate)
     x = identity_block(x, 3, [512, 512, 2048], stage=5, block='c', dilation_rate=dilation_rate)
 
-    # Ensure that the model takes into account
+    # Ensure that the models takes into account
     # any potential predecessors of `input_tensor`.
     inputs = img_input
-    # Create model.
+    # Create models.
     model = models.Model(inputs, x, name='resnet50')
 
     # Load weights.

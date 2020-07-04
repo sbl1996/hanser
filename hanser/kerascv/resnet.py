@@ -214,7 +214,7 @@ def resnet(channels,
            in_size=(224, 224),
            classes=1000):
     """
-    ResNet model from 'Deep Residual Learning for Image Recognition,' https://arxiv.org/abs/1512.03385.
+    ResNet models from 'Deep Residual Learning for Image Recognition,' https://arxiv.org/abs/1512.03385.
     Parameters:
     ----------
     channels : list of list of int
@@ -275,7 +275,7 @@ def get_resnet(blocks,
                root=os.path.join("~", ".keras", "models"),
                **kwargs):
     """
-    Create ResNet model with specific parameters.
+    Create ResNet models with specific parameters.
     Parameters:
     ----------
     blocks : int
@@ -287,11 +287,11 @@ def get_resnet(blocks,
     width_scale : float, default 1.0
         Scale factor for width of layers.
     model_name : str or None, default None
-        Model name for loading pretrained model.
+        Model name for loading pretrained models.
     pretrained : bool, default True
-        Whether to load the pretrained weights for model.
+        Whether to load the pretrained weights for models.
     root : str, default '~/.keras/models'
-        Location for keeping the model parameters.
+        Location for keeping the models parameters.
     """
     if bottleneck is None:
         bottleneck = (blocks >= 50)
@@ -355,7 +355,7 @@ def get_resnet(blocks,
 
     if pretrained:
         if (model_name is None) or (not model_name):
-            raise ValueError("Parameter `model_name` should be properly initialized for loading pretrained model.")
+            raise ValueError("Parameter `model_name` should be properly initialized for loading pretrained models.")
         from hanser.kerascv.model_store import download_model
         download_model(
             net=net,
@@ -367,289 +367,289 @@ def get_resnet(blocks,
 
 def resnet10(**kwargs):
     """
-    ResNet-10 model from 'Deep Residual Learning for Image Recognition,' https://arxiv.org/abs/1512.03385.
-    It's an experimental model.
+    ResNet-10 models from 'Deep Residual Learning for Image Recognition,' https://arxiv.org/abs/1512.03385.
+    It's an experimental models.
     Parameters:
     ----------
     pretrained : bool, default False
-        Whether to load the pretrained weights for model.
+        Whether to load the pretrained weights for models.
     root : str, default '~/.keras/models'
-        Location for keeping the model parameters.
+        Location for keeping the models parameters.
     """
     return get_resnet(blocks=10, model_name="resnet10", **kwargs)
 
 
 def resnet12(**kwargs):
     """
-    ResNet-12 model from 'Deep Residual Learning for Image Recognition,' https://arxiv.org/abs/1512.03385.
-    It's an experimental model.
+    ResNet-12 models from 'Deep Residual Learning for Image Recognition,' https://arxiv.org/abs/1512.03385.
+    It's an experimental models.
     Parameters:
     ----------
     pretrained : bool, default False
-        Whether to load the pretrained weights for model.
+        Whether to load the pretrained weights for models.
     root : str, default '~/.keras/models'
-        Location for keeping the model parameters.
+        Location for keeping the models parameters.
     """
     return get_resnet(blocks=12, model_name="resnet12", **kwargs)
 
 
 def resnet14(**kwargs):
     """
-    ResNet-14 model from 'Deep Residual Learning for Image Recognition,' https://arxiv.org/abs/1512.03385.
-    It's an experimental model.
+    ResNet-14 models from 'Deep Residual Learning for Image Recognition,' https://arxiv.org/abs/1512.03385.
+    It's an experimental models.
     Parameters:
     ----------
     pretrained : bool, default False
-        Whether to load the pretrained weights for model.
+        Whether to load the pretrained weights for models.
     root : str, default '~/.keras/models'
-        Location for keeping the model parameters.
+        Location for keeping the models parameters.
     """
     return get_resnet(blocks=14, model_name="resnet14", **kwargs)
 
 
 def resnetbc14b(**kwargs):
     """
-    ResNet-BC-14b model from 'Deep Residual Learning for Image Recognition,' https://arxiv.org/abs/1512.03385.
-    It's an experimental model (bottleneck compressed).
+    ResNet-BC-14b models from 'Deep Residual Learning for Image Recognition,' https://arxiv.org/abs/1512.03385.
+    It's an experimental models (bottleneck compressed).
     Parameters:
     ----------
     pretrained : bool, default False
-        Whether to load the pretrained weights for model.
+        Whether to load the pretrained weights for models.
     root : str, default '~/.keras/models'
-        Location for keeping the model parameters.
+        Location for keeping the models parameters.
     """
     return get_resnet(blocks=14, bottleneck=True, conv1_stride=False, model_name="resnetbc14b", **kwargs)
 
 
 def resnet16(**kwargs):
     """
-    ResNet-16 model from 'Deep Residual Learning for Image Recognition,' https://arxiv.org/abs/1512.03385.
-    It's an experimental model.
+    ResNet-16 models from 'Deep Residual Learning for Image Recognition,' https://arxiv.org/abs/1512.03385.
+    It's an experimental models.
     Parameters:
     ----------
     pretrained : bool, default False
-        Whether to load the pretrained weights for model.
+        Whether to load the pretrained weights for models.
     root : str, default '~/.keras/models'
-        Location for keeping the model parameters.
+        Location for keeping the models parameters.
     """
     return get_resnet(blocks=16, model_name="resnet16", **kwargs)
 
 
 def resnet18_wd4(**kwargs):
     """
-    ResNet-18 model with 0.25 width scale from 'Deep Residual Learning for Image Recognition,'
-    https://arxiv.org/abs/1512.03385. It's an experimental model.
+    ResNet-18 models with 0.25 width scale from 'Deep Residual Learning for Image Recognition,'
+    https://arxiv.org/abs/1512.03385. It's an experimental models.
     Parameters:
     ----------
     pretrained : bool, default False
-        Whether to load the pretrained weights for model.
+        Whether to load the pretrained weights for models.
     root : str, default '~/.keras/models'
-        Location for keeping the model parameters.
+        Location for keeping the models parameters.
     """
     return get_resnet(blocks=18, width_scale=0.25, model_name="resnet18_wd4", **kwargs)
 
 
 def resnet18_wd2(**kwargs):
     """
-    ResNet-18 model with 0.5 width scale from 'Deep Residual Learning for Image Recognition,'
-    https://arxiv.org/abs/1512.03385. It's an experimental model.
+    ResNet-18 models with 0.5 width scale from 'Deep Residual Learning for Image Recognition,'
+    https://arxiv.org/abs/1512.03385. It's an experimental models.
     Parameters:
     ----------
     pretrained : bool, default False
-        Whether to load the pretrained weights for model.
+        Whether to load the pretrained weights for models.
     root : str, default '~/.keras/models'
-        Location for keeping the model parameters.
+        Location for keeping the models parameters.
     """
     return get_resnet(blocks=18, width_scale=0.5, model_name="resnet18_wd2", **kwargs)
 
 
 def resnet18_w3d4(**kwargs):
     """
-    ResNet-18 model with 0.75 width scale from 'Deep Residual Learning for Image Recognition,'
-    https://arxiv.org/abs/1512.03385. It's an experimental model.
+    ResNet-18 models with 0.75 width scale from 'Deep Residual Learning for Image Recognition,'
+    https://arxiv.org/abs/1512.03385. It's an experimental models.
     Parameters:
     ----------
     pretrained : bool, default False
-        Whether to load the pretrained weights for model.
+        Whether to load the pretrained weights for models.
     root : str, default '~/.keras/models'
-        Location for keeping the model parameters.
+        Location for keeping the models parameters.
     """
     return get_resnet(blocks=18, width_scale=0.75, model_name="resnet18_w3d4", **kwargs)
 
 
 def resnet18(**kwargs):
     """
-    ResNet-18 model from 'Deep Residual Learning for Image Recognition,' https://arxiv.org/abs/1512.03385.
+    ResNet-18 models from 'Deep Residual Learning for Image Recognition,' https://arxiv.org/abs/1512.03385.
     Parameters:
     ----------
     pretrained : bool, default False
-        Whether to load the pretrained weights for model.
+        Whether to load the pretrained weights for models.
     root : str, default '~/.keras/models'
-        Location for keeping the model parameters.
+        Location for keeping the models parameters.
     """
     return get_resnet(blocks=18, model_name="resnet18", **kwargs)
 
 
 def resnet26(**kwargs):
     """
-    ResNet-26 model from 'Deep Residual Learning for Image Recognition,' https://arxiv.org/abs/1512.03385.
-    It's an experimental model.
+    ResNet-26 models from 'Deep Residual Learning for Image Recognition,' https://arxiv.org/abs/1512.03385.
+    It's an experimental models.
     Parameters:
     ----------
     pretrained : bool, default False
-        Whether to load the pretrained weights for model.
+        Whether to load the pretrained weights for models.
     root : str, default '~/.keras/models'
-        Location for keeping the model parameters.
+        Location for keeping the models parameters.
     """
     return get_resnet(blocks=26, bottleneck=False, model_name="resnet26", **kwargs)
 
 
 def resnetbc26b(**kwargs):
     """
-    ResNet-BC-26b model from 'Deep Residual Learning for Image Recognition,' https://arxiv.org/abs/1512.03385.
-    It's an experimental model (bottleneck compressed).
+    ResNet-BC-26b models from 'Deep Residual Learning for Image Recognition,' https://arxiv.org/abs/1512.03385.
+    It's an experimental models (bottleneck compressed).
     Parameters:
     ----------
     pretrained : bool, default False
-        Whether to load the pretrained weights for model.
+        Whether to load the pretrained weights for models.
     root : str, default '~/.keras/models'
-        Location for keeping the model parameters.
+        Location for keeping the models parameters.
     """
     return get_resnet(blocks=26, bottleneck=True, conv1_stride=False, model_name="resnetbc26b", **kwargs)
 
 
 def resnet34(**kwargs):
     """
-    ResNet-34 model from 'Deep Residual Learning for Image Recognition,' https://arxiv.org/abs/1512.03385.
+    ResNet-34 models from 'Deep Residual Learning for Image Recognition,' https://arxiv.org/abs/1512.03385.
     Parameters:
     ----------
     pretrained : bool, default False
-        Whether to load the pretrained weights for model.
+        Whether to load the pretrained weights for models.
     root : str, default '~/.keras/models'
-        Location for keeping the model parameters.
+        Location for keeping the models parameters.
     """
     return get_resnet(blocks=34, model_name="resnet34", **kwargs)
 
 
 def resnetbc38b(**kwargs):
     """
-    ResNet-BC-38b model from 'Deep Residual Learning for Image Recognition,' https://arxiv.org/abs/1512.03385.
-    It's an experimental model (bottleneck compressed).
+    ResNet-BC-38b models from 'Deep Residual Learning for Image Recognition,' https://arxiv.org/abs/1512.03385.
+    It's an experimental models (bottleneck compressed).
     Parameters:
     ----------
     pretrained : bool, default False
-        Whether to load the pretrained weights for model.
+        Whether to load the pretrained weights for models.
     root : str, default '~/.keras/models'
-        Location for keeping the model parameters.
+        Location for keeping the models parameters.
     """
     return get_resnet(blocks=38, bottleneck=True, conv1_stride=False, model_name="resnetbc38b", **kwargs)
 
 
 def resnet50(**kwargs):
     """
-    ResNet-50 model from 'Deep Residual Learning for Image Recognition,' https://arxiv.org/abs/1512.03385.
+    ResNet-50 models from 'Deep Residual Learning for Image Recognition,' https://arxiv.org/abs/1512.03385.
     Parameters:
     ----------
     pretrained : bool, default True
-        Whether to load the pretrained weights for model.
+        Whether to load the pretrained weights for models.
     root : str, default '~/.keras/models'
-        Location for keeping the model parameters.
+        Location for keeping the models parameters.
     """
     return get_resnet(blocks=50, model_name="resnet50", **kwargs)
 
 
 def resnet50b(**kwargs):
     """
-    ResNet-50 model with stride at the second convolution in bottleneck block from 'Deep Residual Learning for Image
+    ResNet-50 models with stride at the second convolution in bottleneck block from 'Deep Residual Learning for Image
     Recognition,' https://arxiv.org/abs/1512.03385.
     Parameters:
     ----------
     pretrained : bool, default False
-        Whether to load the pretrained weights for model.
+        Whether to load the pretrained weights for models.
     root : str, default '~/.keras/models'
-        Location for keeping the model parameters.
+        Location for keeping the models parameters.
     """
     return get_resnet(blocks=50, conv1_stride=False, model_name="resnet50b", **kwargs)
 
 
 def resnet101(**kwargs):
     """
-    ResNet-101 model from 'Deep Residual Learning for Image Recognition,' https://arxiv.org/abs/1512.03385.
+    ResNet-101 models from 'Deep Residual Learning for Image Recognition,' https://arxiv.org/abs/1512.03385.
     Parameters:
     ----------
     pretrained : bool, default False
-        Whether to load the pretrained weights for model.
+        Whether to load the pretrained weights for models.
     root : str, default '~/.keras/models'
-        Location for keeping the model parameters.
+        Location for keeping the models parameters.
     """
     return get_resnet(blocks=101, model_name="resnet101", **kwargs)
 
 
 def resnet101b(**kwargs):
     """
-    ResNet-101 model with stride at the second convolution in bottleneck block from 'Deep Residual Learning for Image
+    ResNet-101 models with stride at the second convolution in bottleneck block from 'Deep Residual Learning for Image
     Recognition,' https://arxiv.org/abs/1512.03385.
     Parameters:
     ----------
     pretrained : bool, default False
-        Whether to load the pretrained weights for model.
+        Whether to load the pretrained weights for models.
     root : str, default '~/.keras/models'
-        Location for keeping the model parameters.
+        Location for keeping the models parameters.
     """
     return get_resnet(blocks=101, conv1_stride=False, model_name="resnet101b", **kwargs)
 
 
 def resnet152(**kwargs):
     """
-    ResNet-152 model from 'Deep Residual Learning for Image Recognition,' https://arxiv.org/abs/1512.03385.
+    ResNet-152 models from 'Deep Residual Learning for Image Recognition,' https://arxiv.org/abs/1512.03385.
     Parameters:
     ----------
     pretrained : bool, default False
-        Whether to load the pretrained weights for model.
+        Whether to load the pretrained weights for models.
     root : str, default '~/.keras/models'
-        Location for keeping the model parameters.
+        Location for keeping the models parameters.
     """
     return get_resnet(blocks=152, model_name="resnet152", **kwargs)
 
 
 def resnet152b(**kwargs):
     """
-    ResNet-152 model with stride at the second convolution in bottleneck block from 'Deep Residual Learning for Image
+    ResNet-152 models with stride at the second convolution in bottleneck block from 'Deep Residual Learning for Image
     Recognition,' https://arxiv.org/abs/1512.03385.
     Parameters:
     ----------
     pretrained : bool, default False
-        Whether to load the pretrained weights for model.
+        Whether to load the pretrained weights for models.
     root : str, default '~/.keras/models'
-        Location for keeping the model parameters.
+        Location for keeping the models parameters.
     """
     return get_resnet(blocks=152, conv1_stride=False, model_name="resnet152b", **kwargs)
 
 
 def resnet200(**kwargs):
     """
-    ResNet-200 model from 'Deep Residual Learning for Image Recognition,' https://arxiv.org/abs/1512.03385.
-    It's an experimental model.
+    ResNet-200 models from 'Deep Residual Learning for Image Recognition,' https://arxiv.org/abs/1512.03385.
+    It's an experimental models.
     Parameters:
     ----------
     pretrained : bool, default False
-        Whether to load the pretrained weights for model.
+        Whether to load the pretrained weights for models.
     root : str, default '~/.keras/models'
-        Location for keeping the model parameters.
+        Location for keeping the models parameters.
     """
     return get_resnet(blocks=200, model_name="resnet200", **kwargs)
 
 
 def resnet200b(**kwargs):
     """
-    ResNet-200 model with stride at the second convolution in bottleneck block from 'Deep Residual Learning for Image
-    Recognition,' https://arxiv.org/abs/1512.03385. It's an experimental model.
+    ResNet-200 models with stride at the second convolution in bottleneck block from 'Deep Residual Learning for Image
+    Recognition,' https://arxiv.org/abs/1512.03385. It's an experimental models.
     Parameters:
     ----------
     pretrained : bool, default False
-        Whether to load the pretrained weights for model.
+        Whether to load the pretrained weights for models.
     root : str, default '~/.keras/models'
-        Location for keeping the model parameters.
+        Location for keeping the models parameters.
     """
     return get_resnet(blocks=200, conv1_stride=False, model_name="resnet200b", **kwargs)
 

@@ -1,10 +1,9 @@
 import tensorflow as tf
-import tensorflow.keras.backend as K
 
 from tensorflow.keras import Model
 from tensorflow.keras.layers import ReLU, Concatenate, AvgPool2D, UpSampling2D, Input, Lambda
 
-from hanser.model.layers import conv2d, bn
+from hanser.models.legacy.layers import conv2d, bn
 
 
 def aspp(x, channels=256, rates=(6, 12, 18)):

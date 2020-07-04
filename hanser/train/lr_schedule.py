@@ -23,7 +23,7 @@ class CosineDecayRestarts(LearningRateSchedule):
         See [Loshchilov & Hutter, ICLR2016], SGDR: Stochastic Gradient Descent
         with Warm Restarts. https://arxiv.org/abs/1608.03983
 
-        When training a model, it is often recommended to lower the learning rate as
+        When training a models, it is often recommended to lower the learning rate as
         the training progresses. This schedule applies a cosine decay function with
         restarts to an optimizer step, given a provided initial learning rate.
         It requires a `step` value to compute the decayed learning rate. You can

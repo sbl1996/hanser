@@ -1,10 +1,10 @@
 import tensorflow as tf
 from tensorflow.keras import Model
-from tensorflow.keras.layers import ZeroPadding2D, Layer, Lambda, MaxPool2D, Input
+from tensorflow.keras.layers import ZeroPadding2D, Layer, Lambda, MaxPool2D
 
 from hanser.kerascv.efficientnet import efficientnet_b1b, efficientnet_b2b, efficientnet_b3b, efficientnet_b0b
 
-from hanser.model.layers import conv2d, bn, relu
+from hanser.models.legacy.layers import conv2d, bn, relu
 
 
 class WeightedSum(Layer):

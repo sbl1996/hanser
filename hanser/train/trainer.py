@@ -1,17 +1,10 @@
 import tensorflow as tf
-import tensorflow.keras.backend as K
 
 from tensorflow.python.distribute.input_lib import DistributedDataset
 
 import time
-from datetime import datetime
 
 from hanser.tpu import local_results
-
-
-@tf.function
-def identity(x):
-    return x
 
 
 def print_results(prefix, elapsed, results):
@@ -104,7 +97,7 @@ class Trainer:
                 # if self.bfloat16:
                 #     scaled_loss = self.optimizer.get_scaled_loss(loss)
             # if self.bfloat16:
-            #     scaled_gradients = tape.gradient(scaled_loss, self.model.trainable_variables)
+            #     scaled_gradients = tape.gradient(scaled_loss, self.models.trainable_variables)
             #     grads = self.optimizer.get_unscaled_gradients(scaled_gradients)
             # else:
             grads = tape.gradient(loss, self.model.trainable_variables)
@@ -181,7 +174,7 @@ class Trainer:
             return False
 
     def resume(self):
-        model_ckpt, model_ckpt_manager = self._make_ckpt("model", model=self.model)
+        model_ckpt, model_ckpt_manager = self._make_ckpt("models", model=self.model)
         optim_ckpt, optim_ckpt_manager = self._make_ckpt("optim", optimizer=self.optimizer, epoch=self._epoch)
 
         self.restore(model_ckpt, model_ckpt_manager)
@@ -191,7 +184,7 @@ class Trainer:
             ds_val, val_steps, val_freq=1,
             save_per_epochs=None, get_sample_weight=None,
             extra_metrics=(), extra_eval_freq=1,
-            target_transform=identity, output_transform=identity,
+            target_transform=tf.identity, output_transform=tf.identity,
             debug=False):
         self._get_sample_weight = get_sample_weight
 
@@ -205,7 +198,7 @@ class Trainer:
         if save_per_epochs:
             assert self.model_dir is not None, "`model_dir` should be provided."
 
-            model_ckpt, model_ckpt_manager = self._make_ckpt("model", model=self.model)
+            model_ckpt, model_ckpt_manager = self._make_ckpt("models", model=self.model)
             optim_ckpt, optim_ckpt_manager = self._make_ckpt("optim", optimizer=self.optimizer, epoch=self._epoch)
 
         epoch = self._epoch.numpy()
@@ -249,7 +242,7 @@ class Trainer:
                 print_results("Eval", elapsed, metric_results)
 
             if save_per_epochs and epoch % save_per_epochs == 0:
-                print("Saved model: %s" % model_ckpt_manager.save(epoch))
+                print("Saved models: %s" % model_ckpt_manager.save(epoch))
                 print("Saved optimizer: %s" % optim_ckpt_manager.save(epoch))
 
     def evaluate(self, ds_test, test_steps, get_sample_weight=None):

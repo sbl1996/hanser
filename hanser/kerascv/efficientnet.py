@@ -273,7 +273,7 @@ def efficientnet_model(channels,
                        in_size=(224, 224),
                        classes=1000):
     """
-    EfficientNet(-B0) model from 'EfficientNet: Rethinking Model Scaling for Convolutional Neural Networks,'
+    EfficientNet(-B0) models from 'EfficientNet: Rethinking Model Scaling for Convolutional Neural Networks,'
     https://arxiv.org/abs/1905.11946.
 
     Parameters:
@@ -383,7 +383,7 @@ def get_efficientnet(version,
                      root=os.path.join("~", ".keras", "models"),
                      **kwargs):
     """
-    Create EfficientNet model with specific parameters.
+    Create EfficientNet models with specific parameters.
 
     Parameters:
     ----------
@@ -396,11 +396,11 @@ def get_efficientnet(version,
     bn_epsilon : float, default 1e-5
         Small float added to variance in Batch norm.
     model_name : str or None, default None
-        Model name for loading pretrained model.
+        Model name for loading pretrained models.
     pretrained : bool, default False
-        Whether to load the pretrained weights for model.
+        Whether to load the pretrained weights for models.
     root : str, default '~/.keras/models'
-        Location for keeping the model parameters.
+        Location for keeping the models parameters.
     """
 
     if version == "b0":
@@ -494,7 +494,7 @@ def get_efficientnet(version,
 
     if pretrained:
         if (model_name is None) or (not model_name):
-            raise ValueError("Parameter `model_name` should be properly initialized for loading pretrained model.")
+            raise ValueError("Parameter `model_name` should be properly initialized for loading pretrained models.")
         from .model_store import download_model
         download_model(
             net=net,
@@ -506,7 +506,7 @@ def get_efficientnet(version,
 
 def efficientnet_b0(in_size=(224, 224), **kwargs):
     """
-    EfficientNet-B0 model from 'EfficientNet: Rethinking Model Scaling for Convolutional Neural Networks,'
+    EfficientNet-B0 models from 'EfficientNet: Rethinking Model Scaling for Convolutional Neural Networks,'
     https://arxiv.org/abs/1905.11946.
 
     Parameters:
@@ -514,16 +514,16 @@ def efficientnet_b0(in_size=(224, 224), **kwargs):
     in_size : tuple of two ints, default (224, 224)
         Spatial size of the expected input image.
     pretrained : bool, default False
-        Whether to load the pretrained weights for model.
+        Whether to load the pretrained weights for models.
     root : str, default '~/.keras/models'
-        Location for keeping the model parameters.
+        Location for keeping the models parameters.
     """
     return get_efficientnet(version="b0", in_size=in_size, model_name="efficientnet_b0", **kwargs)
 
 
 def efficientnet_b1(in_size=(240, 240), **kwargs):
     """
-    EfficientNet-B1 model from 'EfficientNet: Rethinking Model Scaling for Convolutional Neural Networks,'
+    EfficientNet-B1 models from 'EfficientNet: Rethinking Model Scaling for Convolutional Neural Networks,'
     https://arxiv.org/abs/1905.11946.
 
     Parameters:
@@ -531,16 +531,16 @@ def efficientnet_b1(in_size=(240, 240), **kwargs):
     in_size : tuple of two ints, default (240, 240)
         Spatial size of the expected input image.
     pretrained : bool, default False
-        Whether to load the pretrained weights for model.
+        Whether to load the pretrained weights for models.
     root : str, default '~/.keras/models'
-        Location for keeping the model parameters.
+        Location for keeping the models parameters.
     """
     return get_efficientnet(version="b1", in_size=in_size, model_name="efficientnet_b1", **kwargs)
 
 
 def efficientnet_b2(in_size=(260, 260), **kwargs):
     """
-    EfficientNet-B2 model from 'EfficientNet: Rethinking Model Scaling for Convolutional Neural Networks,'
+    EfficientNet-B2 models from 'EfficientNet: Rethinking Model Scaling for Convolutional Neural Networks,'
     https://arxiv.org/abs/1905.11946.
 
     Parameters:
@@ -548,16 +548,16 @@ def efficientnet_b2(in_size=(260, 260), **kwargs):
     in_size : tuple of two ints, default (260, 260)
         Spatial size of the expected input image.
     pretrained : bool, default False
-        Whether to load the pretrained weights for model.
+        Whether to load the pretrained weights for models.
     root : str, default '~/.keras/models'
-        Location for keeping the model parameters.
+        Location for keeping the models parameters.
     """
     return get_efficientnet(version="b2", in_size=in_size, model_name="efficientnet_b2", **kwargs)
 
 
 def efficientnet_b3(in_size=(300, 300), **kwargs):
     """
-    EfficientNet-B3 model from 'EfficientNet: Rethinking Model Scaling for Convolutional Neural Networks,'
+    EfficientNet-B3 models from 'EfficientNet: Rethinking Model Scaling for Convolutional Neural Networks,'
     https://arxiv.org/abs/1905.11946.
 
     Parameters:
@@ -565,16 +565,16 @@ def efficientnet_b3(in_size=(300, 300), **kwargs):
     in_size : tuple of two ints, default (300, 300)
         Spatial size of the expected input image.
     pretrained : bool, default False
-        Whether to load the pretrained weights for model.
+        Whether to load the pretrained weights for models.
     root : str, default '~/.keras/models'
-        Location for keeping the model parameters.
+        Location for keeping the models parameters.
     """
     return get_efficientnet(version="b3", in_size=in_size, model_name="efficientnet_b3", **kwargs)
 
 
 def efficientnet_b4(in_size=(380, 380), **kwargs):
     """
-    EfficientNet-B4 model from 'EfficientNet: Rethinking Model Scaling for Convolutional Neural Networks,'
+    EfficientNet-B4 models from 'EfficientNet: Rethinking Model Scaling for Convolutional Neural Networks,'
     https://arxiv.org/abs/1905.11946.
 
     Parameters:
@@ -582,16 +582,16 @@ def efficientnet_b4(in_size=(380, 380), **kwargs):
     in_size : tuple of two ints, default (380, 380)
         Spatial size of the expected input image.
     pretrained : bool, default False
-        Whether to load the pretrained weights for model.
+        Whether to load the pretrained weights for models.
     root : str, default '~/.keras/models'
-        Location for keeping the model parameters.
+        Location for keeping the models parameters.
     """
     return get_efficientnet(version="b4", in_size=in_size, model_name="efficientnet_b4", **kwargs)
 
 
 def efficientnet_b5(in_size=(456, 456), **kwargs):
     """
-    EfficientNet-B5 model from 'EfficientNet: Rethinking Model Scaling for Convolutional Neural Networks,'
+    EfficientNet-B5 models from 'EfficientNet: Rethinking Model Scaling for Convolutional Neural Networks,'
     https://arxiv.org/abs/1905.11946.
 
     Parameters:
@@ -599,16 +599,16 @@ def efficientnet_b5(in_size=(456, 456), **kwargs):
     in_size : tuple of two ints, default (456, 456)
         Spatial size of the expected input image.
     pretrained : bool, default False
-        Whether to load the pretrained weights for model.
+        Whether to load the pretrained weights for models.
     root : str, default '~/.keras/models'
-        Location for keeping the model parameters.
+        Location for keeping the models parameters.
     """
     return get_efficientnet(version="b5", in_size=in_size, model_name="efficientnet_b5", **kwargs)
 
 
 def efficientnet_b6(in_size=(528, 528), **kwargs):
     """
-    EfficientNet-B6 model from 'EfficientNet: Rethinking Model Scaling for Convolutional Neural Networks,'
+    EfficientNet-B6 models from 'EfficientNet: Rethinking Model Scaling for Convolutional Neural Networks,'
     https://arxiv.org/abs/1905.11946.
 
     Parameters:
@@ -616,16 +616,16 @@ def efficientnet_b6(in_size=(528, 528), **kwargs):
     in_size : tuple of two ints, default (528, 528)
         Spatial size of the expected input image.
     pretrained : bool, default False
-        Whether to load the pretrained weights for model.
+        Whether to load the pretrained weights for models.
     root : str, default '~/.keras/models'
-        Location for keeping the model parameters.
+        Location for keeping the models parameters.
     """
     return get_efficientnet(version="b6", in_size=in_size, model_name="efficientnet_b6", **kwargs)
 
 
 def efficientnet_b7(in_size=(600, 600), **kwargs):
     """
-    EfficientNet-B7 model from 'EfficientNet: Rethinking Model Scaling for Convolutional Neural Networks,'
+    EfficientNet-B7 models from 'EfficientNet: Rethinking Model Scaling for Convolutional Neural Networks,'
     https://arxiv.org/abs/1905.11946.
 
     Parameters:
@@ -633,16 +633,16 @@ def efficientnet_b7(in_size=(600, 600), **kwargs):
     in_size : tuple of two ints, default (600, 600)
         Spatial size of the expected input image.
     pretrained : bool, default False
-        Whether to load the pretrained weights for model.
+        Whether to load the pretrained weights for models.
     root : str, default '~/.keras/models'
-        Location for keeping the model parameters.
+        Location for keeping the models parameters.
     """
     return get_efficientnet(version="b7", in_size=in_size, model_name="efficientnet_b7", **kwargs)
 
 
 def efficientnet_b0b(in_size=(224, 224), **kwargs):
     """
-    EfficientNet-B0-b (like TF-implementation) model from 'EfficientNet: Rethinking Model Scaling for Convolutional
+    EfficientNet-B0-b (like TF-implementation) models from 'EfficientNet: Rethinking Model Scaling for Convolutional
     Neural Networks,' https://arxiv.org/abs/1905.11946.
 
     Parameters:
@@ -650,9 +650,9 @@ def efficientnet_b0b(in_size=(224, 224), **kwargs):
     in_size : tuple of two ints, default (224, 224)
         Spatial size of the expected input image.
     pretrained : bool, default False
-        Whether to load the pretrained weights for model.
+        Whether to load the pretrained weights for models.
     root : str, default '~/.keras/models'
-        Location for keeping the model parameters.
+        Location for keeping the models parameters.
     """
     return get_efficientnet(version="b0", in_size=in_size, tf_mode=True, bn_epsilon=1e-3, model_name="efficientnet_b0b",
                             **kwargs)
@@ -660,7 +660,7 @@ def efficientnet_b0b(in_size=(224, 224), **kwargs):
 
 def efficientnet_b1b(in_size=(240, 240), **kwargs):
     """
-    EfficientNet-B1-b (like TF-implementation) model from 'EfficientNet: Rethinking Model Scaling for Convolutional
+    EfficientNet-B1-b (like TF-implementation) models from 'EfficientNet: Rethinking Model Scaling for Convolutional
     Neural Networks,' https://arxiv.org/abs/1905.11946.
 
     Parameters:
@@ -668,9 +668,9 @@ def efficientnet_b1b(in_size=(240, 240), **kwargs):
     in_size : tuple of two ints, default (240, 240)
         Spatial size of the expected input image.
     pretrained : bool, default False
-        Whether to load the pretrained weights for model.
+        Whether to load the pretrained weights for models.
     root : str, default '~/.keras/models'
-        Location for keeping the model parameters.
+        Location for keeping the models parameters.
     """
     return get_efficientnet(version="b1", in_size=in_size, tf_mode=True, bn_epsilon=1e-3, model_name="efficientnet_b1b",
                             **kwargs)
@@ -678,7 +678,7 @@ def efficientnet_b1b(in_size=(240, 240), **kwargs):
 
 def efficientnet_b2b(in_size=(260, 260), **kwargs):
     """
-    EfficientNet-B2-b (like TF-implementation) model from 'EfficientNet: Rethinking Model Scaling for Convolutional
+    EfficientNet-B2-b (like TF-implementation) models from 'EfficientNet: Rethinking Model Scaling for Convolutional
     Neural Networks,' https://arxiv.org/abs/1905.11946.
 
     Parameters:
@@ -686,9 +686,9 @@ def efficientnet_b2b(in_size=(260, 260), **kwargs):
     in_size : tuple of two ints, default (260, 260)
         Spatial size of the expected input image.
     pretrained : bool, default False
-        Whether to load the pretrained weights for model.
+        Whether to load the pretrained weights for models.
     root : str, default '~/.keras/models'
-        Location for keeping the model parameters.
+        Location for keeping the models parameters.
     """
     return get_efficientnet(version="b2", in_size=in_size, tf_mode=True, bn_epsilon=1e-3, model_name="efficientnet_b2b",
                             **kwargs)
@@ -696,7 +696,7 @@ def efficientnet_b2b(in_size=(260, 260), **kwargs):
 
 def efficientnet_b3b(in_size=(300, 300), **kwargs):
     """
-    EfficientNet-B3-b (like TF-implementation) model from 'EfficientNet: Rethinking Model Scaling for Convolutional
+    EfficientNet-B3-b (like TF-implementation) models from 'EfficientNet: Rethinking Model Scaling for Convolutional
     Neural Networks,' https://arxiv.org/abs/1905.11946.
 
     Parameters:
@@ -704,9 +704,9 @@ def efficientnet_b3b(in_size=(300, 300), **kwargs):
     in_size : tuple of two ints, default (300, 300)
         Spatial size of the expected input image.
     pretrained : bool, default False
-        Whether to load the pretrained weights for model.
+        Whether to load the pretrained weights for models.
     root : str, default '~/.keras/models'
-        Location for keeping the model parameters.
+        Location for keeping the models parameters.
     """
     return get_efficientnet(version="b3", in_size=in_size, tf_mode=True, bn_epsilon=1e-3, model_name="efficientnet_b3b",
                             **kwargs)
@@ -714,7 +714,7 @@ def efficientnet_b3b(in_size=(300, 300), **kwargs):
 
 def efficientnet_b4b(in_size=(380, 380), **kwargs):
     """
-    EfficientNet-B4-b (like TF-implementation) model from 'EfficientNet: Rethinking Model Scaling for Convolutional
+    EfficientNet-B4-b (like TF-implementation) models from 'EfficientNet: Rethinking Model Scaling for Convolutional
     Neural Networks,' https://arxiv.org/abs/1905.11946.
 
     Parameters:
@@ -722,9 +722,9 @@ def efficientnet_b4b(in_size=(380, 380), **kwargs):
     in_size : tuple of two ints, default (380, 380)
         Spatial size of the expected input image.
     pretrained : bool, default False
-        Whether to load the pretrained weights for model.
+        Whether to load the pretrained weights for models.
     root : str, default '~/.keras/models'
-        Location for keeping the model parameters.
+        Location for keeping the models parameters.
     """
     return get_efficientnet(version="b4", in_size=in_size, tf_mode=True, bn_epsilon=1e-3, model_name="efficientnet_b4b",
                             **kwargs)
@@ -732,7 +732,7 @@ def efficientnet_b4b(in_size=(380, 380), **kwargs):
 
 def efficientnet_b5b(in_size=(456, 456), **kwargs):
     """
-    EfficientNet-B5-b (like TF-implementation) model from 'EfficientNet: Rethinking Model Scaling for Convolutional
+    EfficientNet-B5-b (like TF-implementation) models from 'EfficientNet: Rethinking Model Scaling for Convolutional
     Neural Networks,' https://arxiv.org/abs/1905.11946.
 
     Parameters:
@@ -740,9 +740,9 @@ def efficientnet_b5b(in_size=(456, 456), **kwargs):
     in_size : tuple of two ints, default (456, 456)
         Spatial size of the expected input image.
     pretrained : bool, default False
-        Whether to load the pretrained weights for model.
+        Whether to load the pretrained weights for models.
     root : str, default '~/.keras/models'
-        Location for keeping the model parameters.
+        Location for keeping the models parameters.
     """
     return get_efficientnet(version="b5", in_size=in_size, tf_mode=True, bn_epsilon=1e-3, model_name="efficientnet_b5b",
                             **kwargs)
@@ -750,7 +750,7 @@ def efficientnet_b5b(in_size=(456, 456), **kwargs):
 
 def efficientnet_b6b(in_size=(528, 528), **kwargs):
     """
-    EfficientNet-B6-b (like TF-implementation) model from 'EfficientNet: Rethinking Model Scaling for Convolutional
+    EfficientNet-B6-b (like TF-implementation) models from 'EfficientNet: Rethinking Model Scaling for Convolutional
     Neural Networks,' https://arxiv.org/abs/1905.11946.
 
     Parameters:
@@ -758,9 +758,9 @@ def efficientnet_b6b(in_size=(528, 528), **kwargs):
     in_size : tuple of two ints, default (528, 528)
         Spatial size of the expected input image.
     pretrained : bool, default False
-        Whether to load the pretrained weights for model.
+        Whether to load the pretrained weights for models.
     root : str, default '~/.keras/models'
-        Location for keeping the model parameters.
+        Location for keeping the models parameters.
     """
     return get_efficientnet(version="b6", in_size=in_size, tf_mode=True, bn_epsilon=1e-3, model_name="efficientnet_b6b",
                             **kwargs)
@@ -768,7 +768,7 @@ def efficientnet_b6b(in_size=(528, 528), **kwargs):
 
 def efficientnet_b7b(in_size=(600, 600), **kwargs):
     """
-    EfficientNet-B7-b (like TF-implementation) model from 'EfficientNet: Rethinking Model Scaling for Convolutional
+    EfficientNet-B7-b (like TF-implementation) models from 'EfficientNet: Rethinking Model Scaling for Convolutional
     Neural Networks,' https://arxiv.org/abs/1905.11946.
 
     Parameters:
@@ -776,9 +776,9 @@ def efficientnet_b7b(in_size=(600, 600), **kwargs):
     in_size : tuple of two ints, default (600, 600)
         Spatial size of the expected input image.
     pretrained : bool, default False
-        Whether to load the pretrained weights for model.
+        Whether to load the pretrained weights for models.
     root : str, default '~/.keras/models'
-        Location for keeping the model parameters.
+        Location for keeping the models parameters.
     """
     return get_efficientnet(version="b7", in_size=in_size, tf_mode=True, bn_epsilon=1e-3, model_name="efficientnet_b7b",
                             **kwargs)

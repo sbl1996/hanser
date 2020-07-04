@@ -139,7 +139,7 @@ class Trainer:
         if save_per_epochs or resume:
             assert self.model_dir is not None, "`model_dir` should be provided."
 
-            model_ckpt, model_ckpt_manager = self._make_ckpt("model", model=self.model)
+            model_ckpt, model_ckpt_manager = self._make_ckpt("models", model=self.model)
             optim_ckpt, optim_ckpt_manager = self._make_ckpt("optim", optimizer=self.optimizer, epoch=self._epoch)
 
         if self.tpu is None:
@@ -163,7 +163,7 @@ class Trainer:
                     self._test_step, val_it.get_next()))
 
         with tf.Session(target=self._target, config=self._config) as sess:
-            # all_variables = self.model.variables + self.optimizer.variables()
+            # all_variables = self.models.variables + self.optimizer.variables()
             all_variables = tf.global_variables()
             for metric in self.metrics:
                 all_variables.extend(metric.variables)
@@ -193,14 +193,14 @@ class Trainer:
 
                 epoch = sess.run(epoch_inc_op)
                 if save_per_epochs and epoch % save_per_epochs == 0:
-                    print("Saved model: %s" % model_ckpt_manager.save(epoch))
+                    print("Saved models: %s" % model_ckpt_manager.save(epoch))
                     print("Saved optimizer: %s" % optim_ckpt_manager.save(epoch))
 
     def evaluate(self, ds_test, test_steps, get_sample_weight=None):
         self._get_sample_weight = get_sample_weight
 
         assert self.model_dir is not None, "`model_dir` should be provided."
-        model_ckpt, model_ckpt_manager = self._make_ckpt("model", model=self.model)
+        model_ckpt, model_ckpt_manager = self._make_ckpt("models", model=self.model)
 
         if self.tpu is None:
             test_it = ds_test.make_initializable_iterator()
@@ -231,7 +231,7 @@ class Trainer:
                   output_transform=lambda x: x, target_transform=lambda x: x, get_sample_weight=None):
 
         assert self.model_dir is not None, "`model_dir` should be provided."
-        model_ckpt, model_ckpt_manager = self._make_ckpt("model", model=self.model)
+        model_ckpt, model_ckpt_manager = self._make_ckpt("models", model=self.model)
 
         assert callable(metrics), "Define metrics as lambda: metrics."
         g_cpu = tf.Graph()
@@ -290,7 +290,7 @@ class Trainer:
     def collect(self, ds_test, test_steps, output_transform, target_transform):
 
         assert self.model_dir is not None, "`model_dir` should be provided."
-        model_ckpt, model_ckpt_manager = self._make_ckpt("model", model=self.model)
+        model_ckpt, model_ckpt_manager = self._make_ckpt("models", model=self.model)
 
         def predict_step(inputs, target):
             output = output_transform(self.model(inputs, training=False))

@@ -36,8 +36,8 @@ class MeanIoU(Metric):
     Usage with tf.keras API:
 
     ```python
-    model = tf.keras.Model(inputs, outputs)
-    model.compile(
+    models = tf.keras.Model(inputs, outputs)
+    models.compile(
       'sgd',
       loss='mse',
       metrics=[tf.keras.metrics.MeanIoU(num_classes=2)])

@@ -3,7 +3,7 @@ import tensorflow as tf
 from tensorflow.keras.layers import Layer, Conv2D, BatchNormalization, Dense, Conv2DTranspose, DepthwiseConv2D, \
     GlobalAvgPool2D, Flatten, ReLU, Activation, Multiply
 
-from hanser.model import get_default
+from hanser.models import get_default
 
 
 class PadChannel(Layer):

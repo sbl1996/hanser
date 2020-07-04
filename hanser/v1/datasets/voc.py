@@ -264,7 +264,7 @@ def get_voc_palette():
 
 #
 # class VOCSegmentation(object):
-#     """Represents input dataset for deeplab model."""
+#     """Represents input dataset for deeplab models."""
 #
 #     def __init__(self,
 #                  dataset_name,
@@ -300,7 +300,7 @@ def get_voc_palette():
 #         factor. The input is randomly scaled based on the value of
 #         (min_scale_factor, max_scale_factor, scale_factor_step_size).
 #       model_variant: Model variant (string) for choosing how to mean-subtract
-#         the images. See feature_extractor.network_map for supported model
+#         the images. See feature_extractor.network_map for supported models
 #         variants.
 #       num_readers: Number of readers for data provider.
 #       is_training: Boolean, if dataset is for training or not.
@@ -321,7 +321,7 @@ def get_voc_palette():
 #
 #         if model_variant is None:
 #             tf.logging.warning('Please specify a model_variant. See '
-#                                'feature_extractor.network_map for supported model '
+#                                'feature_extractor.network_map for supported models '
 #                                'variants.')
 #
 #         self.split_name = split_name
