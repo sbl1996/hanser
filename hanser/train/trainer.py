@@ -1,7 +1,10 @@
 import tensorflow as tf
 from tensorflow.python.distribute.input_lib import DistributedDataset
-
+import tensorflow.keras.mixed_precision.experimental as mixed_precision
 import time
+
+from tensorflow.python.distribute.tpu_strategy import TPUStrategy
+
 from hanser.io import time_now
 from hanser.tpu import local_results
 
@@ -39,21 +42,22 @@ def maybe_cat(x):
 
 class Trainer:
 
-    def __init__(self, model, criterion, optimizer, metrics=(), test_metrics=(), model_dir=None,
-                 strategy=None, bfloat16=False):
+    def __init__(self, model, criterion, optimizer, metrics=(), test_metrics=(), model_dir=None):
         self.model = model
         self.criterion = criterion
         self.optimizer = optimizer
         self.metrics = metrics
         self.test_metrics = test_metrics
         self.model_dir = model_dir
+
+        strategy = tf.distribute.get_strategy()
+        if not isinstance(strategy, TPUStrategy):
+            strategy = None
         self.strategy = strategy
         if strategy and model_dir:
             assert model_dir.startswith('gs'), "Use gs://... as `model_dir` on tpu mode"
 
-        self.bfloat16 = bfloat16
-        # if self.bfloat16:
-        #     assert isinstance(optimizer, tf.keras.mixed_precision.experimental.LossScaleOptimizer)
+        self.bfloat16 = mixed_precision.global_policy().compute_dtype == 'bfloat16'
 
         self._epoch = tf.Variable(0, trainable=False)
 
