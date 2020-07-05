@@ -87,8 +87,8 @@ class rSoftMax(Layer):
         self.radix = radix
         self.cardinality = cardinality
         self.input_spec = InputSpec(ndim=4)
-        # if self.radix > 1:
-        #     self.softmax = Softmax(axis=1, dtype='float32')
+        if self.radix > 1:
+            self.softmax = Softmax(axis=1, dtype='float32')
 
     def compute_output_shape(self, input_shape):
         return tf.TensorShape(input_shape)
@@ -100,12 +100,12 @@ class rSoftMax(Layer):
             ic = c // self.cardinality // self.radix
             x = tf.reshape(x, [b, self.cardinality, self.radix, ic])
             x = tf.transpose(x, [0, 2, 1, 3])
-            # xs = self.softmax(x)
-            # if xs.dtype != x.dtype:
-            #     x = tf.cast(xs, x.dtype)
-            # else:
-            #     x = xs
-            x = tf.nn.softmax(x, axis=1)
+            xs = self.softmax(x)
+            if xs.dtype != x.dtype:
+                x = tf.cast(xs, x.dtype)
+            else:
+                x = xs
+            # x = tf.nn.softmax(x, axis=1)
             x = tf.reshape(x, [b, 1, 1, c])
         else:
             x = tf.sigmoid(x)
@@ -144,7 +144,7 @@ class SplAtConv2d(Layer):
             GlobalAvgPool(keep_dim=True, name=name + "/attn/pool"),
             Conv2d(channels, inter_channels, 1, groups=groups, bn=True, act='default', name=name + "/attn/fc1"),
             Conv2d(inter_channels, channels*radix, 1, groups=groups, name=name + "/attn/fc2"),
-            rSoftMax(radix, groups, name=name + "/attn/rsoftmax", dtype='float32'),
+            rSoftMax(radix, groups, name=name + "/attn/rsoftmax"),
         ], name=name + "/attn")
 
     def call(self, x):
