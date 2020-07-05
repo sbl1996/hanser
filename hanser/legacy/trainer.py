@@ -1,25 +1,21 @@
 import tensorflow as tf
+
 from tensorflow.python.distribute.input_lib import DistributedDataset
 
 import time
-from hanser.io import time_now
+
 from hanser.tpu import local_results
 
 
-def join_metric_logs(results, delim=" - "):
-    logs = []
-    for k, v in results:
-        logs.append("%s: %.4f" % (k, v))
-    return delim.join(logs)
+def print_results(prefix, elapsed, results):
+    s = "%s \tcost: %ds" % (prefix, elapsed)
+    for name, val in results:
+        s = s + ", %s: %.3f" % (name, val)
+    print(s)
 
 
-def print_results(stage, steps, results):
-    print("%s %s %d/%d - %s" % (
-        time_now(), stage, steps, steps, join_metric_logs(results, delim=" - ")))
-
-
-def run_epoch(step_fn, iterator, steps, metrics, stage="Train"):
-    # start = time.time()
+def run_epoch(step_fn, iterator, steps, metrics, name="Train"):
+    start = time.time()
     for m in metrics:
         m.reset_states()
     for step in range(steps):
@@ -27,8 +23,8 @@ def run_epoch(step_fn, iterator, steps, metrics, stage="Train"):
     metric_results = []
     for m in metrics:
         metric_results.append((m.name, m.result().numpy()))
-    # elapsed = time.time() - start
-    print_results(stage, steps, metric_results)
+    elapsed = time.time() - start
+    print_results(name, elapsed, metric_results)
 
 
 def maybe_cat(x):
@@ -37,10 +33,17 @@ def maybe_cat(x):
     return x
 
 
+def maybe_call(fn, *args, default=None):
+    if fn is None:
+        return default
+    else:
+        return fn(*args)
+
+
 class Trainer:
 
     def __init__(self, model, criterion, optimizer, metrics=(), test_metrics=(), model_dir=None,
-                 strategy=None, bfloat16=False):
+                 strategy=None, weight_decay=None, bfloat16=False):
         self.model = model
         self.criterion = criterion
         self.optimizer = optimizer
@@ -54,10 +57,10 @@ class Trainer:
         self.bfloat16 = bfloat16
         # if self.bfloat16:
         #     assert isinstance(optimizer, tf.keras.mixed_precision.experimental.LossScaleOptimizer)
+        self.weight_decay = weight_decay
+        self._get_sample_weight = None
 
         self._epoch = tf.Variable(0, trainable=False)
-
-        self._use_weight_decay = len(model.losses) != 0
 
     def _maybe_cat(self, values):
         if self.strategy:
@@ -72,75 +75,86 @@ class Trainer:
 
     @tf.function
     def _train_step(self, iterator):
-
-        def step_fn(data):
-            images, labels = data
+        def step_fn(images, labels):
             with tf.GradientTape() as tape:
                 preds = self.model(images, training=True)
                 if self.bfloat16:
                     preds = tf.cast(preds, tf.float32)
-                per_example_loss = self.criterion(labels, preds)
-                loss = tf.reduce_mean(per_example_loss)
-                if self._use_weight_decay:
-                    loss = loss + tf.add_n(self.model.losses)
+                loss1 = self.criterion(labels, preds)
+                if loss1.shape.ndims != 0:
+                    loss1 = tf.reduce_mean(loss1)
+                if self.weight_decay:
+                    loss2 = self.weight_decay * tf.add_n([
+                        tf.nn.l2_loss(v)
+                        for v in self.model.trainable_variables
+                        if 'batch_normalization' not in v.name
+                    ])
+                    loss = loss1 + loss2
+                else:
+                    loss = loss1
                 if self.strategy:
                     loss = loss / self.strategy.num_replicas_in_sync
+                # if self.bfloat16:
+                #     scaled_loss = self.optimizer.get_scaled_loss(loss)
+            # if self.bfloat16:
+            #     scaled_gradients = tape.gradient(scaled_loss, self.models.trainable_variables)
+            #     grads = self.optimizer.get_unscaled_gradients(scaled_gradients)
+            # else:
             grads = tape.gradient(loss, self.model.trainable_variables)
             self.optimizer.apply_gradients(
                 zip(grads, self.model.trainable_variables))
 
             for metric in self.metrics:
                 if 'loss' in metric.name:
-                    metric.update_state(per_example_loss)
+                    metric.update_state(loss1)
                 else:
-                    metric.update_state(labels, preds, None)
+                    sample_weight = maybe_call(self._get_sample_weight, labels, preds)
+                    metric.update_state(labels, preds, sample_weight)
 
         if self.strategy:
-            self.strategy.run(step_fn, args=(next(iterator),))
+            self.strategy.run(step_fn, args=next(iterator))
         else:
-            step_fn(next(iterator))
+            step_fn(*next(iterator))
 
     @tf.function
     def _test_step(self, iterator):
-
-        def step_fn(data):
-            images, labels = data
+        def step_fn(images, labels):
             preds = self.model(images, training=False)
             if self.bfloat16:
                 preds = tf.cast(preds, tf.float32)
-            per_example_loss = self.criterion(labels, preds)
-            loss = tf.reduce_mean(per_example_loss)
-            if self.strategy:
-                loss = loss / self.strategy.num_replicas_in_sync
+            loss = self.criterion(labels, preds)
+            if loss.shape.ndims != 0:
+                loss = tf.reduce_mean(loss)
 
             for metric in self.test_metrics:
                 if 'loss' in metric.name:
-                    metric.update_state(per_example_loss)
+                    metric.update_state(loss)
                 else:
-                    metric.update_state(labels, preds, None)
+                    sample_weight = maybe_call(self._get_sample_weight, labels, preds)
+                    metric.update_state(labels, preds, sample_weight)
 
         if self.strategy:
-            self.strategy.run(step_fn, args=(next(iterator),))
+            self.strategy.run(step_fn, args=next(iterator))
         else:
-            step_fn(next(iterator))
+            step_fn(*next(iterator))
 
     def _get_predict_step(self, debug=False):
 
         @tf.function
         def predict_step(iterator):
-
-            def step_fn(data):
-                inputs, target = data
+            def step_fn(inputs, target):
                 output = self.model(inputs, training=debug)
                 if self.bfloat16:
                     output = tf.cast(output, tf.float32)
+                # output = output_transform(output)
+                # target = target_transform(target)
                 return target, output
 
             if self.strategy:
                 return local_results(
-                    self.strategy, self.strategy.run(step_fn, args=(next(iterator),)))
+                    self.strategy, self.strategy.run(step_fn, args=next(iterator)))
             else:
-                return step_fn(next(iterator))
+                return step_fn(*next(iterator))
 
         return predict_step
 
@@ -167,10 +181,12 @@ class Trainer:
         self.restore(optim_ckpt, optim_ckpt_manager)
 
     def fit(self, epochs, ds_train, steps_per_epoch,
-            ds_val, val_steps, val_freq=1, save_per_epochs=None,
+            ds_val, val_steps, val_freq=1,
+            save_per_epochs=None, get_sample_weight=None,
             extra_metrics=(), extra_eval_freq=1,
             target_transform=tf.identity, output_transform=tf.identity,
             debug=False):
+        self._get_sample_weight = get_sample_weight
 
         if self.strategy:
             assert isinstance(ds_train, DistributedDataset)
@@ -202,7 +218,7 @@ class Trainer:
             epoch = self._epoch.assign_add(1).numpy()
 
             if epoch % val_freq == 0:
-                run_epoch(self._test_step, val_it, val_steps, self.test_metrics, "Valid")
+                run_epoch(self._test_step, val_it, val_steps, self.test_metrics, "Val")
 
             if extra_metrics and epoch % extra_eval_freq == 0:
                 start = time.time()
@@ -212,11 +228,12 @@ class Trainer:
                     target = self._maybe_cat(target)
                     output = self._maybe_cat(output)
 
+                    weight = maybe_call(get_sample_weight, target, output)
                     output = output_transform(output)
                     target = target_transform(target)
 
                     for m in extra_metrics:
-                        m.update_state(target, output, None)
+                        m.update_state(target, output, weight)
                 metric_results = []
                 for m in extra_metrics:
                     metric_results.append((m.name, m.result().numpy()))
@@ -228,7 +245,8 @@ class Trainer:
                 print("Saved models: %s" % model_ckpt_manager.save(epoch))
                 print("Saved optimizer: %s" % optim_ckpt_manager.save(epoch))
 
-    def evaluate(self, ds_test, test_steps):
+    def evaluate(self, ds_test, test_steps, get_sample_weight=None):
+        self._get_sample_weight = get_sample_weight
 
         if self.strategy:
             assert isinstance(ds_test, DistributedDataset)
@@ -237,7 +255,7 @@ class Trainer:
         run_epoch(self._test_step, test_it, test_steps, self.test_metrics, "Test")
 
     def evaluate2(self, ds_test, test_steps, metrics,
-                  output_transform=tf.identity, target_transform=tf.identity, debug=False):
+                  output_transform=tf.identity, target_transform=tf.identity, get_sample_weight=None, debug=False):
 
         if self.strategy:
             assert isinstance(ds_test, DistributedDataset)
@@ -252,11 +270,12 @@ class Trainer:
             target = self._maybe_cat(target)
             output = self._maybe_cat(output)
 
+            weight = maybe_call(get_sample_weight, target, output)
             output = output_transform(output)
             target = target_transform(target)
 
             for m in metrics:
-                m.update_state(target, output, None)
+                m.update_state(target, output, weight)
         results = {m.name: m.result().numpy() for m in metrics}
         return results
 

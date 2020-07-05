@@ -178,3 +178,4 @@ def Linear(in_channels, out_channels, act=None, name=None):
                  kernel_regularizer=get_weight_decay(),
                  bias_regularizer=get_weight_decay(),
                  name=name)
+

@@ -2,6 +2,7 @@ import os
 import json
 from pathlib import Path
 from typing import Callable, Any
+from datetime import datetime, timedelta
 
 
 def read_lines(fp):
@@ -44,9 +45,14 @@ def apply_dir(dir: Path, f: Callable[[Path], Any], suffix=None, recursive=True) 
                 f(fp)
 
 
-
 def rename(fp: Path, new_name: str, stem=True):
     if stem:
         fp.rename(fp.parent / (new_name + fp.suffix))
     else:
         fp.rename(fp.parent / new_name)
+
+
+def time_now():
+    now = datetime.utcnow() + timedelta(hours=8)
+    now = now.strftime("%H:%M:%S")
+    return now

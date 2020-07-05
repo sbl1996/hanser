@@ -4,20 +4,21 @@ import tensorflow as tf
 
 from tensorflow.keras.optimizers.schedules import LearningRateSchedule
 
+
 class CosineDecayRestarts(LearningRateSchedule):
     """A LearningRateSchedule that uses a cosine decay schedule with restarts."""
 
     def __init__(
-            self,
-            initial_learning_rate,
-            t_0,
-            t_mul=2.0,
-            m_mul=1.0,
-            alpha=0.0,
-            warmup=0,
-            warmup_alpha=0,
-            steps_per_epoch=None,
-            name=None):
+        self,
+        initial_learning_rate,
+        t_0,
+        t_mul=2.0,
+        m_mul=1.0,
+        alpha=0.0,
+        warmup=0,
+        warmup_alpha=0,
+        steps_per_epoch=None,
+        name=None):
         """Applies cosine decay with restarts to the learning rate.
 
         See [Loshchilov & Hutter, ICLR2016], SGDR: Stochastic Gradient Descent
@@ -114,8 +115,8 @@ class CosineDecayRestarts(LearningRateSchedule):
                             tf.math.log(1.0 - completed_fraction * (1.0 - t_mul)) /
                             tf.math.log(t_mul))
 
-                        sum_r = (1.0 - t_mul**i_restart) / (1.0 - t_mul)
-                        completed_fraction = (completed_fraction - sum_r) / t_mul**i_restart
+                        sum_r = (1.0 - t_mul ** i_restart) / (1.0 - t_mul)
+                        completed_fraction = (completed_fraction - sum_r) / t_mul ** i_restart
 
                     else:
                         i_restart = tf.floor(completed_fraction)
@@ -158,18 +159,17 @@ class CosineDecayRestarts(LearningRateSchedule):
         }
 
 
-
 class CosineLR(LearningRateSchedule):
 
-    def __init__(self,
-            learning_rate,
-            steps_per_epoch,
-            epochs,
-            min_lr,
-            warmup_min_lr,
-            warmup_epoch,
-            name=None):
-
+    def __init__(
+        self,
+        learning_rate,
+        steps_per_epoch,
+        epochs,
+        min_lr,
+        warmup_min_lr,
+        warmup_epoch,
+    ):
         super().__init__()
 
         self.base_lr = learning_rate
@@ -178,79 +178,45 @@ class CosineLR(LearningRateSchedule):
         self.min_lr = min_lr
         self.warmup_min_lr = warmup_min_lr
         self.warmup_epoch = warmup_epoch
-        self.name = name
 
-        self.first_decay_steps = t_0
-        self.warmup_steps = warmup
-        if steps_per_epoch:
-            self.first_decay_steps *= steps_per_epoch
-            self.warmup_steps *= steps_per_epoch
+        self.total_steps = epochs * steps_per_epoch
+        self.warmup_steps = warmup_epoch * steps_per_epoch
 
     def __call__(self, step):
-        initial_learning_rate = tf.convert_to_tensor(
-            self.initial_learning_rate, name="initial_learning_rate")
-        dtype = initial_learning_rate.dtype
-        first_decay_steps = tf.cast(self.first_decay_steps, dtype)
-        alpha = tf.cast(self.alpha, dtype)
-        t_mul = tf.cast(self.min_lr, dtype)
-        m_mul = tf.cast(self._m_mul, dtype)
+        base_lr = tf.convert_to_tensor(self.base_lr, name="base_lr")
+        warmup_min_lr = tf.convert_to_tensor(self.warmup_min_lr, name="warmup_min_lr")
+
+        dtype = base_lr.dtype
+        total_steps = tf.cast(self.total_steps, dtype)
+        min_lr = tf.cast(self.min_lr, dtype)
+        warmup_min_lr = tf.cast(self.warmup_min_lr, dtype)
         warmup_steps = tf.cast(self.warmup_steps, dtype)
-        warmup_alpha = tf.cast(self.warmup_alpha, dtype)
 
         def warmup(step):
-            completed_fraction = step / warmup_steps
-            decayed = (1 - warmup_alpha) * completed_fraction + warmup_alpha
-            return decayed
+            return warmup_min_lr + (base_lr - warmup_min_lr) * step / warmup_steps
 
         def cosine_decay(step):
-            completed_fraction = step / first_decay_steps
-
-            def compute_step(completed_fraction, geometric=False):
-                """Helper for `cond` operation."""
-                if geometric:
-                    i_restart = tf.floor(
-                        tf.math.log(1.0 - completed_fraction * (1.0 - t_mul)) /
-                        tf.math.log(t_mul))
-
-                    sum_r = (1.0 - t_mul**i_restart) / (1.0 - t_mul)
-                    completed_fraction = (completed_fraction - sum_r) / t_mul**i_restart
-
-                else:
-                    i_restart = tf.floor(completed_fraction)
-                    completed_fraction -= i_restart
-
-                return i_restart, completed_fraction
-
-            i_restart, completed_fraction = tf.cond(
-                tf.equal(t_mul, 1.0),
-                lambda: compute_step(completed_fraction, geometric=False),
-                lambda: compute_step(completed_fraction, geometric=True))
-
-            m_fac = m_mul ** i_restart
-            cosine_decayed = 0.5 * m_fac * (1.0 + tf.cos(
-                tf.constant(math.pi) * completed_fraction))
-            decayed = (1 - alpha) * cosine_decayed + alpha
-            return decayed
+            frac = (step - warmup_steps) / (total_steps - warmup_steps)
+            mult = (tf.cos(frac * tf.constant(math.pi)) + 1) / 2
+            return min_lr + (base_lr - min_lr) * mult
 
         global_step_recomp = tf.cast(step, dtype)
-        decayed = tf.cond(
+        decayed_lr = tf.cond(
             tf.less(global_step_recomp, warmup_steps),
             lambda: warmup(global_step_recomp),
-            lambda: cosine_decay(global_step_recomp - warmup_steps),
+            lambda: cosine_decay(global_step_recomp),
         )
-        return tf.multiply(initial_learning_rate, decayed, name=name)
+        return decayed_lr
 
     def get_config(self):
         return {
-            "initial_learning_rate": self.initial_learning_rate,
-            "t_0": self.t_0,
-            "t_mul": self._t_mul,
-            "m_mul": self._m_mul,
-            "alpha": self.alpha,
-            "warmup": self.warmup,
-            "warmup_alpha": self.warmup_alpha,
+            "base_lr": self.base_lr,
             "steps_per_epoch": self.steps_per_epoch,
-            "name": self.name,
-            "first_decay_steps": self.first_decay_steps,
+            "epochs": self.epochs,
+            "min_lr": self.min_lr,
+            "alpha": self.alpha,
+            "warmup_min_lr": self.warmup_min_lr,
+            "warmup_epoch": self.warmup_epoch,
+            "total_steps": self.total_steps,
             "warmup_steps": self.warmup_steps,
         }

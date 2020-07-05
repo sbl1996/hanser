@@ -3,8 +3,6 @@ import os
 import tensorflow as tf
 from tensorflow.python.distribute.values import PerReplica
 
-from hanser.tpu.bn import TPUBatchNormalization
-
 
 def get_colab_tpu():
     tpu_address = os.environ.get("COLAB_TPU_ADDR")
