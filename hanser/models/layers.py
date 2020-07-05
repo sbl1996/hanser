@@ -108,7 +108,7 @@ def BN(channels, affine=None, zero_init=False, name=None):
     if cfg['sync']:
         bn = tf.keras.layers.experimental.SyncBatchNormalization(
             momentum=cfg['momentum'], epsilon=cfg['eps'], gamma_initializer=gamma_initializer,
-            gamma_regularizer=gamma_regularizer, beta_regularizer=beta_regularizer, fused=cfg['fused'],
+            gamma_regularizer=gamma_regularizer, beta_regularizer=beta_regularizer,
             trainable=affine or cfg['affine'], name=name)
     else:
         bn = BatchNormalization(
