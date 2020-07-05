@@ -78,12 +78,12 @@ class Trainer:
     def _train_step(self, iterator):
 
         def step_fn(data):
-            images, labels = data
+            inputs, target = data
             with tf.GradientTape() as tape:
-                preds = self.model(images, training=True)
+                preds = self.model(inputs, training=True)
                 if self.bfloat16:
                     preds = tf.cast(preds, tf.float32)
-                per_example_loss = self.criterion(labels, preds)
+                per_example_loss = self.criterion(target, preds)
                 loss = tf.reduce_mean(per_example_loss)
                 if self._use_weight_decay:
                     loss = loss + tf.add_n(self.model.losses)
@@ -97,7 +97,7 @@ class Trainer:
                 if 'loss' in metric.name:
                     metric.update_state(per_example_loss)
                 else:
-                    metric.update_state(labels, preds, None)
+                    metric.update_state(target, preds, None)
 
         if self.strategy:
             self.strategy.run(step_fn, args=(next(iterator),))
@@ -108,20 +108,17 @@ class Trainer:
     def _test_step(self, iterator):
 
         def step_fn(data):
-            images, labels = data
-            preds = self.model(images, training=False)
+            inputs, target = data
+            preds = self.model(inputs, training=False)
             if self.bfloat16:
                 preds = tf.cast(preds, tf.float32)
-            per_example_loss = self.criterion(labels, preds)
-            loss = tf.reduce_mean(per_example_loss)
-            if self.strategy:
-                loss = loss / self.strategy.num_replicas_in_sync
+            per_example_loss = self.criterion(target, preds)
 
             for metric in self.test_metrics:
                 if 'loss' in metric.name:
                     metric.update_state(per_example_loss)
                 else:
-                    metric.update_state(labels, preds, None)
+                    metric.update_state(target, preds, None)
 
         if self.strategy:
             self.strategy.run(step_fn, args=(next(iterator),))

@@ -189,7 +189,6 @@ class CosineLR(LearningRateSchedule):
         dtype = base_lr.dtype
         total_steps = tf.cast(self.total_steps, dtype)
         min_lr = tf.cast(self.min_lr, dtype)
-        warmup_min_lr = tf.cast(self.warmup_min_lr, dtype)
         warmup_steps = tf.cast(self.warmup_steps, dtype)
 
         def warmup(step):

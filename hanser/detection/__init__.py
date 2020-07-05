@@ -170,10 +170,10 @@ def smooth_l1_loss(labels, preds, weights, delta=1.0):
 
 
 @curry
-def detection_loss(labels, preds, cls_loss='focal', neg_pos_ratio=3, alpha=0.25, gamma=2.0, tpu=False):
-    loc_t = labels['loc_t']
-    cls_t = labels['cls_t']
-    n_pos = labels['n_pos']
+def detection_loss(target, preds, cls_loss='focal', neg_pos_ratio=3, alpha=0.25, gamma=2.0, tpu=False):
+    loc_t = target['loc_t']
+    cls_t = target['cls_t']
+    n_pos = target['n_pos']
 
     loc_p = preds['loc_p']
     cls_p = preds['cls_p']

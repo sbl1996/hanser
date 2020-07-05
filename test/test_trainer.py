@@ -76,7 +76,7 @@ criterion = SparseCategoricalCrossentropy(from_logits=True, reduction='none')
 base_lr = 0.1
 lr_shcedule = CosineLR(base_lr * mul, steps_per_epoch, epochs=200,
                        min_lr=1e-5, warmup_min_lr=base_lr, warmup_epoch=5)
-optimizer = SGD(base_lr * mul, momentum=0.9, nesterov=True)
+optimizer = SGD(lr_shcedule, momentum=0.9, nesterov=True)
 
 metrics = [
     Mean(name='loss'), SparseCategoricalAccuracy(name='acc')]
