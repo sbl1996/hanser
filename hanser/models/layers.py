@@ -17,6 +17,7 @@ DEFAULTS = {
         'eps': 1e-5,
         'affine': True,
         'fused': True,
+        'sync': False,
     },
     'activation': 'relu',
     'fp16': False,
@@ -104,10 +105,16 @@ def BN(channels, affine=None, zero_init=False, name=None):
     else:
         gamma_regularizer = get_weight_decay()
         beta_regularizer = get_weight_decay()
-    bn = BatchNormalization(
-        momentum=cfg['momentum'], epsilon=cfg['eps'], gamma_initializer=gamma_initializer,
-        gamma_regularizer=gamma_regularizer, beta_regularizer=beta_regularizer, fused=cfg['fused'],
-        trainable=affine or cfg['affine'], name=name)
+    if cfg['sync']:
+        bn = tf.keras.layers.experimental.SyncBatchNormalization(
+            momentum=cfg['momentum'], epsilon=cfg['eps'], gamma_initializer=gamma_initializer,
+            gamma_regularizer=gamma_regularizer, beta_regularizer=beta_regularizer, fused=cfg['fused'],
+            trainable=affine or cfg['affine'], name=name)
+    else:
+        bn = BatchNormalization(
+            momentum=cfg['momentum'], epsilon=cfg['eps'], gamma_initializer=gamma_initializer,
+            gamma_regularizer=gamma_regularizer, beta_regularizer=beta_regularizer, fused=cfg['fused'],
+            trainable=affine or cfg['affine'], name=name)
     return bn
 
 
