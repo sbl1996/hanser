@@ -1,9 +1,11 @@
+import time
+
 import tensorflow as tf
 from tensorflow.python.distribute.input_lib import DistributedDataset
 import tensorflow.keras.mixed_precision.experimental as mixed_precision
-import time
 
 from tensorflow.python.distribute.tpu_strategy import TPUStrategy
+from tensorflow.python.keras.callbacks import CallbackList
 
 from hanser.io import time_now
 from hanser.tpu import local_results
@@ -171,7 +173,9 @@ class Trainer:
             ds_val, val_steps, val_freq=1, save_per_epochs=None,
             extra_metrics=(), extra_eval_freq=1,
             target_transform=tf.identity, output_transform=tf.identity,
-            debug=False):
+            debug=False, callbacks=None):
+
+        callbacks = CallbackList(callbacks, model=self.model)
 
         if self.strategy:
             assert isinstance(ds_train, DistributedDataset)
@@ -195,10 +199,13 @@ class Trainer:
             assert extra_eval_freq
             predict_step = self._get_predict_step(debug)
 
+        callbacks.on_train_begin()
         while epoch < max_epochs:
             print('Epoch %s' % (epoch + 1))
 
+            callbacks.on_epoch_begin(epoch)
             run_epoch(self._train_step, train_it, steps_per_epoch, self.metrics, "Train")
+            callbacks.on_epoch_end(epoch)
 
             epoch = self._epoch.assign_add(1).numpy()
 
@@ -228,6 +235,7 @@ class Trainer:
             if save_per_epochs and epoch % save_per_epochs == 0:
                 print("Saved models: %s" % model_ckpt_manager.save(epoch))
                 print("Saved optimizer: %s" % optim_ckpt_manager.save(epoch))
+        callbacks.on_train_end()
 
     def evaluate(self, ds_test, test_steps):
 

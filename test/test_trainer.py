@@ -9,6 +9,7 @@ import tensorflow_datasets as tfds
 from tensorflow.keras.optimizers import SGD
 from tensorflow.keras.losses import SparseCategoricalCrossentropy
 from tensorflow.keras.metrics import SparseCategoricalAccuracy, Mean
+from tensorflow.keras.callbacks import Callback
 
 # from hanser.models.cifar.pyramidnest import PyramidNeSt
 from hanser.models.functional.cifar.pyramidnet import PyramidNet
@@ -67,7 +68,8 @@ ds_train = prepare(ds, preprocess(training=True), batch_size, training=True, buf
 ds_test = prepare(ds_test, preprocess(training=False), eval_batch_size, training=False)
 
 input_shape = (32, 32, 3)
-model = PyramidNet(input_shape, 4, 12, 20, 1, True, 0.2, 10)
+drop_path = 1.0
+model = PyramidNet(input_shape, 4, 12, 20, 1, True, drop_path, 10)
 # input_shape = (None, 32, 32, 3)
 # model = PyramidNeSt(4, 12, 20, 1, 1, 0.2, 10)
 # model.build(input_shape)
@@ -77,8 +79,9 @@ model = PyramidNet(input_shape, 4, 12, 20, 1, True, 0.2, 10)
 
 criterion = SparseCategoricalCrossentropy(from_logits=True, reduction='none')
 
-base_lr = 0.1
-lr_shcedule = CosineLR(base_lr * mul, steps_per_epoch, epochs=200,
+base_lr = 0.01
+epochs = 20
+lr_shcedule = CosineLR(base_lr * mul, steps_per_epoch, epochs=epochs,
                        min_lr=1e-5, warmup_min_lr=base_lr, warmup_epoch=5)
 optimizer = SGD(lr_shcedule, momentum=0.9, nesterov=True)
 
@@ -89,4 +92,14 @@ test_metrics = [
 
 trainer = Trainer(model, criterion, optimizer, metrics, test_metrics)
 
-trainer.fit(200, ds_train, steps_per_epoch, ds_test, test_steps)
+
+class DropRateDecay(Callback):
+
+    def on_epoch_begin(self, epoch, logs=None):
+        rate = (epoch + 1) / epochs * drop_path
+        for l in model.layers:
+            if 'drop' in l.name:
+                l.rate = rate
+        print(rate)
+
+trainer.fit(epochs, ds_train, steps_per_epoch, ds_test, test_steps, callbacks=[DropRateDecay()])
