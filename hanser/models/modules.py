@@ -47,7 +47,8 @@ class Dropout(Layer):
 
     def __init__(self, rate, noise_shape=None, seed=None, **kwargs):
         super(Dropout, self).__init__(**kwargs)
-        self.rate = tf.Variable(rate)
+        # self.rate = tf.Variable(rate, dtype=dtype)
+        self.rate = rate
         self.noise_shape = noise_shape
         self.seed = seed
         self.supports_masking = True

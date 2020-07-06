@@ -103,6 +103,7 @@ class DropRateDecay(Callback):
         rate = (epoch + 1) / epochs * drop_path
         for l in model.layers:
             if 'drop' in l.name:
-                K.set_value(l.rate, rate)
+                # K.set_value(l.rate, rate)
+                l.rate = rate
 
 trainer.fit(epochs, ds_train, steps_per_epoch, ds_test, test_steps, callbacks=[DropRateDecay()])
