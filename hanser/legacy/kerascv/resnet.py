@@ -11,7 +11,7 @@ __all__ = ['resnet', 'resnet10', 'resnet12', 'resnet14', 'resnetbc14b', 'resnet1
 import os
 from tensorflow.keras import layers
 from tensorflow.keras.models import Model
-from hanser.kerascv.common import conv1x1_block, conv3x3_block, conv7x7_block, maxpool2d, is_channels_first
+from hanser.legacy.kerascv.common import conv1x1_block, conv3x3_block, conv7x7_block, maxpool2d, is_channels_first
 
 
 def res_block(x,
@@ -356,7 +356,7 @@ def get_resnet(blocks,
     if pretrained:
         if (model_name is None) or (not model_name):
             raise ValueError("Parameter `model_name` should be properly initialized for loading pretrained models.")
-        from hanser.kerascv.model_store import download_model
+        from hanser.legacy.kerascv import download_model
         download_model(
             net=net,
             model_name=model_name,

@@ -14,7 +14,7 @@ import math
 import tensorflow.keras.backend as K
 from tensorflow.keras.layers import ZeroPadding2D, Add, Input, Dropout, GlobalAvgPool2D, Dense
 from tensorflow.keras.models import Model
-from hanser.kerascv.common import round_channels, is_channels_first, conv1x1_block, conv3x3_block, dwconv3x3_block, dwconv5x5_block,\
+from hanser.legacy.kerascv.common import round_channels, is_channels_first, conv1x1_block, conv3x3_block, dwconv3x3_block, dwconv5x5_block,\
     se_block
 
 

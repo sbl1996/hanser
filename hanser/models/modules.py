@@ -47,7 +47,7 @@ class Dropout(Layer):
 
     def __init__(self, rate, noise_shape=None, seed=None, **kwargs):
         super(Dropout, self).__init__(**kwargs)
-        self.rate = rate
+        self.rate = tf.Variable(rate)
         self.noise_shape = noise_shape
         self.seed = seed
         self.supports_masking = True
@@ -75,10 +75,10 @@ class Dropout(Layer):
                 noise_shape=self._get_noise_shape(inputs),
                 seed=self.seed,
                 rate=self.rate)
-        print(training)
+
         output = smart_cond(training,
-                         dropped_inputs,
-                         lambda: tf.identity(inputs))
+                            dropped_inputs,
+                            lambda: tf.identity(inputs))
         return output
 
     def compute_output_shape(self, input_shape):

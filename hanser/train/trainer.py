@@ -57,7 +57,7 @@ class Trainer:
             strategy = None
         self.strategy = strategy
         if strategy and model_dir:
-            assert model_dir.startswith('gs'), "Use gs://... as `model_dir` on tpu mode"
+            assert model_dir.startswith('gs'), "Use gs://... as `model_dir` on TPU"
 
         self.bfloat16 = mixed_precision.global_policy().compute_dtype == 'bfloat16'
 
@@ -201,7 +201,7 @@ class Trainer:
 
         callbacks.on_train_begin()
         while epoch < max_epochs:
-            print('Epoch %s' % (epoch + 1))
+            print('Epoch %d/%d' % (epoch + 1, epochs))
 
             callbacks.on_epoch_begin(epoch)
             run_epoch(self._train_step, train_it, steps_per_epoch, self.metrics, "Train")

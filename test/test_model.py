@@ -14,7 +14,7 @@ from hanser.models.cifar.pyramidnest import PyramidNeSt
 from hanser.datasets import prepare
 from hanser.transform import random_crop, cutout, normalize, to_tensor
 from hanser.train.callbacks import cosine_lr, LearningRateBatchScheduler
-import tensorflow_addons as tfa
+
 
 def load_cifar10(split):
     ds = tfds.as_numpy(tfds.load('cifar10', split=split))

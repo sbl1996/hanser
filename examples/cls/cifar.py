@@ -8,16 +8,18 @@ import tensorflow_datasets as tfds
 
 from tensorflow.keras.optimizers import SGD
 from tensorflow.keras.losses import SparseCategoricalCrossentropy
-from tensorflow.keras.models import Model
+from tensorflow.keras.metrics import SparseCategoricalAccuracy, Mean
 
-from hanser.models.cifar.pyramidnest import PyramidNeSt
-from hanser.models.layers import DEFAULTS
+from hanser.models.functional.cifar.pyramidnet import PyramidNet
+from hanser.models.functional.layers import DEFAULTS
 from hanser.datasets import prepare
+from hanser.train.lr_schedule import CosineLR
 from hanser.transform import random_crop, cutout, normalize, to_tensor
-from hanser.train.callbacks import cosine_lr, LearningRateBatchScheduler
 from hanser.tpu import get_colab_tpu
+from hanser.train.trainer import Trainer
 
 import tensorflow.keras.mixed_precision.experimental as mixed_precision
+
 
 def load_cifar10(split):
     ds = tfds.as_numpy(tfds.load('cifar10', split=split, data_dir='./cifar10'))
@@ -30,14 +32,15 @@ def load_cifar10(split):
     y = np.stack(y)
     return x, y
 
+
 x_train, y_train = load_cifar10('train')
 x_test, y_test = load_cifar10('test')
 
 strategy = get_colab_tpu()
 
+
 @curry
 def preprocess(image, label, training):
-
     if training:
         image = random_crop(image, (32, 32), (4, 4))
         image = tf.image.random_flip_left_right(image)
@@ -48,9 +51,10 @@ def preprocess(image, label, training):
 
     image = tf.cast(image, tf.bfloat16)
     # if training:
-        # image = cutout(image, 16)
+    # image = cutout(image, 16)
 
     return image, label
+
 
 mul = 8
 num_train_examples, num_test_examples = 50000, 10000
@@ -69,45 +73,26 @@ tf.distribute.experimental_set_strategy(strategy)
 policy = mixed_precision.Policy('mixed_bfloat16')
 mixed_precision.set_policy(policy)
 
+ds_train_dist = strategy.experimental_distribute_dataset(ds_train)
+ds_test_dist = strategy.experimental_distribute_dataset(ds_test)
 
-class Trainer(Model):
-
-    def train_step(self, data):
-        x, y = data
-        with tf.GradientTape() as tape:
-            y_pred = self(x, training=True)
-            y_pred = tf.cast(y_pred, tf.float32)
-            loss = self.compiled_loss(
-                y, y_pred, regularization_losses=self.losses)
-
-        trainable_variables = self.trainable_variables
-        gradients = tape.gradient(loss, trainable_variables)
-        self.optimizer.apply_gradients(zip(gradients, trainable_variables))
-
-        self.compiled_metrics.update_state(y, y_pred)
-        return {m.name: m.result() for m in self.metrics}
-
-
-DEFAULTS['weight_decay'] = 2e-4
+DEFAULTS['weight_decay'] = 1e-4
 input_shape = (32, 32, 3)
-model = PyramidNeSt(32, 480-32, 56, 16, 1, 10)
-input = tf.keras.Input(input_shape)
-trainer = Trainer(inputs=input, outputs=model(input))
-trainer.summary()
+model = PyramidNet(input_shape, 32, 480 - 32, 56, 16, 1, 0.2, 10)
+model.summary()
 
-criterion = SparseCategoricalCrossentropy(from_logits=True)
+criterion = SparseCategoricalCrossentropy(from_logits=True, reduction='none')
 
 base_lr = 0.1
-epochs = 300
-lr_shcedule = cosine_lr(base_lr=base_lr * mul, epochs=epochs, min_lr=1e-5,
-                        warmup_epoch=5, warmup_min_lr=base_lr)
-optimizer = SGD(base_lr * mul, momentum=0.9, nesterov=True)
-metrics = [tf.keras.metrics.SparseCategoricalAccuracy(name='acc')]
-trainer.compile(optimizer=optimizer, loss=criterion, metrics=metrics)
+epochs = 600
+lr_shcedule = CosineLR(base_lr * mul, steps_per_epoch, epochs=epochs,
+                       min_lr=1e-5, warmup_min_lr=base_lr, warmup_epoch=5)
+optimizer = SGD(lr_shcedule, momentum=0.9, nesterov=True)
+metrics = [
+    Mean(name='loss'), SparseCategoricalAccuracy(name='acc')]
+test_metrics = [
+    Mean(name='loss'), SparseCategoricalAccuracy(name='acc')]
 
+trainer = Trainer(model, criterion, optimizer, metrics, test_metrics)
 
-callbacks = [LearningRateBatchScheduler(lr_shcedule, steps_per_epoch)]
-
-trainer.fit(ds_train, epochs=epochs, steps_per_epoch=steps_per_epoch,
-            validation_data=ds_test, validation_steps=test_steps,
-            validation_freq=5, verbose=2, callbacks=callbacks)
+trainer.fit(epochs, ds_train_dist, steps_per_epoch, ds_test_dist, test_steps, val_freq=5)

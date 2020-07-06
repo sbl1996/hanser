@@ -4,6 +4,7 @@ import numpy as np
 from toolz import curry
 
 import tensorflow as tf
+import tensorflow.keras.backend as K
 import tensorflow_datasets as tfds
 
 from tensorflow.keras.optimizers import SGD
@@ -11,7 +12,7 @@ from tensorflow.keras.losses import SparseCategoricalCrossentropy
 from tensorflow.keras.metrics import SparseCategoricalAccuracy, Mean
 from tensorflow.keras.callbacks import Callback
 
-# from hanser.models.cifar.pyramidnest import PyramidNeSt
+from hanser.models.cifar.pyramidnest import PyramidNeSt
 from hanser.models.functional.cifar.pyramidnet import PyramidNet
 from hanser.datasets import prepare
 from hanser.train.trainer import Trainer
@@ -68,14 +69,17 @@ ds_train = prepare(ds, preprocess(training=True), batch_size, training=True, buf
 ds_test = prepare(ds_test, preprocess(training=False), eval_batch_size, training=False)
 
 input_shape = (32, 32, 3)
-drop_path = 1.0
+drop_path = 0
 model = PyramidNet(input_shape, 4, 12, 20, 1, True, drop_path, 10)
+# model = PyramidNet(input_shape, 32, 480-32, 56, 16, True, 0, 10)
+
 # input_shape = (None, 32, 32, 3)
-# model = PyramidNeSt(4, 12, 20, 1, 1, 0.2, 10)
-# model.build(input_shape)
+# model2 = PyramidNeSt(4, 12, 20, 1, 1, 0, 10)
+# model2 = PyramidNeSt(32, 480-32, 56, 16, 1, 0, 10)
+# model2.build(input_shape)
 # input = tf.keras.Input(input_shape[1:])
-# model.call(input)
-# model.summary()
+# model2.call(input)
+# model2.summary()
 
 criterion = SparseCategoricalCrossentropy(from_logits=True, reduction='none')
 
@@ -99,7 +103,6 @@ class DropRateDecay(Callback):
         rate = (epoch + 1) / epochs * drop_path
         for l in model.layers:
             if 'drop' in l.name:
-                l.rate = rate
-        print(rate)
+                K.set_value(l.rate, rate)
 
 trainer.fit(epochs, ds_train, steps_per_epoch, ds_test, test_steps, callbacks=[DropRateDecay()])
