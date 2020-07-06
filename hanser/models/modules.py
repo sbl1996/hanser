@@ -3,7 +3,7 @@ import tensorflow as tf
 from tensorflow.keras import Sequential
 from tensorflow.keras.layers import Layer, InputSpec, Softmax, Dropout
 
-from hanser.models.layers import Linear, Conv2d, BN, Act, GlobalAvgPool
+from hanser.models.layers import Linear, Conv2d, BN, Act
 
 
 class PadChannel(Layer):
@@ -145,3 +145,29 @@ class SplAtConv2d(Layer):
         else:
             out = gap * x
         return out
+
+
+class GlobalAvgPool(Layer):
+    """Abstract class for different global pooling 2D layers.
+  """
+
+    def __init__(self, keep_dim=False, **kwargs):
+        super().__init__(**kwargs)
+        self.keep_dim = keep_dim
+        self.input_spec = InputSpec(ndim=4)
+        self._supports_ragged_inputs = True
+
+    def compute_output_shape(self, input_shape):
+        input_shape = tf.TensorShape(input_shape).as_list()
+        if self.keep_dim:
+            return tf.TensorShape([input_shape[0], 1, 1, input_shape[3]])
+        else:
+            return tf.TensorShape([input_shape[0], input_shape[3]])
+
+    def call(self, inputs):
+        return tf.reduce_mean(inputs, axis=[1, 2], keepdims=self.keep_dim)
+
+    def get_config(self):
+        config = {'keep_dim': self.keep_dim}
+        base_config = super().get_config()
+        return dict(list(base_config.items()) + list(config.items()))

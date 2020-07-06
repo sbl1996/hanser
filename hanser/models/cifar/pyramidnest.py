@@ -13,9 +13,9 @@ class Shortcut(Sequential):
     def __init__(self, in_channels, out_channels, stride, name):
         layers = []
         if stride == 2:
-            layers.append(Pool2d(2, 2, type='avg', name=name + "/pool"))
+            layers.append(Pool2d(2, 2, type='avg', name="pool"))
         if in_channels != out_channels:
-            layers.append((PadChannel(out_channels - in_channels, name=name + "/pad")))
+            layers.append((PadChannel(out_channels - in_channels, name="pad")))
         super().__init__(layers, name=name)
 
 
@@ -26,16 +26,16 @@ class Bottleneck(Layer):
         super().__init__(name=name)
         out_channels = channels * self.expansion
         branch1 = [
-            BN(in_channels, name=name + "bn0"),
-            Conv2d(in_channels, channels, kernel_size=1, bn=True, act='default', name=name + "conv1"),
-            *([Pool2d(3, 2, name=name + "pool")] if stride != 1 else []),
-            SplAtConv2d(channels, channels, kernel_size=3, groups=groups, radix=radix, name=name + "conv2")
-            if radix != 0 else Conv2d(channels, channels, kernel_size=3, groups=groups, bn=True, act='default', name=name + "conv2"),
-            Conv2d(channels, out_channels, kernel_size=1, bn=True, name=name + "conv3"),
-            *([DropPath(drop_path, name=name + "drop")] if drop_path else [])
+            BN(in_channels, name="bn0"),
+            Conv2d(in_channels, channels, kernel_size=1, bn=True, act='default', name="conv1"),
+            *([Pool2d(3, 2, name="pool")] if stride != 1 else []),
+            SplAtConv2d(channels, channels, kernel_size=3, groups=groups, radix=radix, name="conv2")
+            if radix != 0 else Conv2d(channels, channels, kernel_size=3, groups=groups, bn=True, act='default', name="conv2"),
+            Conv2d(channels, out_channels, kernel_size=1, bn=True, name="conv3"),
+            *([DropPath(drop_path, name="drop")] if drop_path and stride == 1 else []),
         ]
-        self.branch1 = Sequential(branch1, name=name + "/branch1")
-        self.branch2 = Shortcut(in_channels, out_channels, stride, name=name + "/branch2")
+        self.branch1 = Sequential(branch1, name="branch1")
+        self.branch2 = Shortcut(in_channels, out_channels, stride, name="branch2")
 
     def call(self, x):
         return self.branch1(x) + self.branch2(x)
@@ -67,8 +67,8 @@ class PyramidNeSt(Model):
             layers.append(self._make_layer(n, groups, stride=s, radix=radix, drop_path=drop_path, name=f"stage{i + 1}"))
 
         layers.append(Sequential([
-            BN(self.in_channels, name="post_activ/bn"),
-            Act(name="post_activ/act"),
+            BN(self.in_channels, name="bn"),
+            Act(name="act"),
         ], name="post_activ"))
 
         self.features = Sequential(layers, name="features")
@@ -80,12 +80,12 @@ class PyramidNeSt(Model):
         self.channels = self.channels + self.add_channel
         layers = [
             Bottleneck(self.in_channels, round_channels(self.channels, groups * radix),
-                       groups, stride=stride, radix=radix, drop_path=drop_path, name=name + "/unit1")]
+                       groups, stride=stride, radix=radix, drop_path=drop_path, name="unit1")]
         self.in_channels = round_channels(self.channels, groups * radix) * Bottleneck.expansion
         for i in range(1, num_layers):
             self.channels = self.channels + self.add_channel
             layers.append(Bottleneck(self.in_channels, round_channels(self.channels, groups * radix),
-                                     groups, radix=radix, drop_path=drop_path, name=f"{name}/unit{i + 1}"))
+                                     groups, radix=radix, drop_path=drop_path, name=f"unit{i + 1}"))
             self.in_channels = round_channels(self.channels, groups * radix) * Bottleneck.expansion
         return Sequential(layers, name=name)
 

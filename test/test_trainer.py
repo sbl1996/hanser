@@ -10,7 +10,8 @@ from tensorflow.keras.optimizers import SGD
 from tensorflow.keras.losses import SparseCategoricalCrossentropy
 from tensorflow.keras.metrics import SparseCategoricalAccuracy, Mean
 
-from hanser.models.cifar.pyramidnest import PyramidNeSt
+# from hanser.models.cifar.pyramidnest import PyramidNeSt
+from hanser.models.functional.cifar.pyramidnet import PyramidNet
 from hanser.datasets import prepare
 from hanser.train.trainer import Trainer
 from hanser.transform import random_crop, cutout, normalize, to_tensor
@@ -65,12 +66,14 @@ test_steps = math.ceil(num_test_examples / eval_batch_size)
 ds_train = prepare(ds, preprocess(training=True), batch_size, training=True, buffer_size=10000)
 ds_test = prepare(ds_test, preprocess(training=False), eval_batch_size, training=False)
 
-input_shape = (None, 32, 32, 3)
-model = PyramidNeSt(4, 12, 20, 1, 1, 0.2, 10)
-model.build(input_shape)
-input = tf.keras.Input(input_shape[1:])
-model.call(input)
-model.summary()
+input_shape = (32, 32, 3)
+model = PyramidNet(input_shape, 4, 12, 20, 1, True, 0.2, 10)
+# input_shape = (None, 32, 32, 3)
+# model = PyramidNeSt(4, 12, 20, 1, 1, 0.2, 10)
+# model.build(input_shape)
+# input = tf.keras.Input(input_shape[1:])
+# model.call(input)
+# model.summary()
 
 criterion = SparseCategoricalCrossentropy(from_logits=True, reduction='none')
 
