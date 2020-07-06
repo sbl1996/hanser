@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 from tensorflow.keras import Sequential
-from tensorflow.keras.layers import Layer, InputSpec, Softmax
+from tensorflow.keras.layers import Layer, InputSpec, Softmax, Dropout
 
 from hanser.models.layers import Linear, Conv2d, BN, Act, GlobalAvgPool
 
@@ -42,7 +42,7 @@ class SELayer(Layer):
         return x * s
 
 
-def drop_connect(x, drop_rate):
+def drop_path(x, drop_rate):
     keep_prob = 1.0 - drop_rate
 
     batch_size = tf.shape(x)[0]
@@ -53,31 +53,10 @@ def drop_connect(x, drop_rate):
     return x
 
 
-class DropPath(Layer):
+class DropPath(Dropout):
 
     def __init__(self, rate, **kwargs):
-        super().__init__(**kwargs)
-        self.rate = rate
-
-    def call(self, x, training=None):
-        if training is None:
-            training = tf.keras.backend.learning_phase()
-
-        def dropped_inputs():
-            return drop_connect(x, self.rate)
-
-        output = tf.cond(training, dropped_inputs, lambda: x)
-        return output
-
-    def compute_output_shape(self, input_shape):
-        return input_shape
-
-    def get_config(self):
-        config = {
-            'rate': self.rate,
-        }
-        base_config = super().get_config()
-        return dict(list(base_config.items()) + list(config.items()))
+        super().__init__(rate, noise_shape=(None, 1, 1, 1), **kwargs)
 
 
 class rSoftMax(Layer):

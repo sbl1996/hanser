@@ -66,10 +66,11 @@ ds_train = prepare(ds, preprocess(training=True), batch_size, training=True, buf
 ds_test = prepare(ds_test, preprocess(training=False), eval_batch_size, training=False)
 
 input_shape = (None, 32, 32, 3)
-model = PyramidNeSt(4, 12, 20, 1, 1, 10)
+model = PyramidNeSt(4, 12, 20, 1, 1, 0.2, 10)
 model.build(input_shape)
 input = tf.keras.Input(input_shape[1:])
-model(input)
+model.call(input)
+model.summary()
 
 criterion = SparseCategoricalCrossentropy(from_logits=True, reduction='none')
 
