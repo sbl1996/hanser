@@ -4,19 +4,18 @@ import numpy as np
 from toolz import curry
 
 import tensorflow as tf
-import tensorflow.keras.backend as K
 import tensorflow_datasets as tfds
+import tensorflow_probability as tfp
 
 from tensorflow.keras.optimizers import SGD
 from tensorflow.keras.losses import CategoricalCrossentropy
 from tensorflow.keras.metrics import CategoricalAccuracy as Accuracy, Mean, CategoricalCrossentropy as Loss
 from tensorflow.keras.callbacks import Callback
 
-from hanser.models.cifar.pyramidnest import PyramidNeSt
 from hanser.models.functional.cifar.pyramidnet import PyramidNet
 from hanser.datasets import prepare
 from hanser.train.trainer import Trainer
-from hanser.transform import random_crop, cutout, normalize, to_tensor
+from hanser.transform import random_crop, cutout, normalize, to_tensor, random_apply2
 from hanser.train.lr_schedule import CosineLR
 
 
@@ -50,6 +49,24 @@ def preprocess(image, label, training):
 
     return image, label
 
+@curry
+def mixup(image, label, beta):
+    lam = tfp.distributions.Beta(beta, beta).sample(())
+    index = tf.random.shuffle(tf.range(tf.shape(image)[0]))
+
+    lam = tf.cast(lam, image.dtype)
+    image = lam * image + (1 - lam) * tf.gather(image, index)
+
+    lam = tf.cast(lam, label.dtype)
+    label = lam * label + (1 - lam) * tf.gather(label, index)
+    return image, label
+
+
+def batch_preprocess(image, label):
+    image, label = random_apply2(mixup(beta=1.0), 0.5, image, label)
+
+    return image, label
+
 
 x_train, y_train = load_cifar10('train')
 x_test, y_test = load_cifar10('test')
@@ -67,7 +84,7 @@ eval_batch_size = batch_size * 2
 steps_per_epoch = num_train_examples // batch_size
 test_steps = math.ceil(num_test_examples / eval_batch_size)
 
-ds_train = prepare(ds, preprocess(training=True), batch_size, training=True, buffer_size=10000)
+ds_train = prepare(ds, preprocess(training=True), batch_size, training=True, buffer_size=10000, batch_preprocess=batch_preprocess)
 ds_test = prepare(ds_test, preprocess(training=False), eval_batch_size, training=False)
 
 input_shape = (32, 32, 3)

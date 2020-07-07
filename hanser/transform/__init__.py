@@ -83,11 +83,17 @@ def decode_and_center_crop(image_bytes, image_size):
 
 def random_apply(func, p, image):
     return tf.cond(
-        tf.random.normal(()) < p,
+        tf.random.uniform(()) < p,
         lambda: func(image),
         lambda: image,
     )
 
+def random_apply2(func, p, image, label):
+    return tf.cond(
+        tf.random.uniform(()) < p,
+        lambda: func(image, label),
+        lambda: (image, label),
+    )
 
 def random_choice(funcs, image):
     """Select a random policy from `policies` and apply it to `image`."""
