@@ -1,9 +1,69 @@
 import math
+from toolz import curry
 
 import tensorflow as tf
 import tensorflow_addons as tfa
+import tensorflow_probability as tfp
 from tensorflow.python.ops import check_ops
 from tensorflow.python.ops import array_ops
+
+
+@curry
+def mixup(image, label, beta):
+    lam = tfp.distributions.Beta(beta, beta).sample(())
+    index = tf.random.shuffle(tf.range(tf.shape(image)[0]))
+
+    lam = tf.cast(lam, image.dtype)
+    image = lam * image + (1 - lam) * tf.gather(image, index)
+
+    lam = tf.cast(lam, label.dtype)
+    label = lam * label + (1 - lam) * tf.gather(label, index)
+    return image, label
+
+
+def rand_bbox(h, w, lam):
+
+    cut_rat = tf.sqrt(1. - lam)
+    cut_w = tf.cast(tf.cast(w, lam.dtype) * cut_rat, tf.int32)
+    cut_h = tf.cast(tf.cast(h, lam.dtype) * cut_rat, tf.int32)
+
+    cx = tf.random.uniform((), 0, w, dtype=tf.int32)
+    cy = tf.random.uniform((), 0, h, dtype=tf.int32)
+
+    l = tf.clip_by_value(cx - cut_w // 2, 0, w)
+    t = tf.clip_by_value(cy - cut_h // 2, 0, h)
+    r = tf.clip_by_value(cx + cut_w // 2, 0, w)
+    b = tf.clip_by_value(cy + cut_h // 2, 0, h)
+
+    return l, t, r, b
+
+
+@curry
+def cutmix(image, label, beta):
+    lam = tfp.distributions.Beta(beta, beta).sample(())
+    index = tf.random.shuffle(tf.range(tf.shape(image)[0]))
+
+    shape = tf.shape(image)
+    h = shape[1]
+    w = shape[2]
+
+    l, t, r, b = rand_bbox(h, w, lam)
+    shape = [b - t, r - l]
+    padding = [(t, h - b), (l, w - r)]
+
+    mask = tf.pad(tf.zeros(shape, dtype=image.dtype), padding, constant_values=1)
+    mask = tf.expand_dims(tf.expand_dims(mask, 0), -1)
+
+    image2 = tf.gather(image, index)
+    label2 = tf.gather(label, index)
+    image = image * mask + image2 * (1. - mask)
+
+    lam = 1 - (b - t) * (r - l) / (h * w)
+    lam = tf.cast(lam, label.dtype)
+    label = label * lam + label2 * (1. - lam)
+
+    return image, label
+
 
 CROP_PADDING = 32
 

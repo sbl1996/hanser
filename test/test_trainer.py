@@ -15,7 +15,7 @@ from tensorflow.keras.callbacks import Callback
 from hanser.models.functional.cifar.pyramidnet import PyramidNet
 from hanser.datasets import prepare
 from hanser.train.trainer import Trainer
-from hanser.transform import random_crop, cutout, normalize, to_tensor, random_apply2
+from hanser.transform import random_crop, cutout, normalize, to_tensor, random_apply2, mixup, cutmix
 from hanser.train.lr_schedule import CosineLR
 
 
@@ -49,21 +49,9 @@ def preprocess(image, label, training):
 
     return image, label
 
-@curry
-def mixup(image, label, beta):
-    lam = tfp.distributions.Beta(beta, beta).sample(())
-    index = tf.random.shuffle(tf.range(tf.shape(image)[0]))
-
-    lam = tf.cast(lam, image.dtype)
-    image = lam * image + (1 - lam) * tf.gather(image, index)
-
-    lam = tf.cast(lam, label.dtype)
-    label = lam * label + (1 - lam) * tf.gather(label, index)
-    return image, label
-
 
 def batch_preprocess(image, label):
-    image, label = random_apply2(mixup(beta=1.0), 0.5, image, label)
+    image, label = random_apply2(cutmix(beta=1.0), 0.5, image, label)
 
     return image, label
 
