@@ -7,8 +7,8 @@ import tensorflow as tf
 import tensorflow_datasets as tfds
 
 from tensorflow.keras.optimizers import SGD
-from tensorflow.keras.losses import SparseCategoricalCrossentropy
-from tensorflow.keras.metrics import SparseCategoricalAccuracy, Mean
+from tensorflow.keras.losses import SparseCategoricalCrossentropy, CategoricalCrossentropy
+from tensorflow.keras.metrics import SparseCategoricalAccuracy, Mean, CategoricalAccuracy
 
 from hanser.models.functional.cifar.pyramidnet import PyramidNet
 from hanser.models.functional.layers import DEFAULTS
@@ -81,7 +81,8 @@ input_shape = (32, 32, 3)
 model = PyramidNet(input_shape, 32, 480 - 32, 56, 16, 1, 0.2, 10)
 model.summary()
 
-criterion = SparseCategoricalCrossentropy(from_logits=True, reduction='none')
+criterion = CategoricalCrossentropy(from_logits=True, label_smoothing=0.1, reduction='none')
+# criterion = SparseCategoricalCrossentropy(from_logits=True, reduction='none')
 
 base_lr = 0.1
 epochs = 600
@@ -89,9 +90,9 @@ lr_shcedule = CosineLR(base_lr * mul, steps_per_epoch, epochs=epochs,
                        min_lr=1e-5, warmup_min_lr=base_lr, warmup_epoch=5)
 optimizer = SGD(lr_shcedule, momentum=0.9, nesterov=True)
 metrics = [
-    Mean(name='loss'), SparseCategoricalAccuracy(name='acc')]
+    Mean(name='loss'), CategoricalAccuracy(name='acc')]
 test_metrics = [
-    Mean(name='loss'), SparseCategoricalAccuracy(name='acc')]
+    Mean(name='loss'), CategoricalAccuracy(name='acc')]
 
 trainer = Trainer(model, criterion, optimizer, metrics, test_metrics)
 

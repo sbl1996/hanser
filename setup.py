@@ -34,6 +34,7 @@ REQUIRED = [
     "pybind11",
     # "tensorflow_addons",
     "googledrivedownloader",
+    'tensorflow'
 ]
 
 DEPENDENCY_LINKS = [

@@ -1,10 +1,9 @@
-from typing import Union, Tuple, Optional
+from typing import Union, Tuple, Optional, Callable
 
 import tensorflow as tf
-from tensorflow.keras import Sequential
 from tensorflow.keras.initializers import VarianceScaling, RandomNormal
 from tensorflow.keras.layers import BatchNormalization, Dense, DepthwiseConv2D, \
-    Activation, AvgPool2D, MaxPool2D, Layer, InputSpec
+    Activation, AvgPool2D, MaxPool2D
 from tensorflow.keras.regularizers import l2
 
 from hanser.models.conv import Conv2D
@@ -44,7 +43,7 @@ def conv2d(x,
            dilation: int = 1,
            bias: Optional[bool] = None,
            norm: Optional[str] = None,
-           act: Optional[str] = None,
+           act: Optional[Union[str, Callable]] = None,
            zero_init=False,
            name: Optional[str] = None):
     in_channels = x.shape[-1]
@@ -66,7 +65,7 @@ def conv2d(x,
     elif bias is None and norm:
         use_bias = False
     else:
-        use_bias = bias
+        use_bias = bias or True
 
     bias_regularizer = get_weight_decay() if not DEFAULTS['no_bias_decay'] else None
 
@@ -74,22 +73,23 @@ def conv2d(x,
         conv_name = name
     else:
         conv_name = name + "/conv"
+    activation = act if (act is not None and norm is None) else None
     if in_channels == groups:
         depth_multiplier = out_channels // in_channels
         conv = DepthwiseConv2D(kernel_size=kernel_size, strides=stride, padding=padding,
                                use_bias=use_bias, dilation_rate=dilation, depth_multiplier=depth_multiplier,
-                               depthwise_initializer=kernel_initializer, bias_initializer='zeros',
+                               depthwise_initializer=kernel_initializer, bias_initializer='zeros', activation=activation,
                                kernel_regularizer=get_weight_decay(), bias_regularizer=bias_regularizer, name=conv_name)
     else:
         conv = Conv2D(out_channels, kernel_size=kernel_size, strides=stride,
                       padding=padding, dilation_rate=dilation, use_bias=use_bias, groups=groups,
-                      kernel_initializer=kernel_initializer, bias_initializer='zeros',
+                      kernel_initializer=kernel_initializer, bias_initializer='zeros', activation=activation,
                       kernel_regularizer=get_weight_decay(), bias_regularizer=bias_regularizer, name=conv_name)
     x = conv(x)
     if norm:
         x = norm_(x, norm, zero_init=zero_init, name=name + "/bn")
-    if act:
-        x = act_(x, act, name=name + "/act")
+        if act:
+            x = act_(x, act, name=name + "/act")
     return x
 
 

@@ -8,8 +8,8 @@ import tensorflow.keras.backend as K
 import tensorflow_datasets as tfds
 
 from tensorflow.keras.optimizers import SGD
-from tensorflow.keras.losses import SparseCategoricalCrossentropy
-from tensorflow.keras.metrics import SparseCategoricalAccuracy, Mean
+from tensorflow.keras.losses import CategoricalCrossentropy
+from tensorflow.keras.metrics import CategoricalAccuracy as Accuracy, Mean, CategoricalCrossentropy as Loss
 from tensorflow.keras.callbacks import Callback
 
 from hanser.models.cifar.pyramidnest import PyramidNeSt
@@ -42,7 +42,9 @@ def preprocess(image, label, training):
     image, label = to_tensor(image, label)
     image = normalize(image, [0.4914, 0.4822, 0.4465], [0.2470, 0.2435, 0.2616])
 
+    label = tf.one_hot(label, 10)
     # image = tf.cast(image, tf.bfloat16)
+
     # if training:
     # image = cutout(image, 16)
 
@@ -81,7 +83,8 @@ model = PyramidNet(input_shape, 4, 12, 20, 1, True, drop_path, 10)
 # model2.call(input)
 # model2.summary()
 
-criterion = SparseCategoricalCrossentropy(from_logits=True, reduction='none')
+criterion = CategoricalCrossentropy(from_logits=True, label_smoothing=0.1, reduction='none')
+# criterion = SparseCategoricalCrossentropy(from_logits=True, reduction='none')
 
 base_lr = 0.01
 epochs = 20
@@ -90,9 +93,9 @@ lr_shcedule = CosineLR(base_lr * mul, steps_per_epoch, epochs=epochs,
 optimizer = SGD(lr_shcedule, momentum=0.9, nesterov=True)
 
 metrics = [
-    Mean(name='loss'), SparseCategoricalAccuracy(name='acc')]
+    Mean(name='loss'), Accuracy(name='acc')]
 test_metrics = [
-    Mean(name='loss'), SparseCategoricalAccuracy(name='acc')]
+    Loss(name='loss', from_logits=True), Accuracy(name='acc')]
 
 trainer = Trainer(model, criterion, optimizer, metrics, test_metrics)
 

@@ -1,9 +1,9 @@
-import tensorflow.keras.backend as K
 from tensorflow.keras import Model
-from tensorflow.keras.layers import Add, MaxPool2D, ZeroPadding2D, Reshape, Lambda, Input
+from tensorflow.keras.layers import Add, MaxPool2D, ZeroPadding2D, Input
 from tensorflow.keras.utils import get_file
 
-from hanser.legacy.models.layers import conv2d, bn, relu, dwconv2d
+from hanser.models.functional.layers import conv2d, norm, act
+
 
 BASE_WEIGHTS_PATH = (
     'https://github.com/keras-team/keras-applications/'
@@ -56,32 +56,27 @@ def block1(x, filters, kernel_size=3, stride=1,
 
     if conv_shortcut is True:
         shortcut = conv2d(x, 4 * filters, 1, stride=stride,
-                          use_bias=True,
-                          name=name + '_0_conv')
-        shortcut = bn(shortcut, name=name + '_0_bn')
+                          bias=True, name=name + '_0_conv')
+        shortcut = norm(shortcut, name=name + '_0_bn')
     else:
         shortcut = x
 
     x = conv2d(x, filters, 1, stride=stride,
-               use_bias=True,
-               name=name + '_1_conv')
-    x = bn(x, name=name + '_1_bn')
-    x = relu(x, name=name + '_1_relu')
+               bias=True, name=name + '_1_conv')
+    x = norm(x, name=name + '_1_bn')
+    x = act(x, 'relu', name=name + '_1_relu')
 
-    x = conv2d(x, filters, kernel_size,
-               use_bias=True,
-               dilation=dilation,
+    x = conv2d(x, filters, kernel_size, bias=True, dilation=dilation,
                name=name + '_2_conv')
-    x = bn(x, name=name + '_2_bn')
-    x = relu(x, name=name + '_2_relu')
+    x = norm(x, name=name + '_2_bn')
+    x = act(x, 'relu', name=name + '_2_relu')
 
-    x = conv2d(x, 4 * filters, 1,
-               use_bias=True,
+    x = conv2d(x, 4 * filters, 1, bias=True,
                name=name + '_3_conv')
-    x = bn(x, name=name + '_3_bn')
+    x = norm(x, name=name + '_3_bn')
 
     x = Add(name=name + '_add')([shortcut, x])
-    x = relu(x, name=name + '_out')
+    x = act(x, 'relu', name=name + '_out')
     return x
 
 
@@ -128,30 +123,27 @@ def block2(x, filters, kernel_size=3, stride=1,
     """
     if stride == 2:
         dilation = 1
-    preact = bn(x, name=name + '_preact_bn')
-    preact = relu(preact, name=name + '_preact_relu')
+    preact = norm(x, name=name + '_preact_bn')
+    preact = act(preact, 'relu', name=name + '_preact_relu')
 
     if conv_shortcut is True:
-        shortcut = conv2d(preact, 4 * filters, 1, stride=stride,
-                          use_bias=True,
+        shortcut = conv2d(preact, 4 * filters, 1, stride=stride, bias=True,
                           name=name + '_0_conv')
     else:
         shortcut = MaxPool2D(1, strides=stride)(x) if stride > 1 else x
 
-    x = conv2d(preact, filters, 1, stride=1,
+    x = conv2d(preact, filters, 1, stride=1, bias=False,
                name=name + '_1_conv')
-    x = bn(x, name=name + '_1_bn')
-    x = relu(x, name=name + '_1_relu')
+    x = norm(x, name=name + '_1_bn')
+    x = act(x, 'relu', name=name + '_1_relu')
 
     # x = ZeroPadding2D(padding=((1, 1), (1, 1)), name=name + '_2_pad')(x)
-    x = conv2d(x, filters, kernel_size, stride=stride,
-               dilation=dilation,
+    x = conv2d(x, filters, kernel_size, stride=stride, dilation=dilation,
                name=name + '_2_conv')
-    x = bn(x, name=name + '_2_bn')
-    x = relu(x, name=name + '_2_relu')
+    x = norm(x, name=name + '_2_bn')
+    x = act(x, 'relu', name=name + '_2_relu')
 
-    x = conv2d(x, 4 * filters, 1,
-               use_bias=True,
+    x = conv2d(x, 4 * filters, 1, bias=True,
                name=name + '_3_conv')
     x = Add(name=name + '_out')([shortcut, x])
     return x
@@ -183,87 +175,9 @@ def stack2(x, filters, blocks, stride1=2, dilation=None, name=None):
     return x
 
 
-def block3(x, filters, kernel_size=3, stride=1, groups=32,
-           conv_shortcut=True, name=None):
-    """A residual block.
-
-    # Arguments
-        x: input tensor.
-        filters: integer, filters of the bottleneck layer.
-        kernel_size: default 3, kernel size of the bottleneck layer.
-        stride: default 1, stride of the first layer.
-        groups: default 32, group size for grouped convolution.
-        conv_shortcut: default True, use convolution shortcut if True,
-            otherwise identity shortcut.
-        name: string, block label.
-
-    # Returns
-        Output tensor for the residual block.
-    """
-
-    if conv_shortcut is True:
-        shortcut = conv2d(x, (64 // groups) * filters, 1, stride=stride,
-                          padding='valid',
-                          name=name + '_0_conv')
-        shortcut = bn(shortcut, name=name + '_0_bn')
-    else:
-        shortcut = x
-
-    x = conv2d(x, filters, 1,
-               padding='valid',
-               name=name + '_1_conv')(x)
-    x = bn(x, name=name + '_1_bn')
-    x = relu(x, name=name + '_1_relu')
-
-    c = filters // groups
-    x = ZeroPadding2D(padding=((1, 1), (1, 1)), name=name + '_2_pad')(x)
-    x = dwconv2d(x, kernel_size, stride=stride,
-                 depth_multiplier=c,
-                 padding='valid',
-                 name=name + '_2_conv')
-    x_shape = K.int_shape(x)[1:-1]
-    x = Reshape(x_shape + (groups, c, c))(x)
-    x = Lambda(lambda x: sum([x[:, :, :, :, i] for i in range(c)]),
-               name=name + '_2_reduce')(x)
-    x = Reshape(x_shape + (filters,))(x)
-    x = bn(x, name=name + '_2_bn')
-    x = relu(x, name=name + '_2_relu')
-
-    x = conv2d(x, (64 // groups) * filters, 1,
-               padding='valid',
-               name=name + '_3_conv')(x)
-    x = bn(x, name=name + '_3_bn')
-
-    x = Add(name=name + '_add')([shortcut, x])
-    x = relu(x, name=name + '_out')
-    return x
-
-
-def stack3(x, filters, blocks, stride1=2, groups=32, name=None):
-    """A set of stacked residual blocks.
-
-    # Arguments
-        x: input tensor.
-        filters: integer, filters of the bottleneck layer in a block.
-        blocks: integer, blocks in the stacked blocks.
-        stride1: default 2, stride of the first layer in the first block.
-        groups: default 32, group size for grouped convolution.
-        name: string, stack label.
-
-    # Returns
-        Output tensor for the stacked blocks.
-    """
-    x = block3(x, filters, stride=stride1, groups=groups, name=name + '_block1')
-    for i in range(2, blocks + 1):
-        x = block3(x, filters, groups=groups, conv_shortcut=False,
-                   name=name + '_block' + str(i))
-    return x
-
-
 def ResNet(input_shape,
            stack_fn,
            preact,
-           use_bias,
            model_name='resnet'):
     """Instantiates the ResNet, ResNetV2, and ResNeXt architecture.
 
@@ -318,14 +232,12 @@ def ResNet(input_shape,
     img_input = Input(shape=input_shape)
 
     x = ZeroPadding2D(padding=((3, 3), (3, 3)), name='conv1_pad')(img_input)
-    x = conv2d(x, 64, 7, stride=2,
-               padding='valid',
-               use_bias=use_bias,
+    x = conv2d(x, 64, 7, stride=2, padding='valid', bias=True,
                name='conv1_conv')
 
     if preact is False:
-        x = bn(x, name='conv1_bn')
-        x = relu(x, name='conv1_relu')
+        x = norm(x, name='conv1_bn')
+        x = act(x, 'relu', name='conv1_relu')
 
     x = ZeroPadding2D(padding=((1, 1), (1, 1)), name='pool1_pad')(x)
     x = MaxPool2D(3, strides=2, name='pool1_pool')(x)
@@ -333,8 +245,8 @@ def ResNet(input_shape,
     x = stack_fn(x)
 
     if preact is True:
-        x = bn(x, name='post_bn')
-        x = relu(x, name='post_relu')
+        x = norm(x, name='post_bn')
+        x = act(x, 'relu', name='post_relu')
 
     inputs = img_input
 
@@ -362,7 +274,7 @@ def ResNet50(input_shape, pretrained=True):
         x = stack1(x, 512, 3, name='conv5')
         return x
 
-    model = ResNet(input_shape, stack_fn, False, True, 'resnet50')
+    model = ResNet(input_shape, stack_fn, False, 'resnet50')
     if pretrained:
         load_weights(model, 'resnet50')
 
@@ -377,7 +289,7 @@ def ResNet101(input_shape, pretrained=True):
         x = stack1(x, 512, 3, name='conv5')
         return x
 
-    model = ResNet(input_shape, stack_fn, False, True, 'resnet101')
+    model = ResNet(input_shape, stack_fn, False, 'resnet101')
     if pretrained:
         load_weights(model, 'resnet101')
 
@@ -392,7 +304,7 @@ def ResNet152(input_shape, pretrained=True):
         x = stack1(x, 512, 3, name='conv5')
         return x
 
-    model = ResNet(input_shape, stack_fn, False, True, 'resnet152')
+    model = ResNet(input_shape, stack_fn, False, 'resnet152')
     if pretrained:
         load_weights(model, 'resnet152')
 
@@ -407,7 +319,7 @@ def ResNet50V2(input_shape, pretrained=True):
         x = stack2(x, 512, 3, stride1=1, name='conv5')
         return x
 
-    model = ResNet(input_shape, stack_fn, True, True, 'resnet50v2')
+    model = ResNet(input_shape, stack_fn, True, 'resnet50v2')
     if pretrained:
         load_weights(model, 'resnet50v2')
 
@@ -422,7 +334,7 @@ def ResNet101V2(input_shape, pretrained=True):
         x = stack2(x, 512, 3, stride1=1, name='conv5')
         return x
 
-    model = ResNet(input_shape, stack_fn, True, True, 'resnet101v2')
+    model = ResNet(input_shape, stack_fn, True, 'resnet101v2')
     if pretrained:
         load_weights(model, 'resnet101v2')
 
@@ -437,73 +349,9 @@ def ResNet152V2(input_shape, pretrained=True):
         x = stack2(x, 512, 3, stride1=1, name='conv5')
         return x
 
-    model = ResNet(input_shape, stack_fn, True, True, 'resnet152v2')
+    model = ResNet(input_shape, stack_fn, True, 'resnet152v2')
     if pretrained:
         load_weights(model, 'resnet152v2')
-
-    return model
-
-
-def ResNeXt50(input_shape, pretrained=True):
-    def stack_fn(x):
-        x = stack3(x, 128, 3, stride1=1, name='conv2')
-        x = stack3(x, 256, 4, name='conv3')
-        x = stack3(x, 512, 6, name='conv4')
-        x = stack3(x, 1024, 3, name='conv5')
-        return x
-
-    model = ResNet(input_shape, stack_fn, False, False, 'resnext50')
-    if pretrained:
-        load_weights(model, 'resnext50')
-
-    return model
-
-
-def ResNeXt101(input_shape, pretrained=True):
-    def stack_fn(x):
-        x = stack3(x, 128, 3, stride1=1, name='conv2')
-        x = stack3(x, 256, 4, name='conv3')
-        x = stack3(x, 512, 23, name='conv4')
-        x = stack3(x, 1024, 3, name='conv5')
-        return x
-
-    model = ResNet(input_shape, stack_fn, False, False, 'resnext101')
-    if pretrained:
-        load_weights(model, 'resnext101')
-
-    return model
-
-
-def get_resnext(depth, input_shape, output_stride=32, pretrained=True):
-    if pretrained:
-        assert depth in [50, 101]
-    config = {
-        50: [
-            [128, 3, 1, 1],
-            [256, 4, 2, 1],
-            [512, 6, 2, 1],
-            [1024, 3, 2, 1],
-        ],
-        101: [
-            [128, 3, 1, 1],
-            [256, 4, 2, 1],
-            [512, 23, 2, 1],
-            [1024, 3, 2, 1],
-        ]
-    }[depth]
-    name = 'resnext%d' % depth
-    if output_stride == 16:
-        config[-1][2] = 1
-        config[-1][3] = 2
-
-    def stack_fn(x):
-        for i, (c, n, s, d) in enumerate(config):
-            x = stack3(x, c, n, stride1=s, name='conv%d' % (i + 2))
-        return x
-
-    model = ResNet(input_shape, stack_fn, False, False, name)
-    if pretrained:
-        load_weights(model, name)
 
     return model
 
@@ -543,7 +391,7 @@ def get_resnetv2(depth, input_shape, output_stride=32, pretrained=True):
             x = stack2(x, c, n, stride1=s, name='conv%d' % (i + 2))
         return x
 
-    model = ResNet(input_shape, stack_fn, True, True, name)
+    model = ResNet(input_shape, stack_fn, True, name)
     if pretrained:
         load_weights(model, name)
 
@@ -585,7 +433,7 @@ def get_resnet(depth, input_shape, output_stride=32, pretrained=True):
             x = stack1(x, c, n, stride1=s, name='conv%d' % (i + 2))
         return x
 
-    model = ResNet(input_shape, stack_fn, False, True, name)
+    model = ResNet(input_shape, stack_fn, False, name)
     if pretrained:
         load_weights(model, name)
 

@@ -114,13 +114,9 @@ class Trainer:
             preds = self.model(inputs, training=False)
             if self.bfloat16:
                 preds = tf.cast(preds, tf.float32)
-            per_example_loss = self.criterion(target, preds)
 
             for metric in self.test_metrics:
-                if 'loss' in metric.name:
-                    metric.update_state(per_example_loss)
-                else:
-                    metric.update_state(target, preds, None)
+                metric.update_state(target, preds, None)
 
         if self.strategy:
             self.strategy.run(step_fn, args=(next(iterator),))

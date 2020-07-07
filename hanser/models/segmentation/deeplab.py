@@ -1,35 +1,36 @@
+import copy
 import tensorflow as tf
 
 from tensorflow.keras import Model
 from tensorflow.keras.layers import Concatenate, AvgPool2D, UpSampling2D, Input, Lambda
 
-from hanser.legacy.models.layers import conv2d, bn, relu
-from hanser.legacy.models.backbone.resnet import stack1, load_weights, ResNet
+from hanser.models.functional.layers import conv2d, norm, act
+from hanser.models.backbone.resnet import stack1, load_weights, ResNet
 
 
 def ASPP(x, channels=256, rates=(6, 12, 18)):
     x1 = conv2d(x, channels, kernel_size=1)
-    x1 = bn(x1)
+    x1 = norm(x1)
 
     x2 = conv2d(x, channels, kernel_size=3, dilation=rates[0])
-    x2 = bn(x2)
+    x2 = norm(x2)
 
     x3 = conv2d(x, channels, kernel_size=3, dilation=rates[1])
-    x3 = bn(x3)
+    x3 = norm(x3)
 
     x4 = conv2d(x, channels, kernel_size=3, dilation=rates[2])
-    x4 = bn(x4)
+    x4 = norm(x4)
 
     im = AvgPool2D(x.shape[1:3])(x)
     im = conv2d(im, channels, kernel_size=1)
-    im = bn(im)
+    im = norm(im)
     im = UpSampling2D(x.shape[1:3], interpolation='bilinear')(im)
 
     x = Concatenate()([x1, x2, x3, x4, im])
-    x = relu(x)
+    x = act(x)
     x = conv2d(x, channels, kernel_size=1)
-    x = bn(x)
-    x = relu(x)
+    x = norm(x)
+    x = act(x)
 
     return x
 
@@ -50,10 +51,24 @@ def get_resnet(model_name, input_shape, pretrained=True, output_stride=32, multi
                    name='conv5')
         return x
 
-    model = ResNet(input_shape, stack_fn, False, True, model_name)
+    model = ResNet(input_shape, stack_fn, False, model_name)
     if pretrained:
         load_weights(model, model_name)
 
+    return model
+
+
+def get_efficientnet(version, input_shape, pretrained=True, output_stride=32):
+
+    import hanser.models.backbone.efficientnet
+    from hanser.models.backbone.efficientnet import DEFAULT_BLOCKS_ARGS
+    model_fn = getattr(hanser.models.backbone.efficientnet, "EfficientNet" + version.upper())
+    blocks_args = copy.deepcopy(DEFAULT_BLOCKS_ARGS)
+    if output_stride == 16:
+        blocks_args[-2]['strides'] = 1
+
+    model = model_fn(include_top=False, weights='imagenet' if pretrained else None,
+                     input_shape=input_shape, blocks_args=blocks_args, include_last_conv=False)
     return model
 
 
@@ -65,7 +80,7 @@ def deeplabv3(input_shape, backbone, output_stride, multi_grad=(1, 1, 1), aspp=T
     x = backbone(inputs)
     if aspp:
         x = ASPP(x)
-    logits = conv2d(x, num_classes, kernel_size=1, use_bias=True)
+    logits = conv2d(x, num_classes, kernel_size=1, bias=True)
     logits = Lambda(tf.compat.v1.image.resize_bilinear,
                     arguments=dict(
                         size=input_shape[:2],
