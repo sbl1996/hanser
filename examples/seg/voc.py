@@ -27,6 +27,7 @@ from hanser.io import eglob
 HEIGHT = WIDTH = 512
 IGNORE_LABEL = 255
 
+
 def decode(example_proto):
     example = parse_tfexample_to_img_seg(example_proto)
     img = tf.image.decode_image(example['image/encoded'])
@@ -37,15 +38,14 @@ def decode(example_proto):
 
 
 @curry
-def preprocess(example, crop_h=HEIGHT, crop_w=WIDTH, min_size=None, training=True):
+def preprocess(example, crop_h=HEIGHT, crop_w=WIDTH, ignore_label=IGNORE_LABEL, min_size=None, training=True):
     img, seg = decode(example)
 
     mean_rgb = tf.convert_to_tensor([123.68, 116.779, 103.939], tf.float32)
     std_rgb = tf.convert_to_tensor([58.393, 57.12, 57.375], tf.float32)
 
     img = tf.cast(img, tf.float32)
-    if seg is not None:
-        seg = tf.cast(seg, tf.int32)
+    seg = tf.cast(seg, tf.int32)
 
     if min_size:
         img = resize(img, min_size)
@@ -61,8 +61,7 @@ def preprocess(example, crop_h=HEIGHT, crop_w=WIDTH, min_size=None, training=Tru
     target_w = img_w + tf.maximum(crop_w - img_w, 0)
 
     img = pad_to_bounding_box(img, 0, 0, target_h, target_w, mean_rgb)
-    if seg is not None:
-        seg = pad_to_bounding_box(seg, 0, 0, target_h, target_w, 0)
+    seg = pad_to_bounding_box(seg, 0, 0, target_h, target_w, ignore_label)
 
     if training:
         img, seg = random_crop([img, seg], crop_h, crop_w)
