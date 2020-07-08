@@ -109,29 +109,13 @@ lr_schedule = CosineLR(base_lr * mul, steps_per_epoch, 100, 1e-6,
 optimizer = tf.keras.optimizers.SGD(learning_rate=base_lr, momentum=0.9, nesterov=True)
 
 training_loss = Mean('loss', dtype=tf.float32)
-training_accuracy = SparseCategoricalAccuracy('acc', dtype=tf.float32)
 test_loss = CrossEntropy('loss', ignore_label=IGNORE_LABEL, dtype=tf.float32)
-test_accuracy = SparseCategoricalAccuracy('acc', dtype=tf.float32)
-
+miou = MeanIoU(21, IGNORE_LABEL, 'miou', dtype=tf.float32)
 
 trainer = Trainer(model, criterion, optimizer,
                   metrics=[training_loss],
-                  test_metrics=[test_loss])
-
-
-def output_transform(output):
-    pred = tf.argmax(output, axis=-1, output_type=tf.int32)
-#     pred = tf.image.resize(pred[..., None], (512, 512), method='nearest')[..., 0]
-    return pred
-
-
-def target_transform(target):
-    return tf.where(tf.not_equal(target, IGNORE_LABEL), target, tf.zeros_like(target))
+                  test_metrics=[test_loss, miou])
 
 
 trainer.fit(
-    100, ds_train, steps_per_epoch, ds_val, val_steps,
-    extra_metrics=[MeanIoU(21, IGNORE_LABEL, 'miou', dtype=tf.float32)],
-    target_transform=target_transform,
-    output_transform=output_transform,
-    extra_eval_freq=1)
+    100, ds_train, steps_per_epoch, ds_val, val_steps)
