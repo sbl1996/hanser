@@ -44,7 +44,7 @@ def maybe_cat(x):
 
 class Trainer:
 
-    def __init__(self, model, criterion, optimizer, metrics=(), test_metrics=(), model_dir=None):
+    def __init__(self, model, criterion, optimizer, metrics=(), test_metrics=(), strategy='auto', model_dir=None):
         self.model = model
         self.criterion = criterion
         self.optimizer = optimizer
@@ -52,9 +52,11 @@ class Trainer:
         self.test_metrics = test_metrics
         self.model_dir = model_dir
 
-        strategy = tf.distribute.get_strategy()
-        if not isinstance(strategy, TPUStrategy):
-            strategy = None
+        if strategy is not None:
+            if strategy == 'auto':
+                strategy = tf.distribute.get_strategy()
+            if not isinstance(strategy, TPUStrategy):
+                strategy = None
         self.strategy = strategy
         if strategy and model_dir:
             assert model_dir.startswith('gs'), "Use gs://... as `model_dir` on TPU"
