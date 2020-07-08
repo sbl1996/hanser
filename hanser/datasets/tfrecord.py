@@ -1,10 +1,10 @@
 import io
 import math
-from pathlib import Path
 
 from PIL import Image
 
 import numpy as np
+from hanser.io import fmt_path
 import tensorflow as tf
 
 
@@ -114,11 +114,13 @@ def parse_tfexample_to_img_seg(example_proto):
     }
     return tf.io.parse_single_example(example_proto, features)
 
-
-def _check_path(fp):
-    return Path(fp).expanduser().absolute()
-
-
+# root = fmt_path("/Users/hrvvi/Downloads/VOC2012_sub")
+# convert_segmentation_dataset(
+# root / "ImageSets/Segmentation/trainaug.txt",
+# '/Users/hrvvi/Code/TF/tfrecord/VOC',
+# root / 'JPEGImages',
+# root / 'SegmentationClassAug',
+# num_shards=8)
 def convert_segmentation_dataset(split_f, output_dir, image_dir, label_dir, image_format='jpg', label_format='png',
                                  num_shards=4):
     """Converts the specified dataset split to TFRecord format.
@@ -129,10 +131,10 @@ def convert_segmentation_dataset(split_f, output_dir, image_dir, label_dir, imag
   Raises:
     RuntimeError: If loaded image and label have different shape.
   """
-    split_f = _check_path(split_f)
-    output_dir = _check_path(output_dir)
-    image_dir = _check_path(image_dir)
-    label_dir = _check_path(label_dir)
+    split_f = fmt_path(split_f)
+    output_dir = fmt_path(output_dir)
+    image_dir = fmt_path(image_dir)
+    label_dir = fmt_path(label_dir)
 
     output_dir.mkdir(parents=True, exist_ok=True)
     split = split_f.stem
@@ -176,7 +178,7 @@ def convert_numpy_dataset(X, y, split, output_dir, num_shards=4):
     """
     assert len(X) == len(y)
 
-    output_dir = _check_path(output_dir)
+    output_dir = fmt_path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     num_examples = len(X)
     num_per_shard = int(math.ceil(num_examples / float(num_shards)))

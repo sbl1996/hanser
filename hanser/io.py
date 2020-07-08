@@ -1,7 +1,10 @@
 import os
+import sys
+import stat
 import json
+import shutil
 from pathlib import Path
-from typing import Callable, Any
+from typing import Callable, Any, Union
 from datetime import datetime, timedelta
 
 
@@ -56,3 +59,42 @@ def time_now():
     now = datetime.utcnow() + timedelta(hours=8)
     now = now.strftime("%H:%M:%S")
     return now
+
+
+def mv(src, dst):
+    return fmt_path(shutil.move(str(src), str(dst)))
+
+def copy(src: Path, dst: Path):
+    src = fmt_path(src)
+    dst = fmt_path(dst)
+    shutil.copy(str(src), str(dst))
+
+def rm(fp: Union[str, Path]):
+    fp = fmt_path(fp)
+    if fp.exists():
+        if fp.is_dir():
+            for d in fp.iterdir():
+                rm(d)
+            fp.rmdir()
+        else:
+            fp.unlink()
+
+
+def is_hidden(fp):
+    fp = fmt_path(fp)
+    plat = sys.platform
+    if plat == 'darwin':
+        import Foundation
+        url = Foundation.NSURL.fileURLWithPath_(str(fp))
+        return url.getResourceValue_forKey_error_(None, Foundation.NSURLIsHiddenKey, None)[1]
+    elif plat in ['win32', 'cygwin']:
+        return bool(fp.stat().st_file_attributes & stat.FILE_ATTRIBUTE_HIDDEN)
+    else:
+        return fp.name.startswith(".")
+
+
+def eglob(fp, pattern):
+    fp = fmt_path(fp)
+    for f in fp.glob(pattern):
+        if not is_hidden(f):
+            yield f

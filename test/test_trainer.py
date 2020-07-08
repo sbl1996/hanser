@@ -5,7 +5,6 @@ from toolz import curry
 
 import tensorflow as tf
 import tensorflow_datasets as tfds
-import tensorflow_probability as tfp
 
 from tensorflow.keras.optimizers import SGD
 from tensorflow.keras.losses import CategoricalCrossentropy

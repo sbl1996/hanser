@@ -1,5 +1,6 @@
 import numpy as np
-
+from tensorflow.python.keras.metrics import MeanMetricWrapper
+from hanser.losses import cross_entropy
 
 def confusion_matrix(y_true, y_pred, num_classes):
     c = num_classes
@@ -25,3 +26,14 @@ def iou(y_true, y_pred, num_classes, ignore_index=None):
 
 def mean_iou(y_true, y_pred, num_classes, ignore_index=None):
     return np.mean(iou(y_true, y_pred, num_classes, ignore_index))
+
+
+class CrossEntropy(MeanMetricWrapper):
+
+  def __init__(self,
+               name='cross_entropy',
+               dtype=None,
+               ignore_label=None,
+               reduction='weighted_sum_by_nonzero_weights'):
+
+    super().__init__(cross_entropy, name, dtype=dtype, ignore_label=ignore_label, reduction=reduction)

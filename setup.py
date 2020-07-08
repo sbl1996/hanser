@@ -9,8 +9,7 @@ import os
 import sys
 import glob
 
-from shutil import rmtree
-from setuptools import find_packages, setup, Command, Extension
+from setuptools import find_packages, setup, Extension
 
 # with open('requirements.txt') as f:
 #     requirements = f.read().splitlines()
@@ -26,7 +25,6 @@ AUTHOR = 'HrvvI'
 REQUIRES_PYTHON = '>=3.6.0'
 VERSION = None
 
-# What packages are required for this module to be executed?
 REQUIRED = [
     "Pillow",
     "numpy",
@@ -34,23 +32,15 @@ REQUIRED = [
     "pybind11",
     # "tensorflow_addons",
     "googledrivedownloader",
-    'tensorflow'
+    'tensorflow',
+    "tensorflow_probability",
 ]
 
 DEPENDENCY_LINKS = [
 ]
 
-# What packages are optional?
-
-# The rest you shouldn't have to touch too much :)
-# ------------------------------------------------
-# Except, perhaps the License and Trove Classifiers!
-# If you do change the License, remember to change the Trove Classifier for that!
-
 here = os.path.dirname(os.path.abspath(__file__))
 
-# Import the README and use it as the long-description.
-# Note: this will only work if 'README.md' is present in your MANIFEST.in file!
 try:
     with io.open(os.path.join(here, 'README.md'), encoding='utf-8') as f:
         long_description = '\n' + f.read()
@@ -98,51 +88,6 @@ def get_numpy_extensions():
 
     return ext_modules
 
-
-class UploadCommand(Command):
-    """Support setup.py upload."""
-
-    description = 'Build and publish the package.'
-    user_options = [
-        ('test', None, 'whether upload to TestPYPI'),
-    ]
-
-    @staticmethod
-    def status(s):
-        """Prints things in bold."""
-        print('\033[1m{0}\033[0m'.format(s))
-
-    def initialize_options(self):
-        self.test = False
-
-    def finalize_options(self):
-        pass
-
-    def run(self):
-        try:
-            self.status('Removing previous builds…')
-            rmtree(os.path.join(here, 'dist'))
-        except OSError:
-            pass
-
-        self.status('Building Source and Wheel (universal) distribution…')
-        os.system(
-            '{0} setup.py sdist bdist_wheel --universal'.format(sys.executable))
-
-        if self.test:
-            self.status('Uploading the package to TestPyPI via Twine…')
-            os.system('twine upload --repository testpypi dist/*')
-        else:
-            self.status('Uploading the package to PyPI via Twine…')
-            os.system('twine upload --repository pypi dist/*')
-
-        self.status('Pushing git tags…')
-        os.system('git tag v{0}'.format(about['__version__']))
-        os.system('git push --tags')
-
-        sys.exit()
-
-
 # Where the magic happens:
 setup(
     name=NAME,
@@ -155,19 +100,9 @@ setup(
     python_requires=REQUIRES_PYTHON,
     url=URL,
     packages=find_packages(exclude=('tests',)),
-    # If your package is a single module, use this instead of 'packages':
-    # py_modules=['mypackage'],
-
-    # entry_points={
-    #     'console_scripts': ['mycli=mymodule:cli'],
-    # },
     install_requires=REQUIRED,
     dependency_links=DEPENDENCY_LINKS,
     # include_package_data=True,
     license='MIT',
     ext_modules=get_numpy_extensions(),
-    # $ setup.py publish support.
-    cmdclass={
-        'upload': UploadCommand,
-    },
 )

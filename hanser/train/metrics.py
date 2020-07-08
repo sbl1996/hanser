@@ -12,44 +12,7 @@ from hanser.detection import BBox
 from hanser.detection.eval import average_precision
 
 
-
 class MeanIoU(Metric):
-    """Computes the mean Intersection-Over-Union metric.
-
-    Mean Intersection-Over-Union is a common evaluation metric for semantic image
-    segmentation, which first computes the IOU for each semantic class and then
-    computes the average over classes. IOU is defined as follows:
-      IOU = true_positive / (true_positive + false_positive + false_negative).
-    The predictions are accumulated in a confusion matrix, weighted by
-    `sample_weight` and the metric is then calculated from it.
-
-    If `sample_weight` is `None`, weights default to 1.
-    Use `sample_weight` of 0 to mask values.
-
-    Usage:
-
-    ```python
-    m = tf.keras.metrics.MeanIoU(num_classes=2)
-    m.update_state([0, 0, 1, 1], [0, 1, 0, 1])
-
-      # cm = [[1, 1],
-              [1, 1]]
-      # sum_row = [2, 2], sum_col = [2, 2], true_positives = [1, 1]
-      # iou = true_positives / (sum_row + sum_col - true_positives))
-      # result = (1 / (2 + 2 - 1) + 1 / (2 + 2 - 1)) / 2 = 0.33
-    print('Final result: ', m.result().numpy())  # Final result: 0.33
-    ```
-
-    Usage with tf.keras API:
-
-    ```python
-    models = tf.keras.Model(inputs, outputs)
-    models.compile(
-      'sgd',
-      loss='mse',
-      metrics=[tf.keras.metrics.MeanIoU(num_classes=2)])
-    ```
-    """
 
     def __init__(self, num_classes, ignore_index, name=None, dtype=None):
         """Creates a `MeanIoU` instance.
@@ -148,8 +111,6 @@ class MeanAccuracy(Metric):
         self._ignore_index = ignore_index
 
     def update_state(self, y_true, y_pred, sample_weight=None):
-        y_trues = []
-        y_preds = []
         for k, m in self._metrics.items():
             t = y_true[k]
             p = y_pred[k]

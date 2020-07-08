@@ -1,8 +1,4 @@
-import sys
-import os
-
-import matplotlib.pyplot as plt
-import numpy as np
+from glob import glob
 
 import tensorflow as tf
 import tensorflow.keras.backend as K
@@ -12,29 +8,24 @@ from hanser.tpu import get_colab_tpu, auth
 strategy = get_colab_tpu()
 
 # auth()
-
-from datetime import datetime
-import math
-import time
 from toolz import curry
 
-from tensorflow.keras.metrics import Mean, SparseCategoricalAccuracy, MeanIoU, Accuracy
+from tensorflow.keras.metrics import Mean, SparseCategoricalAccuracy
 
-import hanser
-
-from hanser.models.backbone.efficientnet import EfficientNetB0, DEFAULT_BLOCKS_ARGS
-from hanser.legacy.models.segmentation.deeplab import deeplabv3
-
+from hanser.models.segmentation.deeplab import deeplabv3
+from hanser.train.metrics import MeanIoU
 from hanser.train.trainer import Trainer
 from hanser.datasets import prepare
 from hanser.losses import cross_entropy
+from hanser.metrics import CrossEntropy
 from hanser.train.lr_schedule import CosineDecayRestarts
 from hanser.transform import resize, pad_to_bounding_box, _ImageDimensions
 from hanser.transform.segmentation import random_crop, flip_dim, get_random_scale, random_scale
 from hanser.datasets.tfrecord import parse_tfexample_to_img_seg
+from hanser.io import eglob
 
 HEIGHT = WIDTH = 512
-
+IGNORE_LABEL = 255
 
 def decode(example_proto):
     example = parse_tfexample_to_img_seg(example_proto)
@@ -46,7 +37,7 @@ def decode(example_proto):
 
 
 @curry
-def preprocess(example, crop_h=HEIGHT, crop_w=WIDTH, min_size=None, ignore_label=255, training=True):
+def preprocess(example, crop_h=HEIGHT, crop_w=WIDTH, min_size=None, training=True):
     img, seg = decode(example)
 
     mean_rgb = tf.convert_to_tensor([123.68, 116.779, 103.939], tf.float32)
@@ -86,42 +77,45 @@ def preprocess(example, crop_h=HEIGHT, crop_w=WIDTH, min_size=None, ignore_label
 
 # train_files = !gsutil ls -r gs://hrvvi-datasets/VOC2012Segmentation/trainaug* | cat
 # val_files = !gsutil ls -r gs://hrvvi-datasets/VOC2012Segmentation/val* | cat
-train_files = None
-val_files = None
+train_files = glob("/Users/hrvvi/Code/TF/tfrecord/VOC_sub/trainaug*")
+val_files = glob("/Users/hrvvi/Code/TF/tfrecord/VOC_sub/val*")
 
-num_train_examples = 10582
-num_val_examples = 1449
-batch_size = 8 * 8
-eval_batch_size = 20 * 8
+# num_train_examples = 10582
+# num_val_examples = 1449
+num_train_examples = 24 # 270
+num_val_examples = 8 # 93
+batch_size = 1 * 8
+eval_batch_size = 1 * 8
 steps_per_epoch = num_train_examples // batch_size
 val_steps = num_val_examples // eval_batch_size
 # test_steps = math.ceil(10000 / eval_batch_size)
 
-ds_train = prepare(tf.data.TFRecordDataset(train_files), preprocess(training=True),
+ds_train = prepare(tf.data.TFRecordDataset(train_files).take(num_train_examples), preprocess(training=True),
                    batch_size, training=True)
-ds_val = prepare(tf.data.TFRecordDataset(val_files), preprocess(training=False),
+ds_val = prepare(tf.data.TFRecordDataset(val_files).take(num_val_examples), preprocess(training=False),
                  eval_batch_size, training=False, drop_remainder=True)
 
-ds_train_dist = strategy.experimental_distribute_dataset(ds_train)
-ds_val_dist = strategy.experimental_distribute_dataset(ds_val)
+# ds_train_dist = strategy.experimental_distribute_dataset(ds_train)
+# ds_val_dist = strategy.experimental_distribute_dataset(ds_val)
 
-input_shape = (512, 512, 3)
-model = deeplabv3(input_shape, 'resnet101', 16, multi_grad=(1, 2, 4), aspp=True, num_classes=21)
-criterion = cross_entropy(ignore_label=255)
+input_shape = (HEIGHT, WIDTH, 3)
+# model = deeplabv3(input_shape, 'resnet101', 16, multi_grad=(1, 2, 4), aspp=True, num_classes=21)
+model = deeplabv3(input_shape, 'efficientnetb0', 16, num_classes=21)
+criterion = cross_entropy(ignore_label=IGNORE_LABEL)
 base_lr = 1e-3 * 8
 lr_schedule = CosineDecayRestarts(base_lr, 100, steps_per_epoch=steps_per_epoch)
 optimizer = tf.keras.optimizers.SGD(learning_rate=base_lr, momentum=0.9, nesterov=True)
 
 training_loss = Mean('loss', dtype=tf.float32)
 training_accuracy = SparseCategoricalAccuracy('acc', dtype=tf.float32)
-test_loss = Mean('loss', dtype=tf.float32)
+test_loss = CrossEntropy('loss', ignore_label=IGNORE_LABEL, dtype=tf.float32)
 test_accuracy = SparseCategoricalAccuracy('acc', dtype=tf.float32)
 
 
 trainer = Trainer(model, criterion, optimizer,
                   metrics=[training_loss],
                   test_metrics=[test_loss],
-                  model_dir="gs://hrvvi-models/checkpoints/deeplabv3-resnet50")
+                  model_dir="gs://hrvvi-models/checkpoints/deeplabv3-efficientnetb0")
 
 
 def output_transform(output):
@@ -131,11 +125,12 @@ def output_transform(output):
 
 
 def target_transform(target):
-    return tf.where(tf.not_equal(target, 255), target, tf.zeros_like(target))
+    return tf.where(tf.not_equal(target, IGNORE_LABEL), target, tf.zeros_like(target))
+
 
 trainer.fit(
-    100, ds_train_dist, steps_per_epoch, ds_val_dist, val_steps,
-    extra_metrics=[MeanIoU(21, 'miou', dtype=tf.float32)],
+    100, ds_train, steps_per_epoch, ds_val, val_steps,
+    extra_metrics=[MeanIoU(21, IGNORE_LABEL, 'miou', dtype=tf.float32)],
     target_transform=target_transform,
     output_transform=output_transform,
     extra_eval_freq=5)

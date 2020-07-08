@@ -72,14 +72,14 @@ def get_efficientnet(version, input_shape, pretrained=True, output_stride=32):
     return model
 
 
-def deeplabv3(input_shape, backbone, output_stride, multi_grad=(1, 1, 1), aspp=True, num_classes=21):
-    assert backbone in ['resnet50', 'resnet101']
-    backbone = get_resnet(backbone, input_shape, output_stride=output_stride, multi_grad=multi_grad)
+def deeplabv3(input_shape, backbone, output_stride, aspp=True, num_classes=21):
+    assert backbone.startswith("efficientnet")
+    backbone = get_efficientnet(backbone[12:], input_shape, output_stride=output_stride)
 
     inputs = Input(input_shape)
     x = backbone(inputs)
-    if aspp:
-        x = ASPP(x)
+    # if aspp:
+    #     x = ASPP(x)
     logits = conv2d(x, num_classes, kernel_size=1, bias=True)
     logits = Lambda(tf.compat.v1.image.resize_bilinear,
                     arguments=dict(
@@ -89,3 +89,22 @@ def deeplabv3(input_shape, backbone, output_stride, multi_grad=(1, 1, 1), aspp=T
                     name='upsampling_logits')(logits)
     model = Model(inputs=inputs, outputs=logits)
     return model
+
+
+# def deeplabv3(input_shape, backbone, output_stride, multi_grad=(1, 1, 1), aspp=True, num_classes=21):
+#     assert backbone in ['resnet50', 'resnet101']
+#     backbone = get_resnet(backbone, input_shape, output_stride=output_stride, multi_grad=multi_grad)
+#
+#     inputs = Input(input_shape)
+#     x = backbone(inputs)
+#     if aspp:
+#         x = ASPP(x)
+#     logits = conv2d(x, num_classes, kernel_size=1, bias=True)
+#     logits = Lambda(tf.compat.v1.image.resize_bilinear,
+#                     arguments=dict(
+#                         size=input_shape[:2],
+#                         align_corners=True,
+#                     ),
+#                     name='upsampling_logits')(logits)
+#     model = Model(inputs=inputs, outputs=logits)
+#     return model
