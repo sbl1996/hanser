@@ -24,53 +24,55 @@ def weighted_bce(y_true, y_pred, pos_weight, from_logits=True):
     return tf.reduce_mean(losses)
 
 
+# @curry
+# def cross_entropy(labels, logits, ignore_label=None, reduction='weighted_sum_by_nonzero_weights'):
+#     r"""
+#     Args:
+#         labels: (N, H, W)
+#         logits: (N, H, W, C)
+#     """
+#
+#     labels = tf.cast(labels, tf.int32)
+#     num_classes = tf.shape(logits)[-1]
+#     labels = tf.reshape(labels, [-1])
+#     logits = tf.reshape(logits, [-1, num_classes])
+#     if ignore_label is not None:
+#         mask = tf.not_equal(labels, ignore_label)
+#         labels = tf.where(mask, labels, tf.zeros_like(labels))
+#         weights = tf.cast(mask, logits.dtype)
+#         loss = tf.compat.v1.losses.sparse_softmax_cross_entropy(labels, logits, weights, reduction=reduction)
+#     else:
+#         loss = tf.keras.losses.sparse_categorical_crossentropy(labels, logits, from_logits=True)
+#         loss = tf.reduce_mean(loss)
+#     return loss
+
+
 @curry
-def cross_entropy(labels, logits, ignore_label=None, reduction='weighted_sum_by_nonzero_weights'):
+def cross_entropy(y_true, y_pred, ignore_label=None):
     r"""
     Args:
         labels: (N, H, W)
         logits: (N, H, W, C)
     """
-
-    labels = tf.cast(labels, tf.int32)
-    num_classes = tf.shape(logits)[-1]
-    labels = tf.reshape(labels, [-1])
-    logits = tf.reshape(logits, [-1, num_classes])
+    y_true = tf.cast(y_true, tf.int32)
     if ignore_label is not None:
-        mask = tf.not_equal(labels, ignore_label)
-        labels = tf.where(mask, labels, tf.zeros_like(labels))
-        weights = tf.cast(mask, logits.dtype)
-        loss = tf.compat.v1.losses.sparse_softmax_cross_entropy(labels, logits, weights, reduction=reduction)
+        mask = tf.not_equal(y_true, ignore_label)
+        weights = tf.cast(mask, y_pred.dtype)
+        y_true = tf.where(mask, y_true, tf.zeros_like(y_true))
+        num_valid = tf.reduce_sum(weights, axis=[1, 2])
+        losses = tf.keras.losses.sparse_categorical_crossentropy(y_true, y_pred, from_logits=True)
+
+        losses = tf.reduce_sum(losses * weights, axis=[1, 2])
+        losses = losses / num_valid
     else:
-        loss = tf.keras.losses.sparse_categorical_crossentropy(labels, logits, from_logits=True)
-        loss = tf.reduce_mean(loss)
-    return loss
+        losses = tf.keras.losses.sparse_categorical_crossentropy(y_true, y_pred, from_logits=True)
+        losses = tf.reduce_mean(losses, axis=[1, 2])
+    return losses
 
-
-@curry
-def cross_entropy2(labels, logits, ignore_label=None):
-    r"""
-    Args:
-        labels: (N, H, W)
-        logits: (N, H, W, C)
-    """
-    labels = tf.cast(labels, tf.int32)
-    num_classes = tf.shape(logits)[-1]
-    labels = tf.reshape(labels, [-1])
-    logits = tf.reshape(logits, [-1, num_classes])
-    if ignore_label is not None:
-        mask = tf.not_equal(labels, ignore_label)
-        labels = tf.where(mask, labels, tf.fill(tf.shape(labels), num_classes))
-        weights = tf.cast(mask, logits.dtype)
-        num_valid = tf.reduce_sum(weights)
-        onehot_labels = tf.one_hot(labels, num_classes + 1)[..., :-1]
-        loss = tf.keras.losses.categorical_crossentropy(onehot_labels, logits, from_logits=True)
-        loss = tf.reduce_sum(loss) / num_valid
-    else:
-        loss = tf.keras.losses.sparse_categorical_crossentropy(labels, logits, from_logits=True)
-        loss = tf.reduce_mean(loss)
-    return loss
-
+# y_true = tf.random.uniform((2,4,4), 0, 21, tf.int32)
+# y_pred = tf.random.uniform((2,4,4,21), dtype=tf.float32)
+# y_true = tf.where(tf.random.uniform(y_true.shape) < 0.2, tf.fill(y_true.shape, 255), y_true)
+# losses = cross_entropy3(y_true, y_pred, 255)
 
 @curry
 def focal_loss2(labels, logits, gamma=2, beta=1, ignore_label=None):

@@ -33,7 +33,6 @@ class CrossEntropy(MeanMetricWrapper):
   def __init__(self,
                name='cross_entropy',
                dtype=None,
-               ignore_label=None,
-               reduction='weighted_sum_by_nonzero_weights'):
+               ignore_label=None):
 
-    super().__init__(cross_entropy, name, dtype=dtype, ignore_label=ignore_label, reduction=reduction)
+    super().__init__(cross_entropy, name, dtype=dtype, ignore_label=ignore_label)
