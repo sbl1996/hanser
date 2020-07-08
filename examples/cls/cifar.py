@@ -14,7 +14,7 @@ from hanser.models.functional.cifar.pyramidnet import PyramidNet
 from hanser.models.functional.layers import DEFAULTS
 from hanser.datasets import prepare
 from hanser.train.lr_schedule import CosineLR
-from hanser.transform import random_crop, cutout, normalize, to_tensor
+from hanser.transform import random_crop, cutout, normalize, to_tensor, mixup
 from hanser.tpu import get_colab_tpu
 from hanser.train.trainer import Trainer
 
