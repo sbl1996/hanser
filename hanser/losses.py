@@ -59,14 +59,14 @@ def cross_entropy(y_true, y_pred, ignore_label=None):
         mask = tf.not_equal(y_true, ignore_label)
         weights = tf.cast(mask, y_pred.dtype)
         y_true = tf.where(mask, y_true, tf.zeros_like(y_true))
-        num_valid = tf.reduce_sum(weights, axis=[1, 2])
+        # num_valid = tf.reduce_sum(weights, axis=[1, 2])
         losses = tf.keras.losses.sparse_categorical_crossentropy(y_true, y_pred, from_logits=True)
 
         losses = tf.reduce_sum(losses * weights, axis=[1, 2])
-        losses = losses / num_valid
+        # losses = losses / num_valid
     else:
         losses = tf.keras.losses.sparse_categorical_crossentropy(y_true, y_pred, from_logits=True)
-        losses = tf.reduce_mean(losses, axis=[1, 2])
+        losses = tf.reduce_sum(losses, axis=[1, 2])
     return losses
 
 # y_true = tf.random.uniform((2,4,4), 0, 21, tf.int32)
