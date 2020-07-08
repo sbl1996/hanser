@@ -24,7 +24,7 @@ class MeanIoU(Metric):
           name: (Optional) string name of the metric instance.
           dtype: (Optional) data type of the metric result.
         """
-        super(MeanIoU, self).__init__(name=name, dtype=dtype)
+        super().__init__(name=name, dtype=dtype)
         self.num_classes = num_classes
         self.ignore_index = ignore_index
 
@@ -50,14 +50,13 @@ class MeanIoU(Metric):
           Update op.
         """
         c = self.num_classes
-        y_pred = tf.math.argmax(y_pred, axis=-1, output_type=tf.int32)
-        # Flatten the input if its rank > 1.
+        if y_pred.shape.ndims == 4:
+            y_pred = tf.math.argmax(y_pred, axis=-1, output_type=tf.int32)
         if y_pred.shape.ndims > 1:
             y_pred = tf.reshape(y_pred, [-1])
 
         if y_true.shape.ndims > 1:
             y_true = tf.reshape(y_true, [-1])
-
         mask = tf.not_equal(y_true, self.ignore_index)
         y_pred = tf.where(mask, y_pred, tf.ones_like(y_pred) * c)
         y_true = tf.where(mask, y_true, tf.ones_like(y_true) * c)

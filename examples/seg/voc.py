@@ -23,7 +23,6 @@ from hanser.train.lr_schedule import CosineLR
 from hanser.transform import resize, pad_to_bounding_box, _ImageDimensions
 from hanser.transform.segmentation import random_crop, flip_dim, get_random_scale, random_scale
 from hanser.datasets.tfrecord import parse_tfexample_to_img_seg
-from hanser.io import eglob
 
 HEIGHT = WIDTH = 512
 IGNORE_LABEL = 255
@@ -117,8 +116,7 @@ test_accuracy = SparseCategoricalAccuracy('acc', dtype=tf.float32)
 
 trainer = Trainer(model, criterion, optimizer,
                   metrics=[training_loss],
-                  test_metrics=[test_loss],
-                  model_dir="gs://hrvvi-models/checkpoints/deeplabv3-efficientnetb0")
+                  test_metrics=[test_loss])
 
 
 def output_transform(output):
@@ -136,4 +134,4 @@ trainer.fit(
     extra_metrics=[MeanIoU(21, IGNORE_LABEL, 'miou', dtype=tf.float32)],
     target_transform=target_transform,
     output_transform=output_transform,
-    extra_eval_freq=5)
+    extra_eval_freq=1)
