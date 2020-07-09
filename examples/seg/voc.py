@@ -110,12 +110,14 @@ optimizer = tf.keras.optimizers.SGD(learning_rate=base_lr, momentum=0.9, nestero
 
 training_loss = Mean('loss', dtype=tf.float32)
 test_loss = CrossEntropy('loss', ignore_label=IGNORE_LABEL, dtype=tf.float32)
-miou = MeanIoU(21, IGNORE_LABEL, 'miou', dtype=tf.float32)
 
 trainer = Trainer(model, criterion, optimizer,
                   metrics=[training_loss],
-                  test_metrics=[test_loss, miou])
+                  test_metrics=[test_loss])
 
 
 trainer.fit(
-    100, ds_train, steps_per_epoch, ds_val, val_steps)
+    100, ds_train, steps_per_epoch, ds_val, val_steps,
+    extra_metrics=[MeanIoU(21, IGNORE_LABEL, 'miou', dtype=tf.float32)],
+    extra_eval_freq=5
+)

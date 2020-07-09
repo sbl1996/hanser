@@ -138,47 +138,29 @@ def sparse_categorical_accuracy(y_true, y_pred, ignore_label):
     return n_correct / n_total
 
 
-def confusion_matrix(y_true, y_pred, num_classes):
-    y_true = tf.one_hot(y_true, num_classes, on_value=True, off_value=False, dtype=tf.bool)
-    y_pred = tf.one_hot(y_pred, num_classes, on_value=True, off_value=False, dtype=tf.bool)
-
-    def body(c, m):
-        r = tf.logical_and(tf.expand_dims(y_true[:, c], -1), y_pred)
-        mc = tf.reduce_sum(tf.cast(r, m.dtype), axis=0, keepdims=True)
-        m = tf.concat([m, mc], axis=0)
-        return [c + 1, m]
-
-    m0 = tf.zeros((0, num_classes), dtype=tf.int32)
-    c0 = tf.constant(0, dtype=tf.int32)
-    cm = tf.while_loop(
-        lambda c, m: c < num_classes, body, loop_vars=[c0, m0],
-        shape_invariants=[c0.get_shape(), tf.TensorShape([None, num_classes])])[1]
-    return cm
-
 # def confusion_matrix(y_true, y_pred, num_classes):
-#     y_true = tf.cast(y_true, tf.int32)
-#     y_pred = tf.cast(y_pred, tf.int32)
-#     c = num_classes
-#     y_true0 = tf.random.uniform((2, 4, 4), 0, 3, tf.int32)
-#     y_pred0 = tf.random.uniform((2, 4, 4), 0, 3, tf.int32)
-#     y_true = tf.reshape(y_true0, -1)
-#     y_pred = tf.reshape(y_pred0, -1)
 #     y_true = tf.one_hot(y_true, num_classes, on_value=True, off_value=False, dtype=tf.bool)
 #     y_pred = tf.one_hot(y_pred, num_classes, on_value=True, off_value=False, dtype=tf.bool)
 #
 #     def body(c, m):
 #         r = tf.logical_and(tf.expand_dims(y_true[:, c], -1), y_pred)
-#         mc = tf.reduce_sum(tf.cast(r, tf.int32), axis=0, keepdims=True)
+#         mc = tf.reduce_sum(tf.cast(r, m.dtype), axis=0, keepdims=True)
 #         m = tf.concat([m, mc], axis=0)
 #         return [c + 1, m]
 #
 #     m0 = tf.zeros((0, num_classes), dtype=tf.int32)
 #     c0 = tf.constant(0, dtype=tf.int32)
-#     tf.while_loop(
-#         lambda c, m: c < num_classes,
-#         body, loop_vars=[c0, m0], shape_invariants=[c0.get_shape(), tf.TensorShape([None, 2])])
-#
-#     return tf.reshape(tf.math.bincount(y_true0 * c + y_pred0, minlength=c * c), (c, c))
+#     cm = tf.while_loop(
+#         lambda c, m: c < num_classes, body, loop_vars=[c0, m0],
+#         shape_invariants=[c0.get_shape(), tf.TensorShape([None, num_classes])])[1]
+#     return cm
+
+def confusion_matrix(y_true, y_pred, num_classes):
+    y_true = tf.cast(y_true, tf.int32)
+    y_pred = tf.cast(y_pred, tf.int32)
+    c = num_classes
+
+    return tf.reshape(tf.math.bincount(y_true * c + y_pred, minlength=c * c), (c, c))
 
 
 @curry
