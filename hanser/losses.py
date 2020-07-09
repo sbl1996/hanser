@@ -63,6 +63,7 @@ def cross_entropy(y_true, y_pred, ignore_label=None):
         losses = tf.keras.losses.sparse_categorical_crossentropy(y_true, y_pred, from_logits=True)
 
         losses = tf.reduce_sum(losses * weights, axis=[1, 2])
+        num_valid = tf.maximum(num_valid, 1.)
         losses = losses / num_valid
     else:
         losses = tf.keras.losses.sparse_categorical_crossentropy(y_true, y_pred, from_logits=True)
