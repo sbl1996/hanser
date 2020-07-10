@@ -6,6 +6,7 @@ import tensorflow_addons as tfa
 import tensorflow_probability as tfp
 from tensorflow.python.ops import check_ops
 from tensorflow.python.ops import array_ops
+from tensorflow.python.ops import gen_image_ops
 
 
 @curry
@@ -22,7 +23,6 @@ def mixup(image, label, beta):
 
 
 def rand_bbox(h, w, lam):
-
     cut_rat = tf.sqrt(1. - lam)
     cut_w = tf.cast(tf.cast(w, lam.dtype) * cut_rat, tf.int32)
     cut_h = tf.cast(tf.cast(h, lam.dtype) * cut_rat, tf.int32)
@@ -93,6 +93,123 @@ def distorted_bounding_box_crop(image_bytes,
     return image
 
 
+def get_ndims(image):
+    return image.get_shape().ndims or tf.rank(image)
+
+
+def to_4D_image(image):
+    """Convert 2/3/4D image to 4D image.
+
+    Args:
+      image: 2/3/4D tensor.
+
+    Returns:
+      4D tensor with the same type.
+    """
+    with tf.control_dependencies(
+        [
+            tf.debugging.assert_rank_in(
+                image, [2, 3, 4], message="`image` must be 2/3/4D tensor"
+            )
+        ]
+    ):
+        ndims = image.get_shape().ndims
+        if ndims is None:
+            return _dynamic_to_4D_image(image)
+        elif ndims == 2:
+            return image[None, :, :, None]
+        elif ndims == 3:
+            return image[None, :, :, :]
+        else:
+            return image
+
+
+def _dynamic_to_4D_image(image):
+    shape = tf.shape(image)
+    original_rank = tf.rank(image)
+    # 4D image => [N, H, W, C] or [N, C, H, W]
+    # 3D image => [1, H, W, C] or [1, C, H, W]
+    # 2D image => [1, H, W, 1]
+    left_pad = tf.cast(tf.less_equal(original_rank, 3), dtype=tf.int32)
+    right_pad = tf.cast(tf.equal(original_rank, 2), dtype=tf.int32)
+    new_shape = tf.concat(
+        [
+            tf.ones(shape=left_pad, dtype=tf.int32),
+            shape,
+            tf.ones(shape=right_pad, dtype=tf.int32),
+        ],
+        axis=0,
+    )
+    return tf.reshape(image, new_shape)
+
+
+def _dynamic_from_4D_image(image, original_rank):
+    shape = tf.shape(image)
+    # 4D image <= [N, H, W, C] or [N, C, H, W]
+    # 3D image <= [1, H, W, C] or [1, C, H, W]
+    # 2D image <= [1, H, W, 1]
+    begin = tf.cast(tf.less_equal(original_rank, 3), dtype=tf.int32)
+    end = 4 - tf.cast(tf.equal(original_rank, 2), dtype=tf.int32)
+    new_shape = shape[begin:end]
+    return tf.reshape(image, new_shape)
+
+
+def from_4D_image(image, ndims):
+    """Convert back to an image with `ndims` rank.
+
+    Args:
+      image: 4D tensor.
+      ndims: The original rank of the image.
+
+    Returns:
+      `ndims`-D tensor with the same type.
+    """
+    with tf.control_dependencies(
+        [tf.debugging.assert_rank(image, 4, message="`image` must be 4D tensor")]
+    ):
+        if isinstance(ndims, tf.Tensor):
+            return _dynamic_from_4D_image(image, ndims)
+        elif ndims == 2:
+            return tf.squeeze(image, [0, 3])
+        elif ndims == 3:
+            return tf.squeeze(image, [0])
+        else:
+            return image
+
+
+def transform(images, transforms, interpolation="NEAREST", output_shape=None):
+    image_or_images = tf.convert_to_tensor(images)
+    transform_or_transforms = tf.convert_to_tensor(transforms, dtype=tf.float32)
+    images = to_4D_image(image_or_images)
+    original_ndims = get_ndims(image_or_images)
+
+    if output_shape is None:
+        output_shape = tf.shape(images)[1:3]
+
+    output_shape = tf.convert_to_tensor(output_shape, tf.int32)
+
+    if len(transform_or_transforms.get_shape()) == 1:
+        transforms = transform_or_transforms[None]
+    elif transform_or_transforms.get_shape().ndims is None:
+        raise ValueError("transforms rank must be statically known")
+    elif len(transform_or_transforms.get_shape()) == 2:
+        transforms = transform_or_transforms
+    else:
+        transforms = transform_or_transforms
+        raise ValueError(
+            "transforms should have rank 1 or 2, but got rank %d"
+            % len(transforms.get_shape())
+        )
+
+    output = gen_image_ops.image_projective_transform_v2(
+        images,
+        output_shape=output_shape,
+        transforms=transforms,
+        interpolation=interpolation.upper(),
+    )
+    return from_4D_image(output, original_ndims)
+
+
 def _at_least_x_are_equal(a, b, x):
     """At least `x` of `a` and `b` `Tensors` are equal."""
     match = tf.equal(a, b)
@@ -148,12 +265,14 @@ def random_apply(func, p, image):
         lambda: image,
     )
 
+
 def random_apply2(func, p, image, label):
     return tf.cond(
         tf.random.uniform(()) < p,
         lambda: func(image, label),
         lambda: (image, label),
     )
+
 
 def random_choice(funcs, image):
     """Select a random policy from `policies` and apply it to `image`."""
@@ -227,33 +346,19 @@ def _assert(cond, ex_type, msg):
             return []
 
 
-def resolve_shape(tensor, rank=None, scope=None):
-    """Fully resolves the shape of a Tensor.
+def resolve_shape(tensor, rank=None):
+    if rank is not None:
+        shape = tensor.get_shape().with_rank(rank).as_list()
+    else:
+        shape = tensor.get_shape().as_list()
 
-    Use as much as possible the shape components already known during graph
-    creation and resolve the remaining ones during runtime.
+    if None in shape:
+        shape_dynamic = tf.shape(tensor)
+        for i in range(len(shape)):
+            if shape[i] is None:
+                shape[i] = shape_dynamic[i]
 
-    Args:
-      tensor: Input tensor whose shape we query.
-      rank: The rank of the tensor, provided that we know it.
-      scope: Optional name scope.
-
-    Returns:
-      shape: The full shape of the tensor.
-    """
-    with tf.name_scope(scope, 'resolve_shape', [tensor]):
-        if rank is not None:
-            shape = tensor.get_shape().with_rank(rank).as_list()
-        else:
-            shape = tensor.get_shape().as_list()
-
-        if None in shape:
-            shape_dynamic = tf.shape(tensor)
-            for i in range(len(shape)):
-                if shape[i] is None:
-                    shape[i] = shape_dynamic[i]
-
-        return shape
+    return shape
 
 
 def resize(img, size, method='bilinear'):
@@ -557,7 +662,11 @@ def rotate(image, degrees, replace):
     # In practice, we should randomize the rotation degrees by flipping
     # it negatively half the time, but that's done on 'degrees' outside
     # of the function.
-    image = tfa.image.rotate(wrap(image), radians)
+    image_height = tf.cast(tf.shape(image)[0], tf.dtypes.float32)
+    image_width = tf.cast(tf.shape(image)[1], tf.dtypes.float32)
+    transforms = tfa.image.transform_ops.angles_to_projective_transforms(
+        radians, image_height, image_width)
+    image = transform(wrap(image), transforms)
     return unwrap(image, replace)
 
 
@@ -719,9 +828,9 @@ def shear_x(image, magnitude, replace):
     # [1  level
     #  0  1].
     transform_or_transforms = tf.convert_to_tensor(
-        [1., magnitude, 0., 0., 1., 0., 0., 0.], name="transforms", dtype=tf.dtypes.float32)
-    image = tfa.image.transform(
-        wrap(image), transform_or_transforms)
+        [1., magnitude, 0., 0., 1., 0., 0., 0.], dtype=tf.dtypes.float32)
+    image = gen_image_ops.image_projective_transform_v2(
+        wrap(image), transform_or_transforms, tf.shape(image)[:2], "NEAREST")
     return unwrap(image, replace)
 
 
@@ -732,23 +841,24 @@ def shear_y(image, magnitude, replace):
     # [1  0
     #  level  1].
     transform_or_transforms = tf.convert_to_tensor(
-        [1., 0., 0., magnitude, 1., 0., 0., 0.], name="transforms", dtype=tf.dtypes.float32)
-    image = tfa.image.transform(
-        wrap(image), transform_or_transforms)
+        [1., 0., 0., magnitude, 1., 0., 0., 0.], dtype=tf.dtypes.float32)
+    image = transform(wrap(image), transform_or_transforms)
     return unwrap(image, replace)
 
 
 def translate_x(image, pixels, replace):
     translations = tf.convert_to_tensor(
         [-pixels, 0], name="translations", dtype=tf.dtypes.float32)
-    image = tfa.image.translate(wrap(image), translations)
+    transforms = tfa.image.translate_ops.translations_to_projective_transforms(translations)
+    image = transform(wrap(image), transforms)
     return unwrap(image, replace)
 
 
 def translate_y(image, pixels, replace):
     translations = tf.convert_to_tensor(
-        [-pixels, 0], name="translations", dtype=tf.dtypes.float32)
-    image = tfa.image.translate(wrap(image), translations)
+        [0, -pixels], name="translations", dtype=tf.dtypes.float32)
+    transforms = tfa.image.translate_ops.translations_to_projective_transforms(translations)
+    image = transform(wrap(image), transforms)
     return unwrap(image, replace)
 
 

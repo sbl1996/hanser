@@ -14,11 +14,13 @@ from hanser.models.functional.cifar.pyramidnet import PyramidNet
 from hanser.models.functional.layers import DEFAULTS
 from hanser.datasets import prepare
 from hanser.train.lr_schedule import CosineLR
-from hanser.transform import random_crop, cutout, normalize, to_tensor, mixup
+from hanser.transform import random_crop, cutout, normalize, to_tensor, mixup, random_apply2
 from hanser.tpu import get_colab_tpu
 from hanser.train.trainer import Trainer
 
 import tensorflow.keras.mixed_precision.experimental as mixed_precision
+
+from hanser.transform.autoaugment import autoaugment
 
 
 def load_cifar10(split):
@@ -44,17 +46,21 @@ def preprocess(image, label, training):
     if training:
         image = random_crop(image, (32, 32), (4, 4))
         image = tf.image.random_flip_left_right(image)
-        # image = autoaugment(image, "CIFAR10")
+        image = autoaugment(image, "CIFAR10")
 
     image, label = to_tensor(image, label)
     image = normalize(image, [0.4914, 0.4822, 0.4465], [0.2470, 0.2435, 0.2616])
 
-    image = tf.cast(image, tf.bfloat16)
-    # if training:
-    # image = cutout(image, 16)
+    # image = tf.cast(image, tf.bfloat16)
+    if training:
+        image = cutout(image, 16)
 
     return image, label
 
+def batch_preprocess(image, label):
+    image, label = random_apply2(mixup(beta=1.0), 1.0, image, label)
+
+    return image, label
 
 mul = 8
 num_train_examples, num_test_examples = 50000, 10000
@@ -66,7 +72,8 @@ test_steps = math.ceil(num_test_examples / eval_batch_size)
 ds = strategy.experimental_make_numpy_dataset((x_train, y_train))
 ds_test = strategy.experimental_make_numpy_dataset((x_test, y_test))
 
-ds_train = prepare(ds, preprocess(training=True), batch_size, training=True, buffer_size=10000)
+ds_train = prepare(ds, preprocess(training=True), batch_size, training=True, buffer_size=10000,
+                   batch_preprocess=batch_preprocess)
 ds_test = prepare(ds_test, preprocess(training=False), eval_batch_size, training=False)
 
 tf.distribute.experimental_set_strategy(strategy)

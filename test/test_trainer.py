@@ -16,6 +16,7 @@ from hanser.datasets import prepare
 from hanser.train.trainer import Trainer
 from hanser.transform import random_crop, cutout, normalize, to_tensor, random_apply2, mixup, cutmix
 from hanser.train.lr_schedule import CosineLR
+from hanser.transform.autoaugment import autoaugment
 
 
 def load_cifar10(split):
@@ -35,7 +36,7 @@ def preprocess(image, label, training):
     if training:
         image = random_crop(image, (32, 32), (4, 4))
         image = tf.image.random_flip_left_right(image)
-        # image = autoaugment(image, "CIFAR10")
+        image = autoaugment(image, "CIFAR10")
 
     image, label = to_tensor(image, label)
     image = normalize(image, [0.4914, 0.4822, 0.4465], [0.2470, 0.2435, 0.2616])
@@ -43,8 +44,8 @@ def preprocess(image, label, training):
     label = tf.one_hot(label, 10)
     # image = tf.cast(image, tf.bfloat16)
 
-    # if training:
-    # image = cutout(image, 16)
+    if training:
+        image = cutout(image, 16)
 
     return image, label
 
@@ -110,7 +111,6 @@ class DropRateDecay(Callback):
         rate = (epoch + 1) / epochs * drop_path
         for l in model.layers:
             if 'drop' in l.name:
-                # K.set_value(l.rate, rate)
                 l.rate = rate
 
 trainer.fit(epochs, ds_train, steps_per_epoch, ds_test, test_steps, callbacks=[DropRateDecay()])
