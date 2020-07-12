@@ -22,20 +22,10 @@ from hanser.metrics import CrossEntropy
 from hanser.train.lr_schedule import CosineLR
 from hanser.transform import resize, pad_to_bounding_box, _ImageDimensions
 from hanser.transform.segmentation import random_crop, flip_dim, get_random_scale, random_scale
-from hanser.datasets.tfrecord import parse_tfexample_to_img_seg
+from hanser.datasets.voc import decode
 
 HEIGHT = WIDTH = 512
 IGNORE_LABEL = 255
-
-
-def decode(example_proto):
-    example = parse_tfexample_to_img_seg(example_proto)
-    img = tf.image.decode_image(example['image/encoded'])
-    seg = tf.image.decode_image(example['image/segmentation/class/encoded'])
-    img.set_shape([None, None, 3])
-    seg.set_shape([None, None, 1])
-    return img, seg
-
 
 @curry
 def preprocess(example, crop_h=HEIGHT, crop_w=WIDTH, ignore_label=IGNORE_LABEL, min_size=None, training=True):

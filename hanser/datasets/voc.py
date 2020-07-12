@@ -1,6 +1,15 @@
 import numpy as np
 
 import tensorflow as tf
+from hanser.datasets.tfrecord import parse_tfexample_to_img_seg
+
+def decode(example_proto):
+    example = parse_tfexample_to_img_seg(example_proto)
+    img = tf.image.decode_image(example['image/encoded'])
+    seg = tf.image.decode_image(example['image/segmentation/class/encoded'])
+    img.set_shape([None, None, 3])
+    seg.set_shape([None, None, 1])
+    return img, seg
 
 
 def get_voc_palette():
