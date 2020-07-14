@@ -3,8 +3,9 @@ from typing import Union, Tuple, Optional, Callable
 import tensorflow as tf
 from tensorflow.keras.initializers import VarianceScaling, RandomNormal
 from tensorflow.keras.layers import BatchNormalization, Dense, DepthwiseConv2D, \
-    Activation, AvgPool2D, MaxPool2D
+    Activation, AvgPool2D, MaxPool2D, Layer
 from tensorflow.keras.regularizers import l2
+from tensorflow_addons.activations import mish
 
 from hanser.models.conv import Conv2D
 
@@ -32,6 +33,15 @@ DEFAULTS = {
     'no_bias_decay': False,
     'weight_decay': None,
 }
+
+
+class Mish(Layer):
+
+    def __init__(self, name=None):
+        super().__init__(name=name)
+
+    def call(self, x, training=None):
+        return mish(x)
 
 
 def conv2d(x,
@@ -127,7 +137,14 @@ norm = norm_
 def act_(x, type='default', name=None):
     if type == 'default':
         return act_(x, DEFAULTS['activation'], name)
-    return Activation(type, name=name)(x)
+    try:
+        layer = Activation(type, name=name)(x)
+    except ValueError:
+        if type == 'mish':
+            layer = Mish(name=name)(x)
+        else:
+            raise ValueError("Unknown activation function:%s" % type)
+    return layer
 
 
 act = act_
