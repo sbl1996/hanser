@@ -11,6 +11,10 @@ from hanser.io import time_now
 from hanser.tpu import local_results
 
 
+@tf.function
+def identity(x):
+    return x
+
 def join_metric_logs(results, delim=" - "):
     logs = []
     for k, v in results:
@@ -44,12 +48,13 @@ def maybe_cat(x):
 
 class Trainer:
 
-    def __init__(self, model, criterion, optimizer, metrics=(), test_metrics=(), strategy='auto', model_dir=None):
+    def __init__(self, model, criterion, optimizer, metrics=(), test_metrics=(), strategy='auto', model_dir=None, metric_transform=identity):
         self.model = model
         self.criterion = criterion
         self.optimizer = optimizer
         self.metrics = metrics
         self.test_metrics = test_metrics
+        self.metric_transform = metric_transform
         self.model_dir = model_dir
 
         if strategy is not None:
@@ -86,7 +91,7 @@ class Trainer:
             with tf.GradientTape() as tape:
                 preds = self.model(inputs, training=True)
                 if self.bfloat16:
-                    preds = tf.cast(preds, tf.float32)
+                    preds = cast_fp32(preds)
                 per_example_loss = self.criterion(target, preds)
                 loss = tf.reduce_mean(per_example_loss)
                 if self._use_weight_decay:
@@ -97,6 +102,7 @@ class Trainer:
             self.optimizer.apply_gradients(
                 zip(grads, self.model.trainable_variables))
 
+            preds = self.metric_transform(preds)
             for metric in self.metrics:
                 if 'loss' in metric.name:
                     metric.update_state(per_example_loss)
@@ -115,8 +121,9 @@ class Trainer:
             inputs, target = data
             preds = self.model(inputs, training=False)
             if self.bfloat16:
-                preds = tf.cast(preds, tf.float32)
+                preds = cast_fp32(preds)
 
+            preds = self.metric_transform(preds)
             for metric in self.test_metrics:
                 metric.update_state(target, preds, None)
 
@@ -134,7 +141,7 @@ class Trainer:
                 inputs, target = data
                 output = self.model(inputs, training=debug)
                 if self.bfloat16:
-                    output = tf.cast(output, tf.float32)
+                    output = cast_fp32(output)
                 return target, output
 
             if self.strategy:
@@ -170,7 +177,7 @@ class Trainer:
     def fit(self, epochs, ds_train, steps_per_epoch,
             ds_val, val_steps, val_freq=1, save_per_epochs=None,
             extra_metrics=(), extra_eval_freq=1,
-            target_transform=tf.identity, output_transform=tf.identity,
+            extra_target_transform=tf.identity, extra_output_transform=tf.identity,
             debug=False, callbacks=None):
 
         callbacks = CallbackList(callbacks, model=self.model)
@@ -192,8 +199,8 @@ class Trainer:
         max_epochs = epoch + epochs
 
         if extra_metrics:
-            assert target_transform
-            assert output_transform
+            assert extra_target_transform
+            assert extra_output_transform
             assert extra_eval_freq
             predict_step = self._get_predict_step(debug)
 
@@ -218,8 +225,8 @@ class Trainer:
                     target = self._maybe_cat(target)
                     output = self._maybe_cat(output)
 
-                    output = output_transform(output)
-                    target = target_transform(target)
+                    output = extra_output_transform(output)
+                    target = extra_target_transform(target)
 
                     for m in extra_metrics:
                         m.update_state(target, output, None)
@@ -291,6 +298,17 @@ class Trainer:
         target = target_transform(target)
 
         return target, output
+
+
+def cast_fp32(xs):
+    if isinstance(xs, tf.Tensor):
+        return tf.cast(xs, tf.float32)
+    elif isinstance(xs, (tuple, list)):
+        return xs.__class__(cast_fp32(x) for x in xs)
+    elif isinstance(xs, dict):
+        return {k: cast_fp32(v) for k, v in xs.items()}
+    else:
+        return xs
 
 
 def misc_concat(values):

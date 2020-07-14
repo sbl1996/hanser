@@ -1,5 +1,5 @@
 from tensorflow.keras import Model
-from tensorflow.keras.layers import Multiply, Add, Input
+from tensorflow.keras.layers import Multiply, Add, Input, Flatten
 
 from hanser.models.functional.layers import conv2d, norm, act, pool, dense
 from hanser.models.modules import PadChannel, DropPath, GlobalAvgPool
@@ -7,6 +7,16 @@ from hanser.models.modules import PadChannel, DropPath, GlobalAvgPool
 __all__ = [
     "PyramidNet"
 ]
+
+
+def auxiliary_head(x, num_classes, name):
+    x = norm(x, name=name + "/bn0")
+    x = pool(x, 5, 3, padding='valid', type='avg', name=name + "/pool")
+    x = conv2d(x, 128, 1, norm='default', act='default', name=name + "/conv1")
+    x = conv2d(x, 768, 2, norm='default', act='default', name=name + "/conv2")
+    x = Flatten(name=name + "/flatten")(x)
+    x = dense(x, num_classes, name=name + "/fc")
+    return x
 
 
 def round_channels(channels, divisor=8, min_depth=None):
@@ -60,7 +70,8 @@ def bottleneck(x, channels, groups, stride=1, use_se=True, drop_path=0.2, name=N
     return Add(name=name + "/add")([branch1, branch2])
 
 
-def PyramidNet(input_shape, start_channels, widening_fractor, depth, groups, use_se, drop_path, num_classes=10):
+def PyramidNet(input_shape, start_channels, widening_fractor, depth, groups,
+               use_se, drop_path, aux_head, num_classes=10):
     num_layers = [(depth - 2) // 9] * 3
     strides = [1, 2, 2]
 
@@ -78,6 +89,8 @@ def PyramidNet(input_shape, start_channels, widening_fractor, depth, groups, use
         channels = channels + add_channel
         x = bottleneck(x, round_channels(channels, groups), groups, stride=s, use_se=use_se, drop_path=drop_rate,
                        name=f"stage{i + 1}/unit1")
+        if i == 2 and aux_head:
+            logits_aux = auxiliary_head(x, num_classes, name='aux_head')
         drop_rate += add_rate
         in_channels = round_channels(channels, groups)
         for j in range(1, n):
@@ -93,5 +106,6 @@ def PyramidNet(input_shape, start_channels, widening_fractor, depth, groups, use
     assert (start_channels + widening_fractor) == in_channels
     x = GlobalAvgPool(name="final_pool")(x)
     x = dense(x, num_classes, name="fc")
-    model = Model(inputs=inputs, outputs=x)
+    outputs = [x, logits_aux] if aux_head else x
+    model = Model(inputs=inputs, outputs=outputs)
     return model

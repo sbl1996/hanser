@@ -10,6 +10,7 @@ from tensorflow_addons.optimizers import SGDW
 from tensorflow.keras import metrics as M, losses
 from tensorflow.keras.callbacks import Callback
 
+from hanser.losses import CrossEntropy
 from hanser.models.functional.cifar.pyramidnet import PyramidNet
 from hanser.datasets import prepare
 from hanser.datasets.cifar import load_cifar10_tfds
@@ -64,10 +65,11 @@ ds_test = prepare(ds_test, preprocess(training=False), eval_batch_size, training
 
 input_shape = (32, 32, 3)
 drop_path = 0
-model = PyramidNet(input_shape, 4, 12, 20, 1, True, drop_path, 10)
+model = PyramidNet(input_shape, 4, 12, 20, 1, True, drop_path, False, 10)
 # model = PyramidNet(input_shape, 32, 480-32, 56, 16, True, 0, 10)
 
-criterion = losses.CategoricalCrossentropy(from_logits=True, label_smoothing=0.1, reduction='none')
+criterion = CrossEntropy(label_smoothing=0.1, reduction='none')
+
 
 base_lr = 0.01
 base_wd = 1e-4
@@ -82,6 +84,7 @@ metrics = [
     M.Mean(name='loss'), M.CategoricalAccuracy(name='acc')]
 test_metrics = [
     M.CategoricalCrossentropy(name='loss', from_logits=True), M.CategoricalAccuracy(name='acc')]
+# metric_transform = lambda x: x[0]
 
 trainer = Trainer(model, criterion, optimizer, metrics, test_metrics)
 

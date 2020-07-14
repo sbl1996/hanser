@@ -2,6 +2,24 @@ from toolz import curry
 
 import tensorflow as tf
 import tensorflow.keras.backend as K
+from tensorflow.keras.losses import CategoricalCrossentropy
+
+
+class CrossEntropy:
+
+    def __init__(self, label_smoothing=0.1, reduction='none', auxiliary_weight=0):
+        self._criterion = CategoricalCrossentropy(from_logits=True, label_smoothing=label_smoothing,
+                                                  reduction=reduction)
+        self._auxiliary_weight = auxiliary_weight
+
+    def __call__(self, y_true, y_pred):
+        if self._auxiliary_weight:
+            y_pred, y_pred_aux = y_pred
+            loss = self._criterion(y_true, y_pred) + self._auxiliary_weight * self._criterion(y_true, y_pred_aux)
+        else:
+            loss = self._criterion(y_true, y_pred)
+        return loss
+
 
 @curry
 def f1_loss(y_true, y_pred, eps=1e-8):
@@ -22,29 +40,6 @@ def weighted_bce(y_true, y_pred, pos_weight, from_logits=True):
     weight = tf.where(tf.equal(y_true, 1), pos_weight, 1.)
     losses = losses * weight
     return tf.reduce_mean(losses)
-
-
-# @curry
-# def cross_entropy(labels, logits, ignore_label=None, reduction='weighted_sum_by_nonzero_weights'):
-#     r"""
-#     Args:
-#         labels: (N, H, W)
-#         logits: (N, H, W, C)
-#     """
-#
-#     labels = tf.cast(labels, tf.int32)
-#     num_classes = tf.shape(logits)[-1]
-#     labels = tf.reshape(labels, [-1])
-#     logits = tf.reshape(logits, [-1, num_classes])
-#     if ignore_label is not None:
-#         mask = tf.not_equal(labels, ignore_label)
-#         labels = tf.where(mask, labels, tf.zeros_like(labels))
-#         weights = tf.cast(mask, logits.dtype)
-#         loss = tf.compat.v1.losses.sparse_softmax_cross_entropy(labels, logits, weights, reduction=reduction)
-#     else:
-#         loss = tf.keras.losses.sparse_categorical_crossentropy(labels, logits, from_logits=True)
-#         loss = tf.reduce_mean(loss)
-#     return loss
 
 
 @curry
@@ -69,6 +64,7 @@ def cross_entropy(y_true, y_pred, ignore_label=None):
         losses = tf.keras.losses.sparse_categorical_crossentropy(y_true, y_pred, from_logits=True)
         losses = tf.reduce_mean(losses, axis=[1, 2])
     return losses
+
 
 # y_true = tf.random.uniform((2,4,4), 0, 21, tf.int32)
 # y_pred = tf.random.uniform((2,4,4,21), dtype=tf.float32)
