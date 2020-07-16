@@ -1,10 +1,8 @@
 import tensorflow as tf
-import tensorflow.keras.backend as K
 from tensorflow.keras import Sequential
-from tensorflow.keras.layers import Layer, InputSpec, Softmax
-from tensorflow.python.keras.utils.tf_utils import smart_cond
+from tensorflow.keras.layers import Layer, InputSpec, Softmax, Dropout
 
-from hanser.models.layers import Linear, Conv2d, BN, Act
+from hanser.models.layers import Conv2d, Norm, Act
 
 
 class PadChannel(Layer):
@@ -23,87 +21,24 @@ class PadChannel(Layer):
     def get_config(self):
         config = {'c': self.c}
         base_config = super().get_config()
-        return dict(list(base_config.items()) + list(config.items()))
+        return {**base_config, **config}
 
 
 class SELayer(Layer):
 
-    def __init__(self, in_channels, reduction):
-        super().__init__()
+    def __init__(self, in_channels, reduction, groups=1, name=None):
+        super().__init__(name=name)
         channels = in_channels // reduction
-        self.pool = GlobalAvgPool()
-        self.fc = Sequential(
-            Linear(in_channels, channels, act='relu'),
-            Linear(channels, in_channels, act='sigmoid'),
-        )
+        self.pool = GlobalAvgPool(keep_dim=True, name='pool')
+        self.fc = Sequential([
+            Conv2d(in_channels, channels, 1, groups=groups, act='relu', name='fc1'),
+            Conv2d(channels, in_channels, 1, groups=groups, act='sigmoid', name='fc2'),
+        ])
 
     def call(self, x):
         s = self.pool(x)
         s = self.fc(s)
         return x * s
-
-
-class Dropout(Layer):
-
-    def __init__(self, rate, noise_shape=None, seed=None, **kwargs):
-        super(Dropout, self).__init__(**kwargs)
-        # self.rate = tf.Variable(rate, dtype=dtype)
-        self.rate = rate
-        self.noise_shape = noise_shape
-        self.seed = seed
-        self.supports_masking = True
-
-    def _get_noise_shape(self, inputs):
-        # Subclasses of `Dropout` may implement `_get_noise_shape(self, inputs)`,
-        # which will override `self.noise_shape`, and allows for custom noise
-        # shapes with dynamically sized inputs.
-        if self.noise_shape is None:
-            return None
-
-        concrete_inputs_shape = tf.shape(inputs)
-        noise_shape = []
-        for i, value in enumerate(self.noise_shape):
-            noise_shape.append(concrete_inputs_shape[i] if value is None else value)
-        return tf.convert_to_tensor(noise_shape)
-
-    def call(self, inputs, training=None):
-        if training is None:
-            training = K.learning_phase()
-
-        def dropped_inputs():
-            return tf.nn.dropout(
-                inputs,
-                noise_shape=self._get_noise_shape(inputs),
-                seed=self.seed,
-                rate=self.rate)
-
-        output = smart_cond(training,
-                            dropped_inputs,
-                            lambda: tf.identity(inputs))
-        return output
-
-    def compute_output_shape(self, input_shape):
-        return input_shape
-
-    def get_config(self):
-        config = {
-            'rate': self.rate,
-            'noise_shape': self.noise_shape,
-            'seed': self.seed
-        }
-        base_config = super(Dropout, self).get_config()
-        return dict(list(base_config.items()) + list(config.items()))
-
-
-# def drop_path(x, drop_rate):
-#     keep_prob = 1.0 - drop_rate
-#
-#     batch_size = tf.shape(x)[0]
-#     random_tensor = keep_prob
-#     random_tensor += tf.random.uniform([batch_size, 1, 1, 1], dtype=x.dtype)
-#     binary_tensor = tf.floor(random_tensor)
-#     x = tf.div(x, keep_prob) * binary_tensor
-#     return x
 
 
 class DropPath(Dropout):
@@ -170,11 +105,11 @@ class SplAtConv2d(Layer):
 
         self.conv = Conv2d(in_channels, channels * radix, kernel_size, stride, padding, groups=groups * radix,
                            dilation=dilation, bias=bias, name=name + "/conv")
-        self.bn = BN(channels * radix, name=name + "/bn")
+        self.bn = Norm(channels * radix, name=name + "/bn")
         self.act = Act(name=name + "/act")
         self.attn = Sequential([
             GlobalAvgPool(keep_dim=True, name=name + "/attn/pool"),
-            Conv2d(channels, inter_channels, 1, groups=groups, bn=True, act='default', name=name + "/attn/fc1"),
+            Conv2d(channels, inter_channels, 1, groups=groups, norm='default', act='default', name=name + "/attn/fc1"),
             Conv2d(inter_channels, channels * radix, 1, groups=groups, name=name + "/attn/fc2"),
             rSoftMax(radix, groups, name=name + "/attn/rsoftmax"),
         ], name=name + "/attn")
@@ -223,4 +158,4 @@ class GlobalAvgPool(Layer):
     def get_config(self):
         config = {'keep_dim': self.keep_dim}
         base_config = super().get_config()
-        return dict(list(base_config.items()) + list(config.items()))
+        return {**base_config, **config}

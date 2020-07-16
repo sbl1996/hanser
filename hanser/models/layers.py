@@ -1,7 +1,7 @@
 from typing import Union, Tuple, Optional
 
 import tensorflow as tf
-from tensorflow.keras import Sequential
+from tensorflow.keras import Sequential as KerasSequential
 from tensorflow.keras.initializers import VarianceScaling, RandomNormal
 from tensorflow.keras.layers import BatchNormalization, Dense, DepthwiseConv2D, \
     Activation, AvgPool2D, MaxPool2D, Layer, InputSpec
@@ -9,7 +9,7 @@ from tensorflow.keras.regularizers import l2
 
 from hanser.models.conv import Conv2D
 
-__all__ = ["DEFAULTS", "Act", "Conv2d", "BN", "Linear"]
+__all__ = ["DEFAULTS", "Act", "Conv2d", "Norm", "Linear", "GlobalAvgPool", "Pool2d"]
 
 DEFAULTS = {
     'bn': {
@@ -20,6 +20,7 @@ DEFAULTS = {
         'sync': False,
     },
     'activation': 'relu',
+    'norm': 'bn',
     'fp16': False,
     'init': {
         'type': 'msra',
@@ -42,7 +43,7 @@ def Conv2d(in_channels: int,
            groups: int = 1,
            dilation: int = 1,
            bias: Optional[bool] = None,
-           bn: bool = False,
+           norm: Optional[str] = None,
            act: Optional[str] = None,
            zero_init=False,
            name: Optional[str] = None):
@@ -60,14 +61,14 @@ def Conv2d(in_channels: int,
 
     if bias is False:
         use_bias = False
-    elif bias is None and bn:
+    elif bias is None and norm:
         use_bias = False
     else:
         use_bias = bias
 
     bias_regularizer = get_weight_decay() if not DEFAULTS['no_bias_decay'] else None
 
-    if not (bn or act):
+    if not (norm or act):
         conv_name = name
     else:
         conv_name = name + "/conv"
@@ -83,8 +84,8 @@ def Conv2d(in_channels: int,
                       kernel_initializer=kernel_initializer, bias_initializer='zeros',
                       kernel_regularizer=get_weight_decay(), bias_regularizer=bias_regularizer, name=conv_name)
     layers = [conv]
-    if bn:
-        layers.append(BN(out_channels, zero_init=zero_init, name=name + "/bn"))
+    if norm:
+        layers.append(Norm(out_channels, norm, zero_init=zero_init, name=name + "/norm"))
     if act:
         layers.append(Act(act, name=name + "/act"))
     if len(layers) == 1:
@@ -93,7 +94,10 @@ def Conv2d(in_channels: int,
         return Sequential(layers, name=name)
 
 
-def BN(channels, affine=None, zero_init=False, name=None):
+def Norm(channels, type='default', affine=None, zero_init=False, name=None):
+    if type == 'default':
+        type = DEFAULTS['norm']
+    assert type == 'bn'
     cfg = DEFAULTS['bn']
     if zero_init:
         gamma_initializer = 'zeros'
@@ -118,10 +122,10 @@ def BN(channels, affine=None, zero_init=False, name=None):
     return bn
 
 
-def Act(activation='default', name=None):
-    if activation == 'default':
+def Act(type='default', name=None):
+    if type == 'default':
         return Act(DEFAULTS['activation'], name)
-    return Activation(activation, name=name)
+    return Activation(type, name=name)
 
 
 def Pool2d(kernel_size, stride, padding='same', type='avg', ceil_mode=False, name=None):
@@ -162,7 +166,7 @@ class GlobalAvgPool(Layer):
     def get_config(self):
         config = {'keep_dim': self.keep_dim}
         base_config = super().get_config()
-        return dict(list(base_config.items()) + list(config.items()))
+        return {**base_config, **config}
 
 
 def get_weight_decay():
@@ -178,4 +182,3 @@ def Linear(in_channels, out_channels, act=None, name=None):
                  kernel_regularizer=get_weight_decay(),
                  bias_regularizer=get_weight_decay(),
                  name=name)
-
