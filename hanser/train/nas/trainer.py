@@ -93,16 +93,18 @@ class Trainer:
     @tf.function
     def _train_step(self, iterator):
 
-        def search_step(data):
-            input_search, target_search = data
-            with tf.GradientTape() as tape:
-                logits = self.model(input_search, training=True)
+        def step_fn(data):
+            (input, target), (input_search, target_search) = data
+
+            # arch_parameters = [v for v in self.model.trainable_variables if 'alphas' in v.name]
+            arch_parameters = self.model.trainable_variables[-2:]
+            with tf.GradientTape(watch_accessed_variables=False) as tape:
+                tape.watch(arch_parameters)
+                logits = self.model(input_search, training=False)
                 if self.bfloat16:
                     logits = cast_fp32(logits)
                 per_example_loss = self.criterion(target_search, logits)
                 loss = tf.reduce_mean(per_example_loss)
-
-                arch_parameters = [v for v in self.model.trainable_variables if 'alphas' in v.name]
 
                 if self.arch_weight_decay:
                     loss = loss + self.arch_weight_decay * tf.add_n([
@@ -115,23 +117,21 @@ class Trainer:
             grads = tape.gradient(loss, arch_parameters)
             self.optimizer_arch.apply_gradients(zip(grads, arch_parameters))
 
-        def model_step(data):
-            input, target = data
-            with tf.GradientTape() as tape:
-                logits = self.model(input, training=True)
+            # model_parameters = [v for v in self.model.trainable_variables if 'alphas' not in v.name]
+            model_parameters = self.model.trainable_variables[:-2]
+            with tf.GradientTape(watch_accessed_variables=False) as tape:
+                tape.watch(model_parameters)
+                logits = self.model(input, training=False)
                 if self.bfloat16:
                     logits = cast_fp32(logits)
                 per_example_loss = self.criterion(target, logits)
                 loss = tf.reduce_mean(per_example_loss)
-
-                model_parameters = [v for v in self.model.trainable_variables if 'alphas' not in v.name]
 
                 if self.model_weight_decay:
                     loss = loss + self.model_weight_decay * tf.add_n([
                         tf.nn.l2_loss(v)
                         for v in model_parameters
                     ])
-
                 if self.strategy:
                     loss = loss / self.strategy.num_replicas_in_sync
 
@@ -146,13 +146,10 @@ class Trainer:
                 else:
                     metric.update_state(target, preds, None)
 
-        data, data_search = next(iterator)
         if self.strategy:
-            self.strategy.run(search_step, args=(data_search,))
-            self.strategy.run(model_step, args=(data,))
+            self.strategy.run(step_fn, args=(next(iterator),))
         else:
-            search_step(data_search)
-            model_step(data)
+            step_fn(next(iterator))
 
     @tf.function
     def _test_step(self, iterator):

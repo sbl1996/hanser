@@ -11,6 +11,7 @@ from tensorflow.keras import metrics as M
 from hanser.losses import CrossEntropy
 from hanser.models.layers import DEFAULTS
 from hanser.models.darts.model_search import Network
+from hanser.models.darts.genotypes import set_primitives
 from hanser.datasets import prepare
 from hanser.datasets.cifar import load_cifar10_tfds
 from hanser.train.nas.trainer import Trainer
@@ -65,8 +66,10 @@ ds_train = tf.data.Dataset.zip((ds_train, ds_valid))
 ds_test = prepare(ds_test, preprocess(training=False), eval_batch_size, training=False)
 
 DEFAULTS['affine'] = False
+set_primitives('tiny')
 input_shape = (32, 32, 3)
 model = Network(4, 5, 4, 4, 3, 10)
+model.build((None, *input_shape))
 
 criterion = CrossEntropy(reduction='none')
 

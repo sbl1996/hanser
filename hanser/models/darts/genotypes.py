@@ -2,6 +2,10 @@ from collections import namedtuple
 
 Genotype = namedtuple('Genotype', 'normal normal_concat reduce reduce_concat')
 
+PRIMITIVES_tiny = [
+    'skip_connect',
+    'sep_conv_3x3',
+]
 
 PRIMITIVES_small = [
     'max_pool_3x3',
@@ -39,22 +43,40 @@ PRIMITIVES_huge = [
     'att_squeeze',
 ]
 
-PRIMITIVES = [
+PRIMITIVES_darts = [
     'none',
     'skip_connect',
-    # 'nor_conv_1x1',
-    # 'nor_conv_3x3',
     'max_pool_3x3',
     'avg_pool_3x3',
     'sep_conv_3x3',
     'sep_conv_5x5',
-    # 'sep_conv_7x7',
     'dil_conv_3x3',
     'dil_conv_5x5',
-    # 'conv_3x1_1x3',
-    # 'conv_7x1_1x7',
-    # 'att_squeeze',
 ]
+
+CONFIG = {
+    'primitives': PRIMITIVES_darts,
+}
+
+
+def set_primitives(search_space):
+    if search_space == 'tiny':
+        CONFIG['primitives'] = PRIMITIVES_tiny
+    elif search_space == 'small':
+        CONFIG['primitives'] = PRIMITIVES_small
+    elif search_space == 'large':
+        CONFIG['primitives'] = PRIMITIVES_large
+    elif search_space == 'huge':
+        CONFIG['primitives'] = PRIMITIVES_huge
+    elif search_space == 'darts':
+        CONFIG['primitives'] = PRIMITIVES_darts
+    else:
+        raise ValueError("No search space %s" % search_space)
+
+
+def get_primitives():
+    return CONFIG['primitives']
+
 
 NASNet = Genotype(
     normal=[

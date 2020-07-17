@@ -5,7 +5,7 @@ from tensorflow.keras.regularizers import l2
 from tensorflow.keras.layers import Layer
 
 from hanser.models.darts.operations import FactorizedReduce, ReLUConvBN, OPS
-from hanser.models.darts.genotypes import PRIMITIVES, Genotype
+from hanser.models.darts.genotypes import get_primitives, Genotype
 from hanser.models.layers import Norm, Conv2d, GlobalAvgPool, Linear
 
 
@@ -15,7 +15,7 @@ class MixedOp(Layer):
         super().__init__(name=name)
         self.stride = stride
         self._ops = []
-        for i, primitive in enumerate(PRIMITIVES):
+        for i, primitive in enumerate(get_primitives()):
             if 'pool' in primitive:
                 op = Sequential([
                     OPS[primitive](C, stride, name='pool'),
@@ -109,7 +109,7 @@ class Network(Model):
 
     def _initialize_alphas(self):
         k = sum(2 + i for i in range(4))
-        num_ops = len(PRIMITIVES)
+        num_ops = len(get_primitives())
         self.alphas_normal = self.add_weight(
             'alphas_normal', (k, num_ops), initializer=RandomNormal(stddev=1e-3)
         )
