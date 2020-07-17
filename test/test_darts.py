@@ -10,7 +10,7 @@ from tensorflow.keras.optimizers import SGD, Adam
 from tensorflow.keras import metrics as M
 
 from hanser.losses import CrossEntropy
-from hanser.models.layers import DEFAULTS
+from hanser.models.layers import set_default
 from hanser.models.darts.model_search import Network
 from hanser.models.darts.genotypes import set_primitives
 from hanser.datasets import prepare
@@ -72,7 +72,7 @@ ds_train = prepare(ds_train, preprocess(training=True), batch_size, training=Tru
 ds_search = prepare(ds_search, preprocess(training=True), batch_size, training=True, buffer_size=10000)
 ds_test = prepare(ds_test, preprocess(training=False), eval_batch_size, training=False)
 
-DEFAULTS['affine'] = False
+set_default(['bn', 'affine'], False)
 set_primitives('tiny')
 model = Network(4, 5, 4, 4, 3, 10)
 input_shape = (32, 32, 3)

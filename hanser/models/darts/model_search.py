@@ -134,7 +134,6 @@ class Network(Model):
         for cell in self.cells:
             weights = weights_reduce if cell.reduction else weights_normal
             s0, s1 = s1, cell([s0, s1, weights])
-        print(type(s1))
         x = self.global_pool(s1)
         logits = self.fc(x)
         return logits

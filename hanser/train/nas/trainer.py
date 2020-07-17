@@ -77,8 +77,6 @@ class Trainer:
 
         self._epoch = tf.Variable(0, trainable=False)
 
-        self._use_weight_decay = len(model.losses) != 0
-
     def _maybe_cat(self, values):
         if self.strategy:
             return misc_concat(values)
@@ -103,7 +101,7 @@ class Trainer:
             arch_parameters = self.model.arch_parameters()
             with tf.GradientTape(watch_accessed_variables=False) as tape:
                 tape.watch(arch_parameters)
-                logits = self.model(input_search, training=False)
+                logits = self.model(input_search, training=True)
                 if self.bfloat16:
                     logits = cast_fp32(logits)
                 per_example_loss = self.criterion(target_search, logits)
@@ -124,7 +122,7 @@ class Trainer:
             model_parameters = self.model.model_parameters()
             with tf.GradientTape(watch_accessed_variables=False) as tape:
                 tape.watch(model_parameters)
-                logits = self.model(input, training=False)
+                logits = self.model(input, training=True)
                 if self.bfloat16:
                     logits = cast_fp32(logits)
                 per_example_loss = self.criterion(target, logits)

@@ -1,21 +1,23 @@
-from typing import Union, Tuple, Optional
+from typing import Union, Tuple, Optional, Sequence
 
 import tensorflow as tf
 from tensorflow.keras import Sequential
 from tensorflow.keras.initializers import VarianceScaling, RandomNormal
-from tensorflow.keras.layers import BatchNormalization, Dense, DepthwiseConv2D, \
-    Activation, AvgPool2D, MaxPool2D, Layer, InputSpec
+from tensorflow.keras.layers import Dense, DepthwiseConv2D, Activation, AvgPool2D, MaxPool2D, Layer, InputSpec
 from tensorflow.keras.regularizers import l2
+
+from hanser.models.bn import BatchNormalization, SyncBatchNormalization
 
 from hanser.models.conv import Conv2D
 
-__all__ = ["DEFAULTS", "Act", "Conv2d", "Norm", "Linear", "GlobalAvgPool", "Pool2d"]
+__all__ = ["set_default", "Act", "Conv2d", "Norm", "Linear", "GlobalAvgPool", "Pool2d"]
 
 DEFAULTS = {
     'bn': {
         'momentum': 0.9,
         'eps': 1e-5,
         'affine': True,
+        'track_running_stats': True,
         'fused': True,
         'sync': False,
     },
@@ -33,6 +35,24 @@ DEFAULTS = {
     'no_bias_decay': False,
     'weight_decay': None,
 }
+
+
+def set_default(keys: Union[str, Sequence[str]], value):
+
+    def loop(d, keys):
+        k = keys[0]
+        if k not in d:
+            raise KeyError("No key '%s' in %s" % (k, d))
+        if len(keys) == 1:
+            d[k] = value
+        else:
+            loop(d[k], keys[1:])
+
+    if isinstance(keys, str):
+        keys = [keys]
+    loop(DEFAULTS, keys)
+
+
 
 
 def Conv2d(in_channels: int,
@@ -93,7 +113,7 @@ def Conv2d(in_channels: int,
     return Sequential(layers, name=name)
 
 
-def Norm(channels, type='default', affine=None, zero_init=False, name=None):
+def Norm(channels, type='default', affine=None, track_running_stats=None, zero_init=False, name=None):
     if type == 'default':
         type = DEFAULTS['norm']
     assert type == 'bn'
@@ -108,16 +128,18 @@ def Norm(channels, type='default', affine=None, zero_init=False, name=None):
     else:
         gamma_regularizer = get_weight_decay()
         beta_regularizer = get_weight_decay()
+    affine = affine or cfg['affine']
+    track_running_stats = track_running_stats or cfg['track_running_stats']
     if cfg['sync']:
-        bn = tf.keras.layers.experimental.SyncBatchNormalization(
+        bn = SyncBatchNormalization(
             momentum=cfg['momentum'], epsilon=cfg['eps'], gamma_initializer=gamma_initializer,
             gamma_regularizer=gamma_regularizer, beta_regularizer=beta_regularizer,
-            trainable=affine or cfg['affine'], name=name)
+            center=affine, scale=affine, track_running_stats=track_running_stats, name=name)
     else:
         bn = BatchNormalization(
             momentum=cfg['momentum'], epsilon=cfg['eps'], gamma_initializer=gamma_initializer,
             gamma_regularizer=gamma_regularizer, beta_regularizer=beta_regularizer, fused=cfg['fused'],
-            trainable=affine or cfg['affine'], name=name)
+            center=affine, scale=affine, track_running_stats=track_running_stats, name=name)
     return bn
 
 
