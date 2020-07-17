@@ -41,28 +41,34 @@ def preprocess(image, label, training):
 
 (x_train, y_train), (x_test, y_test) = load_cifar10_tfds()
 
-ds = tf.data.Dataset.from_tensor_slices((x_train, y_train))
+train_portion = 0.5
+n_train = 50000
+n_search = int(train_portion * (1 - train_portion))
+n_train = n_train - n_search
+n_test = 10000
+
+x_search, y_search = x_train[n_search:], y_train[n_search:]
+x_train, y_train = x_train[:n_train], y_train[:n_train]
+
+ds_train = tf.data.Dataset.from_tensor_slices((x_train, y_train))
+ds_search = tf.data.Dataset.from_tensor_slices((x_search, y_search))
 ds_test = tf.data.Dataset.from_tensor_slices((x_test, y_test))
 
 mul = 8
-num_train_examples = 500
+num_train_examples = 250
+num_search_examples = 250
 num_test_examples = 100
-ds = ds.take(num_train_examples)
+ds_train = ds_train.take(num_train_examples)
+ds_search = ds_search.take(num_search_examples)
 ds_test = ds_test.take(num_test_examples)
 
-train_portion = 0.5
-num_train_val_examples = int(num_train_examples * train_portion)
 batch_size = 2 * mul
 eval_batch_size = batch_size * 2
-steps_per_epoch = num_train_val_examples // batch_size
+steps_per_epoch = num_train_examples // batch_size
 test_steps = math.ceil(num_test_examples / eval_batch_size)
 
-ds_train = prepare(ds.take(num_train_val_examples),
-                   preprocess(training=True), batch_size, training=True, buffer_size=10000)
-ds_valid = prepare(ds.skip(num_train_val_examples),
-                   preprocess(training=True), batch_size, training=True, buffer_size=10000)
-ds_train = tf.data.Dataset.zip((ds_train, ds_valid))
-
+ds_train = prepare(ds_train, preprocess(training=True), batch_size, training=True, buffer_size=10000)
+ds_search = prepare(ds_search, preprocess(training=True), batch_size, training=True, buffer_size=10000)
 ds_test = prepare(ds_test, preprocess(training=False), eval_batch_size, training=False)
 
 DEFAULTS['affine'] = False
@@ -89,4 +95,4 @@ test_metrics = [
 trainer = Trainer(model, criterion, optimizer_arch, optimizer_model,
                   metrics, test_metrics, 5.0, 1e-3, 3e-4)
 
-trainer.fit(epochs, ds_train, steps_per_epoch, ds_test, test_steps)
+trainer.fit(epochs, ds_train, ds_search, steps_per_epoch, ds_test, test_steps)

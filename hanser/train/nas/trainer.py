@@ -27,12 +27,12 @@ def print_results(stage, steps, results):
         time_now(), stage, steps, steps, join_metric_logs(results, delim=" - ")))
 
 
-def run_epoch(step_fn, iterator, steps, metrics, stage="Train"):
+def run_epoch(step_fn, iterators, steps, metrics, stage="Train"):
     # start = time.time()
     for m in metrics:
         m.reset_states()
     for step in range(steps):
-        step_fn(iterator)
+        step_fn(iterators)
     metric_results = []
     for m in metrics:
         metric_results.append((m.name, m.result().numpy()))
@@ -91,10 +91,13 @@ class Trainer:
         return ckpt, ckpt_manager
 
     @tf.function
-    def _train_step(self, iterator):
+    def _train_step(self, iterators):
 
-        def step_fn(data):
-            (input, target), (input_search, target_search) = data
+        train_it, search_it = iterators
+
+        def step_fn(data, data_search):
+            input, target = data
+            input_search, target_search = data_search
 
             # arch_parameters = [v for v in self.model.trainable_variables if 'alphas' in v.name]
             arch_parameters = self.model.arch_parameters()
@@ -147,9 +150,9 @@ class Trainer:
                     metric.update_state(target, preds, None)
 
         if self.strategy:
-            self.strategy.run(step_fn, args=(next(iterator),))
+            self.strategy.run(step_fn, args=(next(train_it), next(search_it)))
         else:
-            step_fn(next(iterator))
+            step_fn(next(train_it), next(search_it))
 
     @tf.function
     def _test_step(self, iterator):
@@ -211,7 +214,7 @@ class Trainer:
         self.restore(model_ckpt, model_ckpt_manager)
         self.restore(optim_ckpt, optim_ckpt_manager)
 
-    def fit(self, epochs, ds_train, steps_per_epoch,
+    def fit(self, epochs, ds_train, ds_search, steps_per_epoch,
             ds_val, val_steps, val_freq=1, save_per_epochs=None,
             extra_metrics=(), extra_eval_freq=1,
             extra_target_transform=tf.identity, extra_output_transform=tf.identity,
@@ -221,9 +224,11 @@ class Trainer:
 
         if self.strategy:
             assert isinstance(ds_train, DistributedDataset)
+            assert isinstance(ds_search, DistributedDataset)
             assert isinstance(ds_val, DistributedDataset)
 
         train_it = iter(ds_train)
+        search_it = iter(ds_search)
         val_it = iter(ds_val)
 
         if save_per_epochs:
@@ -246,7 +251,7 @@ class Trainer:
             print('Epoch %d/%d' % (epoch + 1, epochs))
 
             callbacks.on_epoch_begin(epoch)
-            run_epoch(self._train_step, train_it, steps_per_epoch, self.metrics, "Train")
+            run_epoch(self._train_step, (train_it, search_it), steps_per_epoch, self.metrics, "Train")
             callbacks.on_epoch_end(epoch)
 
             epoch = self._epoch.assign_add(1).numpy()
