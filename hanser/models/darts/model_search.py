@@ -1,7 +1,6 @@
 import tensorflow as tf
 from tensorflow.keras import Sequential, Model
 from tensorflow.keras.initializers import RandomNormal
-from tensorflow.keras.regularizers import l2
 from tensorflow.keras.layers import Layer
 
 from hanser.models.darts.operations import FactorizedReduce, ReLUConvBN, OPS
@@ -27,7 +26,7 @@ class MixedOp(Layer):
 
     def call(self, inputs):
         x, weights = inputs
-        return sum(weights[i] * op(x) for i, op in enumerate(self._ops))
+        return tf.add_n([weights[i] * op(x) for i, op in enumerate(self._ops)])
 
 
 class Cell(Layer):
@@ -50,26 +49,51 @@ class Cell(Layer):
                 stride = 2 if reduction and j < 2 else 1
                 op = MixedOp(C, stride, name=f'mixop_{j}_{i+2}')
                 self._ops.append(op)
+        self._num_ops = len(self._ops)
 
     def call(self, inputs):
         s0, s1, weights = inputs
         s0 = self.preprocess0(s0)
         s1 = self.preprocess1(s1)
+        s2 = tf.add_n([
+            self._ops[0]([s0, weights[0]]),
+            self._ops[1]([s1, weights[1]]),
+        ])
 
-        states = [s0, s1]
-        offset = 0
-        for i in range(4):
-            s = sum(self._ops[offset + j]([h, weights[offset + j]]) for j, h in enumerate(states))
-            offset += len(states)
-            states.append(s)
+        s3 = tf.add_n([
+            self._ops[2]([s0, weights[2]]),
+            self._ops[3]([s1, weights[3]]),
+            self._ops[4]([s2, weights[4]]),
+        ])
 
-        return tf.concat(states[-self._multiplier:], axis=-1)
+        s4 = tf.add_n([
+            self._ops[5]([s0, weights[5]]),
+            self._ops[6]([s1, weights[6]]),
+            self._ops[7]([s2, weights[7]]),
+            self._ops[8]([s3, weights[8]]),
+        ])
 
+        s5 = tf.add_n([
+            self._ops[9]([s0, weights[9]]),
+            self._ops[10]([s1, weights[10]]),
+            self._ops[11]([s2, weights[11]]),
+            self._ops[12]([s3, weights[12]]),
+            self._ops[13]([s4, weights[13]]),
+        ])
+        # states = [s0, s1]
+        # print(states)
+        # offset = 0
+        # for i in range(4):
+        #     s = tf.add_n([self._ops[offset + j]([h, weights[offset + j]]) for j, h in enumerate(states)])
+        #     offset += len(states)
+        #     states.append(s)
+        #
+        return tf.concat([s2, s3, s4, s5], axis=-1)
 
 class Network(Model):
 
     def __init__(self, C, layers, steps=4, multiplier=4, stem_multiplier=3, num_classes=10):
-        super().__init__()
+        super().__init__(name='network')
         self._C = C
         self._steps = steps
         self._multiplier = multiplier
@@ -94,18 +118,6 @@ class Network(Model):
         self.global_pool = GlobalAvgPool(name='global_pool')
         self.fc = Linear(C_prev, num_classes, name='fc')
 
-    def call(self, x):
-        s0 = s1 = self.stem(x)
-        weights_reduce = tf.nn.softmax(self.alphas_reduce, axis=-1)
-        weights_normal = tf.nn.softmax(self.alphas_normal, axis=-1)
-        for i, cell in enumerate(self.cells):
-            weights = weights_reduce if cell.reduction else weights_normal
-            s0, s1 = s1, cell([s0, s1, weights])
-        x = self.global_pool(s1)
-        logits = self.fc(x)
-        return logits
-
-    def build(self, input_shape):
         k = sum(2 + i for i in range(4))
         num_ops = len(get_primitives())
         self.alphas_normal = self.add_weight(
@@ -114,7 +126,29 @@ class Network(Model):
         self.alphas_reduce = self.add_weight(
             'alphas_reduce', (k, num_ops), initializer=RandomNormal(stddev=1e-2), trainable=True,
         )
-        super().build(input_shape)
+
+    def call(self, x):
+        s0 = s1 = self.stem(x)
+        weights_reduce = tf.nn.softmax(self.alphas_reduce, axis=-1)
+        weights_normal = tf.nn.softmax(self.alphas_normal, axis=-1)
+        for cell in self.cells:
+            weights = weights_reduce if cell.reduction else weights_normal
+            s0, s1 = s1, cell([s0, s1, weights])
+        print(type(s1))
+        x = self.global_pool(s1)
+        logits = self.fc(x)
+        return logits
+    #
+    # def build(self, input_shape):
+    #     k = sum(2 + i for i in range(4))
+    #     num_ops = len(get_primitives())
+    #     self.alphas_normal = self.add_weight(
+    #         'alphas_normal', (k, num_ops), initializer=RandomNormal(stddev=1e-2), trainable=True,
+    #     )
+    #     self.alphas_reduce = self.add_weight(
+    #         'alphas_reduce', (k, num_ops), initializer=RandomNormal(stddev=1e-2), trainable=True,
+    #     )
+    #     super().build(input_shape)
 
     def arch_parameters(self):
         return self.trainable_variables[-2:]

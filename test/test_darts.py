@@ -5,6 +5,7 @@ from toolz import curry
 
 import tensorflow as tf
 
+from tensorflow.keras.layers import Input
 from tensorflow.keras.optimizers import SGD, Adam
 from tensorflow.keras import metrics as M
 
@@ -18,7 +19,7 @@ from hanser.train.nas.trainer import Trainer
 from hanser.transform import random_crop, cutout, normalize, to_tensor
 from hanser.train.lr_schedule import CosineLR
 from hanser.transform.autoaugment import autoaugment
-
+from hanser.io import time_now
 
 @curry
 def preprocess(image, label, training):
@@ -73,9 +74,10 @@ ds_test = prepare(ds_test, preprocess(training=False), eval_batch_size, training
 
 DEFAULTS['affine'] = False
 set_primitives('tiny')
-input_shape = (32, 32, 3)
 model = Network(4, 5, 4, 4, 3, 10)
+input_shape = (32, 32, 3)
 model.build((None, *input_shape))
+# model.call(Input(input_shape))
 
 criterion = CrossEntropy(reduction='none')
 
@@ -95,4 +97,5 @@ test_metrics = [
 trainer = Trainer(model, criterion, optimizer_arch, optimizer_model,
                   metrics, test_metrics, 5.0, 1e-3, 3e-4)
 
+print(time_now())
 trainer.fit(epochs, ds_train, ds_search, steps_per_epoch, ds_test, test_steps)
