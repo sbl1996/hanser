@@ -66,7 +66,7 @@ ds_test = prepare(ds_test, preprocess(training=False), eval_batch_size, training
 
 DEFAULTS['affine'] = False
 input_shape = (32, 32, 3)
-model = Network(16, 8, 4, 4, 4, 10)
+model = Network(4, 5, 4, 4, 3, 10)
 
 criterion = CrossEntropy(reduction='none')
 

@@ -93,13 +93,13 @@ class Trainer:
     @tf.function
     def _train_step(self, iterator):
 
-        def step_fn(data):
-            (input, target), (input_search, target_search) = data
+        def search_step(data):
+            input_search, target_search = data
             with tf.GradientTape() as tape:
-                logits = self.model(input, training=True)
+                logits = self.model(input_search, training=True)
                 if self.bfloat16:
                     logits = cast_fp32(logits)
-                per_example_loss = self.criterion(target, logits)
+                per_example_loss = self.criterion(target_search, logits)
                 loss = tf.reduce_mean(per_example_loss)
 
                 arch_parameters = [v for v in self.model.trainable_variables if 'alphas' in v.name]
@@ -115,12 +115,14 @@ class Trainer:
             grads = tape.gradient(loss, arch_parameters)
             self.optimizer_arch.apply_gradients(zip(grads, arch_parameters))
 
+        def model_step(data):
+            input, target = data
             with tf.GradientTape() as tape:
-                logits_search = self.model(input_search, training=True)
+                logits = self.model(input, training=True)
                 if self.bfloat16:
-                    logits_search = cast_fp32(logits_search)
-                per_example_loss_search = self.criterion(target_search, logits_search)
-                loss = tf.reduce_mean(per_example_loss_search)
+                    logits = cast_fp32(logits)
+                per_example_loss = self.criterion(target, logits)
+                loss = tf.reduce_mean(per_example_loss)
 
                 model_parameters = [v for v in self.model.trainable_variables if 'alphas' not in v.name]
 
@@ -137,17 +139,20 @@ class Trainer:
             grads = [(tf.clip_by_norm(grad, self.clip_grad_norm)) for grad in grads]
             self.optimizer_model.apply_gradients(zip(grads, model_parameters))
 
-            preds = self.metric_transform(logits_search)
+            preds = self.metric_transform(logits)
             for metric in self.metrics:
                 if 'loss' in metric.name:
-                    metric.update_state(per_example_loss_search)
+                    metric.update_state(per_example_loss)
                 else:
                     metric.update_state(target, preds, None)
 
+        data, data_search = next(iterator)
         if self.strategy:
-            self.strategy.run(step_fn, args=(next(iterator),))
+            self.strategy.run(search_step, args=(data_search,))
+            self.strategy.run(model_step, args=(data,))
         else:
-            step_fn(next(iterator))
+            search_step(data_search)
+            model_step(data)
 
     @tf.function
     def _test_step(self, iterator):
