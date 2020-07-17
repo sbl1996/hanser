@@ -50,23 +50,23 @@ ds = ds.take(num_train_examples)
 ds_test = ds_test.take(num_test_examples)
 
 train_portion = 0.5
+num_train_val_examples = int(num_train_examples * train_portion)
 batch_size = 2 * mul
 eval_batch_size = batch_size * 2
-steps_per_epoch = train_portion // batch_size
+steps_per_epoch = num_train_val_examples // batch_size
 test_steps = math.ceil(num_test_examples / eval_batch_size)
 
-ds_train = prepare(ds.take(int(num_train_examples * train_portion)),
+ds_train = prepare(ds.take(num_train_val_examples),
                    preprocess(training=True), batch_size, training=True, buffer_size=10000)
-ds_valid = prepare(ds.skip(int(num_train_examples * train_portion)),
+ds_valid = prepare(ds.skip(num_train_val_examples),
                    preprocess(training=True), batch_size, training=True, buffer_size=10000)
-ds = tf.data.Dataset.zip((ds_train, ds_valid))
+ds_train = tf.data.Dataset.zip((ds_train, ds_valid))
 
 ds_test = prepare(ds_test, preprocess(training=False), eval_batch_size, training=False)
 
-DEFAULTS['weight_decay'] = 3e-4
 DEFAULTS['affine'] = False
 input_shape = (32, 32, 3)
-model = Network(16, 8, 4, 4, 4, 10, arch_weight_decay=1e-3)
+model = Network(16, 8, 4, 4, 4, 10)
 
 criterion = CrossEntropy(reduction='none')
 
@@ -84,6 +84,6 @@ test_metrics = [
 # metric_transform = lambda x: x[0]
 
 trainer = Trainer(model, criterion, optimizer_arch, optimizer_model,
-                  5.0, metrics, test_metrics)
+                  metrics, test_metrics, 5.0, 1e-3, 3e-4)
 
 trainer.fit(epochs, ds_train, steps_per_epoch, ds_test, test_steps)

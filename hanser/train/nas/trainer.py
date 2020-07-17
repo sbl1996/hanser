@@ -49,15 +49,18 @@ def maybe_cat(x):
 class Trainer:
 
     def __init__(self, model, criterion, optimizer_arch, optimizer_model,
-                 clip_grad_norm=None, metrics=(), test_metrics=(),
+                 metrics=(), test_metrics=(), clip_grad_norm=None,
+                 arch_weight_decay=None, model_weight_decay=None,
                  strategy='auto', model_dir=None, metric_transform=identity):
         self.model = model
         self.criterion = criterion
         self.optimizer_arch = optimizer_arch
         self.optimizer_model = optimizer_model
-        self.clip_grad_norm = clip_grad_norm
         self.metrics = metrics
         self.test_metrics = test_metrics
+        self.clip_grad_norm = clip_grad_norm
+        self.arch_weight_decay = arch_weight_decay
+        self.model_weight_decay = model_weight_decay
         self.metric_transform = metric_transform
         self.model_dir = model_dir
 
@@ -118,14 +121,20 @@ class Trainer:
                     logits_search = cast_fp32(logits_search)
                 per_example_loss_search = self.criterion(target_search, logits_search)
                 loss = tf.reduce_mean(per_example_loss_search)
-                if self._use_weight_decay:
-                    loss = loss + tf.add_n(self.model.losses)
+
+                model_parameters = [v for v in self.model.trainable_variables if 'alphas' not in v.name]
+
+                if self.model_weight_decay:
+                    loss = loss + self.model_weight_decay * tf.add_n([
+                        tf.nn.l2_loss(v)
+                        for v in model_parameters
+                    ])
+
                 if self.strategy:
                     loss = loss / self.strategy.num_replicas_in_sync
 
-            model_parameters = [v for v in self.model.trainable_variables if 'alphas' not in v.name]
             grads = tape.gradient(loss, model_parameters)
-            grads = [(tf.clip_by_norm(grad, -self.clip_grad_norm, self.clip_grad_norm)) for grad in grads]
+            grads = [(tf.clip_by_norm(grad, self.clip_grad_norm)) for grad in grads]
             self.optimizer_model.apply_gradients(zip(grads, model_parameters))
 
             preds = self.metric_transform(logits_search)

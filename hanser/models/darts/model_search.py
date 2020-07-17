@@ -27,7 +27,7 @@ class MixedOp(Layer):
 
     def call(self, inputs):
         x, weights = inputs
-        return sum(w * op(x) for w, op in zip(weights, self._ops))
+        return sum(weights[i] * op(x) for i, op in enumerate(self._ops))
 
 
 class Cell(Layer):
@@ -68,7 +68,7 @@ class Cell(Layer):
 
 class Network(Model):
 
-    def __init__(self, C, layers, steps=4, multiplier=4, stem_multiplier=3, num_classes=10, arch_weight_decay=None):
+    def __init__(self, C, layers, steps=4, multiplier=4, stem_multiplier=3, num_classes=10):
         super().__init__()
         self._C = C
         self._steps = steps
@@ -94,7 +94,7 @@ class Network(Model):
         self.global_pool = GlobalAvgPool(name='global_pool')
         self.fc = Linear(C_prev, num_classes, name='fc')
 
-        self._initialize_alphas(arch_weight_decay)
+        self._initialize_alphas()
 
     def call(self, x):
         s0 = s1 = self.stem(x)
@@ -107,15 +107,14 @@ class Network(Model):
         logits = self.fc(x)
         return logits
 
-    def _initialize_alphas(self, arch_weight_decay):
+    def _initialize_alphas(self):
         k = sum(2 + i for i in range(4))
         num_ops = len(PRIMITIVES)
-        regularizer = l2(arch_weight_decay) if arch_weight_decay else None
         self.alphas_normal = self.add_weight(
-            'alphas_normal', (k, num_ops), initializer=RandomNormal(stddev=1e-3), regularizer=regularizer,
+            'alphas_normal', (k, num_ops), initializer=RandomNormal(stddev=1e-3)
         )
         self.alphas_reduce = self.add_weight(
-            'alphas_reduce', (k, num_ops), initializer=RandomNormal(stddev=1e-3), regularizer = regularizer,
+            'alphas_reduce', (k, num_ops), initializer=RandomNormal(stddev=1e-3)
         )
         self._arch_parameters = [
             self.alphas_normal,
