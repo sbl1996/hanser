@@ -1,10 +1,13 @@
-import tensorflow as tf
-import tensorflow.keras.backend as K
-
-from tensorflow.python.distribute.input_lib import DistributedDataset
-
 import time
 
+import tensorflow as tf
+from tensorflow.python.distribute.input_lib import DistributedDataset
+import tensorflow.keras.mixed_precision.experimental as mixed_precision
+
+from tensorflow.python.distribute.tpu_strategy import TPUStrategy
+from tensorflow.python.keras.callbacks import CallbackList
+
+from hanser.io import time_now
 from hanser.tpu import local_results
 
 
@@ -12,25 +15,29 @@ from hanser.tpu import local_results
 def identity(x):
     return x
 
+def join_metric_logs(results, delim=" - "):
+    logs = []
+    for k, v in results:
+        logs.append("%s: %.4f" % (k, v))
+    return delim.join(logs)
 
-def print_results(prefix, elapsed, results):
-    s = "%s \tcost: %ds" % (prefix, elapsed)
-    for name, val in results:
-        s = s + ", %s: %.3f" % (name, val)
-    print(s)
+
+def print_results(stage, steps, results):
+    print("%s %s %d/%d - %s" % (
+        time_now(), stage, steps, steps, join_metric_logs(results, delim=" - ")))
 
 
-def run_epoch(step_fn, iterator, steps, metrics, name="Train"):
-    start = time.time()
+def run_epoch(step_fn, iterator, steps, metrics, stage="Train"):
+    # start = time.time()
     for m in metrics:
         m.reset_states()
     for step in range(steps):
         step_fn(iterator)
     metric_results = []
     for m in metrics:
-        metric_results.append((m.name, m.result()))
-    elapsed = time.time() - start
-    print_results(name, elapsed, metric_results)
+        metric_results.append((m.name, m.result().numpy()))
+    # elapsed = time.time() - start
+    print_results(stage, steps, metric_results)
 
 
 def maybe_cat(x):
@@ -39,32 +46,35 @@ def maybe_cat(x):
     return x
 
 
-def maybe_call(fn, *args, default=None):
-    if fn is None:
-        return default
-    else:
-        return fn(*args)
-
-
 class Trainer:
 
-    def __init__(self, model, criterion, optimizer, metrics=(), test_metrics=(), model_dir=None,
-                 strategy=None, weight_decay=None, bfloat16=False):
+    def __init__(self, model, criterion, optimizer_arch, optimizer_model,
+                 clip_grad_norm=None, metrics=(), test_metrics=(),
+                 strategy='auto', model_dir=None, metric_transform=identity):
         self.model = model
         self.criterion = criterion
-        self.optimizer = optimizer
+        self.optimizer_arch = optimizer_arch
+        self.optimizer_model = optimizer_model
+        self.clip_grad_norm = clip_grad_norm
         self.metrics = metrics
         self.test_metrics = test_metrics
+        self.metric_transform = metric_transform
         self.model_dir = model_dir
+
+        if strategy is not None:
+            if strategy == 'auto':
+                strategy = tf.distribute.get_strategy()
+            if not isinstance(strategy, TPUStrategy):
+                strategy = None
         self.strategy = strategy
         if strategy and model_dir:
-            assert model_dir.startswith('gs'), "Use gs://... as `model_dir` on tpu mode"
+            assert model_dir.startswith('gs'), "Use gs://... as `model_dir` on TPU"
 
-        self.bfloat16 = bfloat16
-        self.weight_decay = weight_decay
-        self._get_sample_weight = None
+        self.bfloat16 = mixed_precision.global_policy().compute_dtype == 'bfloat16'
 
-        self._epoch = tf.Variable(0, trainable=False, name='epoch')
+        self._epoch = tf.Variable(0, trainable=False)
+
+        self._use_weight_decay = len(model.losses) != 0
 
     def _maybe_cat(self, values):
         if self.strategy:
@@ -79,78 +89,92 @@ class Trainer:
 
     @tf.function
     def _train_step(self, iterator):
-        def step_fn(images, labels):
+
+        def step_fn(data):
+            (input, target), (input_search, target_search) = data
             with tf.GradientTape() as tape:
-                preds = self.model(images, training=True)
-                loss1 = self.criterion(labels, preds)
-                if loss1.shape.ndims != 0:
-                    loss1 = tf.reduce_mean(loss1)
-                if self.weight_decay:
-                    loss2 = self.weight_decay * tf.add_n([
+                logits = self.model(input, training=True)
+                if self.bfloat16:
+                    logits = cast_fp32(logits)
+                per_example_loss = self.criterion(target, logits)
+                loss = tf.reduce_mean(per_example_loss)
+
+                arch_parameters = [v for v in self.model.trainable_variables if 'alphas' in v.name]
+
+                if self.arch_weight_decay:
+                    loss = loss + self.arch_weight_decay * tf.add_n([
                         tf.nn.l2_loss(v)
-                        for v in self.model.trainable_variables
-                        if 'batch_normalization' not in v.name
+                        for v in arch_parameters
                     ])
-                    loss = loss1 + loss2
-                else:
-                    loss = loss1
                 if self.strategy:
                     loss = loss / self.strategy.num_replicas_in_sync
-            grads = tape.gradient(loss, self.model.trainable_variables)
-            self.optimizer.apply_gradients(
-                zip(grads, self.model.trainable_variables))
 
+            grads = tape.gradient(loss, arch_parameters)
+            self.optimizer_arch.apply_gradients(zip(grads, arch_parameters))
+
+            with tf.GradientTape() as tape:
+                logits_search = self.model(input_search, training=True)
+                if self.bfloat16:
+                    logits_search = cast_fp32(logits_search)
+                per_example_loss_search = self.criterion(target_search, logits_search)
+                loss = tf.reduce_mean(per_example_loss_search)
+                if self._use_weight_decay:
+                    loss = loss + tf.add_n(self.model.losses)
+                if self.strategy:
+                    loss = loss / self.strategy.num_replicas_in_sync
+
+            model_parameters = [v for v in self.model.trainable_variables if 'alphas' not in v.name]
+            grads = tape.gradient(loss, model_parameters)
+            grads = [(tf.clip_by_norm(grad, -self.clip_grad_norm, self.clip_grad_norm)) for grad in grads]
+            self.optimizer_model.apply_gradients(zip(grads, model_parameters))
+
+            preds = self.metric_transform(logits_search)
             for metric in self.metrics:
                 if 'loss' in metric.name:
-                    metric.update_state(loss1)
+                    metric.update_state(per_example_loss_search)
                 else:
-                    sample_weight = maybe_call(self._get_sample_weight, labels, preds)
-                    metric.update_state(labels, preds, sample_weight)
+                    metric.update_state(target, preds, None)
 
         if self.strategy:
-            self.strategy.experimental_run_v2(step_fn, args=next(iterator))
+            self.strategy.run(step_fn, args=(next(iterator),))
         else:
-            step_fn(*next(iterator))
+            step_fn(next(iterator))
 
     @tf.function
     def _test_step(self, iterator):
-        def step_fn(images, labels):
-            preds = self.model(images, training=False)
-            if self.bfloat16:
-                preds = tf.cast(preds, tf.float32)
-            loss = self.criterion(labels, preds)
-            if loss.shape.ndims != 0:
-                loss = tf.reduce_mean(loss)
 
+        def step_fn(data):
+            inputs, target = data
+            preds = self.model(inputs, training=False)
+            if self.bfloat16:
+                preds = cast_fp32(preds)
+
+            preds = self.metric_transform(preds)
             for metric in self.test_metrics:
-                if 'loss' in metric.name:
-                    metric.update_state(loss)
-                else:
-                    sample_weight = maybe_call(self._get_sample_weight, labels, preds)
-                    metric.update_state(labels, preds, sample_weight)
+                metric.update_state(target, preds, None)
 
         if self.strategy:
-            self.strategy.experimental_run_v2(step_fn, args=next(iterator))
+            self.strategy.run(step_fn, args=(next(iterator),))
         else:
-            step_fn(*next(iterator))
+            step_fn(next(iterator))
 
     def _get_predict_step(self, debug=False):
 
         @tf.function
         def predict_step(iterator):
-            def step_fn(inputs, target):
+
+            def step_fn(data):
+                inputs, target = data
                 output = self.model(inputs, training=debug)
                 if self.bfloat16:
-                    output = tf.cast(output, tf.float32)
-                # output = output_transform(output)
-                # target = target_transform(target)
+                    output = cast_fp32(output)
                 return target, output
 
             if self.strategy:
                 return local_results(
-                    self.strategy, self.strategy.experimental_run_v2(step_fn, args=next(iterator)))
+                    self.strategy, self.strategy.run(step_fn, args=(next(iterator),)))
             else:
-                return step_fn(*next(iterator))
+                return step_fn(next(iterator))
 
         return predict_step
 
@@ -177,12 +201,12 @@ class Trainer:
         self.restore(optim_ckpt, optim_ckpt_manager)
 
     def fit(self, epochs, ds_train, steps_per_epoch,
-            ds_val, val_steps, val_freq=1,
-            save_per_epochs=None, get_sample_weight=None,
+            ds_val, val_steps, val_freq=1, save_per_epochs=None,
             extra_metrics=(), extra_eval_freq=1,
-            target_transform=identity, output_transform=identity,
-            debug=False):
-        self._get_sample_weight = get_sample_weight
+            extra_target_transform=tf.identity, extra_output_transform=tf.identity,
+            debug=False, callbacks=None):
+
+        callbacks = CallbackList(callbacks, model=self.model)
 
         if self.strategy:
             assert isinstance(ds_train, DistributedDataset)
@@ -201,20 +225,23 @@ class Trainer:
         max_epochs = epoch + epochs
 
         if extra_metrics:
-            assert target_transform
-            assert output_transform
+            assert extra_target_transform
+            assert extra_output_transform
             assert extra_eval_freq
             predict_step = self._get_predict_step(debug)
 
+        callbacks.on_train_begin()
         while epoch < max_epochs:
-            print('Epoch %s' % (epoch + 1))
+            print('Epoch %d/%d' % (epoch + 1, epochs))
 
+            callbacks.on_epoch_begin(epoch)
             run_epoch(self._train_step, train_it, steps_per_epoch, self.metrics, "Train")
+            callbacks.on_epoch_end(epoch)
 
             epoch = self._epoch.assign_add(1).numpy()
 
             if epoch % val_freq == 0:
-                run_epoch(self._test_step, val_it, val_steps, self.test_metrics, "Val")
+                run_epoch(self._test_step, val_it, val_steps, self.test_metrics, "Valid")
 
             if extra_metrics and epoch % extra_eval_freq == 0:
                 start = time.time()
@@ -224,15 +251,14 @@ class Trainer:
                     target = self._maybe_cat(target)
                     output = self._maybe_cat(output)
 
-                    weight = maybe_call(get_sample_weight, target, output)
-                    output = output_transform(output)
-                    target = target_transform(target)
+                    output = extra_output_transform(output)
+                    target = extra_target_transform(target)
 
                     for m in extra_metrics:
-                        m.update_state(target, output, weight)
+                        m.update_state(target, output, None)
                 metric_results = []
                 for m in extra_metrics:
-                    metric_results.append((m.name, m.result()))
+                    metric_results.append((m.name, m.result().numpy()))
                     m.reset_states()
                 elapsed = time.time() - start
                 print_results("Eval", elapsed, metric_results)
@@ -240,9 +266,9 @@ class Trainer:
             if save_per_epochs and epoch % save_per_epochs == 0:
                 print("Saved models: %s" % model_ckpt_manager.save(epoch))
                 print("Saved optimizer: %s" % optim_ckpt_manager.save(epoch))
+        callbacks.on_train_end()
 
-    def evaluate(self, ds_test, test_steps, get_sample_weight=None):
-        self._get_sample_weight = get_sample_weight
+    def evaluate(self, ds_test, test_steps):
 
         if self.strategy:
             assert isinstance(ds_test, DistributedDataset)
@@ -251,7 +277,7 @@ class Trainer:
         run_epoch(self._test_step, test_it, test_steps, self.test_metrics, "Test")
 
     def evaluate2(self, ds_test, test_steps, metrics,
-                  output_transform=identity, target_transform=identity, get_sample_weight=None, debug=False):
+                  output_transform=tf.identity, target_transform=tf.identity, debug=False):
 
         if self.strategy:
             assert isinstance(ds_test, DistributedDataset)
@@ -266,16 +292,15 @@ class Trainer:
             target = self._maybe_cat(target)
             output = self._maybe_cat(output)
 
-            weight = maybe_call(get_sample_weight, target, output)
             output = output_transform(output)
             target = target_transform(target)
 
             for m in metrics:
-                m.update_state(target, output, weight)
+                m.update_state(target, output, None)
         results = {m.name: m.result().numpy() for m in metrics}
         return results
 
-    def collect(self, ds_test, test_steps, output_transform=identity, target_transform=identity):
+    def collect(self, ds_test, test_steps, output_transform=tf.identity, target_transform=tf.identity):
 
         if self.strategy:
             assert isinstance(ds_test, DistributedDataset)
@@ -289,12 +314,8 @@ class Trainer:
         for step in range(test_steps):
             target, output = predict_step(test_it)
 
-            if isinstance(target, (tuple, list)):
-                targets.extend(target)
-                outputs.extend(output)
-            else:
-                targets.append(target)
-                outputs.append(output)
+            targets.append(target)
+            outputs.append(output)
 
         target = misc_concat(targets)
         output = misc_concat(outputs)
@@ -303,6 +324,17 @@ class Trainer:
         target = target_transform(target)
 
         return target, output
+
+
+def cast_fp32(xs):
+    if isinstance(xs, tf.Tensor):
+        return tf.cast(xs, tf.float32)
+    elif isinstance(xs, (tuple, list)):
+        return xs.__class__(cast_fp32(x) for x in xs)
+    elif isinstance(xs, dict):
+        return {k: cast_fp32(v) for k, v in xs.items()}
+    else:
+        return xs
 
 
 def misc_concat(values):

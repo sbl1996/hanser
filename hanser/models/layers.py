@@ -1,7 +1,7 @@
 from typing import Union, Tuple, Optional
 
 import tensorflow as tf
-from tensorflow.keras import Sequential as KerasSequential
+from tensorflow.keras import Sequential
 from tensorflow.keras.initializers import VarianceScaling, RandomNormal
 from tensorflow.keras.layers import BatchNormalization, Dense, DepthwiseConv2D, \
     Activation, AvgPool2D, MaxPool2D, Layer, InputSpec
@@ -68,10 +68,10 @@ def Conv2d(in_channels: int,
 
     bias_regularizer = get_weight_decay() if not DEFAULTS['no_bias_decay'] else None
 
-    if not (norm or act):
-        conv_name = name
+    if (norm or act):
+        conv_name = 'conv'
     else:
-        conv_name = name + "/conv"
+        conv_name = name
     if in_channels == groups:
         depth_multiplier = out_channels // in_channels
         conv = DepthwiseConv2D(kernel_size=kernel_size, strides=stride, padding=padding,
@@ -83,15 +83,14 @@ def Conv2d(in_channels: int,
                       padding=padding, dilation_rate=dilation, use_bias=use_bias, groups=groups,
                       kernel_initializer=kernel_initializer, bias_initializer='zeros',
                       kernel_regularizer=get_weight_decay(), bias_regularizer=bias_regularizer, name=conv_name)
+    if not (norm or act):
+        return conv
     layers = [conv]
     if norm:
-        layers.append(Norm(out_channels, norm, zero_init=zero_init, name=name + "/norm"))
+        layers.append(Norm(out_channels, norm, zero_init=zero_init, name="norm"))
     if act:
-        layers.append(Act(act, name=name + "/act"))
-    if len(layers) == 1:
-        return layers[0]
-    else:
-        return Sequential(layers, name=name)
+        layers.append(Act(act, name="act"))
+    return Sequential(layers, name=name)
 
 
 def Norm(channels, type='default', affine=None, zero_init=False, name=None):

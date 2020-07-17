@@ -72,7 +72,6 @@ model = PyramidNet(input_shape, 4, 12, 20, 1, True, drop_path, False, 10)
 
 criterion = CrossEntropy(label_smoothing=0.1, reduction='none')
 
-
 base_lr = 0.01
 base_wd = 1e-4
 epochs = 20
