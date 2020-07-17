@@ -94,8 +94,6 @@ class Network(Model):
         self.global_pool = GlobalAvgPool(name='global_pool')
         self.fc = Linear(C_prev, num_classes, name='fc')
 
-        self._initialize_alphas()
-
     def call(self, x):
         s0 = s1 = self.stem(x)
         weights_reduce = tf.nn.softmax(self.alphas_reduce, axis=-1)
@@ -107,7 +105,7 @@ class Network(Model):
         logits = self.fc(x)
         return logits
 
-    def _initialize_alphas(self):
+    def build(self):
         k = sum(2 + i for i in range(4))
         num_ops = len(get_primitives())
         self.alphas_normal = self.add_weight(

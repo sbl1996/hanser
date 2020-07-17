@@ -43,7 +43,7 @@ def preprocess(image, label, training):
 
 train_portion = 0.5
 n_train = 50000
-n_search = int(train_portion * (1 - train_portion))
+n_search = int(n_train * (1 - train_portion))
 n_train = n_train - n_search
 n_test = 10000
 
