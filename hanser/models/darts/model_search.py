@@ -116,13 +116,12 @@ class Network(Model):
         self.alphas_reduce = self.add_weight(
             'alphas_reduce', (k, num_ops), initializer=RandomNormal(stddev=1e-3)
         )
-        self._arch_parameters = [
-            self.alphas_normal,
-            self.alphas_reduce,
-        ]
 
     def arch_parameters(self):
-        return self._arch_parameters
+        return self.trainable_variables[-2:]
+
+    def model_parameters(self):
+        return self.trainable_variables[:-2]
     #
     # def genotype(self):
     #

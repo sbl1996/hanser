@@ -73,7 +73,7 @@ model.build((None, *input_shape))
 
 criterion = CrossEntropy(reduction='none')
 
-base_lr = 0.025
+base_lr = 0.001
 epochs = 20
 optimizer_arch = Adam(3e-4, beta_1=0.5)
 lr_shcedule = CosineLR(base_lr * mul, steps_per_epoch, epochs=epochs,

@@ -97,7 +97,7 @@ class Trainer:
             (input, target), (input_search, target_search) = data
 
             # arch_parameters = [v for v in self.model.trainable_variables if 'alphas' in v.name]
-            arch_parameters = self.model.trainable_variables[-2:]
+            arch_parameters = self.model.arch_parameters()
             with tf.GradientTape(watch_accessed_variables=False) as tape:
                 tape.watch(arch_parameters)
                 logits = self.model(input_search, training=False)
@@ -118,7 +118,7 @@ class Trainer:
             self.optimizer_arch.apply_gradients(zip(grads, arch_parameters))
 
             # model_parameters = [v for v in self.model.trainable_variables if 'alphas' not in v.name]
-            model_parameters = self.model.trainable_variables[:-2]
+            model_parameters = self.model.model_parameters()
             with tf.GradientTape(watch_accessed_variables=False) as tape:
                 tape.watch(model_parameters)
                 logits = self.model(input, training=False)
