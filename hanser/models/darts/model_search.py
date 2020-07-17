@@ -105,15 +105,16 @@ class Network(Model):
         logits = self.fc(x)
         return logits
 
-    def build(self):
+    def build(self, input_shape):
         k = sum(2 + i for i in range(4))
         num_ops = len(get_primitives())
         self.alphas_normal = self.add_weight(
-            'alphas_normal', (k, num_ops), initializer=RandomNormal(stddev=1e-3)
+            'alphas_normal', (k, num_ops), initializer=RandomNormal(stddev=1e-3), trainable=True,
         )
         self.alphas_reduce = self.add_weight(
-            'alphas_reduce', (k, num_ops), initializer=RandomNormal(stddev=1e-3)
+            'alphas_reduce', (k, num_ops), initializer=RandomNormal(stddev=1e-3), trainable=True,
         )
+        super().build(input_shape)
 
     def arch_parameters(self):
         return self.trainable_variables[-2:]
