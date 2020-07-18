@@ -65,7 +65,6 @@ class Cell(Layer):
         s1 = self.preprocess1(s1)
 
         states = [s0, s1]
-        print(states)
         offset = 0
         for i in range(4):
             s = tf.add_n([self._ops[offset + j]([h, weights[offset + j]]) for j, h in enumerate(states)])

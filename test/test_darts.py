@@ -74,6 +74,7 @@ ds_search = prepare(ds_search, preprocess(training=True), batch_size, training=T
 ds_test = prepare(ds_test, preprocess(training=False), eval_batch_size, training=False)
 
 set_default(['bn', 'affine'], False)
+set_default(['bn', 'track_running_stats'], False)
 set_primitives('tiny')
 drop_path = 0.6
 model = Network(4, 5, 4, 4, 3, drop_path, 10)
