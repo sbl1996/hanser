@@ -3,6 +3,7 @@ from collections import namedtuple
 Genotype = namedtuple('Genotype', 'normal normal_concat reduce reduce_concat')
 
 PRIMITIVES_tiny = [
+    'none',
     'skip_connect',
     'sep_conv_3x3',
 ]
@@ -60,7 +61,12 @@ CONFIG = {
 
 
 def set_primitives(search_space):
-    if search_space == 'tiny':
+    if isinstance(search_space, list):
+        for k in search_space:
+            if not k in PRIMITIVES_darts:
+                raise ValueError("Not supported operation: %s" % k)
+        CONFIG['primitives'] = search_space
+    elif search_space == 'tiny':
         CONFIG['primitives'] = PRIMITIVES_tiny
     elif search_space == 'small':
         CONFIG['primitives'] = PRIMITIVES_small

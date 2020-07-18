@@ -8,6 +8,7 @@ import tensorflow as tf
 from tensorflow.keras.layers import Input
 from tensorflow.keras.optimizers import SGD, Adam
 from tensorflow.keras import metrics as M
+from tensorflow.keras.callbacks import Callback
 
 from hanser.losses import CrossEntropy
 from hanser.models.layers import set_default
@@ -74,7 +75,8 @@ ds_test = prepare(ds_test, preprocess(training=False), eval_batch_size, training
 
 set_default(['bn', 'affine'], False)
 set_primitives('tiny')
-model = Network(4, 5, 4, 4, 3, 10)
+drop_path = 0.6
+model = Network(4, 5, 4, 4, 3, drop_path, 10)
 input_shape = (32, 32, 3)
 model.build((None, *input_shape))
 # model.call(Input(input_shape))
@@ -96,6 +98,15 @@ test_metrics = [
 
 trainer = Trainer(model, criterion, optimizer_arch, optimizer_model,
                   metrics, test_metrics, 5.0, 1e-3, 3e-4)
+
+
+class DropPathRateSchedule(Callback):
+
+    def on_epoch_begin(self, epoch, logs=None):
+        rate = (epoch + 1) / epochs * drop_path
+        for l in model.submodules:
+            if 'drop' in l.name:
+                l.rate = rate
 
 print(time_now())
 trainer.fit(epochs, ds_train, ds_search, steps_per_epoch, ds_test, test_steps)

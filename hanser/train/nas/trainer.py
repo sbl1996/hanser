@@ -101,7 +101,7 @@ class Trainer:
             arch_parameters = self.model.arch_parameters()
             with tf.GradientTape(watch_accessed_variables=False) as tape:
                 tape.watch(arch_parameters)
-                logits = self.model(input_search, training=True)
+                logits = self.model(input_search, training=False)
                 if self.bfloat16:
                     logits = cast_fp32(logits)
                 per_example_loss = self.criterion(target_search, logits)

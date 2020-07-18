@@ -6,22 +6,31 @@ from tensorflow.keras.layers import Layer
 from hanser.models.darts.operations import FactorizedReduce, ReLUConvBN, OPS
 from hanser.models.darts.genotypes import get_primitives, Genotype
 from hanser.models.layers import Norm, Conv2d, GlobalAvgPool, Linear
+from hanser.models.modules import DropPath
 
 
 class MixedOp(Layer):
 
-    def __init__(self, C, stride, name):
+    def __init__(self, C, stride, drop_path, name):
         super().__init__(name=name)
         self.stride = stride
         self._ops = []
         for i, primitive in enumerate(get_primitives()):
-            if 'pool' in primitive:
+            if drop_path:
                 op = Sequential([
                     OPS[primitive](C, stride, name='pool'),
-                    Norm(C, name='norm')
-                ], name=f'op{i+1}')
+                ], name=f'op{i + 1}')
+                if 'pool' in primitive:
+                    op.add(Norm(C, name='norm'))
+                op.add(DropPath(drop_path, name='drop'))
             else:
-                op = OPS[primitive](C, stride, name=f'op{i+1}')
+                if 'pool' in primitive:
+                    op = Sequential([
+                        OPS[primitive](C, stride, name='pool'),
+                        Norm(C, name='norm')
+                    ], name=f'op{i+1}')
+                else:
+                    op = OPS[primitive](C, stride, name=f'op{i}')
             self._ops.append(op)
 
     def call(self, inputs):
@@ -31,7 +40,7 @@ class MixedOp(Layer):
 
 class Cell(Layer):
 
-    def __init__(self, steps, multiplier, C_prev_prev, C_prev, C, reduction, reduction_prev, name):
+    def __init__(self, steps, multiplier, C_prev_prev, C_prev, C, reduction, reduction_prev, drop_path, name):
         super().__init__(name=name)
         self.reduction = reduction
 
@@ -47,7 +56,7 @@ class Cell(Layer):
         for i in range(self._steps):
             for j in range(2 + i):
                 stride = 2 if reduction and j < 2 else 1
-                op = MixedOp(C, stride, name=f'mixop_{j}_{i+2}')
+                op = MixedOp(C, stride, drop_path, name=f'mixop_{j}_{i+2}')
                 self._ops.append(op)
 
     def call(self, inputs):
@@ -65,13 +74,15 @@ class Cell(Layer):
 
         return tf.concat(states[-self._multiplier:], axis=-1)
 
+
 class Network(Model):
 
-    def __init__(self, C, layers, steps=4, multiplier=4, stem_multiplier=3, num_classes=10):
+    def __init__(self, C, layers, steps=4, multiplier=4, stem_multiplier=3, drop_path=0.6, num_classes=10):
         super().__init__(name='network')
         self._C = C
         self._steps = steps
         self._multiplier = multiplier
+        self._drop_path = drop_path
 
         C_curr = stem_multiplier * C
         self.stem = Conv2d(3, C_curr, 3, norm='default', name='stem')
@@ -85,7 +96,7 @@ class Network(Model):
                 reduction = True
             else:
                 reduction = False
-            cell = Cell(steps, multiplier, C_prev_prev, C_prev, C_curr, reduction, reduction_prev, name=f'cell{i}')
+            cell = Cell(steps, multiplier, C_prev_prev, C_prev, C_curr, reduction, reduction_prev, drop_path, name=f'cell{i}')
             reduction_prev = reduction
             self.cells += [cell]
             C_prev_prev, C_prev = C_prev, multiplier * C_curr
@@ -118,37 +129,38 @@ class Network(Model):
 
     def model_parameters(self):
         return self.trainable_variables[:-2]
-    #
-    # def genotype(self):
-    #
-    #     def _parse(weights):
-    #         gene = []
-    #         n = 2
-    #         start = 0
-    #         for i in range(self._steps):
-    #             end = start + n
-    #             W = weights[start:end].copy()
-    #             edges = sorted(range(i + 2),
-    #                            key=lambda x: -max(W[x][k] for k in range(len(W[x])) if k != PRIMITIVES.index('none')))[
-    #                     :2]
-    #             for j in edges:
-    #                 k_best = None
-    #                 for k in range(len(W[j])):
-    #                     if k != PRIMITIVES.index('none'):
-    #                         if k_best is None or W[j][k] > W[j][k_best]:
-    #                             k_best = k
-    #                 gene.append((PRIMITIVES[k_best], j))
-    #             start = end
-    #             n += 1
-    #         return gene
-    #
-    #     gene_normal = _parse(F.softmax(self.alphas_normal, dim=-1).data.cpu().numpy())
-    #     gene_reduce = _parse(F.softmax(self.alphas_reduce, dim=-1).data.cpu().numpy())
-    #
-    #     concat = range(2 + self._steps - self._multiplier, self._steps + 2)
-    #     genotype = Genotype(
-    #         normal=gene_normal, normal_concat=concat,
-    #         reduce=gene_reduce, reduce_concat=concat
-    #     )
-    #     return genotype
-    #
+
+    def genotype(self):
+        PRIMITIVES = get_primitives()
+
+        def get_op(w):
+            if 'none' in PRIMITIVES:
+                i = max([k for k in range(len(PRIMITIVES)) if k != PRIMITIVES.index('none')], key=lambda k: w[k])
+            else:
+                i = max(range(len(PRIMITIVES)), key=lambda k: w[k])
+            return w[i], PRIMITIVES[i]
+
+        def _parse(weights):
+            gene = []
+            n = 2
+            start = 0
+            for i in range(self._steps):
+                end = start + n
+                W = weights[start:end].copy()
+                edges = sorted(range(i + 2), key=lambda x: -get_op(W[x])[0])[:2]
+                for j in edges:
+                    gene.append((get_op(W[j])[1], j))
+                start = end
+                n += 1
+            return gene
+
+        gene_normal = _parse(tf.nn.softmax(self.alphas_normal, axis=-1).numpy())
+        gene_reduce = _parse(tf.nn.softmax(self.alphas_reduce, axis=-1).numpy())
+
+        concat = range(2 + self._steps - self._multiplier, self._steps + 2)
+        genotype = Genotype(
+            normal=gene_normal, normal_concat=concat,
+            reduce=gene_reduce, reduce_concat=concat
+        )
+        return genotype
+

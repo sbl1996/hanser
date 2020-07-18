@@ -114,7 +114,7 @@ def Conv2d(in_channels: int,
 
 
 def Norm(channels, type='default', affine=None, track_running_stats=None, zero_init=False, name=None):
-    if type == 'default':
+    if type in ['default', 'def']:
         type = DEFAULTS['norm']
     assert type == 'bn'
     cfg = DEFAULTS['bn']
@@ -144,7 +144,7 @@ def Norm(channels, type='default', affine=None, track_running_stats=None, zero_i
 
 
 def Act(type='default', name=None):
-    if type == 'default':
+    if type in ['default', 'def']:
         return Act(DEFAULTS['activation'], name)
     return Activation(type, name=name)
 
