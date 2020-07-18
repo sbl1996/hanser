@@ -49,21 +49,39 @@ class Cell(Layer):
                 stride = 2 if reduction and j < 2 else 1
                 op = MixedOp(C, stride, name=f'mixop_{j}_{i+2}')
                 self._ops.append(op)
+        self._num_ops = len(self._ops)
 
     def call(self, inputs):
         s0, s1, weights = inputs
         s0 = self.preprocess0(s0)
         s1 = self.preprocess1(s1)
+        s2 = tf.add_n([
+            self._ops[0]([s0, weights[0]]),
+            self._ops[1]([s1, weights[1]]),
+        ])
 
-        states = [s0, s1]
-        print(states)
-        offset = 0
-        for i in range(4):
-            s = tf.add_n([self._ops[offset + j]([h, weights[offset + j]]) for j, h in enumerate(states)])
-            offset += len(states)
-            states.append(s)
+        s3 = tf.add_n([
+            self._ops[2]([s0, weights[2]]),
+            self._ops[3]([s1, weights[3]]),
+            self._ops[4]([s2, weights[4]]),
+        ])
 
-        return tf.concat(states[-self._multiplier:], axis=-1)
+        s4 = tf.add_n([
+            self._ops[5]([s0, weights[5]]),
+            self._ops[6]([s1, weights[6]]),
+            self._ops[7]([s2, weights[7]]),
+            self._ops[8]([s3, weights[8]]),
+        ])
+
+        s5 = tf.add_n([
+            self._ops[9]([s0, weights[9]]),
+            self._ops[10]([s1, weights[10]]),
+            self._ops[11]([s2, weights[11]]),
+            self._ops[12]([s3, weights[12]]),
+            self._ops[13]([s4, weights[13]]),
+        ])
+        return tf.concat([s2, s3, s4, s5], axis=-1)
+
 
 class Network(Model):
 
@@ -112,6 +130,17 @@ class Network(Model):
         x = self.global_pool(s1)
         logits = self.fc(x)
         return logits
+    #
+    # def build(self, input_shape):
+    #     k = sum(2 + i for i in range(4))
+    #     num_ops = len(get_primitives())
+    #     self.alphas_normal = self.add_weight(
+    #         'alphas_normal', (k, num_ops), initializer=RandomNormal(stddev=1e-2), trainable=True,
+    #     )
+    #     self.alphas_reduce = self.add_weight(
+    #         'alphas_reduce', (k, num_ops), initializer=RandomNormal(stddev=1e-2), trainable=True,
+    #     )
+    #     super().build(input_shape)
 
     def arch_parameters(self):
         return self.trainable_variables[-2:]
