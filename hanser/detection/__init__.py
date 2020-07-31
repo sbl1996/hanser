@@ -182,7 +182,7 @@ def detection_loss(target, preds, cls_loss='focal', neg_pos_ratio=3, alpha=0.25,
     normalizer = to_float(total_pos)
 
     if cls_loss == 'focal':
-        weights = to_float(loc_t != 0)
+        weights = to_float(cls_t != 0)
         loc_loss = huber_loss2(loc_t, loc_p, weights, delta=3.0) / normalizer
         num_classes = tf.shape(cls_p)[-1]
         cls_t = tf.one_hot(cls_t, num_classes)

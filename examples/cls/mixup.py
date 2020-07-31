@@ -6,7 +6,6 @@ import tensorflow as tf
 
 from tensorflow.keras.optimizers import SGD
 from tensorflow.keras.metrics import CategoricalAccuracy as Accuracy, Mean, CategoricalCrossentropy as Loss
-from tensorflow.keras.callbacks import Callback
 import tensorflow.keras.mixed_precision.experimental as mixed_precision
 
 from hanser.datasets import prepare
@@ -67,7 +66,8 @@ else:
     ds = tf.data.Dataset.from_tensor_slices((x_train, y_train))
     ds_test = tf.data.Dataset.from_tensor_slices((x_test, y_test))
 
-ds_train = prepare(ds, preprocess(training=True), batch_size, training=True, buffer_size=10000)
+ds_train = prepare(ds, preprocess(training=True), batch_size, training=True, buffer_size=10000,
+                   batch_preprocess=batch_preprocess)
 ds_test = prepare(ds_test, preprocess(training=False), eval_batch_size, training=False)
 
 # policy = mixed_precision.Policy('mixed_bfloat16')
@@ -79,21 +79,17 @@ if strategy:
     ds_test_dist = strategy.experimental_distribute_dataset(ds_test)
 
 set_default(['weight_decay'], 1e-4)
+input_shape = (32, 32, 3)
 # model = ShuffleNetV2(32, (128, 256, 512), (4, 8, 4), 1024, True, 0.0, 10)
 model = ShuffleNetV2(4, (8, 12, 16), (2, 2, 2), 16, True, 0.0, 10)
-# model.summary()
-model.build((None, 32, 32, 3))
 
 criterion = CrossEntropy()
 
 base_lr = 0.1
-# base_wd = 1e-4
 epochs = 600
 lr_shcedule = CosineLR(base_lr * mul, steps_per_epoch, epochs=epochs,
                        min_lr=1e-5, warmup_min_lr=base_lr, warmup_epoch=5)
-# wd_schedule = lambda: lr_shcedule(optimizer.iterations) / base_lr * base_wd
 optimizer = SGD(lr_shcedule, momentum=0.9, nesterov=True)
-# optimizer = SGDW(wd_schedule, lr_shcedule, momentum=0.9, nesterov=True)
 metrics = [
     Mean(name='loss'), Accuracy(name='acc')]
 test_metrics = [

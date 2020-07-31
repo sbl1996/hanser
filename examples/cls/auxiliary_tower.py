@@ -11,10 +11,10 @@ import tensorflow.keras.mixed_precision.experimental as mixed_precision
 
 from hanser.datasets import prepare
 from hanser.datasets.cifar import load_cifar10_tfds
-from hanser.transform import random_crop, cutout, normalize, to_tensor, random_apply2, mixup, cutmix
+from hanser.transform import random_crop, cutout, normalize, to_tensor
 from hanser.transform.autoaugment import autoaugment
 
-from hanser.models.cifar.shufflenetv2 import ShuffleNetV2
+from hanser.models.cifar.pyramidnext import PyramidNeXt
 from hanser.models.layers import set_default
 from hanser.train.trainer import Trainer
 from hanser.train.lr_schedule import CosineLR
@@ -33,7 +33,7 @@ def preprocess(image, label, training):
     if training:
         image = random_crop(image, (32, 32), (4, 4))
         image = tf.image.random_flip_left_right(image)
-        image = autoaugment(image, "CIFAR10")
+        # image = autoaugment(image, "CIFAR10")
 
     image, label = to_tensor(image, label)
     image = normalize(image, [0.4914, 0.4822, 0.4465], [0.2470, 0.2435, 0.2616])
@@ -42,12 +42,6 @@ def preprocess(image, label, training):
     # image = tf.cast(image, tf.bfloat16)
     if training:
         image = cutout(image, 16)
-
-    return image, label
-
-
-def batch_preprocess(image, label):
-    image, label = random_apply2(cutmix(beta=1.0), 0.5, image, label)
 
     return image, label
 
@@ -79,27 +73,23 @@ if strategy:
     ds_test_dist = strategy.experimental_distribute_dataset(ds_test)
 
 set_default(['weight_decay'], 1e-4)
-# model = ShuffleNetV2(32, (128, 256, 512), (4, 8, 4), 1024, True, 0.0, 10)
-model = ShuffleNetV2(4, (8, 12, 16), (2, 2, 2), 16, True, 0.0, 10)
-# model.summary()
-model.build((None, 32, 32, 3))
+drop_path = 0.2
+# model = PyramidNeXt(32, 480-32, 56, 16, True, drop_path, True, 10)
+model = PyramidNeXt(4, 16-4, 20, 1, True, drop_path, True, 10)
 
-criterion = CrossEntropy()
+criterion = CrossEntropy(auxiliary_weight=0.4)
 
-base_lr = 0.1
-# base_wd = 1e-4
-epochs = 600
+base_lr = 0.01
+epochs = 100
 lr_shcedule = CosineLR(base_lr * mul, steps_per_epoch, epochs=epochs,
                        min_lr=1e-5, warmup_min_lr=base_lr, warmup_epoch=5)
-# wd_schedule = lambda: lr_shcedule(optimizer.iterations) / base_lr * base_wd
 optimizer = SGD(lr_shcedule, momentum=0.9, nesterov=True)
-# optimizer = SGDW(wd_schedule, lr_shcedule, momentum=0.9, nesterov=True)
 metrics = [
     Mean(name='loss'), Accuracy(name='acc')]
 test_metrics = [
     Loss(name='loss', from_logits=True), Accuracy(name='acc')]
+metric_transform = lambda x: x[0]
 
-trainer = Trainer(model, criterion, optimizer, metrics, test_metrics)
-
+trainer = Trainer(model, criterion, optimizer, metrics, test_metrics, metric_transform=metric_transform)
 
 trainer.fit(epochs, ds_train, steps_per_epoch, ds_test, test_steps, val_freq=5)

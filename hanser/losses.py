@@ -7,7 +7,7 @@ from tensorflow.keras.losses import CategoricalCrossentropy
 
 class CrossEntropy:
 
-    def __init__(self, label_smoothing=0.1, reduction='none', auxiliary_weight=0):
+    def __init__(self, label_smoothing=0.0, reduction='none', auxiliary_weight=0.0):
         self._criterion = CategoricalCrossentropy(from_logits=True, label_smoothing=label_smoothing,
                                                   reduction=reduction)
         self._auxiliary_weight = auxiliary_weight

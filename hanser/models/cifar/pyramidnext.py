@@ -1,5 +1,5 @@
 from tensorflow.keras import Model, Sequential
-from tensorflow.keras.layers import Layer
+from tensorflow.keras.layers import Layer, Flatten
 
 from hanser.models.layers import Pool2d, Conv2d, Norm, Act, GlobalAvgPool, Linear
 from hanser.models.modules import PadChannel, DropPath, SELayer
@@ -7,6 +7,19 @@ from hanser.models.modules import PadChannel, DropPath, SELayer
 __all__ = [
     "PyramidNeXt"
 ]
+
+
+class AuxiliaryHead(Sequential):
+    def __init__(self, in_channels, num_classes, name):
+        layers = [
+            Norm(in_channels, name='norm0'),
+            Pool2d(5, 3, padding='valid', type='avg', name='pool'),
+            Conv2d(in_channels, 128, 1, norm='def', act='def', name='conv1'),
+            Conv2d(128, 768, 2, padding='valid', norm='def', act='def', name='conv2'),
+            Flatten(name='flatten'),
+            Linear(768, num_classes, name='fc'),
+        ]
+        super().__init__(layers, name=name)
 
 
 class Shortcut(Sequential):
@@ -26,7 +39,7 @@ class Bottleneck(Layer):
         super().__init__(name=name)
         out_channels = channels * self.expansion
         branch1 = [
-            Norm(in_channels, name="bn0"),
+            Norm(in_channels, name="norm0"),
             Conv2d(in_channels, channels, kernel_size=1, norm='default', act='default', name="conv1"),
             *([Pool2d(3, 2, name="pool")] if stride != 1 else []),
             Conv2d(channels, channels, kernel_size=3, groups=groups, norm='default', act='default', name="conv2"),
@@ -50,48 +63,64 @@ def round_channels(channels, divisor=8, min_depth=None):
 
 
 class PyramidNeXt(Model):
-    def __init__(self, start_channels, widening_fractor, depth, groups, use_se, drop_path, num_classes=10):
+    def __init__(self, start_channels, widening_fractor, depth, groups, use_se, drop_path, use_aux_head,
+                 num_classes=10):
         super().__init__()
 
         num_layers = [(depth - 2) // 9] * 3
+        self.num_layers = num_layers
+        self.use_aux_head = use_aux_head
 
         strides = [1, 2, 2]
 
-        self.add_channel = widening_fractor / sum(num_layers)
-        self.in_channels = start_channels
-        self.channels = start_channels
+        add_channel = widening_fractor / sum(num_layers)
+        in_channels = start_channels
 
-        layers = [Conv2d(3, start_channels, kernel_size=3, norm='default', name="init_block")]
+        self.init_block = Conv2d(3, start_channels, kernel_size=3, norm='default', name="init_block")
 
+        channels = start_channels
+        k = 1
+        units = []
         for i, (n, s) in enumerate(zip(num_layers, strides)):
-            layers.append(self._make_layer(n, groups, stride=s,
-                                           use_se=use_se, drop_path=drop_path, name=f"stage{i + 1}"))
+            channels += add_channel
+            units.append(Bottleneck(in_channels, round_channels(channels, groups),
+                                    groups, stride=s, use_se=use_se, drop_path=drop_path, name=f"unit{k}"))
+            in_channels = round_channels(channels, groups) * Bottleneck.expansion
+            k += 1
 
-        layers.append(Sequential([
-            Norm(self.in_channels, name="bn"),
+            if i == 2 and self.use_aux_head:
+                self.aux_head_index = k - 1
+                self.aux_head = AuxiliaryHead(in_channels, num_classes, name='aux_head')
+
+            for j in range(1, n):
+                channels = channels + add_channel
+                units.append(Bottleneck(in_channels, round_channels(channels, groups),
+                                        groups, use_se=use_se, drop_path=drop_path, name=f"unit{k}"))
+                in_channels = round_channels(channels, groups) * Bottleneck.expansion
+                k += 1
+
+        self.units = units
+        self.post_activ = Sequential([
+            Norm(in_channels, name="norm"),
             Act(name="act"),
-        ], name="post_activ"))
+        ], name="post_activ")
 
-        self.features = Sequential(layers, name="features")
-        assert (start_channels + widening_fractor) * Bottleneck.expansion == self.in_channels
+        assert (start_channels + widening_fractor) * Bottleneck.expansion == in_channels
+
         self.final_pool = GlobalAvgPool(name="final_pool")
-        self.fc = Linear(self.in_channels, num_classes, name="fc")
-
-    def _make_layer(self, num_layers, groups, stride, use_se, drop_path, name):
-        self.channels = self.channels + self.add_channel
-        layers = [
-            Bottleneck(self.in_channels, round_channels(self.channels, groups),
-                       groups, stride=stride, use_se=use_se, drop_path=drop_path, name="unit1")]
-        self.in_channels = round_channels(self.channels, groups) * Bottleneck.expansion
-        for i in range(1, num_layers):
-            self.channels = self.channels + self.add_channel
-            layers.append(Bottleneck(self.in_channels, round_channels(self.channels, groups),
-                                     groups, use_se=use_se, drop_path=drop_path, name=f"unit{i + 1}"))
-            self.in_channels = round_channels(self.channels, groups) * Bottleneck.expansion
-        return Sequential(layers, name=name)
+        self.fc = Linear(in_channels, num_classes, name="fc")
 
     def call(self, x):
-        x = self.features(x)
+        x = self.init_block(x)
+        for i, unit in enumerate(self.units):
+            x = unit(x)
+            if self.use_aux_head and i == self.aux_head_index - 1:
+                logits_aux = self.aux_head(x)
+        x = self.post_activ(x)
+
         x = self.final_pool(x)
         x = self.fc(x)
-        return x
+        if self.use_aux_head:
+            return x, logits_aux
+        else:
+            return x

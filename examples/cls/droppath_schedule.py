@@ -11,10 +11,10 @@ import tensorflow.keras.mixed_precision.experimental as mixed_precision
 
 from hanser.datasets import prepare
 from hanser.datasets.cifar import load_cifar10_tfds
-from hanser.transform import random_crop, cutout, normalize, to_tensor, random_apply2, mixup, cutmix
+from hanser.transform import random_crop, cutout, normalize, to_tensor
 from hanser.transform.autoaugment import autoaugment
 
-from hanser.models.cifar.shufflenetv2 import ShuffleNetV2
+from hanser.models.cifar.pyramidnext import PyramidNeXt
 from hanser.models.layers import set_default
 from hanser.train.trainer import Trainer
 from hanser.train.lr_schedule import CosineLR
@@ -46,12 +46,6 @@ def preprocess(image, label, training):
     return image, label
 
 
-def batch_preprocess(image, label):
-    image, label = random_apply2(cutmix(beta=1.0), 0.5, image, label)
-
-    return image, label
-
-
 mul = 2
 num_train_examples = len(x_train)
 num_test_examples = len(x_test)
@@ -79,21 +73,17 @@ if strategy:
     ds_test_dist = strategy.experimental_distribute_dataset(ds_test)
 
 set_default(['weight_decay'], 1e-4)
-# model = ShuffleNetV2(32, (128, 256, 512), (4, 8, 4), 1024, True, 0.0, 10)
-model = ShuffleNetV2(4, (8, 12, 16), (2, 2, 2), 16, True, 0.0, 10)
-# model.summary()
-model.build((None, 32, 32, 3))
+drop_path = 0.2
+# model = PyramidNeXt(32, 480-32, 56, 16, True, drop_path, False, 10)
+model = PyramidNeXt(4, 16-4, 20, 1, True, drop_path, False, 10)
 
 criterion = CrossEntropy()
 
 base_lr = 0.1
-# base_wd = 1e-4
 epochs = 600
 lr_shcedule = CosineLR(base_lr * mul, steps_per_epoch, epochs=epochs,
                        min_lr=1e-5, warmup_min_lr=base_lr, warmup_epoch=5)
-# wd_schedule = lambda: lr_shcedule(optimizer.iterations) / base_lr * base_wd
 optimizer = SGD(lr_shcedule, momentum=0.9, nesterov=True)
-# optimizer = SGDW(wd_schedule, lr_shcedule, momentum=0.9, nesterov=True)
 metrics = [
     Mean(name='loss'), Accuracy(name='acc')]
 test_metrics = [
@@ -102,4 +92,14 @@ test_metrics = [
 trainer = Trainer(model, criterion, optimizer, metrics, test_metrics)
 
 
-trainer.fit(epochs, ds_train, steps_per_epoch, ds_test, test_steps, val_freq=5)
+class DropPathRateSchedule(Callback):
+
+    def on_epoch_begin(self, epoch, logs=None):
+        rate = (epoch + 1) / epochs * drop_path
+        for l in model.layers:
+            if 'drop' in l.name:
+                l.rate = rate
+
+
+trainer.fit(epochs, ds_train, steps_per_epoch, ds_test, test_steps, val_freq=5,
+            callbacks=[DropPathRateSchedule()])

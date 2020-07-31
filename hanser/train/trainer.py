@@ -132,25 +132,21 @@ class Trainer:
         else:
             step_fn(next(iterator))
 
-    def _get_predict_step(self, debug=False):
+    @tf.function
+    def _predict_step(self, iterator, debug=False):
 
-        @tf.function
-        def predict_step(iterator):
+        def step_fn(data):
+            inputs, target = data
+            output = self.model(inputs, training=debug)
+            if self.bfloat16:
+                output = cast_fp32(output)
+            return target, output
 
-            def step_fn(data):
-                inputs, target = data
-                output = self.model(inputs, training=debug)
-                if self.bfloat16:
-                    output = cast_fp32(output)
-                return target, output
-
-            if self.strategy:
-                return local_results(
-                    self.strategy, self.strategy.run(step_fn, args=(next(iterator),)))
-            else:
-                return step_fn(next(iterator))
-
-        return predict_step
+        if self.strategy:
+            return local_results(
+                self.strategy, self.strategy.run(step_fn, args=(next(iterator),)))
+        else:
+            return step_fn(next(iterator))
 
     def restore(self, checkpoint, manager):
         assert self.model_dir is not None, "`model_dir` should be provided."
@@ -202,7 +198,6 @@ class Trainer:
             assert extra_target_transform
             assert extra_output_transform
             assert extra_eval_freq
-            predict_step = self._get_predict_step(debug)
 
         callbacks.on_train_begin()
         while epoch < max_epochs:
@@ -220,7 +215,7 @@ class Trainer:
             if extra_metrics and epoch % extra_eval_freq == 0:
                 start = time.time()
                 for step in range(val_steps):
-                    target, output = predict_step(val_it)
+                    target, output = self._predict_step(val_it, debug)
 
                     target = self._maybe_cat(target)
                     output = self._maybe_cat(output)
@@ -256,12 +251,10 @@ class Trainer:
         if self.strategy:
             assert isinstance(ds_test, DistributedDataset)
 
-        predict_step = self._get_predict_step(debug)
-
         test_it = iter(ds_test)
 
         for step in range(test_steps):
-            target, output = predict_step(test_it)
+            target, output = self._predict_step(test_it, debug)
 
             target = self._maybe_cat(target)
             output = self._maybe_cat(output)
@@ -283,10 +276,8 @@ class Trainer:
         targets = []
         outputs = []
 
-        predict_step = self._get_predict_step()
-
         for step in range(test_steps):
-            target, output = predict_step(test_it)
+            target, output = self._predict_step(test_it)
 
             targets.append(target)
             outputs.append(output)

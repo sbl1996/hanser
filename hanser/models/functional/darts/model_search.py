@@ -1,4 +1,6 @@
-from tensorflow.keras.layers import Multiply, Add
+import tensorflow as tf
+from tensorflow.keras.layers import Multiply, Add, Layer
+from tensorflow.keras.initializers import Ones
 
 from hanser.models.functional.layers import norm, conv2d
 
@@ -6,15 +8,26 @@ from hanser.models.functional.darts.operations import OPS, factorized_reduce, re
 from hanser.models.functional.darts.genotypes import PRIMITIVES, Genotype
 
 
-def mixed_op(x, weights, out_channels, stride, name):
-    xs = []
-    for i, op in enumerate(OPS):
-        xs.append(
-            Multiply(name=name + f"/mul{i+1}")[
-                weights[i],
-                op(x, out_channels, stride, name=name + f"/op{i+1}")
-            ])
-    return Add(xs, name=name + "/merge")
+class WeightedSum(Layer):
+
+    def __init__(self, num_weights, name):
+        super().__init__(name=name)
+        self.num_weights = num_weights
+        self.weight = self.add_weight(
+            name='weight', shape=(num_weights,), dtype=tf.float32,
+            initializer=Ones(), trainable=True)
+
+    def call(self, xs):
+        return tf.add_n([
+            xs[i] * self.weight[i]
+            for i in range(len(self.num_weights))
+        ])
+
+
+def mixed_op(x, ws, out_channels, stride, name):
+    xs = [op(x, out_channels, stride, name=name + f"/op{i+1}")
+          for i, op in enumerate(OPS)]
+    return ws(xs, name=name + "/merge")
 
 
 def cell(s0, s1, weights, steps, multiplier, C_prev_prev, C_prev, out_channels, reduction, reduction_prev, name):

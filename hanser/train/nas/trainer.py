@@ -9,11 +9,13 @@ from tensorflow.python.keras.callbacks import CallbackList
 
 from hanser.io import time_now
 from hanser.tpu import local_results
+from hanser.train.trainer import misc_concat, cast_fp32
 
 
 @tf.function
 def identity(x):
     return x
+
 
 def join_metric_logs(results, delim=" - "):
     logs = []
@@ -170,25 +172,21 @@ class Trainer:
         else:
             step_fn(next(iterator))
 
-    def _get_predict_step(self, debug=False):
+    @tf.function
+    def _predict_step(self, iterator, debug=False):
 
-        @tf.function
-        def predict_step(iterator):
+        def step_fn(data):
+            inputs, target = data
+            output = self.model(inputs, training=debug)
+            if self.bfloat16:
+                output = cast_fp32(output)
+            return target, output
 
-            def step_fn(data):
-                inputs, target = data
-                output = self.model(inputs, training=debug)
-                if self.bfloat16:
-                    output = cast_fp32(output)
-                return target, output
-
-            if self.strategy:
-                return local_results(
-                    self.strategy, self.strategy.run(step_fn, args=(next(iterator),)))
-            else:
-                return step_fn(next(iterator))
-
-        return predict_step
+        if self.strategy:
+            return local_results(
+                self.strategy, self.strategy.run(step_fn, args=(next(iterator),)))
+        else:
+            return step_fn(next(iterator))
 
     def restore(self, checkpoint, manager):
         assert self.model_dir is not None, "`model_dir` should be provided."
@@ -207,7 +205,8 @@ class Trainer:
 
     def resume(self):
         model_ckpt, model_ckpt_manager = self._make_ckpt("models", model=self.model)
-        optim_ckpt, optim_ckpt_manager = self._make_ckpt("optim", optimizer=self.optimizer, epoch=self._epoch)
+        optim_ckpt, optim_ckpt_manager = self._make_ckpt(
+            "optim", optimizer_arch=self.optimizer_arch, optimizer_model=self.optimizer_model, epoch=self._epoch)
 
         self.restore(model_ckpt, model_ckpt_manager)
         self.restore(optim_ckpt, optim_ckpt_manager)
@@ -232,8 +231,10 @@ class Trainer:
         if save_per_epochs:
             assert self.model_dir is not None, "`model_dir` should be provided."
 
-            model_ckpt, model_ckpt_manager = self._make_ckpt("models", model=self.model)
-            optim_ckpt, optim_ckpt_manager = self._make_ckpt("optim", optimizer=self.optimizer, epoch=self._epoch)
+            model_ckpt, model_ckpt_manager = self._make_ckpt(
+                "models", model=self.model)
+            optim_ckpt, optim_ckpt_manager = self._make_ckpt(
+                "optim", optimizer_arch=self.optimizer_arch, optimizer_model=self.optimizer_model, epoch=self._epoch)
 
         epoch = self._epoch.numpy()
         max_epochs = epoch + epochs
@@ -242,7 +243,6 @@ class Trainer:
             assert extra_target_transform
             assert extra_output_transform
             assert extra_eval_freq
-            predict_step = self._get_predict_step(debug)
 
         callbacks.on_train_begin()
         while epoch < max_epochs:
@@ -260,7 +260,7 @@ class Trainer:
             if extra_metrics and epoch % extra_eval_freq == 0:
                 start = time.time()
                 for step in range(val_steps):
-                    target, output = predict_step(val_it)
+                    target, output = self._predict_step(val_it, debug)
 
                     target = self._maybe_cat(target)
                     output = self._maybe_cat(output)
@@ -296,12 +296,10 @@ class Trainer:
         if self.strategy:
             assert isinstance(ds_test, DistributedDataset)
 
-        predict_step = self._get_predict_step(debug)
-
         test_it = iter(ds_test)
 
         for step in range(test_steps):
-            target, output = predict_step(test_it)
+            target, output = self._predict_step(test_it)
 
             target = self._maybe_cat(target)
             output = self._maybe_cat(output)
@@ -323,10 +321,8 @@ class Trainer:
         targets = []
         outputs = []
 
-        predict_step = self._get_predict_step()
-
         for step in range(test_steps):
-            target, output = predict_step(test_it)
+            target, output = self._predict_step(test_it)
 
             targets.append(target)
             outputs.append(output)
@@ -338,34 +334,3 @@ class Trainer:
         target = target_transform(target)
 
         return target, output
-
-
-def cast_fp32(xs):
-    if isinstance(xs, tf.Tensor):
-        return tf.cast(xs, tf.float32)
-    elif isinstance(xs, (tuple, list)):
-        return xs.__class__(cast_fp32(x) for x in xs)
-    elif isinstance(xs, dict):
-        return {k: cast_fp32(v) for k, v in xs.items()}
-    else:
-        return xs
-
-
-def misc_concat(values):
-    if isinstance(values, (tuple, list)):
-        val = values[0]
-        if tf.is_tensor(val):
-            return tf.concat(values, 0)
-        elif isinstance(val, dict):
-            d = {}
-            for k in val.keys():
-                d[k] = misc_concat([v[k] for v in values])
-            return d
-        elif isinstance(val, (tuple, list)):
-            return val.__class__(v for l in values for v in l)
-        else:
-            return values
-    elif isinstance(values, dict):
-        return {k: misc_concat(v) for k, v in values.items()}
-    else:
-        return values

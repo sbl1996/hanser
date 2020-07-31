@@ -1,7 +1,7 @@
-from tensorflow.keras import Model
+from tensorflow.keras import Model, Sequential
 from tensorflow.keras.layers import Layer
 
-from hanser.models.layers import Pool2d, Conv2d, Norm, Act, GlobalAvgPool, Linear, Sequential
+from hanser.models.layers import Pool2d, Conv2d, Norm, Act, GlobalAvgPool, Linear
 from hanser.models.modules import PadChannel, SplAtConv2d, DropPath
 
 __all__ = [
@@ -27,11 +27,11 @@ class Bottleneck(Layer):
         out_channels = channels * self.expansion
         branch1 = [
             Norm(in_channels, name="bn0"),
-            Conv2d(in_channels, channels, kernel_size=1, bn=True, act='default', name="conv1"),
+            Conv2d(in_channels, channels, kernel_size=1, norm='def', act='default', name="conv1"),
             *([Pool2d(3, 2, name="pool")] if stride != 1 else []),
             SplAtConv2d(channels, channels, kernel_size=3, groups=groups, radix=radix, name="conv2")
-            if radix != 0 else Conv2d(channels, channels, kernel_size=3, groups=groups, bn=True, act='default', name="conv2"),
-            Conv2d(channels, out_channels, kernel_size=1, bn=True, name="conv3"),
+            if radix != 0 else Conv2d(channels, channels, kernel_size=3, groups=groups, norm='def', act='default', name="conv2"),
+            Conv2d(channels, out_channels, kernel_size=1, norm='def', name="conv3"),
             *([DropPath(drop_path, name="drop")] if drop_path and stride == 1 else []),
         ]
         self.branch1 = Sequential(branch1, name="branch1")
@@ -61,7 +61,7 @@ class PyramidNeSt(Model):
         self.in_channels = start_channels
         self.channels = start_channels
 
-        layers = [Conv2d(3, start_channels, kernel_size=3, bn=True, name="init_block")]
+        layers = [Conv2d(3, start_channels, kernel_size=3, norm='def', name="init_block")]
 
         for i, (n, s) in enumerate(zip(num_layers, strides)):
             layers.append(self._make_layer(n, groups, stride=s, radix=radix, drop_path=drop_path, name=f"stage{i + 1}"))
