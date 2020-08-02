@@ -13,6 +13,7 @@ from hanser.models.conv import Conv2D
 __all__ = ["set_default", "Act", "Conv2d", "Norm", "Linear", "GlobalAvgPool", "Pool2d"]
 
 DEFAULTS = {
+    'tpu': False,
     'bn': {
         'momentum': 0.9,
         'eps': 1e-5,
@@ -144,7 +145,10 @@ def Act(type='default', name=None):
     if type in ['default', 'def']:
         return Act(DEFAULTS['activation'], name)
     elif type == 'mish':
-        return Mish(name)
+        if DEFAULTS['tpu']:
+            return CustomMish(name)
+        else:
+            return Mish(name)
     else:
         return Activation(type, name=name)
 
@@ -212,3 +216,16 @@ class Mish(Layer):
 
     def call(self, x, training=None):
         return mish(x)
+
+
+def custom_mish(x):
+    return x * tf.math.tanh(tf.math.softplus(x))
+
+
+class CustomMish(Layer):
+
+    def __init__(self, name=None):
+        super().__init__(name=name)
+
+    def call(self, x, training=None):
+        return custom_mish(x)
