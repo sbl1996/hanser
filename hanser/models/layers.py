@@ -5,9 +5,9 @@ from tensorflow.keras import Sequential
 from tensorflow.keras.initializers import VarianceScaling, RandomNormal
 from tensorflow.keras.layers import Dense, DepthwiseConv2D, Activation, AvgPool2D, MaxPool2D, Layer, InputSpec
 from tensorflow.keras.regularizers import l2
+from tensorflow_addons.activations import mish
 
 from hanser.models.bn import BatchNormalization, SyncBatchNormalization
-
 from hanser.models.conv import Conv2D
 
 __all__ = ["set_default", "Act", "Conv2d", "Norm", "Linear", "GlobalAvgPool", "Pool2d"]
@@ -38,7 +38,6 @@ DEFAULTS = {
 
 
 def set_default(keys: Union[str, Sequence[str]], value):
-
     def loop(d, keys):
         k = keys[0]
         if k not in d:
@@ -51,8 +50,6 @@ def set_default(keys: Union[str, Sequence[str]], value):
     if isinstance(keys, str):
         keys = [keys]
     loop(DEFAULTS, keys)
-
-
 
 
 def Conv2d(in_channels: int,
@@ -146,7 +143,10 @@ def Norm(channels, type='default', affine=None, track_running_stats=None, zero_i
 def Act(type='default', name=None):
     if type in ['default', 'def']:
         return Act(DEFAULTS['activation'], name)
-    return Activation(type, name=name)
+    elif type == 'mish':
+        return Mish(name)
+    else:
+        return Activation(type, name=name)
 
 
 def Pool2d(kernel_size, stride, padding='same', type='avg', ceil_mode=False, name=None):
@@ -203,3 +203,12 @@ def Linear(in_channels, out_channels, act=None, name=None):
                  kernel_regularizer=get_weight_decay(),
                  bias_regularizer=get_weight_decay(),
                  name=name)
+
+
+class Mish(Layer):
+
+    def __init__(self, name=None):
+        super().__init__(name=name)
+
+    def call(self, x, training=None):
+        return mish(x)
