@@ -1,8 +1,11 @@
+from toolz import curry
+
 import tensorflow as tf
 
 
-def batch_to_zip(image, label):
-    return (image[0], label[0]), (image[1], label[1])
+@curry
+def batch_to_zip_transform(image, label, zip_transform):
+    return zip_transform((image[0], label[0]), (image[1], label[1]))
 
 
 def prepare(ds, transform, batch_size, training=True, buffer_size=1024, drop_remainder=None, cache=True,
@@ -17,9 +20,8 @@ def prepare(ds, transform, batch_size, training=True, buffer_size=1024, drop_rem
     ds = ds.map(transform, num_parallel_calls=tf.data.experimental.AUTOTUNE)
     if training:
         if zip_transform:
-            ds.batch(2, drop_remainder=True)\
-                .map(batch_to_zip, num_parallel_calls=tf.data.experimental.AUTOTUNE)\
-                .map(zip_transform, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+            ds.batch(2, drop_remainder=True).map(
+                batch_to_zip_transform(zip_transform=zip_transform), num_parallel_calls=tf.data.experimental.AUTOTUNE)\
             # ds = tf.data.Dataset.zip((ds, ds)).map(zip_transform, num_parallel_calls=tf.data.experimental.AUTOTUNE)
         ds = ds.batch(batch_size, drop_remainder=drop_remainder)
         if batch_transform:
