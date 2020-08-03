@@ -91,7 +91,7 @@ trainer = Trainer(model, criterion, optimizer, metrics, test_metrics)
 class DropPathRateSchedule(Callback):
 
     def on_epoch_begin(self, epoch, logs=None):
-        rate = (epoch + 1) / epochs * drop_path
+        rate = epoch / epochs * drop_path
         for l in model.layers:
             if 'drop' in l.name:
                 l.rate = rate
