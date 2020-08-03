@@ -1,18 +1,20 @@
 import math
 
 import tensorflow as tf
-from hanser.transform import sharpness, shear_x, shear_y, solarize, solarize_add, autocontrast, translate_x, translate_y, rotate, \
-    color, posterize, contrast, brightness, equalize, invert
+from hanser.transform import sharpness, shear_x, shear_y, solarize, autocontrast, translate_x, \
+    translate_y, rotate, color, posterize, contrast, brightness, equalize, invert
 
-_MAX_LEVEL = 10
+_MAX_LEVEL = 9
+_IMG_SIZE = 32
 _FILL_COLOR = (128, 128, 128)
 
 
 def _randomly_negate_tensor(tensor):
-    """With 50% prob turn the tensor negative."""
-    should_flip = tf.cast(tf.floor(tf.random.uniform([]) + 0.5), tf.bool)
-    final_tensor = tf.cond(should_flip, lambda: tensor, lambda: -tensor)
-    return final_tensor
+    return tf.cond(
+        tf.random.uniform(()) > 0.5,
+        lambda: tensor,
+        lambda: -tensor
+    )
 
 
 def _rotate_level_to_arg(level):
@@ -22,11 +24,9 @@ def _rotate_level_to_arg(level):
 
 
 def _enhance_level_to_arg(level):
-    # TODO: To complex control flow, may be fixed in TF 2.0
-    # level = (level / _MAX_LEVEL) * 0.9
-    # level = _randomly_negate_tensor(level)
-    # return level
-    return (level / _MAX_LEVEL) * 1.8 + 0.1
+    level = (level / _MAX_LEVEL) * 0.9
+    level = _randomly_negate_tensor(level)
+    return 1 + level
 
 
 def _shear_level_to_arg(level):
@@ -36,7 +36,7 @@ def _shear_level_to_arg(level):
 
 
 def _translate_level_to_arg(level):
-    level = (level / _MAX_LEVEL) * (32 * 150 / 331)
+    level = (level / _MAX_LEVEL) * (_IMG_SIZE * 150 / 331)
     level = _randomly_negate_tensor(level)
     return level
 
@@ -47,7 +47,7 @@ def _posterize_level_to_arg(level):
 
 
 def _solarize_level_to_arg(level):
-    level = (_MAX_LEVEL - level + 1) / _MAX_LEVEL * 256
+    level = (_MAX_LEVEL - level) / _MAX_LEVEL * 256
     return level
 
 
@@ -59,31 +59,77 @@ def _shear_y(img, level):
     return shear_x(img, _shear_level_to_arg(level), _FILL_COLOR)
 
 
+def _op_shear_x(img, level):
+    return shear_x(img, _shear_level_to_arg(level), _FILL_COLOR)
+
+
+def _op_shear_y(img, level):
+    return shear_y(img, _shear_level_to_arg(level), _FILL_COLOR)
+
+
+def _op_translate_x(img, level):
+    return translate_x(img, _translate_level_to_arg(level), _FILL_COLOR)
+
+
+def _op_translate_y(img, level):
+    return translate_y(img, _translate_level_to_arg(level), _FILL_COLOR)
+
+
+def _op_rotate(img, level):
+    return rotate(img, _rotate_level_to_arg(level), _FILL_COLOR)
+
+
+def _op_color(img, level):
+    return color(img, _enhance_level_to_arg(level))
+
+
+def _op_posterize(img, level):
+    return posterize(img, _posterize_level_to_arg(level))
+
+
+def _op_solarize(img, level):
+    return solarize(img, _solarize_level_to_arg(level))
+
+
+def _op_contrast(img, level):
+    return contrast(img, _enhance_level_to_arg(level))
+
+
+def _op_sharpness(img, level):
+    return sharpness(img, _enhance_level_to_arg(level))
+
+
+def _op_brightness(img, level):
+    return brightness(img, _enhance_level_to_arg(level))
+
+
+def _op_autocontrast(img, level):
+    return autocontrast(img)
+
+
+def _op_equalize(img, level):
+    return equalize(img)
+
+
+def _op_invert(img, level):
+    return invert(img)
+
+
 NAME_TO_FUNC = {
-    "shearX": lambda img, level: shear_x(
-        img, _shear_level_to_arg(level), _FILL_COLOR),
-    "shearY": lambda img, level: shear_y(
-        img, _shear_level_to_arg(level), _FILL_COLOR),
-    'translateX': lambda img, level: translate_x(
-        img, _translate_level_to_arg(level), _FILL_COLOR),
-    'translateY': lambda img, level: translate_y(
-        img, _translate_level_to_arg(level), _FILL_COLOR),
-    "rotate": lambda img, level: rotate(
-        img, _rotate_level_to_arg(level), _FILL_COLOR),
-    "color": lambda img, level: color(
-        img, _enhance_level_to_arg(level)),
-    "posterize": lambda img, level: posterize(img, level),
-    "solarize": lambda img, level: solarize(img, level),
-    "solarize_add": lambda img, level: solarize_add(img, level),
-    "contrast": lambda img, level: contrast(
-        img, _enhance_level_to_arg(level)),
-    "sharpness": lambda img, level: sharpness(
-        img, _enhance_level_to_arg(level)),
-    "brightness": lambda img, level: brightness(
-        img, _enhance_level_to_arg(level)),
-    "autocontrast": lambda img, level: autocontrast(img),
-    "equalize": lambda img, level: equalize(img),
-    "invert": lambda img, level: invert(img),
+    "shearX": _op_shear_x,
+    "shearY": _op_shear_y,
+    'translateX': _op_translate_x,
+    'translateY': _op_translate_y,
+    "rotate": _op_rotate,
+    "color": _op_color,
+    "posterize": _op_posterize,
+    "solarize": _op_solarize,
+    "contrast": _op_contrast,
+    "sharpness": _op_sharpness,
+    "brightness": _op_brightness,
+    "autocontrast": _op_autocontrast,
+    "equalize": _op_equalize,
+    "invert": _op_invert,
 }
 
 
@@ -133,7 +179,7 @@ def cifar10_policy():
         sub_policy(0.3, "sharpness", 9, 0.7, "brightness", 9),
         sub_policy(0.6, "equalize", 5, 0.5, "equalize", 1),
         sub_policy(0.6, "contrast", 7, 0.6, "sharpness", 5),
-
+        #
         sub_policy(0.7, "color", 7, 0.5, "translateX", 8),
         sub_policy(0.3, "equalize", 7, 0.4, "autocontrast", 8),
         sub_policy(0.4, "translateY", 3, 0.2, "sharpness", 6),

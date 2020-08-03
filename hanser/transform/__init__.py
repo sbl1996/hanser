@@ -216,7 +216,7 @@ def from_4D_image(image, ndims):
             return image
 
 
-def transform(images, transforms, interpolation="NEAREST", output_shape=None):
+def transform(images, transforms, interpolation="BILINEAR", output_shape=None):
     image_or_images = tf.convert_to_tensor(images)
     transform_or_transforms = tf.convert_to_tensor(transforms, dtype=tf.float32)
     images = to_4D_image(image_or_images)
@@ -603,36 +603,38 @@ def blend(image1, image2, factor):
         factor: A floating point value above 0.0.
     Returns:
         A blended image Tensor of type uint8.
-  """
-    if factor == 0.0:
-        return tf.convert_to_tensor(image1)
-    if factor == 1.0:
-        return tf.convert_to_tensor(image2)
+    """
 
-    image1 = tf.cast(image1, tf.float32)
-    image2 = tf.cast(image2, tf.float32)
+    def blend_fn(image1, image2):
+        image1 = tf.cast(image1, tf.float32)
+        image2 = tf.cast(image2, tf.float32)
 
-    difference = image2 - image1
-    scaled = factor * difference
+        difference = image2 - image1
+        scaled = factor * difference
 
-    # Do addition in float.
-    temp = tf.cast(image1, tf.float32) + scaled
-    # Interpolate
+        temp = tf.cast(image1, tf.float32) + scaled
+        return tf.cond(
+            tf.logical_and(tf.greater(factor, 0.0), tf.less(factor, 1.0)),
+            lambda: tf.cast(temp, tf.uint8),
+            lambda: tf.cast(tf.clip_by_value(temp, 0.0, 255.0), tf.uint8)
+        )
 
-    if 0.0 < factor < 1.0:
-        # Interpolation means we always stay within 0 and 255.
-        return tf.cast(temp, tf.uint8)
-
-    # Extrapolate:
-    #
-    # We need to clip and then cast.
-    return tf.cast(tf.clip_by_value(temp, 0.0, 255.0), tf.uint8)
+    return tf.cond(
+        tf.equal(factor, 0.0),
+        lambda: tf.convert_to_tensor(image1),
+        lambda: tf.cond(
+            tf.equal(factor, 1.0),
+            lambda: tf.convert_to_tensor(image2),
+            lambda: blend_fn(image1, image2)
+        )
+    )
 
 
 def solarize(image, threshold=128):
     # For each pixel in the image, select the pixel
     # if the value is less than the threshold.
     # Otherwise, subtract 255 from the pixel.
+    threshold = tf.cast(threshold, image.dtype)
     return tf.where(image < threshold, image, 255 - image)
 
 
@@ -739,7 +741,11 @@ def unwrap(image, replace):
     # Find all pixels where the last channel is zero.
     alpha_channel = flattened_image[:, 3][:, None]
 
-    replace = tf.concat([replace, tf.ones([1], image.dtype)], 0)
+    replace = tf.constant(replace, tf.uint8)
+    if tf.rank(replace) == 0:
+        replace = tf.expand_dims(replace, 0)
+        replace = tf.concat([replace, replace, replace], 0)
+    replace = tf.concat([replace, tf.ones([1], dtype=image.dtype)], 0)
 
     # Where they are zero, fill them in with 'replace'.
     flattened_image = tf.where(
@@ -868,8 +874,7 @@ def shear_x(image, magnitude, replace):
     #  0  1].
     transform_or_transforms = tf.convert_to_tensor(
         [1., magnitude, 0., 0., 1., 0., 0., 0.], dtype=tf.dtypes.float32)
-    image = gen_image_ops.image_projective_transform_v2(
-        wrap(image), transform_or_transforms, tf.shape(image)[:2], "NEAREST")
+    image = transform(wrap(image), transform_or_transforms)
     return unwrap(image, replace)
 
 
@@ -887,7 +892,7 @@ def shear_y(image, magnitude, replace):
 
 def translate_x(image, pixels, replace):
     translations = tf.convert_to_tensor(
-        [-pixels, 0], name="translations", dtype=tf.dtypes.float32)
+        [pixels, 0], name="translations", dtype=tf.dtypes.float32)
     transforms = tfa.image.translate_ops.translations_to_projective_transforms(translations)
     image = transform(wrap(image), transforms)
     return unwrap(image, replace)
@@ -895,7 +900,7 @@ def translate_x(image, pixels, replace):
 
 def translate_y(image, pixels, replace):
     translations = tf.convert_to_tensor(
-        [0, -pixels], name="translations", dtype=tf.dtypes.float32)
+        [0, pixels], name="translations", dtype=tf.dtypes.float32)
     transforms = tfa.image.translate_ops.translations_to_projective_transforms(translations)
     image = transform(wrap(image), transforms)
     return unwrap(image, replace)
