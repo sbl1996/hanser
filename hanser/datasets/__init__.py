@@ -20,9 +20,9 @@ def prepare(ds, transform, batch_size, training=True, buffer_size=1024, drop_rem
     ds = ds.map(transform, num_parallel_calls=tf.data.experimental.AUTOTUNE)
     if training:
         if zip_transform:
-            ds = ds.batch(2, drop_remainder=True).map(
-                batch_to_zip_transform(zip_transform=zip_transform), num_parallel_calls=tf.data.experimental.AUTOTUNE)\
-            # ds = tf.data.Dataset.zip((ds, ds)).map(zip_transform, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+            # ds = ds.batch(2, drop_remainder=True).map(
+            #     batch_to_zip_transform(zip_transform=zip_transform), num_parallel_calls=tf.data.experimental.AUTOTUNE)\
+            ds = tf.data.Dataset.zip((ds, ds)).map(zip_transform, num_parallel_calls=tf.data.experimental.AUTOTUNE)
         ds = ds.batch(batch_size, drop_remainder=drop_remainder)
         if batch_transform:
             ds = ds.map(batch_transform, num_parallel_calls=tf.data.experimental.AUTOTUNE)
