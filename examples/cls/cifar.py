@@ -28,7 +28,7 @@ from hanser.tpu import get_colab_tpu
 strategy = get_colab_tpu()
 
 @curry
-def preprocess(image, label, training):
+def transform(image, label, training):
 
     if training:
         image = random_crop(image, (32, 32), (4, 4))
@@ -46,7 +46,7 @@ def preprocess(image, label, training):
     return image, label
 
 
-def batch_preprocess(image, label):
+def batch_transform(image, label):
     image, label = random_apply2(cutmix(beta=1.0), 0.5, image, label)
 
     return image, label
@@ -60,15 +60,11 @@ eval_batch_size = batch_size * 2
 steps_per_epoch = num_train_examples // batch_size
 test_steps = math.ceil(num_test_examples / eval_batch_size)
 
-if strategy:
-    ds = strategy.experimental_make_numpy_dataset((x_train, y_train))
-    ds_test = strategy.experimental_make_numpy_dataset((x_test, y_test))
-else:
-    ds = tf.data.Dataset.from_tensor_slices((x_train, y_train))
-    ds_test = tf.data.Dataset.from_tensor_slices((x_test, y_test))
+ds = tf.data.Dataset.from_tensor_slices((x_train, y_train))
+ds_test = tf.data.Dataset.from_tensor_slices((x_test, y_test))
 
-ds_train = prepare(ds, preprocess(training=True), batch_size, training=True, buffer_size=10000)
-ds_test = prepare(ds_test, preprocess(training=False), eval_batch_size, training=False)
+ds_train = prepare(ds, transform(training=True), batch_size, training=True, buffer_size=10000)
+ds_test = prepare(ds_test, transform(training=False), eval_batch_size, training=False)
 
 # policy = mixed_precision.Policy('mixed_bfloat16')
 # mixed_precision.set_policy(policy)

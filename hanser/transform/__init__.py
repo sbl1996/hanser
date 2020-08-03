@@ -10,7 +10,7 @@ from tensorflow.python.ops import gen_image_ops
 
 
 @curry
-def mixup(image, label, beta):
+def mixup_batch(image, label, beta):
     lam = tfp.distributions.Beta(beta, beta).sample(())
     index = tf.random.shuffle(tf.range(tf.shape(image)[0]))
 
@@ -19,6 +19,19 @@ def mixup(image, label, beta):
 
     lam = tf.cast(lam, label.dtype)
     label = lam * label + (1 - lam) * tf.gather(label, index)
+    return image, label
+
+@curry
+def mixup(data1, data2, beta):
+    image1, label1 = data1
+    image2, label2 = data2
+    lam = tfp.distributions.Beta(beta, beta).sample(())
+
+    lam = tf.cast(lam, image1.dtype)
+    image = lam * image1 + (1 - lam) * image2
+
+    lam = tf.cast(lam, label1.dtype)
+    label = lam * label1 + (1 - lam) * label2
     return image, label
 
 
@@ -39,7 +52,7 @@ def rand_bbox(h, w, lam):
 
 
 @curry
-def cutmix(image, label, beta):
+def cutmix_batch(image, label, beta):
     lam = tfp.distributions.Beta(beta, beta).sample(())
     index = tf.random.shuffle(tf.range(tf.shape(image)[0]))
 
@@ -61,6 +74,32 @@ def cutmix(image, label, beta):
     lam = 1 - (b - t) * (r - l) / (h * w)
     lam = tf.cast(lam, label.dtype)
     label = label * lam + label2 * (1. - lam)
+
+    return image, label
+
+
+@curry
+def cutmix(data1, data2, beta):
+    image1, label1 = data1
+    image2, label2 = data2
+    lam = tfp.distributions.Beta(beta, beta).sample(())
+
+    shape = tf.shape(image1)
+    h = shape[0]
+    w = shape[1]
+
+    l, t, r, b = rand_bbox(h, w, lam)
+    shape = [b - t, r - l]
+    padding = [(t, h - b), (l, w - r)]
+
+    mask = tf.pad(tf.zeros(shape, dtype=image1.dtype), padding, constant_values=1)
+    mask = tf.expand_dims(mask, -1)
+
+    image = image1 * mask + image2 * (1. - mask)
+
+    lam = 1 - (b - t) * (r - l) / (h * w)
+    lam = tf.cast(lam, label1.dtype)
+    label = label1 * lam + label2 * (1. - lam)
 
     return image, label
 
@@ -266,11 +305,11 @@ def random_apply(func, p, image):
     )
 
 
-def random_apply2(func, p, image, label):
+def random_apply2(func, p, input1, input2):
     return tf.cond(
         tf.random.uniform(()) < p,
-        lambda: func(image, label),
-        lambda: (image, label),
+        lambda: func(input1, input2),
+        lambda: (input1, input2),
     )
 
 
