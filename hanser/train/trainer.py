@@ -203,16 +203,13 @@ class Trainer:
         while epoch < max_epochs:
             print('Epoch %d/%d' % (epoch + 1, epochs))
 
-            callbacks.on_epoch_begin(epoch)
+            callbacks.on_epoch_begin(epoch + 1)
             run_epoch(self._train_step, train_it, steps_per_epoch, self.metrics, "Train")
-            callbacks.on_epoch_end(epoch)
 
-            epoch = self._epoch.assign_add(1).numpy()
-
-            if epoch % val_freq == 0:
+            if (epoch + 1) % val_freq == 0:
                 run_epoch(self._test_step, val_it, val_steps, self.test_metrics, "Valid")
 
-            if extra_metrics and epoch % extra_eval_freq == 0:
+            if extra_metrics and (epoch + 1) % extra_eval_freq == 0:
                 start = time.time()
                 for step in range(val_steps):
                     target, output = self._predict_step(val_it, debug)
@@ -232,9 +229,14 @@ class Trainer:
                 elapsed = time.time() - start
                 print_results("Eval", elapsed, metric_results)
 
-            if save_per_epochs and epoch % save_per_epochs == 0:
-                print("Saved models: %s" % model_ckpt_manager.save(epoch))
-                print("Saved optimizer: %s" % optim_ckpt_manager.save(epoch))
+            if save_per_epochs and (epoch + 1) % save_per_epochs == 0:
+                print("Saved models: %s" % model_ckpt_manager.save(epoch + 1))
+                print("Saved optimizer: %s" % optim_ckpt_manager.save(epoch + 1))
+
+            callbacks.on_epoch_end(epoch + 1)
+
+            epoch = self._epoch.assign_add(1).numpy()
+
         callbacks.on_train_end()
 
     def evaluate(self, ds_test, test_steps):

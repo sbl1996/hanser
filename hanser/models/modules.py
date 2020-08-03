@@ -31,7 +31,7 @@ class SELayer(Layer):
         channels = in_channels // reduction
         self.pool = GlobalAvgPool(keep_dim=True, name='pool')
         self.fc = Sequential([
-            Conv2d(in_channels, channels, 1, groups=groups, act='relu', name='fc1'),
+            Conv2d(in_channels, channels, 1, groups=groups, act='def', name='fc1'),
             Conv2d(channels, in_channels, 1, groups=groups, act='sigmoid', name='fc2'),
         ])
 
