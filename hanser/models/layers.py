@@ -1,7 +1,8 @@
 from difflib import get_close_matches
-from typing import Union, Tuple, Optional, Sequence
+from typing import Union, Tuple, Optional, Sequence, Mapping
 
 import tensorflow as tf
+from cerberus import Validator
 from tensorflow.keras import Sequential
 from tensorflow.keras.initializers import VarianceScaling, RandomNormal
 from tensorflow.keras.layers import Dense, DepthwiseConv2D, Activation, AvgPool2D, MaxPool2D, Layer, InputSpec
@@ -35,12 +36,45 @@ DEFAULTS = {
     },
     'seed': 0,
     'no_bias_decay': False,
-    'weight_decay': None,
+    'weight_decay': 0.0,
+}
+
+_defaults_schema = {
+    'tpu': {'type': 'boolean'},
+    'bn': {
+        'momentum': {'type': 'float', 'min': 0.0, 'max': 1.0},
+        'eps': {'type': 'float', 'min': 0.0},
+        'affine': {'type': 'boolean'},
+        'track_running_stats': {'type': 'boolean'},
+        'fused': {'type': 'boolean'},
+        'sync': {'type': 'boolean'},
+    },
+    'activation': {'type': 'string', 'allowed': ['relu', 'swish', 'mish']},
+    'norm': {'type': 'string', 'allowed': ['bn']},
+    'fp16': {'type': 'boolean'},
+    'init': {
+        'type': {'type': 'string', 'allowed': ['msra', 'normal']},
+        'mode': {'type': 'string', 'allowed': ['fan_in', 'fan_out']},
+        'uniform': {'type': 'boolean'},
+        'std': {'type': 'float', 'min': 0.0},
+        'scale': {'type': 'float', 'min': 0.0},
+    },
+    'seed': {'type': 'integer'},
+    'no_bias_decay': {'type': 'boolean'},
+    'weight_decay': {'type': 'float', 'min': 0.0, 'max': 1.0},
 }
 
 
+def set_defaults(kvs: Mapping, prefix: Sequence[str]=()):
+    for k, v in kvs.items():
+        if isinstance(v, dict):
+            set_defaults(v, prefix + (k,))
+        else:
+            set_default(prefix + (k,), v)
+
+
 def set_default(keys: Union[str, Sequence[str]], value):
-    def loop(d, keys):
+    def loop(d, keys, schema):
         k = keys[0]
         if k not in d:
             match = get_close_matches(k, d.keys())
@@ -49,13 +83,16 @@ def set_default(keys: Union[str, Sequence[str]], value):
             else:
                 raise KeyError("No key `%s` in %s" % (k, d))
         if len(keys) == 1:
+            v = Validator({k: schema[k]})
+            if not v.validate({k: value}):
+                raise ValueError(v.errors)
             d[k] = value
         else:
-            loop(d[k], keys[1:])
+            loop(d[k], keys[1:], schema[k])
 
     if isinstance(keys, str):
         keys = [keys]
-    loop(DEFAULTS, keys)
+    loop(DEFAULTS, keys, _defaults_schema)
 
 
 def Conv2d(in_channels: int,
@@ -133,7 +170,8 @@ def Norm(channels, type='default', affine=None, track_running_stats=None, zero_i
         beta_regularizer = get_weight_decay()
     if affine is None:
         affine = cfg['affine']
-    track_running_stats = track_running_stats or cfg['track_running_stats']
+    if track_running_stats is None:
+        track_running_stats = cfg['track_running_stats']
     if cfg['sync']:
         bn = SyncBatchNormalization(
             momentum=cfg['momentum'], epsilon=cfg['eps'], gamma_initializer=gamma_initializer,
