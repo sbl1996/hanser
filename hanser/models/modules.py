@@ -28,7 +28,9 @@ class SELayer(Layer):
 
     def __init__(self, in_channels, reduction, groups=1, name=None):
         super().__init__(name=name)
-        channels = in_channels // reduction
+        channels = min(max(in_channels // reduction, 32), in_channels)
+        if groups != 1:
+            channels = round_channels(channels, groups)
         self.pool = GlobalAvgPool(keep_dim=True, name='pool')
         self.fc = Sequential([
             Conv2d(in_channels, channels, 1, groups=groups, act='def', name='fc1'),

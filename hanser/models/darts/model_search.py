@@ -51,7 +51,6 @@ class Cell(Layer):
         self.preprocess1 = ReLUConvBN(C_prev, C, 1, 1, name='preprocess1')
         self._steps = steps
         self._multiplier = multiplier
-
         self._ops = []
         for i in range(self._steps):
             for j in range(2 + i):
