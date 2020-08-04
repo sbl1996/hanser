@@ -1,3 +1,4 @@
+from difflib import get_close_matches
 from typing import Union, Tuple, Optional, Sequence
 
 import tensorflow as tf
@@ -42,7 +43,11 @@ def set_default(keys: Union[str, Sequence[str]], value):
     def loop(d, keys):
         k = keys[0]
         if k not in d:
-            raise KeyError("No key '%s' in %s" % (k, d))
+            match = get_close_matches(k, d.keys())
+            if match:
+                raise KeyError("No such key `%s`, maybe you mean `%s`" % (k, match[0]))
+            else:
+                raise KeyError("No key `%s` in %s" % (k, d))
         if len(keys) == 1:
             d[k] = value
         else:
@@ -126,7 +131,8 @@ def Norm(channels, type='default', affine=None, track_running_stats=None, zero_i
     else:
         gamma_regularizer = get_weight_decay()
         beta_regularizer = get_weight_decay()
-    affine = affine or cfg['affine']
+    if affine is None:
+        affine = cfg['affine']
     track_running_stats = track_running_stats or cfg['track_running_stats']
     if cfg['sync']:
         bn = SyncBatchNormalization(
