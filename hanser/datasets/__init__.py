@@ -8,7 +8,7 @@ def batch_to_zip_transform(image, label, zip_transform):
     return zip_transform((image[0], label[0]), (image[1], label[1]))
 
 
-def prepare(ds, transform, batch_size, training=True, buffer_size=1024, drop_remainder=None, cache=True,
+def prepare(ds, batch_size, transform=None, training=True, buffer_size=1024, drop_remainder=None, cache=True,
             zip_transform=None, batch_transform=None):
     if drop_remainder is None:
         drop_remainder = training
@@ -17,7 +17,8 @@ def prepare(ds, transform, batch_size, training=True, buffer_size=1024, drop_rem
     if training:
         ds = ds.shuffle(buffer_size)
         ds = ds.repeat()
-    ds = ds.map(transform, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+    if transform:
+        ds = ds.map(transform, num_parallel_calls=tf.data.experimental.AUTOTUNE)
     if training:
         if zip_transform:
             # ds = ds.batch(2, drop_remainder=True).map(

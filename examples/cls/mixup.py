@@ -64,9 +64,9 @@ test_steps = math.ceil(num_test_examples / eval_batch_size)
 ds = tf.data.Dataset.from_tensor_slices((x_train, y_train))
 ds_test = tf.data.Dataset.from_tensor_slices((x_test, y_test))
 
-ds_train = prepare(ds, transform(training=True), batch_size, training=True, buffer_size=10000,
+ds_train = prepare(ds, batch_size, transform(training=True), training=True, buffer_size=10000,
                    zip_transform=zip_transform)
-ds_test = prepare(ds_test, transform(training=False), eval_batch_size, training=False)
+ds_test = prepare(ds_test, eval_batch_size, transform(training=False), training=False)
 
 # policy = mixed_precision.Policy('mixed_bfloat16')
 # mixed_precision.set_policy(policy)

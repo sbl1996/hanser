@@ -80,10 +80,10 @@ steps_per_epoch = num_train_examples // batch_size
 val_steps = num_val_examples // eval_batch_size
 # test_steps = math.ceil(10000 / eval_batch_size)
 
-ds_train = prepare(tf.data.TFRecordDataset(train_files).take(num_train_examples), preprocess(training=True),
-                   batch_size, training=True)
-ds_val = prepare(tf.data.TFRecordDataset(val_files).take(num_val_examples), preprocess(training=False),
-                 eval_batch_size, training=False, drop_remainder=True)
+ds_train = prepare(tf.data.TFRecordDataset(train_files).take(num_train_examples), batch_size, preprocess(training=True),
+                   training=True)
+ds_val = prepare(tf.data.TFRecordDataset(val_files).take(num_val_examples), eval_batch_size, preprocess(training=False),
+                 training=False, drop_remainder=True)
 
 # ds_train_dist = strategy.experimental_distribute_dataset(ds_train)
 # ds_val_dist = strategy.experimental_distribute_dataset(ds_val)

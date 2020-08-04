@@ -69,9 +69,9 @@ eval_batch_size = batch_size * 2
 steps_per_epoch = num_train_examples // batch_size
 test_steps = math.ceil(num_test_examples / eval_batch_size)
 
-ds_train = prepare(ds_train, preprocess(training=True), batch_size, training=True, buffer_size=10000)
-ds_search = prepare(ds_search, preprocess(training=True), batch_size, training=True, buffer_size=10000)
-ds_test = prepare(ds_test, preprocess(training=False), eval_batch_size, training=False)
+ds_train = prepare(ds_train, batch_size, preprocess(training=True), training=True, buffer_size=10000)
+ds_search = prepare(ds_search, batch_size, preprocess(training=True), training=True, buffer_size=10000)
+ds_test = prepare(ds_test, eval_batch_size, preprocess(training=False), training=False)
 
 set_default(['bn', 'affine'], False)
 set_default(['bn', 'track_running_stats'], False)

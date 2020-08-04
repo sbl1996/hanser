@@ -62,9 +62,8 @@ eval_batch_size = batch_size * 2
 steps_per_epoch = num_train_examples // batch_size
 test_steps = math.ceil(num_test_examples / eval_batch_size)
 
-ds_train = prepare(ds, preprocess(training=True), batch_size, training=True, buffer_size=10000,
-                   batch_preprocess=batch_preprocess)
-ds_test = prepare(ds_test, preprocess(training=False), eval_batch_size, training=False)
+ds_train = prepare(ds, batch_size, preprocess(training=True), training=True, buffer_size=10000)
+ds_test = prepare(ds_test, eval_batch_size, preprocess(training=False), training=False)
 
 genotype = Genotype(
     normal=[
