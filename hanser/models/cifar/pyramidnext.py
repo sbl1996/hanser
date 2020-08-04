@@ -32,23 +32,41 @@ class Shortcut(Sequential):
         super().__init__(layers, name=name)
 
 
-class Bottleneck(Layer):
-    expansion = 1
+class BasicBlock(Layer):
 
     def __init__(self, in_channels, channels, groups, stride=1, use_se=True, drop_path=0.2, name=None):
         super().__init__(name=name)
-        out_channels = channels * self.expansion
+        assert groups == 1
+        branch1 = [
+            Norm(in_channels, name="norm0"),
+            Conv2d(in_channels, channels, kernel_size=3, norm='default', act='default', name="conv1"),
+            *([Pool2d(3, 2, name="pool")] if stride != 1 else []),
+            Conv2d(channels, channels, kernel_size=3, norm='default', name="conv2"),
+            *([SELayer(channels, 4, groups, name="se")] if use_se else []),
+            *([DropPath(drop_path, name="drop")] if drop_path and stride == 1 else []),
+        ]
+        self.branch1 = Sequential(branch1, name="branch1")
+        self.branch2 = Shortcut(in_channels, channels, stride, name="branch2")
+
+    def call(self, x):
+        return self.branch1(x) + self.branch2(x)
+
+
+class Bottleneck(Layer):
+
+    def __init__(self, in_channels, channels, groups, stride=1, use_se=True, drop_path=0.2, name=None):
+        super().__init__(name=name)
         branch1 = [
             Norm(in_channels, name="norm0"),
             Conv2d(in_channels, channels, kernel_size=1, norm='default', act='default', name="conv1"),
             *([Pool2d(3, 2, name="pool")] if stride != 1 else []),
             Conv2d(channels, channels, kernel_size=3, groups=groups, norm='default', act='default', name="conv2"),
             *([SELayer(channels, 4, groups, name="se")] if use_se else []),
-            Conv2d(channels, out_channels, kernel_size=1, norm='default', name="conv3"),
+            Conv2d(channels, channels, kernel_size=1, norm='default', name="conv3"),
             *([DropPath(drop_path, name="drop")] if drop_path and stride == 1 else []),
         ]
         self.branch1 = Sequential(branch1, name="branch1")
-        self.branch2 = Shortcut(in_channels, out_channels, stride, name="branch2")
+        self.branch2 = Shortcut(in_channels, channels, stride, name="branch2")
 
     def call(self, x):
         return self.branch1(x) + self.branch2(x)
@@ -64,10 +82,18 @@ def round_channels(channels, divisor=8, min_depth=None):
 
 class PyramidNeXt(Model):
     def __init__(self, start_channels, widening_fractor, depth, groups, use_se, drop_path, use_aux_head,
-                 num_classes=10):
+                 block='bottleneck', num_classes=10):
         super().__init__()
 
-        num_layers = [(depth - 2) // 9] * 3
+        if block == 'basic':
+            num_layers = [(depth - 2) // 6] * 3
+            block = BasicBlock
+        elif block == 'bottleneck':
+            num_layers = [(depth - 2) // 9] * 3
+            block = Bottleneck
+        else:
+            raise ValueError("block must be `basic` or `bottleneck`, got %s" % block)
+
         self.num_layers = num_layers
         self.use_aux_head = use_aux_head
 
@@ -83,9 +109,9 @@ class PyramidNeXt(Model):
         units = []
         for i, (n, s) in enumerate(zip(num_layers, strides)):
             channels += add_channel
-            units.append(Bottleneck(in_channels, round_channels(channels, groups),
+            units.append(block(in_channels, round_channels(channels, groups),
                                     groups, stride=s, use_se=use_se, drop_path=drop_path, name=f"unit{k}"))
-            in_channels = round_channels(channels, groups) * Bottleneck.expansion
+            in_channels = round_channels(channels, groups)
             k += 1
 
             if i == 2 and self.use_aux_head:
@@ -94,9 +120,9 @@ class PyramidNeXt(Model):
 
             for j in range(1, n):
                 channels = channels + add_channel
-                units.append(Bottleneck(in_channels, round_channels(channels, groups),
+                units.append(block(in_channels, round_channels(channels, groups),
                                         groups, use_se=use_se, drop_path=drop_path, name=f"unit{k}"))
-                in_channels = round_channels(channels, groups) * Bottleneck.expansion
+                in_channels = round_channels(channels, groups)
                 k += 1
 
         self.units = units
@@ -105,7 +131,7 @@ class PyramidNeXt(Model):
             Act(name="act"),
         ], name="post_activ")
 
-        assert (start_channels + widening_fractor) * Bottleneck.expansion == in_channels
+        assert (start_channels + widening_fractor) == in_channels
 
         self.final_pool = GlobalAvgPool(name="final_pool")
         self.fc = Linear(in_channels, num_classes, name="fc")
@@ -124,3 +150,8 @@ class PyramidNeXt(Model):
             return x, logits_aux
         else:
             return x
+
+def test_net():
+    model = PyramidNeXt(16, 100-16, 110, 1, False, 0.0, False, block='basic')
+    model.build((None, 32, 32, 3))
+    model.summary()
