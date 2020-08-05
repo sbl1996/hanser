@@ -30,7 +30,7 @@ class MixedOp(Layer):
                         Norm(C, name='norm')
                     ], name=f'op{i+1}')
                 else:
-                    op = OPS[primitive](C, stride, name=f'op{i}')
+                    op = OPS[primitive](C, stride, name=f'op{i+1}')
             self._ops.append(op)
 
     def call(self, inputs):

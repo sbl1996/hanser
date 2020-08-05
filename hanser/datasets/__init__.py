@@ -3,9 +3,9 @@ from toolz import curry
 import tensorflow as tf
 
 
-@curry
-def batch_to_zip_transform(image, label, zip_transform):
-    return zip_transform((image[0], label[0]), (image[1], label[1]))
+# @curry
+# def batch_to_zip_transform(image, label, zip_transform):
+#     return zip_transform((image[0], label[0]), (image[1], label[1]))
 
 
 def prepare(ds, batch_size, transform=None, training=True, buffer_size=1024, drop_remainder=None, cache=True,

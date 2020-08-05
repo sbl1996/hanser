@@ -48,7 +48,7 @@ def transform(image, label, training):
 def zip_transform(data1, data2):
     return tf.cond(
         tf.random.uniform(()) < 0.5,
-        lambda: mixup(data1, data2, beta=1.0),
+        lambda: cutmix(data1, data2, beta=1.0),
         lambda: data1,
     )
 
