@@ -1,8 +1,9 @@
 from difflib import get_close_matches
 from typing import Union, Tuple, Optional, Sequence, Mapping
 
-import tensorflow as tf
 from cerberus import Validator
+
+import tensorflow as tf
 from tensorflow.keras import Sequential
 from tensorflow.keras.initializers import VarianceScaling, RandomNormal
 from tensorflow.keras.layers import Dense, DepthwiseConv2D, Activation, AvgPool2D, MaxPool2D, Layer, InputSpec

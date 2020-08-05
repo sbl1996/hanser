@@ -14,7 +14,7 @@ from hanser.transform import random_crop, cutout, normalize, to_tensor, random_a
 from hanser.transform.autoaugment import autoaugment
 
 from hanser.models.cifar.shufflenetv2 import ShuffleNetV2
-from hanser.models.layers import set_default
+from hanser.models.layers import set_defaults
 from hanser.train.trainer import Trainer
 from hanser.train.lr_schedule import CosineLR
 from hanser.losses import CrossEntropy
@@ -76,7 +76,9 @@ if strategy:
     ds_train_dist = strategy.experimental_distribute_dataset(ds_train)
     ds_test_dist = strategy.experimental_distribute_dataset(ds_test)
 
-set_default(['weight_decay'], 1e-4)
+set_defaults({
+    'weight_decay': 1e-4
+})
 input_shape = (32, 32, 3)
 # model = ShuffleNetV2(32, (128, 256, 512), (4, 8, 4), 1024, True, 0.0, 10)
 model = ShuffleNetV2(4, (8, 12, 16), (2, 2, 2), 16, True, 0.0, 10)

@@ -15,7 +15,7 @@ from hanser.transform import random_crop, cutout, normalize, to_tensor
 from hanser.transform.autoaugment import autoaugment
 
 from hanser.models.cifar.pyramidnext import PyramidNeXt
-from hanser.models.layers import set_default
+from hanser.models.layers import set_defaults
 from hanser.train.trainer import Trainer
 from hanser.train.lr_schedule import CosineLR
 from hanser.losses import CrossEntropy
@@ -68,7 +68,9 @@ if strategy:
     ds_train_dist = strategy.experimental_distribute_dataset(ds_train)
     ds_test_dist = strategy.experimental_distribute_dataset(ds_test)
 
-set_default(['weight_decay'], 1e-4)
+set_defaults({
+    'weight_decay': 1e-4
+})
 drop_path = 0.2
 # model = PyramidNeXt(32, 480-32, 56, 16, True, drop_path, False, 10)
 model = PyramidNeXt(4, 16-4, 20, 1, True, drop_path, False, 10)
