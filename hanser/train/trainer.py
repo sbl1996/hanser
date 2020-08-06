@@ -40,10 +40,59 @@ def run_epoch(step_fn, iterator, steps, metrics, stage="Train"):
     print_results(stage, steps, metric_results)
 
 
-def maybe_cat(x):
-    if isinstance(x, (list, tuple)) and isinstance(x[0], tf.Tensor):
-        x = tf.concat(x, 0)
+@tf.function
+def identity(x):
     return x
+
+
+def parse_strategy(strategy='auto'):
+    if strategy is not None:
+        if strategy == 'auto':
+            strategy = tf.distribute.get_strategy()
+        if not isinstance(strategy, TPUStrategy):
+            strategy = None
+    return strategy
+
+
+def is_global_bfloat16():
+    return mixed_precision.global_policy().compute_dtype == 'bfloat16'
+
+
+def cast_fp32(xs):
+    if isinstance(xs, tf.Tensor):
+        return tf.cast(xs, tf.float32)
+    elif isinstance(xs, (tuple, list)):
+        return xs.__class__(cast_fp32(x) for x in xs)
+    elif isinstance(xs, dict):
+        return {k: cast_fp32(v) for k, v in xs.items()}
+    else:
+        return xs
+
+
+def misc_concat(values):
+    if isinstance(values, (tuple, list)):
+        val = values[0]
+        if tf.is_tensor(val):
+            return tf.concat(values, 0)
+        elif isinstance(val, dict):
+            d = {}
+            for k in val.keys():
+                d[k] = misc_concat([v[k] for v in values])
+            return d
+        elif isinstance(val, (tuple, list)):
+            return val.__class__(v for l in values for v in l)
+        else:
+            return values
+    elif isinstance(values, dict):
+        return {k: misc_concat(v) for k, v in values.items()}
+    else:
+        return values
+
+
+def maybe_cat(values, strategy):
+    if isinstance(strategy, TPUStrategy):
+        return misc_concat(values)
+    return values
 
 
 class Trainer:
@@ -57,25 +106,15 @@ class Trainer:
         self.metric_transform = metric_transform
         self.model_dir = model_dir
 
-        if strategy is not None:
-            if strategy == 'auto':
-                strategy = tf.distribute.get_strategy()
-            if not isinstance(strategy, TPUStrategy):
-                strategy = None
-        self.strategy = strategy
+        self.strategy = parse_strategy(strategy)
         if strategy and model_dir:
             assert model_dir.startswith('gs'), "Use gs://... as `model_dir` on TPU"
 
-        self.bfloat16 = mixed_precision.global_policy().compute_dtype == 'bfloat16'
+        self.bfloat16 = is_global_bfloat16()
 
         self._epoch = tf.Variable(0, trainable=False)
 
         self._use_weight_decay = len(model.losses) != 0
-
-    def _maybe_cat(self, values):
-        if self.strategy:
-            return misc_concat(values)
-        return values
 
     def _make_ckpt(self, name, **kwargs):
         ckpt = tf.train.Checkpoint(**kwargs)
@@ -214,8 +253,8 @@ class Trainer:
                 for step in range(val_steps):
                     target, output = self._predict_step(val_it, debug)
 
-                    target = self._maybe_cat(target)
-                    output = self._maybe_cat(output)
+                    target = maybe_cat(target, self.strategy)
+                    output = maybe_cat(output, self.strategy)
 
                     output = extra_output_transform(output)
                     target = extra_target_transform(target)
@@ -258,8 +297,8 @@ class Trainer:
         for step in range(test_steps):
             target, output = self._predict_step(test_it, debug)
 
-            target = self._maybe_cat(target)
-            output = self._maybe_cat(output)
+            target = maybe_cat(target, self.strategy)
+            output = maybe_cat(output, self.strategy)
 
             output = output_transform(output)
             target = target_transform(target)
@@ -291,34 +330,3 @@ class Trainer:
         target = target_transform(target)
 
         return target, output
-
-
-def cast_fp32(xs):
-    if isinstance(xs, tf.Tensor):
-        return tf.cast(xs, tf.float32)
-    elif isinstance(xs, (tuple, list)):
-        return xs.__class__(cast_fp32(x) for x in xs)
-    elif isinstance(xs, dict):
-        return {k: cast_fp32(v) for k, v in xs.items()}
-    else:
-        return xs
-
-
-def misc_concat(values):
-    if isinstance(values, (tuple, list)):
-        val = values[0]
-        if tf.is_tensor(val):
-            return tf.concat(values, 0)
-        elif isinstance(val, dict):
-            d = {}
-            for k in val.keys():
-                d[k] = misc_concat([v[k] for v in values])
-            return d
-        elif isinstance(val, (tuple, list)):
-            return val.__class__(v for l in values for v in l)
-        else:
-            return values
-    elif isinstance(values, dict):
-        return {k: misc_concat(v) for k, v in values.items()}
-    else:
-        return values

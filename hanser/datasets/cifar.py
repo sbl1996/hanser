@@ -13,7 +13,8 @@ def load_cifar10_tfds():
         ds = tfds.as_numpy(tfds.load('cifar10', split=split))
         x = []
         y = []
-        for d in ds:
+        for i, d in enumerate(ds):
+            print(i)
             x.append(d['image'])
             y.append(d['label'])
         x = np.stack(x)
@@ -75,7 +76,7 @@ def load_cifar10():
 
 def load_cifar100(label_mode='fine'):
 
-    dirname = 'cifar-100-batches-py'
+    dirname = 'cifar-100-python'
     origin = 'https://www.cs.toronto.edu/~kriz/cifar-100-python.tar.gz'
     path = get_file(
         dirname,

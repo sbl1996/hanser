@@ -1,20 +1,10 @@
-import time
-
 import tensorflow as tf
 from tensorflow.python.distribute.input_lib import DistributedDataset
-import tensorflow.keras.mixed_precision.experimental as mixed_precision
-
-from tensorflow.python.distribute.tpu_strategy import TPUStrategy
 from tensorflow.python.keras.callbacks import CallbackList
 
 from hanser.io import time_now
 from hanser.tpu import local_results
-from hanser.train.trainer import misc_concat, cast_fp32
-
-
-@tf.function
-def identity(x):
-    return x
+from hanser.train.trainer import misc_concat, cast_fp32, parse_strategy, is_global_bfloat16, identity
 
 
 def join_metric_logs(results, delim=" - "):
@@ -42,12 +32,6 @@ def run_epoch(step_fn, iterators, steps, metrics, stage="Train"):
     print_results(stage, steps, metric_results)
 
 
-def maybe_cat(x):
-    if isinstance(x, (list, tuple)) and isinstance(x[0], tf.Tensor):
-        x = tf.concat(x, 0)
-    return x
-
-
 class Trainer:
 
     def __init__(self, model, criterion, optimizer_arch, optimizer_model,
@@ -66,23 +50,13 @@ class Trainer:
         self.metric_transform = metric_transform
         self.model_dir = model_dir
 
-        if strategy is not None:
-            if strategy == 'auto':
-                strategy = tf.distribute.get_strategy()
-            if not isinstance(strategy, TPUStrategy):
-                strategy = None
-        self.strategy = strategy
+        self.strategy = parse_strategy(strategy)
         if strategy and model_dir:
             assert model_dir.startswith('gs'), "Use gs://... as `model_dir` on TPU"
 
-        self.bfloat16 = mixed_precision.global_policy().compute_dtype == 'bfloat16'
+        self.bfloat16 = is_global_bfloat16()
 
         self._epoch = tf.Variable(0, trainable=False)
-
-    def _maybe_cat(self, values):
-        if self.strategy:
-            return misc_concat(values)
-        return values
 
     def _make_ckpt(self, name, **kwargs):
         ckpt = tf.train.Checkpoint(**kwargs)
@@ -213,9 +187,7 @@ class Trainer:
 
     def fit(self, epochs, ds_train, ds_search, steps_per_epoch,
             ds_val, val_steps, val_freq=1, save_per_epochs=None,
-            extra_metrics=(), extra_eval_freq=1,
-            extra_target_transform=tf.identity, extra_output_transform=tf.identity,
-            debug=False, callbacks=None):
+            callbacks=None):
 
         callbacks = CallbackList(callbacks, model=self.model)
 
@@ -239,11 +211,6 @@ class Trainer:
         epoch = self._epoch.numpy()
         max_epochs = epoch + epochs
 
-        if extra_metrics:
-            assert extra_target_transform
-            assert extra_output_transform
-            assert extra_eval_freq
-
         callbacks.on_train_begin()
         while epoch < max_epochs:
             print('Epoch %d/%d' % (epoch + 1, epochs))
@@ -257,26 +224,6 @@ class Trainer:
             if epoch % val_freq == 0:
                 run_epoch(self._test_step, val_it, val_steps, self.test_metrics, "Valid")
 
-            if extra_metrics and epoch % extra_eval_freq == 0:
-                start = time.time()
-                for step in range(val_steps):
-                    target, output = self._predict_step(val_it, debug)
-
-                    target = self._maybe_cat(target)
-                    output = self._maybe_cat(output)
-
-                    output = extra_output_transform(output)
-                    target = extra_target_transform(target)
-
-                    for m in extra_metrics:
-                        m.update_state(target, output, None)
-                metric_results = []
-                for m in extra_metrics:
-                    metric_results.append((m.name, m.result().numpy()))
-                    m.reset_states()
-                elapsed = time.time() - start
-                print_results("Eval", elapsed, metric_results)
-
             if save_per_epochs and epoch % save_per_epochs == 0:
                 print("Saved models: %s" % model_ckpt_manager.save(epoch))
                 print("Saved optimizer: %s" % optim_ckpt_manager.save(epoch))
@@ -289,28 +236,6 @@ class Trainer:
         test_it = iter(ds_test)
 
         run_epoch(self._test_step, test_it, test_steps, self.test_metrics, "Test")
-
-    def evaluate2(self, ds_test, test_steps, metrics,
-                  output_transform=tf.identity, target_transform=tf.identity, debug=False):
-
-        if self.strategy:
-            assert isinstance(ds_test, DistributedDataset)
-
-        test_it = iter(ds_test)
-
-        for step in range(test_steps):
-            target, output = self._predict_step(test_it)
-
-            target = self._maybe_cat(target)
-            output = self._maybe_cat(output)
-
-            output = output_transform(output)
-            target = target_transform(target)
-
-            for m in metrics:
-                m.update_state(target, output, None)
-        results = {m.name: m.result().numpy() for m in metrics}
-        return results
 
     def collect(self, ds_test, test_steps, output_transform=tf.identity, target_transform=tf.identity):
 
