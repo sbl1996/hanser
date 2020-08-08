@@ -10,8 +10,8 @@ from tensorflow.keras.layers import Dense, DepthwiseConv2D, Activation, AvgPool2
 from tensorflow.keras.regularizers import l2
 from tensorflow_addons.activations import mish
 
-from hanser.models.bn import BatchNormalization, SyncBatchNormalization
 from hanser.models.conv import Conv2D
+from hanser.models.bn import BatchNormalization, SyncBatchNormalization
 
 __all__ = ["set_default", "Act", "Conv2d", "Norm", "Linear", "GlobalAvgPool", "Pool2d"]
 
@@ -66,12 +66,14 @@ _defaults_schema = {
 }
 
 
-def set_defaults(kvs: Mapping, prefix: Sequence[str]=()):
-    for k, v in kvs.items():
-        if isinstance(v, dict):
-            set_defaults(v, prefix + (k,))
-        else:
-            set_default(prefix + (k,), v)
+def set_defaults(kvs: Mapping):
+    def _set_defaults(kvs, prefix):
+        for k, v in kvs.items():
+            if isinstance(v, dict):
+                _set_defaults(v, prefix + (k,))
+            else:
+                set_default(prefix + (k,), v)
+    return _set_defaults(kvs, ())
 
 
 def set_default(keys: Union[str, Sequence[str]], value):
@@ -129,7 +131,7 @@ def Conv2d(in_channels: int,
 
     bias_regularizer = get_weight_decay() if not DEFAULTS['no_bias_decay'] else None
 
-    if (norm or act):
+    if norm or act:
         conv_name = 'conv'
     else:
         conv_name = name
@@ -154,6 +156,7 @@ def Conv2d(in_channels: int,
     return Sequential(layers, name=name)
 
 
+# noinspection PyUnusedLocal
 def Norm(channels, type='default', affine=None, track_running_stats=None, zero_init=False, name=None):
     if type in ['default', 'def']:
         type = DEFAULTS['norm']
@@ -198,6 +201,7 @@ def Act(type='default', name=None):
         return Activation(type, name=name)
 
 
+# noinspection PyUnusedLocal
 def Pool2d(kernel_size, stride, padding='same', type='avg', ceil_mode=False, name=None):
     if isinstance(padding, str):
         padding = padding.upper()
@@ -230,6 +234,7 @@ class GlobalAvgPool(Layer):
         else:
             return tf.TensorShape([input_shape[0], input_shape[3]])
 
+    # noinspection PyMethodOverriding
     def call(self, inputs):
         return tf.reduce_mean(inputs, axis=[1, 2], keepdims=self.keep_dim)
 
@@ -245,6 +250,7 @@ def get_weight_decay():
         return l2(wd)
 
 
+# noinspection PyUnusedLocal
 def Linear(in_channels, out_channels, act=None, name=None):
     kernel_initializer = RandomNormal(0, 0.01, seed=DEFAULTS['seed'])
     return Dense(out_channels, activation=act,

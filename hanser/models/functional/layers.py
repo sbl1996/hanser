@@ -86,10 +86,11 @@ def conv2d(x,
     activation = act if (act is not None and norm is None) else None
     if in_channels == groups:
         depth_multiplier = out_channels // in_channels
-        conv = DepthwiseConv2D(kernel_size=kernel_size, strides=stride, padding=padding,
-                               use_bias=use_bias, dilation_rate=dilation, depth_multiplier=depth_multiplier,
-                               depthwise_initializer=kernel_initializer, bias_initializer='zeros', activation=activation,
-                               kernel_regularizer=get_weight_decay(), bias_regularizer=bias_regularizer, name=conv_name)
+        conv = DepthwiseConv2D(kernel_size=kernel_size, strides=stride, padding=padding, use_bias=use_bias,
+                               dilation_rate=dilation, activation=activation, depth_multiplier=depth_multiplier,
+                               depthwise_initializer=kernel_initializer, bias_initializer='zeros',
+                               kernel_regularizer=get_weight_decay(), bias_regularizer=bias_regularizer,
+                               name=conv_name)
     else:
         conv = Conv2D(out_channels, kernel_size=kernel_size, strides=stride,
                       padding=padding, dilation_rate=dilation, use_bias=use_bias, groups=groups,
@@ -150,6 +151,7 @@ def act_(x, type='default', name=None):
 act = act_
 
 
+# noinspection PyUnusedLocal
 def pool(x, kernel_size, stride, padding='same', type='avg', ceil_mode=False, name=None):
     if isinstance(padding, str):
         padding = padding.upper()

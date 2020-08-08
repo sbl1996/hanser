@@ -12,7 +12,7 @@ def get_colab_tpu():
         tpu = tf.distribute.cluster_resolver.TPUClusterResolver(tpu_address)
         tf.config.experimental_connect_to_cluster(tpu)
         tf.tpu.experimental.initialize_tpu_system(tpu)
-        strategy = tf.distribute.experimental.TPUStrategy(tpu)
+        strategy = tf.distribute.TPUStrategy(tpu)
         return strategy
 
 
