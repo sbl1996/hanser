@@ -3,11 +3,9 @@ from typing import Union, Tuple, Optional, Callable
 import tensorflow as tf
 from tensorflow.keras.initializers import VarianceScaling, RandomNormal
 from tensorflow.keras.layers import BatchNormalization, Dense, DepthwiseConv2D, \
-    Activation, AvgPool2D, MaxPool2D, Layer
+    Activation, AvgPool2D, MaxPool2D, Layer, Conv2D
 from tensorflow.keras.regularizers import l2
 from tensorflow_addons.activations import mish
-
-from hanser.models.conv import Conv2D
 
 __all__ = ["DEFAULTS", "act", "norm", "conv2d", "dense", "pool"]
 

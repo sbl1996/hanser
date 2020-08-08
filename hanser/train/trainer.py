@@ -4,7 +4,7 @@ import tensorflow as tf
 from tensorflow.python.distribute.input_lib import DistributedDataset
 import tensorflow.keras.mixed_precision.experimental as mixed_precision
 
-from tensorflow.python.distribute.tpu_strategy import TPUStrategy
+from tensorflow.python.distribute.tpu_strategy import TPUStrategy, TPUStrategyV2, TPUStrategyV1
 from tensorflow.python.keras.callbacks import CallbackList
 
 from hanser.io import time_now
@@ -49,7 +49,7 @@ def parse_strategy(strategy='auto'):
     if strategy is not None:
         if strategy == 'auto':
             strategy = tf.distribute.get_strategy()
-        if not isinstance(strategy, TPUStrategy):
+        if not isinstance(strategy, (TPUStrategy, TPUStrategyV1, TPUStrategyV2)):
             strategy = None
     return strategy
 
