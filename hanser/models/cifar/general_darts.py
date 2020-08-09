@@ -2,15 +2,43 @@ import tensorflow as tf
 from tensorflow.keras import Model, Sequential
 from tensorflow.keras.layers import Layer
 
+from hanser.models.darts.genotypes import Genotype
 from hanser.models.modules import DropPath
 from hanser.models.layers import Conv2d, Pool2d, GlobalAvgPool, Act, Linear
 from hanser.models.darts.operations import FactorizedReduce, ReLUConvBN, OPS
+
+
+def standardize(genotype: Genotype):
+    if len(genotype.normal[0]) == 2:
+        assert len(genotype.normal) == 8
+        assert all(len(c) == 2 for c in genotype.normal)
+        assert genotype.normal_concat == [2, 3, 4, 5]
+        assert len(genotype.reduce) == 8
+        assert all(len(c) == 2 for c in genotype.reduce)
+        assert genotype.reduce_concat == [2, 3, 4, 5]
+
+        op_indices = [2, 2, 3, 3, 4, 4, 5, 5]
+
+        op_names, indices = zip(*genotype.normal)
+        normal = list(zip(op_names, op_indices, indices))
+
+        op_names, indices = zip(*genotype.reduce)
+        reduce = list(zip(op_names, op_indices, indices))
+    else:
+        normal = genotype.normal
+        reduce = genotype.reduce
+    normal = sorted(normal, key=lambda c: (c[1], c[2]))
+    reduce = sorted(reduce, key=lambda c: (c[1], c[2]))
+    return Genotype(
+            normal=normal, normal_concat=genotype.normal_concat,
+            reduce=reduce, reduce_concat=genotype.reduce_concat)
 
 
 class Cell(Layer):
 
     def __init__(self, genotype, C_prev_prev, C_prev, C, reduction, reduction_prev, drop_path, name):
         super().__init__(name=name)
+        genotype = standardize(genotype)
         self.drop_path = drop_path
         if reduction_prev:
             self.preprocess0 = FactorizedReduce(C_prev_prev, C, name='preprocess0')
@@ -19,31 +47,36 @@ class Cell(Layer):
         self.preprocess1 = ReLUConvBN(C_prev, C, 1, 1, name='preprocess1')
 
         if reduction:
-            op_names, indices = zip(*genotype.reduce)
+            op_names, op_indices, indices = zip(*genotype.reduce)
             concat = genotype.reduce_concat
         else:
-            op_names, indices = zip(*genotype.normal)
+            op_names, op_indices, indices = zip(*genotype.normal)
             concat = genotype.normal_concat
-        self._compile(C, op_names, indices, concat, reduction)
+        self._compile(C, op_names, op_indices, indices, concat, reduction)
 
-    def _compile(self, C, op_names, indices, concat, reduction):
-        assert len(op_names) == len(indices)
-        self._steps = len(op_names) // 2
+    def _compile(self, C, op_names, op_indices, indices, concat, reduction):
+        self._steps = len(concat)
         self._concat = concat
         self.multiplier = len(concat)
 
         self._ops = []
-        for i, (name, index) in enumerate(zip(op_names, indices)):
+        self._indices = []
+        prev_op_index = 1
+        for name, op_index, index in zip(op_names, op_indices, indices):
+            if op_index != prev_op_index:
+                self._ops.append([])
+                self._indices.append([])
             stride = 2 if reduction and index < 2 else 1
             if self.drop_path and name != 'skip_connect':
                 op = Sequential([
                     OPS[name](C, stride, name="op"),
                     DropPath(self.drop_path, name="drop"),
-                ], name=f"op{i + 1}")
+                ], name=f"op_{index}_{op_index}")
             else:
-                op = OPS[name](C, stride, name=f"op{i}")
-            self._ops.append(op)
-        self._indices = indices
+                op = OPS[name](C, stride, name=f"op_{index}_{op_index}")
+            self._ops[-1].append(op)
+            self._indices[-1].append(index)
+            prev_op_index = op_index
 
     def call(self, inputs):
         s0, s1 = inputs
@@ -51,14 +84,8 @@ class Cell(Layer):
         s1 = self.preprocess1(s1)
 
         states = [s0, s1]
-        for i in range(self._steps):
-            h1 = states[self._indices[2 * i]]
-            h2 = states[self._indices[2 * i + 1]]
-            op1 = self._ops[2 * i]
-            op2 = self._ops[2 * i + 1]
-            h1 = op1(h1)
-            h2 = op2(h2)
-            s = h1 + h2
+        for ops, indices in zip(self._ops, self._indices):
+            s = tf.add_n(op(states[index]) for op, index in zip(ops, indices))
             states.append(s)
         return tf.concat([states[i] for i in self._concat], axis=-1)
 
