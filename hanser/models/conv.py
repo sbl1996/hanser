@@ -37,7 +37,6 @@ class DepthwiseConv2D(Conv2D):
         if isinstance(dilation_rate, int):
             dilation_rate = (dilation_rate, dilation_rate)
         _horch_impl = False
-        _horch_padding = None
         if strides[0] != 1:
             assert dilation_rate[0] in [1, 2]
             if dilation_rate[0] == 2:
@@ -46,8 +45,6 @@ class DepthwiseConv2D(Conv2D):
                 assert dilation_rate[0] == dilation_rate[1]
                 assert padding.upper() == 'SAME'
                 _horch_impl = True
-                _horch_padding = (kernel_size[0] + (kernel_size[0] - 1) * (dilation_rate[0] - 1) - 1) // 2
-                _horch_padding = (_horch_padding, _horch_padding)
         super().__init__(
             filters=None,
             kernel_size=kernel_size,
@@ -62,7 +59,6 @@ class DepthwiseConv2D(Conv2D):
             bias_constraint=bias_constraint,
             **kwargs)
         self._horch_impl = _horch_impl
-        self._horch_padding = _horch_padding
         self.depth_multiplier = depth_multiplier
         self.depthwise_initializer = initializers.get(depthwise_initializer)
         self.depthwise_regularizer = regularizers.get(depthwise_regularizer)
@@ -106,13 +102,12 @@ class DepthwiseConv2D(Conv2D):
 
     def call(self, inputs):
         if self._horch_impl:
-            inputs = tf.pad(inputs, [(0, 0), self._horch_padding, self._horch_padding, (0, 0)])
             inputs = inputs[:, ::2, ::2, :]
             outputs = backend.depthwise_conv2d(
                 inputs,
                 self.depthwise_kernel,
                 strides=(1, 1),
-                padding='valid',
+                padding='same',
                 dilation_rate=(1, 1),
                 data_format=self.data_format)
         else:
