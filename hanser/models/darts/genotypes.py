@@ -245,7 +245,8 @@ DARTS_V2 = Genotype(
         ('max_pool_3x3', 0), ('skip_connect', 2),
         ('skip_connect', 2), ('max_pool_3x3', 1),
     ],
-    reduce_concat=[2, 3, 4, 5])
+    reduce_concat=[2, 3, 4, 5],
+)
 
 
 # from https://github.com/D-X-Y/NAS-Projects/blob/master/others/GDAS/lib/nas/genotypes.py

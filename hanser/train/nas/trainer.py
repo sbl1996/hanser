@@ -35,7 +35,7 @@ def run_epoch(step_fn, iterators, steps, metrics, stage="Train"):
 class Trainer:
 
     def __init__(self, model, criterion, optimizer_arch, optimizer_model,
-                 metrics=(), test_metrics=(), clip_grad_norm=None,
+                 metrics=(), test_metrics=(), grad_clip_norm=None,
                  arch_weight_decay=None, model_weight_decay=None,
                  strategy='auto', model_dir=None, metric_transform=identity):
         self.model = model
@@ -44,7 +44,7 @@ class Trainer:
         self.optimizer_model = optimizer_model
         self.metrics = metrics
         self.test_metrics = test_metrics
-        self.clip_grad_norm = clip_grad_norm
+        self.grad_clip_norm = grad_clip_norm
         self.arch_weight_decay = arch_weight_decay
         self.model_weight_decay = model_weight_decay
         self.metric_transform = metric_transform
@@ -113,7 +113,8 @@ class Trainer:
                     loss = loss / self.strategy.num_replicas_in_sync
 
             grads = tape.gradient(loss, model_parameters)
-            grads = [(tf.clip_by_norm(grad, self.clip_grad_norm)) for grad in grads]
+            if self.grad_clip_norm:
+                grads = tf.clip_by_global_norm(grads, self.grad_clip_norm)[0]
             self.optimizer_model.apply_gradients(zip(grads, model_parameters))
 
             preds = self.metric_transform(logits)

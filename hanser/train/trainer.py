@@ -99,7 +99,7 @@ class Trainer:
 
     def __init__(self, model, criterion, optimizer, metrics=(), test_metrics=(),
                  strategy='auto', model_dir=None, metric_transform=identity,
-                 clip_grad_norm=None):
+                 grad_clip_norm=None):
         self.model = model
         self.criterion = criterion
         self.optimizer = optimizer
@@ -112,7 +112,7 @@ class Trainer:
         if strategy and model_dir:
             assert model_dir.startswith('gs'), "Use gs://... as `model_dir` on TPU"
 
-        self.clip_grad_norm = clip_grad_norm
+        self.grad_clip_norm = grad_clip_norm
 
         self.bfloat16 = is_global_bfloat16()
 
@@ -141,8 +141,8 @@ class Trainer:
                 if self.strategy:
                     loss = loss / self.strategy.num_replicas_in_sync
             grads = tape.gradient(loss, self.model.trainable_variables)
-            if self.clip_grad_norm:
-                grads = [(tf.clip_by_norm(grad, self.clip_grad_norm)) for grad in grads]
+            if self.grad_clip_norm:
+                grads = tf.clip_by_global_norm(grads, self.grad_clip_norm)[0]
             self.optimizer.apply_gradients(
                 zip(grads, self.model.trainable_variables))
 
