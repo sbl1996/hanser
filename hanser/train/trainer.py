@@ -97,7 +97,9 @@ def maybe_cat(values, strategy):
 
 class Trainer:
 
-    def __init__(self, model, criterion, optimizer, metrics=(), test_metrics=(), strategy='auto', model_dir=None, metric_transform=identity):
+    def __init__(self, model, criterion, optimizer, metrics=(), test_metrics=(),
+                 strategy='auto', model_dir=None, metric_transform=identity,
+                 clip_grad_norm=None):
         self.model = model
         self.criterion = criterion
         self.optimizer = optimizer
@@ -110,10 +112,11 @@ class Trainer:
         if strategy and model_dir:
             assert model_dir.startswith('gs'), "Use gs://... as `model_dir` on TPU"
 
+        self.clip_grad_norm = clip_grad_norm
+
         self.bfloat16 = is_global_bfloat16()
 
         self._epoch = tf.Variable(0, trainable=False)
-
         self._use_weight_decay = len(model.losses) != 0
 
     def _make_ckpt(self, name, **kwargs):
@@ -138,6 +141,8 @@ class Trainer:
                 if self.strategy:
                     loss = loss / self.strategy.num_replicas_in_sync
             grads = tape.gradient(loss, self.model.trainable_variables)
+            if self.clip_grad_norm:
+                grads = [(tf.clip_by_norm(grad, self.clip_grad_norm)) for grad in grads]
             self.optimizer.apply_gradients(
                 zip(grads, self.model.trainable_variables))
 
