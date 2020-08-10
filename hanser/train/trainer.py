@@ -228,7 +228,7 @@ class Trainer:
             for metric in self.test_metrics:
                 metric.update_state(target, preds, None)
 
-        for _ in range(steps):
+        for _ in tf.range(steps):
             if self.strategy:
                 self.strategy.run(step_fn, args=(next(iterator),))
             else:
