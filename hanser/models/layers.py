@@ -6,10 +6,11 @@ from cerberus import Validator
 import tensorflow as tf
 from tensorflow.keras import Sequential
 from tensorflow.keras.initializers import VarianceScaling, RandomNormal
-from tensorflow.keras.layers import Dense, DepthwiseConv2D, Activation, AvgPool2D, MaxPool2D, Layer, InputSpec, Conv2D
+from tensorflow.keras.layers import Dense, Activation, AvgPool2D, MaxPool2D, Layer, InputSpec, Conv2D
 from tensorflow.keras.regularizers import l2
 from tensorflow_addons.activations import mish
 
+from hanser.models.conv import DepthwiseConv2D
 from hanser.models.bn import BatchNormalization, SyncBatchNormalization
 
 __all__ = ["set_default", "Act", "Conv2d", "Norm", "Linear", "GlobalAvgPool", "Pool2d"]

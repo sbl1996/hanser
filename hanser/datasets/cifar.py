@@ -14,7 +14,6 @@ def load_cifar10_tfds():
         x = []
         y = []
         for i, d in enumerate(ds):
-            print(i)
             x.append(d['image'])
             y.append(d['label'])
         x = np.stack(x)

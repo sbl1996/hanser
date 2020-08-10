@@ -39,7 +39,7 @@ class DilConv(Sequential):
             Conv2d(C_in, C_in, kernel_size, stride=stride, dilation=dilation, groups=C_in,
                    bias=False, name='depthwise'),
             Conv2d(C_in, C_out, 1, bias=False, name='pointwise'),
-            Norm(C_in, name='norm'),
+            Norm(C_out, name='norm'),
         ], name=name)
 
 
