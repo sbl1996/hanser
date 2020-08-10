@@ -15,6 +15,7 @@ from hanser.tpu import local_results
 def identity(x):
     return x
 
+
 def join_metric_logs(results, delim=" - "):
     logs = []
     for k, v in results:
@@ -27,12 +28,15 @@ def print_results(stage, steps, results):
         time_now(), stage, steps, steps, join_metric_logs(results, delim=" - ")))
 
 
-def run_epoch(step_fn, iterator, steps, metrics, stage="Train"):
+def run_epoch(step_fn, iterator, steps, metrics, stage="Train", multiple_steps=False):
     # start = time.time()
     for m in metrics:
         m.reset_states()
-    for step in range(steps):
-        step_fn(iterator)
+    if multiple_steps:
+        step_fn(iterator, steps)
+    else:
+        for step in range(steps):
+            step_fn(iterator)
     metric_results = []
     for m in metrics:
         metric_results.append((m.name, m.result().numpy()))
@@ -99,7 +103,7 @@ class Trainer:
 
     def __init__(self, model, criterion, optimizer, metrics=(), test_metrics=(),
                  strategy='auto', model_dir=None, metric_transform=identity,
-                 grad_clip_norm=None):
+                 grad_clip_norm=None, multiple_steps=False):
         self.model = model
         self.criterion = criterion
         self.optimizer = optimizer
@@ -113,6 +117,7 @@ class Trainer:
             assert model_dir.startswith('gs'), "Use gs://... as `model_dir` on TPU"
 
         self.grad_clip_norm = grad_clip_norm
+        self.multiple_steps = multiple_steps
 
         self.bfloat16 = is_global_bfloat16()
 
@@ -159,6 +164,40 @@ class Trainer:
             step_fn(next(iterator))
 
     @tf.function
+    def _train_multiple_steps(self, iterator, steps):
+
+        def step_fn(data):
+            inputs, target = data
+            with tf.GradientTape() as tape:
+                preds = self.model(inputs, training=True)
+                if self.bfloat16:
+                    preds = cast_fp32(preds)
+                per_example_loss = self.criterion(target, preds)
+                loss = tf.reduce_mean(per_example_loss)
+                if self._use_weight_decay:
+                    loss = loss + tf.add_n(self.model.losses)
+                if self.strategy:
+                    loss = loss / self.strategy.num_replicas_in_sync
+            grads = tape.gradient(loss, self.model.trainable_variables)
+            if self.grad_clip_norm:
+                grads = tf.clip_by_global_norm(grads, self.grad_clip_norm)[0]
+            self.optimizer.apply_gradients(
+                zip(grads, self.model.trainable_variables))
+
+            preds = self.metric_transform(preds)
+            for metric in self.metrics:
+                if 'loss' in metric.name:
+                    metric.update_state(per_example_loss)
+                else:
+                    metric.update_state(target, preds, None)
+
+        for _ in tf.range(steps):
+            if self.strategy:
+                self.strategy.run(step_fn, args=(next(iterator),))
+            else:
+                step_fn(next(iterator))
+
+    @tf.function
     def _test_step(self, iterator):
 
         def step_fn(data):
@@ -175,6 +214,25 @@ class Trainer:
             self.strategy.run(step_fn, args=(next(iterator),))
         else:
             step_fn(next(iterator))
+
+    @tf.function
+    def _test_multiple_steps(self, iterator, steps):
+
+        def step_fn(data):
+            inputs, target = data
+            preds = self.model(inputs, training=False)
+            if self.bfloat16:
+                preds = cast_fp32(preds)
+
+            preds = self.metric_transform(preds)
+            for metric in self.test_metrics:
+                metric.update_state(target, preds, None)
+
+        for _ in range(steps):
+            if self.strategy:
+                self.strategy.run(step_fn, args=(next(iterator),))
+            else:
+                step_fn(next(iterator))
 
     @tf.function
     def _predict_step(self, iterator, debug=False):
@@ -248,10 +306,10 @@ class Trainer:
             print('Epoch %d/%d' % (epoch + 1, epochs))
 
             callbacks.on_epoch_begin(epoch + 1)
-            run_epoch(self._train_step, train_it, steps_per_epoch, self.metrics, "Train")
+            run_epoch(self._train_step, train_it, steps_per_epoch, self.metrics, "Train", self.multiple_steps)
 
             if (epoch + 1) % val_freq == 0:
-                run_epoch(self._test_step, val_it, val_steps, self.test_metrics, "Valid")
+                run_epoch(self._test_step, val_it, val_steps, self.test_metrics, "Valid", self.multiple_steps)
 
             if extra_metrics and (epoch + 1) % extra_eval_freq == 0:
                 start = time.time()
