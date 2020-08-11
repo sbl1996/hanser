@@ -4,24 +4,32 @@ import torch
 import torch.nn as nn
 
 import tensorflow as tf
-
-x = tf.random.normal([2, 8, 8, 2])
-
-m = tf.keras.layers.MaxPool2D(3, 2, padding='same')
-y = m(x)
-
-xt = torch.from_numpy(np.transpose(x, [0, 3, 1, 2]))
-mt = nn.MaxPool2d(3, 2, padding=1, ceil_mode=False)
-yt = mt(xt)
-yt = yt.detach().permute(0, 2, 3, 1)
+from hanser.models.layers import Pool2d
 
 
+def test_impl(size, kernel_size, stride):
+    h = w = size
+    x = tf.random.normal([2, h, w, 3])
+
+    m = Pool2d(kernel_size, stride, padding='same', type='max')
+    y = m(x)
+
+    padding = (kernel_size - 1) // 2
+    xt = torch.from_numpy(np.transpose(x, [0, 3, 1, 2]))
+    mt = nn.MaxPool2d(kernel_size, stride, padding=padding, ceil_mode=False)
+    yt = mt(xt).detach().permute(0, 2, 3, 1)
+
+    np.testing.assert_allclose(yt.numpy(), y.numpy(), atol=1e-6)
 
 
-m = tf.keras.layers.AvgPool2D(3, 2, padding='same')
-y = m(x)
-
-xt = torch.from_numpy(np.transpose(x, [0, 3, 1, 2]))
-mt = nn.AvgPool2d(3, 2, padding=1, ceil_mode=False, count_include_pad=False)
-yt = mt(xt)
-yt = yt.detach().permute(0, 2, 3, 1)
+sizes = [4, 7, 8, 16]
+kernel_sizes = [1, 2, 3]
+strides = [1, 2]
+for size in sizes:
+    for k in kernel_sizes:
+        for s in strides:
+            try:
+                test_impl(size, k, s)
+            except AssertionError as e:
+                print(size, k, s)
+                raise e

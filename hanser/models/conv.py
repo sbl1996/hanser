@@ -11,6 +11,15 @@ from tensorflow.python.keras.utils import conv_utils
 from tensorflow.keras.layers import Conv2D
 
 
+def calc_same_padding(kernel_size, dilation):
+    kh, kw = kernel_size
+    dh, dw = dilation
+    ph = (kh + (kh - 1) * (dh - 1) - 1) // 2
+    pw = (kw + (kw - 1) * (dw - 1) - 1) // 2
+    padding = (ph, pw)
+    return padding
+
+
 class DepthwiseConv2D(Conv2D):
 
     def __init__(self,
@@ -43,7 +52,7 @@ class DepthwiseConv2D(Conv2D):
                 assert kernel_size[0] == kernel_size[1]
                 assert strides[0] == strides[1]
                 assert dilation_rate[0] == dilation_rate[1]
-                assert padding.upper() == 'SAME'
+                assert padding.upper() == 'VALID'
                 _horch_impl = True
         super().__init__(
             filters=None,
@@ -107,7 +116,7 @@ class DepthwiseConv2D(Conv2D):
                 inputs,
                 self.depthwise_kernel,
                 strides=(1, 1),
-                padding='same',
+                padding='valid',
                 dilation_rate=(1, 1),
                 data_format=self.data_format)
         else:
@@ -155,7 +164,7 @@ class DepthwiseConv2D(Conv2D):
             return (input_shape[0], rows, cols, out_filters)
 
     def get_config(self):
-        config = super(DepthwiseConv2D, self).get_config()
+        config = super().get_config()
         config.pop('filters')
         config.pop('kernel_initializer')
         config.pop('kernel_regularizer')

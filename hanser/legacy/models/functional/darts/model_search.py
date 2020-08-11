@@ -2,10 +2,8 @@ import tensorflow as tf
 from tensorflow.keras.layers import Multiply, Add, Layer
 from tensorflow.keras.initializers import Ones
 
-from hanser.models.functional.layers import norm, conv2d
-
 from hanser.models.functional.darts.operations import OPS, factorized_reduce, relu_conv_bn
-from hanser.models.functional.darts.genotypes import PRIMITIVES, Genotype
+from hanser.legacy.models.functional.darts.genotypes import PRIMITIVES, Genotype
 
 
 class WeightedSum(Layer):

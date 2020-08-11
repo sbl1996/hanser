@@ -6,7 +6,7 @@ from cerberus import Validator
 import tensorflow as tf
 from tensorflow.keras import Sequential
 from tensorflow.keras.initializers import VarianceScaling, RandomNormal
-from tensorflow.keras.layers import Dense, Activation, AvgPool2D, MaxPool2D, Layer, InputSpec, Conv2D
+from tensorflow.keras.layers import Dense, Activation, AvgPool2D, MaxPool2D, Layer, InputSpec, Conv2D, ZeroPadding2D
 from tensorflow.keras.regularizers import l2
 from tensorflow_addons.activations import mish
 
@@ -98,6 +98,66 @@ def set_default(keys: Union[str, Sequence[str]], value):
     loop(DEFAULTS, keys, _defaults_schema)
 
 
+class Padding2D(Layer):
+
+    def __init__(self, padding, mode='CONSTANT', constant_values=0, name=None):
+        super().__init__(name=name)
+        if isinstance(padding, int):
+            self.padding = ((padding, padding), (padding, padding))
+        elif hasattr(padding, '__len__'):
+            if len(padding) != 2:
+                raise ValueError('`padding` should have two elements. '
+                                 'Found: ' + str(padding))
+            if isinstance(padding[0], int):
+                height_padding = (padding[0], padding[0])
+            else:
+                height_padding = padding[0]
+            if isinstance(padding[1], int):
+                width_padding = (padding[1], padding[1])
+            else:
+                width_padding = padding[1]
+            self.padding = (height_padding, width_padding)
+        else:
+            raise ValueError('`padding` should be either an int, '
+                             'a tuple of 2 ints '
+                             '(symmetric_height_pad, symmetric_width_pad), '
+                             'or a tuple of 2 tuples of 2 ints '
+                             '((top_pad, bottom_pad), (left_pad, right_pad)). '
+                             'Found: ' + str(padding))
+        self.mode = mode
+        self.constant_values = constant_values
+
+    def call(self, x, training=None):
+        return tf.pad(x, [(0, 0), *self.padding, (0, 0)], self.mode, self.constant_values)
+
+    def compute_output_shape(self, input_shape):
+        input_shape = tf.TensorShape(input_shape).as_list()
+        if input_shape[1] is not None:
+            rows = input_shape[1] + self.padding[0][0] + self.padding[0][1]
+        else:
+            rows = None
+        if input_shape[2] is not None:
+            cols = input_shape[2] + self.padding[1][0] + self.padding[1][1]
+        else:
+            cols = None
+        return tf.TensorShape(
+            [input_shape[0], rows, cols, input_shape[3]])
+
+    def get_config(self):
+        config = {'padding': self.padding, 'mode': self.mode, 'constant_values': self.constant_values}
+        base_config = super().get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+
+def calc_same_padding(kernel_size, dilation):
+    kh, kw = kernel_size
+    dh, dw = dilation
+    ph = (kh + (kh - 1) * (dh - 1) - 1) // 2
+    pw = (kw + (kw - 1) * (dw - 1) - 1) // 2
+    padding = (ph, pw)
+    return padding
+
+
 def Conv2d(in_channels: int,
            out_channels: int,
            kernel_size: Union[int, Tuple[int, int]],
@@ -110,8 +170,18 @@ def Conv2d(in_channels: int,
            act: Optional[str] = None,
            zero_init=False,
            name: Optional[str] = None):
+    if isinstance(kernel_size, int):
+        kernel_size = (kernel_size, kernel_size)
+    if isinstance(stride, int):
+        stride = (stride, stride)
+    if isinstance(dilation, int):
+        dilation = (dilation, dilation)
+    if isinstance(padding, int):
+        padding = (padding, padding)
     if isinstance(padding, str):
-        padding = padding.upper()
+        assert padding == 'same'
+    if padding == 'same':
+        padding = calc_same_padding(kernel_size, dilation)
 
     init_cfg = DEFAULTS['init']
     if init_cfg['type'] == 'msra':
@@ -131,29 +201,43 @@ def Conv2d(in_channels: int,
 
     bias_regularizer = get_weight_decay() if not DEFAULTS['no_bias_decay'] else None
 
-    if norm or act:
-        conv_name = 'conv'
-    else:
-        conv_name = name
-    if in_channels == groups:
-        depth_multiplier = out_channels // in_channels
-        conv = DepthwiseConv2D(kernel_size=kernel_size, strides=stride, padding=padding,
-                               use_bias=use_bias, dilation_rate=dilation, depth_multiplier=depth_multiplier,
-                               depthwise_initializer=kernel_initializer, bias_initializer='zeros',
-                               kernel_regularizer=get_weight_decay(), bias_regularizer=bias_regularizer, name=conv_name)
-    else:
-        conv = Conv2D(out_channels, kernel_size=kernel_size, strides=stride,
-                      padding=padding, dilation_rate=dilation, use_bias=use_bias, groups=groups,
-                      kernel_initializer=kernel_initializer, bias_initializer='zeros',
-                      kernel_regularizer=get_weight_decay(), bias_regularizer=bias_regularizer, name=conv_name)
-    if not (norm or act):
+    def make_conv(name):
+        if in_channels == groups:
+            depth_multiplier = out_channels // in_channels
+            conv = DepthwiseConv2D(kernel_size=kernel_size, strides=stride, padding='valid',
+                                   use_bias=use_bias, dilation_rate=dilation, depth_multiplier=depth_multiplier,
+                                   depthwise_initializer=kernel_initializer, bias_initializer='zeros',
+                                   kernel_regularizer=get_weight_decay(), bias_regularizer=bias_regularizer, name=name)
+        else:
+            conv = Conv2D(out_channels, kernel_size=kernel_size, strides=stride,
+                          padding='valid', dilation_rate=dilation, use_bias=use_bias, groups=groups,
+                          kernel_initializer=kernel_initializer, bias_initializer='zeros',
+                          kernel_regularizer=get_weight_decay(), bias_regularizer=bias_regularizer, name=name)
         return conv
-    layers = [conv]
-    if norm:
-        layers.append(Norm(out_channels, norm, zero_init=zero_init, name="norm"))
-    if act:
-        layers.append(Act(act, name="act"))
-    return Sequential(layers, name=name)
+
+    if not (norm or act):
+        if padding[0] != 0:
+            conv = Sequential([
+                ZeroPadding2D(padding, name='conv_pad'),
+                make_conv("conv"),
+            ], name=name)
+        else:
+            conv = make_conv(name)
+        return conv
+    else:
+        if padding[0] != 0:
+            conv = Sequential([
+                ZeroPadding2D(padding, name='conv_pad'),
+                make_conv("conv"),
+            ], name="conv")
+        else:
+            conv = make_conv("conv")
+        layers = [conv]
+        if norm:
+            layers.append(Norm(out_channels, norm, zero_init=zero_init, name="norm"))
+        if act:
+            layers.append(Act(act, name="act"))
+        return Sequential(layers, name=name)
 
 
 # noinspection PyUnusedLocal
@@ -203,18 +287,29 @@ def Act(type='default', name=None):
 
 # noinspection PyUnusedLocal
 def Pool2d(kernel_size, stride, padding='same', type='avg', ceil_mode=False, name=None):
-    if isinstance(padding, str):
-        padding = padding.upper()
-
     if isinstance(kernel_size, int):
         kernel_size = (kernel_size, kernel_size)
+    if isinstance(stride, int):
+        stride = (stride, stride)
+    if isinstance(padding, int):
+        padding = (padding, padding)
+    if padding == 'same':
+        padding = calc_same_padding(kernel_size, (1, 1))
 
     if type == 'avg':
-        return AvgPool2D(kernel_size, stride, padding, name=name)
+        pool = AvgPool2D
     elif type == 'max':
-        return MaxPool2D(kernel_size, stride, padding, name=name)
+        pool = MaxPool2D
     else:
         raise ValueError("Unsupported pool type: %s" % type)
+
+    if padding[0] == 0:
+        return pool(kernel_size, stride, 'valid', name=name)
+    else:
+        return Sequential([
+            Padding2D(padding, mode='SYMMETRIC', name='pool_pad'),
+            pool(kernel_size, stride, 'valid', name="pool"),
+        ], name=name)
 
 
 class GlobalAvgPool(Layer):

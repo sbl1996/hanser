@@ -13,9 +13,9 @@ class AuxiliaryHead(Sequential):
     def __init__(self, in_channels, num_classes, name):
         layers = [
             Norm(in_channels, name='norm0'),
-            Pool2d(5, 3, padding='valid', type='avg', name='pool'),
+            Pool2d(5, 3, padding=0, type='avg', name='pool'),
             Conv2d(in_channels, 128, 1, norm='def', act='def', name='conv1'),
-            Conv2d(128, 768, 2, padding='valid', norm='def', act='def', name='conv2'),
+            Conv2d(128, 768, 2, padding=0, norm='def', act='def', name='conv2'),
             Flatten(name='flatten'),
             Linear(768, num_classes, name='fc'),
         ]

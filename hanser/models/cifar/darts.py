@@ -70,9 +70,9 @@ class AuxiliaryHeadCIFAR(Layer):
         super().__init__(name=name)
         self.features = Sequential([
             Act(name='act0'),
-            Pool2d(5, stride=3, padding='valid', name='pool'),
+            Pool2d(5, stride=3, padding=0, name='pool'),
             Conv2d(C, 128, 1, norm='def', act='def', name='conv1'),
-            Conv2d(128, 768, 2, norm='def', act='def', padding='valid', name='conv2'),
+            Conv2d(128, 768, 2, norm='def', act='def', padding=0, name='conv2'),
         ], name='features')
         self.classifier = Sequential([
             GlobalAvgPool(name='global_pooling'),
