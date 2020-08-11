@@ -6,10 +6,11 @@ from cerberus import Validator
 import tensorflow as tf
 from tensorflow.keras import Sequential
 from tensorflow.keras.initializers import VarianceScaling, RandomNormal
-from tensorflow.keras.layers import Dense, Activation, AvgPool2D, MaxPool2D, Layer, InputSpec, Conv2D, ZeroPadding2D
+from tensorflow.keras.layers import Dense, Activation, Layer, InputSpec, Conv2D, ZeroPadding2D
 from tensorflow.keras.regularizers import l2
 from tensorflow_addons.activations import mish
 
+from hanser.models.pooling import MaxPooling2D as MaxPool2D, AveragePooling2D as AvgPool2D
 from hanser.models.conv import DepthwiseConv2D
 from hanser.models.bn import BatchNormalization, SyncBatchNormalization
 
@@ -287,14 +288,9 @@ def Act(type='default', name=None):
 
 # noinspection PyUnusedLocal
 def Pool2d(kernel_size, stride, padding='same', type='avg', ceil_mode=False, name=None):
-    if isinstance(kernel_size, int):
-        kernel_size = (kernel_size, kernel_size)
-    if isinstance(stride, int):
-        stride = (stride, stride)
-    if isinstance(padding, int):
-        padding = (padding, padding)
-    if padding == 'same':
-        padding = calc_same_padding(kernel_size, (1, 1))
+    assert padding == 0 or padding == 'same'
+    if padding == 0:
+        padding = 'valid'
 
     if type == 'avg':
         pool = AvgPool2D
@@ -303,13 +299,7 @@ def Pool2d(kernel_size, stride, padding='same', type='avg', ceil_mode=False, nam
     else:
         raise ValueError("Unsupported pool type: %s" % type)
 
-    if padding[0] == 0:
-        return pool(kernel_size, stride, 'valid', name=name)
-    else:
-        return Sequential([
-            Padding2D(padding, mode='SYMMETRIC', name='pool_pad'),
-            pool(kernel_size, stride, 'valid', name="pool"),
-        ], name=name)
+    return pool(kernel_size, stride, padding, name=name)
 
 
 class GlobalAvgPool(Layer):
