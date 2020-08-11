@@ -1,3 +1,4 @@
+import tensorflow as tf
 from tensorflow.python.framework import tensor_shape
 from tensorflow.python.keras import backend
 from tensorflow.python.keras.engine.base_layer import Layer
@@ -59,12 +60,14 @@ class Pooling2D(Layer):
             pool_shape = (1, 1) + self.pool_size
             strides = (1, 1) + self.strides
         if self._horch_impl:
+            inputs = tf.reverse(inputs, [1, 2])
             outputs = self.pool_function(
-                inputs[:, ::-1, ::-1, :],
+                inputs,
                 ksize=pool_shape,
                 strides=strides,
                 padding=self.padding.upper(),
-                data_format=conv_utils.convert_data_format(self.data_format, 4))[:, ::-1, ::-1, :]
+                data_format=conv_utils.convert_data_format(self.data_format, 4))
+            outputs = tf.reverse(outputs, [1, 2])
         else:
             outputs = self.pool_function(
                 inputs,
