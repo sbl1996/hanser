@@ -312,10 +312,7 @@ class Trainer:
                 run_epoch(self._train_step, train_it, steps_per_epoch, self.metrics, "Train", self.multiple_steps)
 
             if (epoch + 1) % val_freq == 0:
-                if self.multiple_steps:
-                    run_epoch(self._test_multiple_steps, val_it, val_steps, self.test_metrics, "Valid", self.multiple_steps)
-                else:
-                    run_epoch(self._test_step, val_it, val_steps, self.test_metrics, "Valid", self.multiple_steps)
+                run_epoch(self._test_step, val_it, val_steps, self.test_metrics, "Valid", False)
 
             if extra_metrics and (epoch + 1) % extra_eval_freq == 0:
                 start = time.time()
