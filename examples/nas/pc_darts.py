@@ -7,6 +7,7 @@ import tensorflow as tf
 
 from tensorflow.keras.optimizers import SGD, Adam
 from tensorflow.keras import metrics as M
+from tensorflow.keras.callbacks import Callback
 import tensorflow.keras.mixed_precision.experimental as mixed_precision
 
 from hanser.datasets import prepare
@@ -113,7 +114,28 @@ trainer = Trainer(model, criterion, optimizer_arch, optimizer_model,
                   metrics, test_metrics, 5.0 / 8, 1e-3, 3e-4)
 
 
+class PrintGenotype(Callback):
+
+    def on_epoch_begin(self, epoch, logs=None):
+        p = """Genotype(
+    normal=[
+        %s, %s,
+        %s, %s,
+        %s, %s,
+        %s, %s,
+    ], normal_concat=[2, 3, 4, 5],
+    reduce=[
+        %s, %s,
+        %s, %s,
+        %s, %s,
+        %s, %s,
+    ], reduce_concat=[2, 3, 4, 5],
+)"""
+        g = model.genotype()
+        print(p % (tuple(g.normal) + tuple(g.reduce)))
+
+
 from hanser.io import time_now
 print(time_now())
 trainer.fit(epochs, ds_train, ds_search, steps_per_epoch, ds_test, test_steps,
-            val_freq=5, epochs_model_only=15)
+            val_freq=5, epochs_model_only=15, callbacks=[PrintGenotype()])

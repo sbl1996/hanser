@@ -136,7 +136,7 @@ class Trainer:
             return step_fn(next(iterator))
 
     def fit(self, epochs, ds_train, ds_search, steps_per_epoch,
-            ds_val, val_steps, val_freq=-1, epochs_model_only=0,
+            ds_val, val_steps, val_freq=0, epochs_model_only=0,
             callbacks=None):
 
         callbacks = CallbackList(callbacks, model=self.model)
@@ -163,7 +163,7 @@ class Trainer:
 
             epoch = self._epoch.assign_add(1).numpy()
 
-            if epoch % val_freq == 0:
+            if val_freq and epoch % val_freq == 0:
                 run_epoch(self._test_step, val_it, val_steps, self.test_metrics, "Valid")
 
         callbacks.on_train_end()
