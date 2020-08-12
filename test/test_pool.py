@@ -24,10 +24,10 @@ def test_impl(size, kernel_size, stride):
 
 
 sizes = [4, 8, 16]
-# kernel_sizes = [2]
-# strides = [2]
-kernel_sizes = [3]
-strides = [1, 2]
+kernel_sizes = [2]
+strides = [2]
+# kernel_sizes = [3]
+# strides = [1, 2]
 for size in sizes:
     for k in kernel_sizes:
         for s in strides:

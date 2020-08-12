@@ -55,7 +55,6 @@ class Cell(Layer):
         self._compile(C, op_names, op_indices, indices, concat, reduction)
 
     def _compile(self, C, op_names, op_indices, indices, concat, reduction):
-        self._steps = len(concat)
         self._concat = concat
         self.multiplier = len(concat)
 
@@ -67,7 +66,7 @@ class Cell(Layer):
                 self._ops.append([])
                 self._indices.append([])
             stride = 2 if reduction and index < 2 else 1
-            if self.drop_path and name != 'skip_connect':
+            if self.drop_path and (name != 'skip_connect' or (name == 'skip_connect' and reduction)):
                 op = Sequential([
                     OPS[name](C, stride, name="op"),
                     DropPath(self.drop_path, name="drop"),
@@ -85,7 +84,7 @@ class Cell(Layer):
 
         states = [s0, s1]
         for ops, indices in zip(self._ops, self._indices):
-            s = tf.add_n(op(states[index]) for op, index in zip(ops, indices))
+            s = tf.add_n([op(states[index]) for op, index in zip(ops, indices)])
             states.append(s)
         return tf.concat([states[i] for i in self._concat], axis=-1)
 
@@ -97,7 +96,7 @@ class AuxiliaryHeadCIFAR(Layer):
         super().__init__(name=name)
         self.features = Sequential([
             Act(name='act0'),
-            Pool2d(5, stride=3, padding=0, name='pool'),
+            Pool2d(5, stride=3, padding=0, type='avg', name='pool'),
             Conv2d(C, 128, 1, norm='def', act='def', name='conv1'),
             Conv2d(128, 768, 2, norm='def', act='def', padding=0, name='conv2'),
         ], name='features')

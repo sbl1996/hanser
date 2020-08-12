@@ -1,5 +1,6 @@
+import tensorflow as tf
 from tensorflow.keras import Sequential
-from tensorflow.keras.layers import Layer, concatenate
+from tensorflow.keras.layers import Layer
 from hanser.models.layers import Conv2d, Norm, Act, Pool2d
 
 OPS = {
@@ -92,6 +93,6 @@ class FactorizedReduce(Layer):
 
     def call(self, x):
         x = self.act(x)
-        x = concatenate([self.conv1(x), self.conv2(x[:, 1:, 1:, :])], axis=-1)
+        x = tf.concat([self.conv1(x), self.conv2(x[:, 1:, 1:, :])], axis=-1)
         x = self.norm(x)
         return x
