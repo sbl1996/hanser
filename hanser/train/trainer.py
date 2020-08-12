@@ -29,7 +29,6 @@ def print_results(stage, steps, results):
 
 
 def run_epoch(step_fn, iterator, steps, metrics, stage="Train", multiple_steps=False):
-    # start = time.time()
     for m in metrics:
         m.reset_states()
     if multiple_steps:
@@ -40,7 +39,6 @@ def run_epoch(step_fn, iterator, steps, metrics, stage="Train", multiple_steps=F
     metric_results = []
     for m in metrics:
         metric_results.append((m.name, m.result().numpy()))
-    # elapsed = time.time() - start
     print_results(stage, steps, metric_results)
 
 
@@ -60,6 +58,12 @@ def parse_strategy(strategy='auto'):
 
 def is_global_bfloat16():
     return mixed_precision.global_policy().compute_dtype == 'bfloat16'
+
+
+def validate_dataset(strategy, *datsets):
+    if isinstance(strategy, (TPUStrategy, TPUStrategyV1, TPUStrategyV2)):
+        for ds in datsets:
+            assert isinstance(ds, DistributedDataset)
 
 
 def cast_fp32(xs):
@@ -280,9 +284,7 @@ class Trainer:
 
         callbacks = CallbackList(callbacks, model=self.model)
 
-        if self.strategy:
-            assert isinstance(ds_train, DistributedDataset)
-            assert isinstance(ds_val, DistributedDataset)
+        validate_dataset(self.strategy, ds_train, ds_val)
 
         train_it = iter(ds_train)
         val_it = iter(ds_val)
@@ -346,8 +348,7 @@ class Trainer:
 
     def evaluate(self, ds_test, test_steps):
 
-        if self.strategy:
-            assert isinstance(ds_test, DistributedDataset)
+        validate_dataset(self.strategy, ds_test)
         test_it = iter(ds_test)
 
         run_epoch(self._test_step, test_it, test_steps, self.test_metrics, "Test")
@@ -355,8 +356,7 @@ class Trainer:
     def evaluate2(self, ds_test, test_steps, metrics,
                   output_transform=tf.identity, target_transform=tf.identity, debug=False):
 
-        if self.strategy:
-            assert isinstance(ds_test, DistributedDataset)
+        validate_dataset(self.strategy, ds_test)
 
         test_it = iter(ds_test)
 
@@ -376,8 +376,7 @@ class Trainer:
 
     def collect(self, ds_test, test_steps, output_transform=tf.identity, target_transform=tf.identity):
 
-        if self.strategy:
-            assert isinstance(ds_test, DistributedDataset)
+        validate_dataset(self.strategy, ds_test)
         test_it = iter(ds_test)
 
         targets = []

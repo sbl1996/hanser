@@ -5,33 +5,54 @@ from tensorflow.keras.layers import Layer
 
 from hanser.models.darts.operations import FactorizedReduce, ReLUConvBN, OPS
 from hanser.models.darts.genotypes import get_primitives, Genotype
-from hanser.models.layers import Norm, Conv2d, GlobalAvgPool, Linear
+from hanser.models.layers import Norm, Conv2d, GlobalAvgPool, Linear, Pool2d
+
+
+def channel_shuffle(x, groups):
+    b, h, w, c = tf.shape(x)[0], x.shape[1], x.shape[2], x.shape[3]
+    channels_per_group = c // groups
+
+    x = tf.reshape(x, [b, h, w, groups, channels_per_group])
+    x = tf.transpose(x, [0, 1, 2, 4, 3])
+    x = tf.reshape(x, [b, h, w, c])
+    return x
 
 
 class MixedOp(Layer):
 
-    def __init__(self, C, stride, name):
+    def __init__(self, C, stride, k, name):
         super().__init__(name=name)
         self.stride = stride
+        self.mp = Pool2d(2, 2, type='max', name='pool')
+        self.k = k
         self._ops = []
+        self._channels = C // k
         for i, primitive in enumerate(get_primitives()):
             if 'pool' in primitive:
                 op = Sequential([
-                    OPS[primitive](C, stride, name='pool'),
-                    Norm(C, name='norm')
+                    OPS[primitive](self._channels, stride, name='pool'),
+                    Norm(self._channels, name='norm')
                 ], name=f'op{i+1}')
             else:
-                op = OPS[primitive](C, stride, name=f'op{i+1}')
+                op = OPS[primitive](self._channels, stride, name=f'op{i+1}')
             self._ops.append(op)
 
     def call(self, inputs):
-        x, weights = inputs
-        return tf.add_n([weights[i] * op(x) for i, op in enumerate(self._ops)])
+        x, alphas = inputs
+        x1 = x[:, :, :, :self._channels]
+        x2 = x[:, :, :, self._channels:]
+        x1 = tf.add_n([alphas[i] * op(x1) for i, op in enumerate(self._ops)])
+        if self.stride == 1:
+            x = tf.concat([x1, x2], axis=-1)
+        else:
+            x = tf.concat([x1, self.mp(x2)], axis=-1)
+        x = channel_shuffle(x, self.k)
+        return x
 
 
 class Cell(Layer):
 
-    def __init__(self, steps, multiplier, C_prev_prev, C_prev, C, reduction, reduction_prev, name):
+    def __init__(self, steps, multiplier, C_prev_prev, C_prev, C, reduction, reduction_prev, k, name):
         super().__init__(name=name)
         self.reduction = reduction
 
@@ -42,54 +63,47 @@ class Cell(Layer):
         self.preprocess1 = ReLUConvBN(C_prev, C, 1, 1, name='preprocess1')
         self._steps = steps
         self._multiplier = multiplier
-
         self._ops = []
         for i in range(self._steps):
             for j in range(2 + i):
                 stride = 2 if reduction and j < 2 else 1
-                op = MixedOp(C, stride, name=f'mixop_{j}_{i+2}')
+                op = MixedOp(C, stride, k, name=f'mixop_{j}_{i+2}')
                 self._ops.append(op)
-        self._num_ops = len(self._ops)
 
     def call(self, inputs):
-        s0, s1, weights = inputs
+        s0, s1, alphas, betas = inputs
         s0 = self.preprocess0(s0)
         s1 = self.preprocess1(s1)
-        s2 = tf.add_n([
-            self._ops[0]([s0, weights[0]]),
-            self._ops[1]([s1, weights[1]]),
-        ])
 
-        s3 = tf.add_n([
-            self._ops[2]([s0, weights[2]]),
-            self._ops[3]([s1, weights[3]]),
-            self._ops[4]([s2, weights[4]]),
-        ])
+        states = [s0, s1]
+        offset = 0
+        for i in range(self._steps):
+            s = tf.add_n([betas[offset + j] * self._ops[offset + j]([h, alphas[offset + j]]) for j, h in enumerate(states)])
+            offset += len(states)
+            states.append(s)
 
-        s4 = tf.add_n([
-            self._ops[5]([s0, weights[5]]),
-            self._ops[6]([s1, weights[6]]),
-            self._ops[7]([s2, weights[7]]),
-            self._ops[8]([s3, weights[8]]),
-        ])
+        return tf.concat(states[-self._multiplier:], axis=-1)
 
-        s5 = tf.add_n([
-            self._ops[9]([s0, weights[9]]),
-            self._ops[10]([s1, weights[10]]),
-            self._ops[11]([s2, weights[11]]),
-            self._ops[12]([s3, weights[12]]),
-            self._ops[13]([s4, weights[13]]),
-        ])
-        return tf.concat([s2, s3, s4, s5], axis=-1)
+
+def beta_softmax(betas, steps):
+    beta_list = []
+    offset = 0
+    for i in range(steps):
+        beta_list.append(
+            tf.nn.softmax(betas[offset:(offset + i + 2)], axis=0))
+        offset += i + 2
+    betas = tf.concat(beta_list, axis=0)
+    return betas
 
 
 class Network(Model):
 
-    def __init__(self, C, layers, steps=4, multiplier=4, stem_multiplier=3, num_classes=10):
+    def __init__(self, C=16, layers=8, steps=4, multiplier=4, stem_multiplier=3, k=4, num_classes=10):
         super().__init__(name='network')
         self._C = C
         self._steps = steps
         self._multiplier = multiplier
+        self._k = k
 
         C_curr = stem_multiplier * C
         self.stem = Conv2d(3, C_curr, 3, norm='default', name='stem')
@@ -103,15 +117,15 @@ class Network(Model):
                 reduction = True
             else:
                 reduction = False
-            cell = Cell(steps, multiplier, C_prev_prev, C_prev, C_curr, reduction, reduction_prev, name=f'cell{i}')
+            cell = Cell(steps, multiplier, C_prev_prev, C_prev, C_curr, reduction, reduction_prev, k, name=f'cell{i}')
             reduction_prev = reduction
-            self.cells += [cell]
+            self.cells.append(cell)
             C_prev_prev, C_prev = C_prev, multiplier * C_curr
 
         self.global_pool = GlobalAvgPool(name='global_pool')
         self.fc = Linear(C_prev, num_classes, name='fc')
 
-        k = sum(2 + i for i in range(4))
+        k = sum(2 + i for i in range(self._steps))
         num_ops = len(get_primitives())
         self.alphas_normal = self.add_weight(
             'alphas_normal', (k, num_ops), initializer=RandomNormal(stddev=1e-2), trainable=True,
@@ -120,33 +134,35 @@ class Network(Model):
             'alphas_reduce', (k, num_ops), initializer=RandomNormal(stddev=1e-2), trainable=True,
         )
 
+        self.betas_normal = self.add_weight(
+            'betas_normal', (k,), initializer=RandomNormal(stddev=1e-2), trainable=True,
+        )
+        self.betas_reduce = self.add_weight(
+            'betas_reduce', (k,), initializer=RandomNormal(stddev=1e-2), trainable=True,
+        )
+
     def call(self, x):
         s0 = s1 = self.stem(x)
-        weights_reduce = tf.nn.softmax(self.alphas_reduce, axis=-1)
-        weights_normal = tf.nn.softmax(self.alphas_normal, axis=-1)
+
+        alphas_reduce = tf.nn.softmax(self.alphas_reduce, axis=-1)
+        alphas_normal = tf.nn.softmax(self.alphas_normal, axis=-1)
+
+        betas_reduce = beta_softmax(self.betas_reduce, self._steps)
+        betas_normal = beta_softmax(self.betas_normal, self._steps)
+
         for cell in self.cells:
-            weights = weights_reduce if cell.reduction else weights_normal
-            s0, s1 = s1, cell([s0, s1, weights])
+            alphas = alphas_reduce if cell.reduction else alphas_normal
+            betas = betas_reduce if cell.reduction else betas_normal
+            s0, s1 = s1, cell([s0, s1, alphas, betas])
         x = self.global_pool(s1)
         logits = self.fc(x)
         return logits
-    #
-    # def build(self, input_shape):
-    #     k = sum(2 + i for i in range(4))
-    #     num_ops = len(get_primitives())
-    #     self.alphas_normal = self.add_weight(
-    #         'alphas_normal', (k, num_ops), initializer=RandomNormal(stddev=1e-2), trainable=True,
-    #     )
-    #     self.alphas_reduce = self.add_weight(
-    #         'alphas_reduce', (k, num_ops), initializer=RandomNormal(stddev=1e-2), trainable=True,
-    #     )
-    #     super().build(input_shape)
-
-    def arch_parameters(self):
-        return self.trainable_variables[-2:]
 
     def model_parameters(self):
-        return self.trainable_variables[:-2]
+        return self.trainable_variables[:-4]
+
+    def arch_parameters(self):
+        return self.trainable_variables[-4:]
 
     def genotype(self):
         PRIMITIVES = get_primitives()
@@ -158,22 +174,26 @@ class Network(Model):
                 i = max(range(len(PRIMITIVES)), key=lambda k: w[k])
             return w[i], PRIMITIVES[i]
 
-        def _parse(weights):
+        def _parse(alphas, betas):
             gene = []
-            n = 2
             start = 0
             for i in range(self._steps):
-                end = start + n
-                W = weights[start:end].copy()
+                end = start + i + 2
+                W = alphas[start:end] * betas[start:end]
                 edges = sorted(range(i + 2), key=lambda x: -get_op(W[x])[0])[:2]
                 for j in edges:
                     gene.append((get_op(W[j])[1], j))
                 start = end
-                n += 1
             return gene
 
-        gene_normal = _parse(tf.nn.softmax(self.alphas_normal, axis=-1).numpy())
-        gene_reduce = _parse(tf.nn.softmax(self.alphas_reduce, axis=-1).numpy())
+        gene_normal = _parse(
+            tf.nn.softmax(self.alphas_normal, axis=-1).numpy(),
+            beta_softmax(self.betas_normal, self._steps).numpy(),
+        )
+        gene_reduce = _parse(
+            tf.nn.softmax(self.alphas_reduce, axis=-1).numpy(),
+            beta_softmax(self.betas_reduce, self._steps).numpy(),
+        )
 
         concat = range(2 + self._steps - self._multiplier, self._steps + 2)
         genotype = Genotype(
@@ -181,3 +201,4 @@ class Network(Model):
             reduce=gene_reduce, reduce_concat=concat
         )
         return genotype
+

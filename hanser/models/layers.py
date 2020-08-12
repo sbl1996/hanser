@@ -14,7 +14,7 @@ from hanser.models.pooling import MaxPooling2D as MaxPool2D, AveragePooling2D as
 from hanser.models.conv import DepthwiseConv2D
 from hanser.models.bn import BatchNormalization, SyncBatchNormalization
 
-__all__ = ["set_default", "Act", "Conv2d", "Norm", "Linear", "GlobalAvgPool", "Pool2d"]
+__all__ = ["set_default", "set_defaults", "Act", "Conv2d", "Norm", "Linear", "GlobalAvgPool", "Pool2d"]
 
 DEFAULTS = {
     'tpu': False,
@@ -28,7 +28,6 @@ DEFAULTS = {
     },
     'activation': 'relu',
     'norm': 'bn',
-    'fp16': False,
     'init': {
         'type': 'msra',
         'mode': 'fan_in',
@@ -53,7 +52,6 @@ _defaults_schema = {
     },
     'activation': {'type': 'string', 'allowed': ['relu', 'swish', 'mish']},
     'norm': {'type': 'string', 'allowed': ['bn']},
-    'fp16': {'type': 'boolean'},
     'init': {
         'type': {'type': 'string', 'allowed': ['msra', 'normal']},
         'mode': {'type': 'string', 'allowed': ['fan_in', 'fan_out']},
