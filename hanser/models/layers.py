@@ -215,7 +215,7 @@ def Conv2d(in_channels: int,
         return conv
 
     if not (norm or act):
-        if padding[0] != 0:
+        if padding != (0, 0):
             conv = Sequential([
                 ZeroPadding2D(padding, name='conv_pad'),
                 make_conv("conv"),
@@ -224,7 +224,7 @@ def Conv2d(in_channels: int,
             conv = make_conv(name)
         return conv
     else:
-        if padding[0] != 0:
+        if padding != (0, 0):
             conv = Sequential([
                 ZeroPadding2D(padding, name='conv_pad'),
                 make_conv("conv"),

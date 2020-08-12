@@ -13,7 +13,7 @@ from hanser.datasets import prepare
 from hanser.datasets.cifar import load_cifar10_tfds
 from hanser.transform import random_crop, cutout, normalize, to_tensor, random_apply2, mixup, cutmix
 
-from hanser.models.cifar.general_darts import DARTS
+from hanser.models.cifar.general_nasnet import NASNet
 from hanser.models.darts.genotypes import Genotype
 from hanser.models.layers import set_defaults
 from hanser.train.trainer import Trainer
@@ -69,6 +69,26 @@ if strategy:
     ds_train_dist = strategy.experimental_distribute_dataset(ds_train)
     ds_test_dist = strategy.experimental_distribute_dataset(ds_test)
 
+AmoebaNet_A = Genotype(
+    normal=[
+        ('avg_pool_3x3', 0), ('max_pool_3x3', 1),
+        ('sep_conv_3x3', 0), ('sep_conv_5x5', 2),
+        ('sep_conv_3x3', 0), ('avg_pool_3x3', 3),
+        ('sep_conv_3x3', 1), ('skip_connect', 1),
+        ('skip_connect', 0), ('avg_pool_3x3', 1),
+    ],
+    normal_concat=[4, 5, 6],
+    reduce=[
+        ('avg_pool_3x3', 0), ('sep_conv_3x3', 1),
+        ('max_pool_3x3', 0), ('sep_conv_7x7', 2),
+        ('sep_conv_7x7', 0), ('avg_pool_3x3', 1),
+        ('max_pool_3x3', 0), ('max_pool_3x3', 1),
+        ('conv_7x1_1x7', 0), ('sep_conv_3x3', 5),
+    ],
+    reduce_concat=[3, 4, 6]
+)
+
+
 PDARTS = Genotype(
     normal=[
         ('skip_connect', 0), ('dil_conv_3x3', 1),
@@ -88,7 +108,7 @@ set_defaults({
     'weight_decay': 3e-4
 })
 drop_path = 0.2
-model = DARTS(4, 5, True, drop_path, 10, PDARTS)
+model = NASNet(32, 20, True, drop_path, 10, AmoebaNet_A)
 model.build((None, 32, 32, 3))
 model.call(tf.keras.layers.Input((32, 32, 3)))
 model.summary()
