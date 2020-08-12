@@ -179,7 +179,7 @@ class Network(Model):
             start = 0
             for i in range(self._steps):
                 end = start + i + 2
-                W = alphas[start:end] * betas[start:end]
+                W = alphas[start:end] * betas[start:end, None]
                 edges = sorted(range(i + 2), key=lambda x: -get_op(W[x])[0])[:2]
                 for j in edges:
                     gene.append((get_op(W[j])[1], j))

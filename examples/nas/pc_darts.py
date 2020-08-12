@@ -114,7 +114,6 @@ trainer = Trainer(model, criterion, optimizer_arch, optimizer_model,
 
 
 from hanser.io import time_now
-
 print(time_now())
 trainer.fit(epochs, ds_train, ds_search, steps_per_epoch, ds_test, test_steps,
             val_freq=5, epochs_model_only=15)
