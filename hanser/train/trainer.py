@@ -16,6 +16,14 @@ def identity(x):
     return x
 
 
+def strategy_run(strategy, fn, args):
+    if strategy is not None:
+        return strategy.run(fn, args=args)
+    else:
+        return fn(*args)
+
+
+
 def join_metric_logs(results, delim=" - "):
     logs = []
     for k, v in results:
@@ -134,109 +142,58 @@ class Trainer:
             ckpt, directory=self.model_dir + "/" + name, max_to_keep=1)
         return ckpt, ckpt_manager
 
+    def _train_step_fn(self, data):
+        inputs, target = data
+        with tf.GradientTape() as tape:
+            preds = self.model(inputs, training=True)
+            if self.bfloat16:
+                preds = cast_fp32(preds)
+            per_example_loss = self.criterion(target, preds)
+            loss = tf.reduce_mean(per_example_loss)
+            if self._use_weight_decay:
+                loss = loss + tf.add_n(self.model.losses)
+            if self.strategy:
+                loss = loss / self.strategy.num_replicas_in_sync
+        grads = tape.gradient(loss, self.model.trainable_variables)
+        if self.grad_clip_norm:
+            grads = tf.clip_by_global_norm(grads, self.grad_clip_norm)[0]
+        self.optimizer.apply_gradients(
+            zip(grads, self.model.trainable_variables))
+
+        preds = self.metric_transform(preds)
+        for metric in self.metrics:
+            if 'loss' in metric.name:
+                metric.update_state(per_example_loss)
+            else:
+                metric.update_state(target, preds, None)
+
     @tf.function
     def _train_step(self, iterator):
-
-        def step_fn(data):
-            inputs, target = data
-            with tf.GradientTape() as tape:
-                preds = self.model(inputs, training=True)
-                if self.bfloat16:
-                    preds = cast_fp32(preds)
-                per_example_loss = self.criterion(target, preds)
-                loss = tf.reduce_mean(per_example_loss)
-                if self._use_weight_decay:
-                    loss = loss + tf.add_n(self.model.losses)
-                if self.strategy:
-                    loss = loss / self.strategy.num_replicas_in_sync
-            grads = tape.gradient(loss, self.model.trainable_variables)
-            if self.grad_clip_norm:
-                grads = tf.clip_by_global_norm(grads, self.grad_clip_norm)[0]
-            self.optimizer.apply_gradients(
-                zip(grads, self.model.trainable_variables))
-
-            preds = self.metric_transform(preds)
-            for metric in self.metrics:
-                if 'loss' in metric.name:
-                    metric.update_state(per_example_loss)
-                else:
-                    metric.update_state(target, preds, None)
-
-        if self.strategy:
-            self.strategy.run(step_fn, args=(next(iterator),))
-        else:
-            step_fn(next(iterator))
+        strategy_run(self.strategy, self._train_step_fn, (next(iterator),))
 
     @tf.function
     def _train_multiple_steps(self, iterator, steps):
-
-        def step_fn(data):
-            inputs, target = data
-            with tf.GradientTape() as tape:
-                preds = self.model(inputs, training=True)
-                if self.bfloat16:
-                    preds = cast_fp32(preds)
-                per_example_loss = self.criterion(target, preds)
-                loss = tf.reduce_mean(per_example_loss)
-                if self._use_weight_decay:
-                    loss = loss + tf.add_n(self.model.losses)
-                if self.strategy:
-                    loss = loss / self.strategy.num_replicas_in_sync
-            grads = tape.gradient(loss, self.model.trainable_variables)
-            if self.grad_clip_norm:
-                grads = tf.clip_by_global_norm(grads, self.grad_clip_norm)[0]
-            self.optimizer.apply_gradients(
-                zip(grads, self.model.trainable_variables))
-
-            preds = self.metric_transform(preds)
-            for metric in self.metrics:
-                if 'loss' in metric.name:
-                    metric.update_state(per_example_loss)
-                else:
-                    metric.update_state(target, preds, None)
-
         for _ in tf.range(steps):
-            if self.strategy:
-                self.strategy.run(step_fn, args=(next(iterator),))
-            else:
-                step_fn(next(iterator))
+            strategy_run(self.strategy, self._train_step_fn, (next(iterator),))
+
+    def _test_step_fn(self, data):
+        inputs, target = data
+        preds = self.model(inputs, training=False)
+        if self.bfloat16:
+            preds = cast_fp32(preds)
+
+        preds = self.metric_transform(preds)
+        for metric in self.test_metrics:
+            metric.update_state(target, preds, None)
 
     @tf.function
     def _test_step(self, iterator):
-
-        def step_fn(data):
-            inputs, target = data
-            preds = self.model(inputs, training=False)
-            if self.bfloat16:
-                preds = cast_fp32(preds)
-
-            preds = self.metric_transform(preds)
-            for metric in self.test_metrics:
-                metric.update_state(target, preds, None)
-
-        if self.strategy:
-            self.strategy.run(step_fn, args=(next(iterator),))
-        else:
-            step_fn(next(iterator))
+        strategy_run(self.strategy, self._test_step_fn, (next(iterator),))
 
     @tf.function
     def _test_multiple_steps(self, iterator, steps):
-
-        def step_fn(data):
-            inputs, target = data
-            preds = self.model(inputs, training=False)
-            if self.bfloat16:
-                preds = cast_fp32(preds)
-
-            preds = self.metric_transform(preds)
-            for metric in self.test_metrics:
-                metric.update_state(target, preds, None)
-
         for _ in tf.range(steps):
-            if self.strategy:
-                self.strategy.run(step_fn, args=(next(iterator),))
-            else:
-                step_fn(next(iterator))
+            strategy_run(self.strategy, self._test_step_fn, (next(iterator),))
 
     @tf.function
     def _predict_step(self, iterator, debug=False):

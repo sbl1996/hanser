@@ -1,10 +1,9 @@
 import tensorflow as tf
-from tensorflow.python.distribute.input_lib import DistributedDataset
 from tensorflow.python.keras.callbacks import CallbackList
 
 from hanser.tpu import local_results
 from hanser.train.trainer import misc_concat, cast_fp32, parse_strategy, is_global_bfloat16, identity, validate_dataset, \
-    print_results
+    print_results, strategy_run
 
 
 def run_epoch(step_fn, args, steps, metrics, stage="Train"):
@@ -39,67 +38,77 @@ class Trainer:
         self.bfloat16 = is_global_bfloat16()
         self._epoch = tf.Variable(0, trainable=False)
 
+    def _train_arch_step_fn(self, input_search, target_search):
+        arch_parameters = self.model.arch_parameters()
+        with tf.GradientTape(watch_accessed_variables=False) as tape:
+            tape.watch(arch_parameters)
+            logits = self.model(input_search, training=False)
+            if self.bfloat16:
+                logits = cast_fp32(logits)
+            per_example_loss = self.criterion(target_search, logits)
+            loss = tf.reduce_mean(per_example_loss)
+
+            if self.arch_weight_decay:
+                loss = loss + self.arch_weight_decay * tf.add_n([
+                    tf.nn.l2_loss(v)
+                    for v in arch_parameters
+                ])
+            if self.strategy:
+                loss = loss / self.strategy.num_replicas_in_sync
+
+        grads = tape.gradient(loss, arch_parameters)
+        self.optimizer_arch.apply_gradients(zip(grads, arch_parameters))
+
+    def _train_model_step_fn(self, input, target):
+        model_parameters = self.model.model_parameters()
+        with tf.GradientTape(watch_accessed_variables=False) as tape:
+            tape.watch(model_parameters)
+            logits = self.model(input, training=True)
+            if self.bfloat16:
+                logits = cast_fp32(logits)
+            per_example_loss = self.criterion(target, logits)
+            loss = tf.reduce_mean(per_example_loss)
+
+            if self.model_weight_decay:
+                loss = loss + self.model_weight_decay * tf.add_n([
+                    tf.nn.l2_loss(v)
+                    for v in model_parameters
+                ])
+            if self.strategy:
+                loss = loss / self.strategy.num_replicas_in_sync
+
+        grads = tape.gradient(loss, model_parameters)
+        if self.grad_clip_norm:
+            grads = tf.clip_by_global_norm(grads, self.grad_clip_norm)[0]
+        self.optimizer_model.apply_gradients(zip(grads, model_parameters))
+
+        preds = self.metric_transform(logits)
+        for metric in self.metrics:
+            if 'loss' in metric.name:
+                metric.update_state(per_example_loss)
+            else:
+                metric.update_state(target, preds, None)
+
     @tf.function
-    def _train_step(self, train_it, search_it, model_only):
+    def _train_model_step(self, train_it):
+
+        def step_fn(data):
+            input, target = data
+            self._train_model_step_fn(input, target)
+
+        strategy_run(self.strategy, step_fn, (train_it,))
+
+    @tf.function
+    def _train_step(self, train_it, search_it):
 
         def step_fn(data, data_search):
-            input, target = data
             input_search, target_search = data_search
+            self._train_arch_step_fn(input_search, target_search)
 
-            if not model_only:
-                arch_parameters = self.model.arch_parameters()
-                with tf.GradientTape(watch_accessed_variables=False) as tape:
-                    tape.watch(arch_parameters)
-                    logits = self.model(input_search, training=False)
-                    if self.bfloat16:
-                        logits = cast_fp32(logits)
-                    per_example_loss = self.criterion(target_search, logits)
-                    loss = tf.reduce_mean(per_example_loss)
+            input, target = data
+            self._train_model_step_fn(input, target)
 
-                    if self.arch_weight_decay:
-                        loss = loss + self.arch_weight_decay * tf.add_n([
-                            tf.nn.l2_loss(v)
-                            for v in arch_parameters
-                        ])
-                    if self.strategy:
-                        loss = loss / self.strategy.num_replicas_in_sync
-
-                grads = tape.gradient(loss, arch_parameters)
-                self.optimizer_arch.apply_gradients(zip(grads, arch_parameters))
-
-            model_parameters = self.model.model_parameters()
-            with tf.GradientTape(watch_accessed_variables=False) as tape:
-                tape.watch(model_parameters)
-                logits = self.model(input, training=True)
-                if self.bfloat16:
-                    logits = cast_fp32(logits)
-                per_example_loss = self.criterion(target, logits)
-                loss = tf.reduce_mean(per_example_loss)
-
-                if self.model_weight_decay:
-                    loss = loss + self.model_weight_decay * tf.add_n([
-                        tf.nn.l2_loss(v)
-                        for v in model_parameters
-                    ])
-                if self.strategy:
-                    loss = loss / self.strategy.num_replicas_in_sync
-
-            grads = tape.gradient(loss, model_parameters)
-            if self.grad_clip_norm:
-                grads = tf.clip_by_global_norm(grads, self.grad_clip_norm)[0]
-            self.optimizer_model.apply_gradients(zip(grads, model_parameters))
-
-            preds = self.metric_transform(logits)
-            for metric in self.metrics:
-                if 'loss' in metric.name:
-                    metric.update_state(per_example_loss)
-                else:
-                    metric.update_state(target, preds, None)
-
-        if self.strategy:
-            self.strategy.run(step_fn, args=(next(train_it), next(search_it)))
-        else:
-            step_fn(next(train_it), next(search_it))
+        strategy_run(self.strategy, step_fn, args=(next(train_it), next(search_it)))
 
     @tf.function
     def _test_step(self, iterator):
@@ -114,10 +123,7 @@ class Trainer:
             for metric in self.test_metrics:
                 metric.update_state(target, preds, None)
 
-        if self.strategy:
-            self.strategy.run(step_fn, args=(next(iterator),))
-        else:
-            step_fn(next(iterator))
+        strategy_run(self.strategy, step_fn, (next(iterator,)))
 
     @tf.function
     def _predict_step(self, iterator, debug=False):
@@ -156,9 +162,9 @@ class Trainer:
 
             callbacks.on_epoch_begin(epoch)
             if epochs_model_only and epoch < epochs_model_only:
-                run_epoch(self._train_step, (train_it, search_it, True), steps_per_epoch, self.metrics, "Train")
+                run_epoch(self._train_model_step, (train_it,), steps_per_epoch, self.metrics, "Train")
             else:
-                run_epoch(self._train_step, (train_it, search_it, False), steps_per_epoch, self.metrics, "Train")
+                run_epoch(self._train_step, (train_it, search_it), steps_per_epoch, self.metrics, "Train")
             callbacks.on_epoch_end(epoch)
 
             epoch = self._epoch.assign_add(1).numpy()
@@ -177,8 +183,7 @@ class Trainer:
 
     def collect(self, ds_test, test_steps, output_transform=tf.identity, target_transform=tf.identity):
 
-        if self.strategy:
-            assert isinstance(ds_test, DistributedDataset)
+        validate_dataset(self.strategy, ds_test)
         test_it = iter(ds_test)
 
         targets = []

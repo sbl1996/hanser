@@ -122,7 +122,7 @@ SETN = Genotype(
 )
 
 """====== Different Archirtecture By Other Methods"""
-# 608M, 3.3M, 2.65
+# 3.3M, 2.65
 NASNet_A = Genotype(
     normal=[
         ('sep_conv_5x5', 1), ('sep_conv_3x3', 0),
@@ -160,6 +160,27 @@ AmoebaNet_A = Genotype(
     ],
     reduce_concat=[3, 4, 6]
 )
+
+
+AmoebaNet_B = Genotype(
+    normal=[
+        ('sep_conv_3x3', 0), ('skip_connect', 1),
+        ('max_pool_3x3', 1), ('nor_conv_1x1', 1),
+        ('sep_conv_3x3', 0), ('nor_conv_1x1', 1),
+        ('skip_connect', 3), ('nor_conv_1x1', 3),
+        ('avg_pool_3x3', 1), ('nor_conv_1x1', 5),
+    ],
+    normal_concat=[2, 4, 6],
+    reduce=[
+        ('max_pool_2x2', 0), ('max_pool_3x3', 0),
+        ('dil_conv_5x5', 2), ('max_pool_3x3', 2),
+        ('skip_connect', 2), ('nor_conv_3x3', 1),
+        ('avg_pool_3x3', 3), ('nor_conv_1x1', 4),
+        ('skip_connect', 4), ('sep_conv_3x3', 1),
+    ],
+    reduce_concat=[5, 6]
+)
+
 
 # https://arxiv.org/pdf/1802.03268.pdf
 # 627M, 4.02M

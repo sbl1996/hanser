@@ -12,40 +12,31 @@ import tensorflow.keras.mixed_precision.experimental as mixed_precision
 from hanser.tpu import get_colab_tpu
 from hanser.datasets import prepare
 from hanser.datasets.cifar import load_cifar10
-from hanser.transform import random_crop, cutout, normalize, to_tensor, random_apply2, mixup, cutmix
-from hanser.transform.autoaugment import autoaugment
+from hanser.transform import random_crop, cutout, normalize, to_tensor
 
-from hanser.models.cifar.pyramidnext import PyramidNeXt
+from hanser.models.cifar.general_nasnet import NASNet
+from hanser.models.darts.genotypes import Genotype
 from hanser.models.layers import set_defaults
 from hanser.train.trainer import Trainer
 from hanser.train.lr_schedule import CosineLR
 from hanser.losses import CrossEntropy
 
+
 @curry
 def transform(image, label, training):
-
     if training:
         image = random_crop(image, (32, 32), (4, 4))
         image = tf.image.random_flip_left_right(image)
-        image = autoaugment(image, "CIFAR10")
 
     image, label = to_tensor(image, label)
     image = normalize(image, [0.4914, 0.4822, 0.4465], [0.2470, 0.2435, 0.2616])
 
     label = tf.one_hot(label, 10)
     # image = tf.cast(image, tf.bfloat16)
-    # if training:
-    #     image = cutout(image, 16)
+    if training:
+        image = cutout(image, 16)
 
     return image, label
-
-
-def zip_transform(data1, data2):
-    return tf.cond(
-        tf.random.uniform(()) < 0.5,
-        lambda: cutmix(data1, data2, beta=1.0),
-        lambda: data1,
-    )
 
 
 (x_train, y_train), (x_test, y_test) = load_cifar10()
@@ -63,8 +54,7 @@ test_steps = math.ceil(num_test_examples / eval_batch_size)
 ds = tf.data.Dataset.from_tensor_slices((x_train, y_train))
 ds_test = tf.data.Dataset.from_tensor_slices((x_test, y_test))
 
-ds_train = prepare(ds, batch_size, transform(training=True), training=True, buffer_size=10000,
-                   zip_transform=zip_transform)
+ds_train = prepare(ds, batch_size, transform(training=True), training=True, buffer_size=10000)
 ds_test = prepare(ds_test, eval_batch_size, transform(training=False), training=False)
 
 strategy = get_colab_tpu()
@@ -76,16 +66,39 @@ if strategy:
     ds_train_dist = strategy.experimental_distribute_dataset(ds_train)
     ds_test_dist = strategy.experimental_distribute_dataset(ds_test)
 
+
+AmoebaNet_A = Genotype(
+    normal=[
+        ('avg_pool_3x3', 0), ('max_pool_3x3', 1),
+        ('sep_conv_3x3', 0), ('sep_conv_5x5', 2),
+        ('sep_conv_3x3', 0), ('avg_pool_3x3', 3),
+        ('sep_conv_3x3', 1), ('skip_connect', 1),
+        ('skip_connect', 0), ('avg_pool_3x3', 1),
+    ],
+    normal_concat=[4, 5, 6],
+    reduce=[
+        ('avg_pool_3x3', 0), ('sep_conv_3x3', 1),
+        ('max_pool_3x3', 0), ('sep_conv_7x7', 2),
+        ('sep_conv_7x7', 0), ('avg_pool_3x3', 1),
+        ('max_pool_3x3', 0), ('max_pool_3x3', 1),
+        ('conv_7x1_1x7', 0), ('sep_conv_3x3', 5),
+    ],
+    reduce_concat=[3, 4, 6]
+)
+
 set_defaults({
-    'weight_decay': 1e-4
+    'weight_decay': 5e-4
 })
-drop_path = 0.2
-model = PyramidNeXt(4, 16 - 4, 20, 1, True, drop_path=drop_path, use_aux_head=True)
-model.build((None, 32, 32, 3))
+drop_path = 0.6
+# model = NASNet(36, 20, True, drop_path, 10, AmoebaNet_A)
+model = NASNet(4, 5, True, drop_path, 10, AmoebaNet_A)
+# model.build((None, 32, 32, 3))
+# model.call(tf.keras.layers.Input((32, 32, 3)))
+# model.summary()
 
 criterion = CrossEntropy(auxiliary_weight=0.4)
 
-base_lr = 0.1
+base_lr = 0.025
 epochs = 600
 lr_shcedule = CosineLR(base_lr * mul, steps_per_epoch, epochs=epochs,
                        min_lr=0, warmup_min_lr=base_lr, warmup_epoch=10)
@@ -97,10 +110,12 @@ test_metrics = [
 metric_transform = lambda x: x[0]
 
 trainer = Trainer(model, criterion, optimizer, metrics, test_metrics,
-                  metric_transform=metric_transform, multiple_steps=True)
+                  grad_clip_norm=5.0, metric_transform=metric_transform,
+                  multiple_steps=True)
 
 
 class DropPathRateSchedule(Callback):
+
     def on_epoch_begin(self, epoch, logs=None):
         rate = epoch / epochs * drop_path
         for l in model.submodules:
@@ -108,5 +123,5 @@ class DropPathRateSchedule(Callback):
                 l.rate = rate
 
 
-# trainer.fit(epochs, ds_train_dist, steps_per_epoch, ds_test_dist, test_steps, val_freq=5)
-trainer.fit(epochs, ds_train, steps_per_epoch, ds_test, test_steps, val_freq=5)
+trainer.fit(epochs, ds_train, steps_per_epoch, ds_test, test_steps, val_freq=5,
+            callbacks=[DropPathRateSchedule()])
