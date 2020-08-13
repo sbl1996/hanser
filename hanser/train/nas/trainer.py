@@ -1,8 +1,7 @@
 import tensorflow as tf
 from tensorflow.python.keras.callbacks import CallbackList
 
-from hanser.tpu import local_results
-from hanser.train.trainer import misc_concat, cast_fp32, parse_strategy, is_global_bfloat16, identity, validate_dataset, \
+from hanser.train.trainer import cast_fp32, parse_strategy, is_global_bfloat16, identity, validate_dataset, \
     print_results, strategy_run
 
 
@@ -125,22 +124,6 @@ class Trainer:
 
         strategy_run(self.strategy, step_fn, (next(iterator,)))
 
-    @tf.function
-    def _predict_step(self, iterator, debug=False):
-
-        def step_fn(data):
-            inputs, target = data
-            output = self.model(inputs, training=debug)
-            if self.bfloat16:
-                output = cast_fp32(output)
-            return target, output
-
-        if self.strategy:
-            return local_results(
-                self.strategy, self.strategy.run(step_fn, args=(next(iterator),)))
-        else:
-            return step_fn(next(iterator))
-
     def fit(self, epochs, ds_train, ds_search, steps_per_epoch,
             ds_val, val_steps, val_freq=0, epochs_model_only=0,
             callbacks=None):
@@ -180,25 +163,3 @@ class Trainer:
         test_it = iter(ds_test)
 
         run_epoch(self._test_step, test_it, test_steps, self.test_metrics, "Test")
-
-    def collect(self, ds_test, test_steps, output_transform=tf.identity, target_transform=tf.identity):
-
-        validate_dataset(self.strategy, ds_test)
-        test_it = iter(ds_test)
-
-        targets = []
-        outputs = []
-
-        for step in range(test_steps):
-            target, output = self._predict_step(test_it)
-
-            targets.append(target)
-            outputs.append(output)
-
-        target = misc_concat(targets)
-        output = misc_concat(outputs)
-
-        output = output_transform(output)
-        target = target_transform(target)
-
-        return target, output

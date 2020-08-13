@@ -12,11 +12,11 @@ import tensorflow.keras.mixed_precision.experimental as mixed_precision
 from hanser.tpu import get_colab_tpu
 from hanser.datasets import prepare
 from hanser.datasets.cifar import load_cifar10
-from hanser.transform import random_crop, cutout, normalize, to_tensor
+from hanser.transform import random_crop, normalize, to_tensor
 
 from hanser.models.layers import set_defaults
-from hanser.models.darts.model_search_pc_darts import Network
-from hanser.models.darts.genotypes import set_primitives
+from hanser.models.nas.darts.model_search_pc_darts import Network
+from hanser.models.nas.genotypes import set_primitives
 from hanser.train.nas.trainer import Trainer
 from hanser.train.lr_schedule import CosineLR
 from hanser.losses import CrossEntropy
@@ -54,6 +54,8 @@ n_test = len(x_test)
 x_search, y_search = x_train[n_search:], y_train[n_search:]
 x_train, y_train = x_train[:n_train], y_train[:n_train]
 
+# mul = 8
+# batch_size = 128 * mul
 mul = 1
 batch_size = 4 * mul
 eval_batch_size = batch_size * 2
@@ -96,7 +98,7 @@ model.build((None, *input_shape))
 
 criterion = CrossEntropy()
 
-base_lr = 0.1
+base_lr = 0.05
 epochs = 50
 
 optimizer_arch = Adam(6e-4, beta_1=0.5)
@@ -112,7 +114,9 @@ test_metrics = [
 
 
 trainer = Trainer(model, criterion, optimizer_arch, optimizer_model,
-                  metrics, test_metrics, 5.0, 1e-3, 3e-4)
+                  metrics, test_metrics, grad_clip_norm=5.0,
+                  arch_weight_decay=1e-3, model_weight_decay=3e-4)
+
 
 class PrintGenotype(Callback):
     def on_epoch_end(self, epoch, logs=None):

@@ -8,6 +8,14 @@ PRIMITIVES_tiny = [
     'sep_conv_3x3',
 ]
 
+PRIMITIVES_nas_bench_201 = [
+    'none',
+    'skip_connect',
+    'nor_conv_1x1',
+    'nor_conv_3x3',
+    'avg_pool_3x3',
+]
+
 PRIMITIVES_small = [
     'max_pool_3x3',
     'avg_pool_3x3',
@@ -490,17 +498,3 @@ DCO_EDGE_BS_64 = Genotype(
         ('dil_conv_3x3', 5, 4), ('skip_connect', 5, 4)],
     reduce_concat=[2, 3, 4, 5]
 )
-
-
-# This function will return a Genotype from a dict.
-def build_genotype_from_dict(xdict):
-    def remove_value(nodes):
-        return [tuple([(x[0], x[1]) for x in node]) for node in nodes]
-
-    genotype = Genotype(
-        normal=remove_value(xdict['normal']),
-        normal_concat=xdict['normal_concat'],
-        reduce=remove_value(xdict['reduce']),
-        reduce_concat=xdict['reduce_concat'],
-    )
-    return genotype

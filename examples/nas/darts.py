@@ -15,8 +15,8 @@ from hanser.datasets.cifar import load_cifar10
 from hanser.transform import random_crop, cutout, normalize, to_tensor
 
 from hanser.models.layers import set_defaults
-from hanser.models.darts.model_search import Network
-from hanser.models.darts.genotypes import set_primitives
+from hanser.models.nas.darts.model_search import Network
+from hanser.models.nas.genotypes import set_primitives
 from hanser.train.nas.trainer import Trainer
 from hanser.train.lr_schedule import CosineLR
 from hanser.losses import CrossEntropy
@@ -35,8 +35,8 @@ def transform(image, label, training):
 
     label = tf.one_hot(label, 10)
     # image = tf.cast(image, tf.bfloat16)
-    # if training:
-        # image = cutout(image, 16)
+    if training:
+        image = cutout(image, 16)
 
     return image, label
 
@@ -54,6 +54,8 @@ n_test = len(x_test)
 x_search, y_search = x_train[n_search:], y_train[n_search:]
 x_train, y_train = x_train[:n_train], y_train[:n_train]
 
+# mul = 8
+# batch_size = 128 * mul
 mul = 1
 batch_size = 4 * mul
 eval_batch_size = batch_size * 2
@@ -112,13 +114,14 @@ test_metrics = [
 
 
 trainer = Trainer(model, criterion, optimizer_arch, optimizer_model,
-                  metrics, test_metrics, 5.0, 1e-3, 3e-4)
+                  metrics, test_metrics, grad_clip_norm=5.0,
+                  arch_weight_decay=1e-3, model_weight_decay=3e-4 * 27)
 
 
 class DropPathRateSchedule(Callback):
 
     def on_epoch_begin(self, epoch, logs=None):
-        rate = (epoch + 1) / epochs * drop_path
+        rate = epoch / epochs * drop_path
         for l in model.submodules:
             if 'drop' in l.name:
                 l.rate = rate

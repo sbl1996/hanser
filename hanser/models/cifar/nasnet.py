@@ -4,10 +4,10 @@ import tensorflow as tf
 from tensorflow.keras import Model, Sequential
 from tensorflow.keras.layers import Layer
 
-from hanser.models.darts.genotypes import Genotype
+from hanser.models.nas.genotypes import Genotype
 from hanser.models.modules import DropPath
 from hanser.models.layers import Conv2d, Pool2d, GlobalAvgPool, Act, Linear
-from hanser.models.darts.operations import FactorizedReduce, ReLUConvBN, OPS
+from hanser.models.nas.operations import FactorizedReduce, ReLUConvBN, OPS
 
 
 def standardize(genotype: Genotype):

@@ -3,8 +3,8 @@ from tensorflow.keras import Sequential, Model
 from tensorflow.keras.initializers import RandomNormal
 from tensorflow.keras.layers import Layer
 
-from hanser.models.darts.operations import FactorizedReduce, ReLUConvBN, OPS
-from hanser.models.darts.genotypes import get_primitives, Genotype
+from hanser.models.nas.operations import FactorizedReduce, ReLUConvBN, OPS
+from hanser.models.nas.genotypes import get_primitives, Genotype
 from hanser.models.layers import Norm, Conv2d, GlobalAvgPool, Linear, Pool2d
 
 

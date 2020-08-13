@@ -14,8 +14,8 @@ from hanser.datasets import prepare
 from hanser.datasets.cifar import load_cifar10
 from hanser.transform import random_crop, cutout, normalize, to_tensor
 
-from hanser.models.cifar.general_darts import DARTS
-from hanser.models.darts.genotypes import Genotype
+from hanser.models.cifar.general_nasnet import NASNet
+from hanser.models.nas.genotypes import Genotype
 from hanser.models.layers import set_defaults
 from hanser.train.trainer import Trainer
 from hanser.train.lr_schedule import CosineLR
@@ -87,7 +87,7 @@ set_defaults({
 })
 drop_path = 0.2
 # model = DARTS(36, 20, True, drop_path, 10, PDARTS)
-model = DARTS(4, 5, True, drop_path, 10, PDARTS)
+model = NASNet(4, 5, True, drop_path, 10, PDARTS)
 # model.build((None, 32, 32, 3))
 # model.call(tf.keras.layers.Input((32, 32, 3)))
 # model.summary()

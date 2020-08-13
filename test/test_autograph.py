@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from hanser.models.darts.operations import FactorizedReduce, ReLUConvBN, OPS
+from hanser.models.nas.operations import OPS
 
 ops = [
     OPS["skip_connect"](16, 1, "op1"),
