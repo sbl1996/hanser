@@ -14,7 +14,7 @@ from hanser.datasets import prepare
 from hanser.datasets.cifar import load_cifar10
 from hanser.transform import random_crop, cutout, normalize, to_tensor
 
-from hanser.models.cifar.general_nasnet import NASNet
+from hanser.models.cifar.nasnet import NASNet
 from hanser.models.nas.genotypes import Genotype
 from hanser.models.layers import set_defaults
 from hanser.train.trainer import Trainer

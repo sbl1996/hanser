@@ -20,6 +20,7 @@ OPS = {
         Norm(C, name='norm'),
     ], name=name),
     'nor_conv_1x1': lambda C, stride, name: ReLUConvBN(C, C, 1, stride, name=name),
+    'nor_conv_3x3': lambda C, stride, name: ReLUConvBN(C, C, 3, stride, name=name),
     'max_pool_2x2': lambda C, stride, name: Pool2d(2, stride=stride, type='max', name=name),
 }
 

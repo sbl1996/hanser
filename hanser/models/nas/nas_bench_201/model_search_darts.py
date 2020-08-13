@@ -4,8 +4,8 @@ from tensorflow.keras.initializers import RandomNormal
 from tensorflow.keras.layers import Layer
 
 from hanser.models.nas.operations import ReLUConvBN, OPS
-from hanser.models.nas.genotypes import get_primitives, Genotype
-from hanser.models.layers import Norm, Conv2d, GlobalAvgPool, Linear
+from hanser.models.nas.genotypes import get_primitives
+from hanser.models.layers import Norm, Conv2d, GlobalAvgPool, Linear, Pool2d, Act
 from hanser.models.modules import DropPath
 
 
@@ -28,9 +28,9 @@ class MixedOp(Layer):
                     op = Sequential([
                         OPS[primitive](C, stride, name='pool'),
                         Norm(C, name='norm')
-                    ], name=f'op{i+1}')
+                    ], name=f'op{i + 1}')
                 else:
-                    op = OPS[primitive](C, stride, name=f'op{i+1}')
+                    op = OPS[primitive](C, stride, name=f'op{i + 1}')
             self._ops.append(op)
 
     def call(self, inputs):
@@ -40,17 +40,15 @@ class MixedOp(Layer):
 
 class Cell(Layer):
 
-    def __init__(self, steps, C_prev, C, reduction, drop_path, name):
+    def __init__(self, steps, C_prev, C, drop_path, name):
         super().__init__(name=name)
-        self.reduction = reduction
 
         self.preprocess = ReLUConvBN(C_prev, C, 1, 1, name='preprocess1')
         self._steps = steps
         self._ops = []
         for i in range(self._steps):
             for j in range(1 + i):
-                stride = 2 if reduction and j < 1 else 1
-                op = MixedOp(C, stride, drop_path, name=f'mixop_{j}_{i+1}')
+                op = MixedOp(C, 1, drop_path, name=f'mixop_{j}_{i + 1}')
                 self._ops.append(op)
 
     def call(self, inputs):
@@ -65,6 +63,30 @@ class Cell(Layer):
             states.append(s)
 
         return states[-1]
+
+
+class BasicBlock(Layer):
+
+    def __init__(self, C_prev, C, stride=2, name=None):
+        super().__init__(name=name)
+        assert stride == 2
+        self.conv1 = ReLUConvBN(C_prev, C, 3, stride=stride, name='conv1')
+        self.conv2 = ReLUConvBN(C, C, 3, stride=stride, name='conv2')
+        self.downsample = Sequential([
+            Pool2d(2, 2, type='avg', name='pool'),
+            Conv2d(C_prev, C, 1, norm='def'),
+        ], name='downsample')
+        self.act = Act(name='act')
+        self.stride = stride
+
+    def forward(self, inputs):
+        x, _ = inputs
+        identity = x
+        x = self.conv1(x)
+        x = self.conv2(x)
+        x = x + self.downsample(identity)
+        x = self.act(x)
+        return x
 
 
 class Network(Model):
@@ -83,10 +105,9 @@ class Network(Model):
         for i in range(layers):
             if i in [layers // 3, 2 * layers // 3]:
                 C_curr *= 2
-                reduction = True
+                cell = BasicBlock(C_prev, C_curr, stride=2, name=f'cell{i}')
             else:
-                reduction = False
-            cell = Cell(steps, C_prev, C_curr, reduction, drop_path, name=f'cell{i}')
+                cell = Cell(steps, C_prev, C_curr, drop_path, name=f'cell{i}')
             self.cells.append(cell)
             C_prev = C_curr
 
@@ -98,26 +119,21 @@ class Network(Model):
         self.alphas_normal = self.add_weight(
             'alphas_normal', (k, num_ops), initializer=RandomNormal(stddev=1e-2), trainable=True,
         )
-        self.alphas_reduce = self.add_weight(
-            'alphas_reduce', (k, num_ops), initializer=RandomNormal(stddev=1e-2), trainable=True,
-        )
 
     def call(self, x):
         s = self.stem(x)
-        weights_reduce = tf.nn.softmax(self.alphas_reduce, axis=-1)
         weights_normal = tf.nn.softmax(self.alphas_normal, axis=-1)
         for cell in self.cells:
-            weights = weights_reduce if cell.reduction else weights_normal
-            s = cell([s, weights])
+            s = cell([s, weights_normal])
         x = self.global_pool(s)
         logits = self.fc(x)
         return logits
 
     def arch_parameters(self):
-        return self.trainable_variables[-2:]
+        return self.trainable_variables[-1:]
 
     def model_parameters(self):
-        return self.trainable_variables[:-2]
+        return self.trainable_variables[:-1]
 
     def genotype(self):
         PRIMITIVES = get_primitives()
@@ -127,29 +143,21 @@ class Network(Model):
                 i = max([k for k in range(len(PRIMITIVES)) if k != PRIMITIVES.index('none')], key=lambda k: w[k])
             else:
                 i = max(range(len(PRIMITIVES)), key=lambda k: w[k])
-            return w[i], PRIMITIVES[i]
+            return PRIMITIVES[i]
 
         def _parse(weights):
-            gene = []
-            n = 2
+            genes = []
             start = 0
             for i in range(self._steps):
-                end = start + n
-                W = weights[start:end].copy()
-                edges = sorted(range(i + 2), key=lambda x: -get_op(W[x])[0])[:2]
-                for j in edges:
-                    gene.append((get_op(W[j])[1], j))
+                gene = []
+                end = start + i + 1
+                W = weights[start:end]
+                for j in range(i + 1):
+                    gene.append((get_op(W[j]), j))
                 start = end
-                n += 1
-            return gene
+                genes.append(gene)
+            return genes
 
-        gene_normal = _parse(tf.nn.softmax(self.alphas_normal, axis=-1).numpy())
-        gene_reduce = _parse(tf.nn.softmax(self.alphas_reduce, axis=-1).numpy())
-
-        concat = range(2 + self._steps - self._multiplier, self._steps + 2)
-        genotype = Genotype(
-            normal=gene_normal, normal_concat=concat,
-            reduce=gene_reduce, reduce_concat=concat
-        )
-        return genotype
-
+        gene = _parse(tf.nn.softmax(self.alphas_normal, axis=-1).numpy())
+        s = "+".join([f"|{'|'.join(f'{op}~{i}' for op, i in ops)}|" for ops in gene])
+        return s
