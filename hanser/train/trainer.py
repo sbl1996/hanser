@@ -23,7 +23,6 @@ def strategy_run(strategy, fn, args):
         return fn(*args)
 
 
-
 def join_metric_logs(results, delim=" - "):
     logs = []
     for k, v in results:

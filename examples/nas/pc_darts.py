@@ -1,6 +1,5 @@
 import math
 
-import numpy as np
 from toolz import curry
 
 import tensorflow as tf
@@ -10,8 +9,9 @@ from tensorflow.keras import metrics as M
 from tensorflow.keras.callbacks import Callback
 import tensorflow.keras.mixed_precision.experimental as mixed_precision
 
+from hanser.tpu import get_colab_tpu
 from hanser.datasets import prepare
-from hanser.datasets.cifar import load_cifar10_tfds
+from hanser.datasets.cifar import load_cifar10
 from hanser.transform import random_crop, cutout, normalize, to_tensor
 
 from hanser.models.layers import set_defaults
@@ -21,17 +21,11 @@ from hanser.train.nas.trainer import Trainer
 from hanser.train.lr_schedule import CosineLR
 from hanser.losses import CrossEntropy
 
-(x_train, y_train), (x_test, y_test) = load_cifar10_tfds()
-x_train, y_train = x_train[:500], y_train[:500]
-x_test, y_test = x_test[:100], y_test[:100]
-
-from hanser.tpu import get_colab_tpu
-
-strategy = get_colab_tpu()
-
+from hanser.io import time_now
 
 @curry
 def transform(image, label, training):
+
     if training:
         image = random_crop(image, (32, 32), (4, 4))
         image = tf.image.random_flip_left_right(image)
@@ -42,10 +36,14 @@ def transform(image, label, training):
     label = tf.one_hot(label, 10)
     # image = tf.cast(image, tf.bfloat16)
     # if training:
-    # image = cutout(image, 16)
+        # image = cutout(image, 16)
 
     return image, label
 
+
+(x_train, y_train), (x_test, y_test) = load_cifar10()
+x_train, y_train = x_train[:500], y_train[:500]
+x_test, y_test = x_test[:100], y_test[:100]
 
 train_portion = 0.5
 n_train = len(x_train)
@@ -57,7 +55,7 @@ x_search, y_search = x_train[n_search:], y_train[n_search:]
 x_train, y_train = x_train[:n_train], y_train[:n_train]
 
 mul = 1
-batch_size = 16 * mul
+batch_size = 4 * mul
 eval_batch_size = batch_size * 2
 
 steps_per_epoch = n_train // batch_size
@@ -71,11 +69,12 @@ ds_train = prepare(ds_train, batch_size, transform(training=True), training=True
 ds_search = prepare(ds_search, batch_size, transform(training=True), training=True, buffer_size=10000)
 ds_test = prepare(ds_test, eval_batch_size, transform(training=False), training=False)
 
-# policy = mixed_precision.Policy('mixed_bfloat16')
-# mixed_precision.set_policy(policy)
-
+strategy = get_colab_tpu()
 if strategy:
+    policy = mixed_precision.Policy('mixed_bfloat16')
+    mixed_precision.set_policy(policy)
     tf.distribute.experimental_set_strategy(strategy)
+
     ds_train_dist = strategy.experimental_distribute_dataset(ds_train)
     ds_test_dist = strategy.experimental_distribute_dataset(ds_test)
 
@@ -85,11 +84,12 @@ set_defaults({
         'track_running_stats': False,
     },
 })
-set_primitives('darts')
+# set_primitives('darts')
+set_primitives('tiny')
 
 k = 4
 # model = Network(16, 8, 4, 4, 3, k, 10)
-model = Network(4, 5, 4, 4, 3, k, 10)
+model = Network(8, 5, 4, 4, 3, k, 10)
 
 input_shape = (32, 32, 3)
 model.build((None, *input_shape))
@@ -110,13 +110,12 @@ metrics = [
 test_metrics = [
     M.CategoricalCrossentropy(name='loss', from_logits=True), M.CategoricalAccuracy(name='acc')]
 
-trainer = Trainer(model, criterion, optimizer_arch, optimizer_model,
-                  metrics, test_metrics, 5.0 / 8, 1e-3, 3e-4)
 
+trainer = Trainer(model, criterion, optimizer_arch, optimizer_model,
+                  metrics, test_metrics, 5.0, 1e-3, 3e-4)
 
 class PrintGenotype(Callback):
-
-    def on_epoch_begin(self, epoch, logs=None):
+    def on_epoch_end(self, epoch, logs=None):
         p = """Genotype(
     normal=[
         %s, %s,
@@ -135,7 +134,6 @@ class PrintGenotype(Callback):
         print(p % (tuple(g.normal) + tuple(g.reduce)))
 
 
-from hanser.io import time_now
 print(time_now())
 trainer.fit(epochs, ds_train, ds_search, steps_per_epoch, ds_test, test_steps,
-            val_freq=5, epochs_model_only=15, callbacks=[PrintGenotype()])
+            epochs_model_only=15, val_freq=0, callbacks=[PrintGenotype()])

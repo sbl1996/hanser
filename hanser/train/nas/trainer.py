@@ -96,7 +96,7 @@ class Trainer:
             input, target = data
             self._train_model_step_fn(input, target)
 
-        strategy_run(self.strategy, step_fn, (train_it,))
+        strategy_run(self.strategy, step_fn, (next(train_it),))
 
     @tf.function
     def _train_step(self, train_it, search_it):
