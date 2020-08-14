@@ -132,6 +132,7 @@ def Conv2d(in_channels: int,
     if padding == 'same':
         padding = calc_same_padding(kernel_size, dilation)
 
+    # Init
     init_cfg = DEFAULTS['init']
     if init_cfg['type'] == 'msra':
         if init_cfg['uniform']:
@@ -145,13 +146,15 @@ def Conv2d(in_channels: int,
     else:
         raise ValueError("Unsupported init type: %s" % init_cfg['type'])
 
+    bound = math.sqrt(1 / (kernel_size[0] * kernel_size[1] * in_channels))
+    bias_initializer = RandomUniform(-bound, bound, seed=DEFAULTS['seed'])
+
     if bias is None:
         use_bias = norm is None
     else:
         use_bias = bias
 
-    bound = math.sqrt(1 / (kernel_size[0] * kernel_size[1] * in_channels))
-    bias_initializer = RandomUniform(-bound, bound, seed=DEFAULTS['seed'])
+    kernel_regularizer = get_weight_decay()
     bias_regularizer = get_weight_decay() if not DEFAULTS['no_bias_decay'] else None
 
     def make_conv(name):
@@ -160,12 +163,12 @@ def Conv2d(in_channels: int,
             conv = DepthwiseConv2D(kernel_size=kernel_size, strides=stride, padding='valid',
                                    use_bias=use_bias, dilation_rate=dilation, depth_multiplier=depth_multiplier,
                                    depthwise_initializer=kernel_initializer, bias_initializer=bias_initializer,
-                                   kernel_regularizer=get_weight_decay(), bias_regularizer=bias_regularizer, name=name)
+                                   depthwise_regularizer=kernel_regularizer, bias_regularizer=bias_regularizer, name=name)
         else:
             conv = Conv2D(out_channels, kernel_size=kernel_size, strides=stride,
                           padding='valid', dilation_rate=dilation, use_bias=use_bias, groups=groups,
                           kernel_initializer=kernel_initializer, bias_initializer=bias_initializer,
-                          kernel_regularizer=get_weight_decay(), bias_regularizer=bias_regularizer, name=name)
+                          kernel_regularizer=kernel_regularizer, bias_regularizer=bias_regularizer, name=name)
         return conv
 
     if not (norm or act):
