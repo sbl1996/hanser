@@ -10,7 +10,7 @@ set_defaults({
 m = Sequential([
     Conv2d(3, 32, 3, norm='def'),
     Act(name='act1'),
-    Conv2d(32, 32, 3, groups=32, stride=1, bias=False, name='depthwise1'),
+    Conv2d(32, 32, 3, stride=1, bias=False, name='depthwise1'),
     Conv2d(32, 32, 1, bias=False, name='pointwise1'),
     Norm(32, name='norm1'),
 ])

@@ -287,7 +287,7 @@ class GlobalAvgPool(Layer):
 def get_weight_decay():
     wd = DEFAULTS['weight_decay']
     if wd:
-        return l2(wd)
+        return l2(wd * 0.5)
 
 
 # noinspection PyUnusedLocal
