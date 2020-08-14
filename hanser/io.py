@@ -1,4 +1,5 @@
 import os
+import pickle
 import sys
 import stat
 import json
@@ -98,3 +99,14 @@ def eglob(fp, pattern):
     for f in fp.glob(pattern):
         if not is_hidden(f):
             yield f
+
+
+def read_pickle(fp):
+    with open(fp, 'rb') as f:
+        data = pickle.load(f)
+    return data
+
+
+def save_pickle(obj, fp):
+    with open(fp, 'wb') as f:
+        pickle.dump(obj, f)
