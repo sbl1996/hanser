@@ -1,3 +1,4 @@
+import math
 from difflib import get_close_matches
 from typing import Union, Tuple, Optional, Sequence, Mapping
 
@@ -5,7 +6,7 @@ from cerberus import Validator
 
 import tensorflow as tf
 from tensorflow.keras import Sequential
-from tensorflow.keras.initializers import VarianceScaling, RandomNormal
+from tensorflow.keras.initializers import VarianceScaling, RandomNormal, RandomUniform
 from tensorflow.keras.layers import Dense, Activation, Layer, InputSpec, Conv2D, ZeroPadding2D
 from tensorflow.keras.regularizers import l2
 from tensorflow_addons.activations import mish
@@ -31,7 +32,7 @@ DEFAULTS = {
     'init': {
         'type': 'msra',
         'mode': 'fan_in',
-        'uniform': False,
+        'uniform': True,
         'std': 0.01,
         'scale': 1.0,
     },
@@ -97,57 +98,6 @@ def set_default(keys: Union[str, Sequence[str]], value):
     loop(DEFAULTS, keys, _defaults_schema)
 
 
-class Padding2D(Layer):
-
-    def __init__(self, padding, mode='CONSTANT', constant_values=0, name=None):
-        super().__init__(name=name)
-        if isinstance(padding, int):
-            self.padding = ((padding, padding), (padding, padding))
-        elif hasattr(padding, '__len__'):
-            if len(padding) != 2:
-                raise ValueError('`padding` should have two elements. '
-                                 'Found: ' + str(padding))
-            if isinstance(padding[0], int):
-                height_padding = (padding[0], padding[0])
-            else:
-                height_padding = padding[0]
-            if isinstance(padding[1], int):
-                width_padding = (padding[1], padding[1])
-            else:
-                width_padding = padding[1]
-            self.padding = (height_padding, width_padding)
-        else:
-            raise ValueError('`padding` should be either an int, '
-                             'a tuple of 2 ints '
-                             '(symmetric_height_pad, symmetric_width_pad), '
-                             'or a tuple of 2 tuples of 2 ints '
-                             '((top_pad, bottom_pad), (left_pad, right_pad)). '
-                             'Found: ' + str(padding))
-        self.mode = mode
-        self.constant_values = constant_values
-
-    def call(self, x, training=None):
-        return tf.pad(x, [(0, 0), *self.padding, (0, 0)], self.mode, self.constant_values)
-
-    def compute_output_shape(self, input_shape):
-        input_shape = tf.TensorShape(input_shape).as_list()
-        if input_shape[1] is not None:
-            rows = input_shape[1] + self.padding[0][0] + self.padding[0][1]
-        else:
-            rows = None
-        if input_shape[2] is not None:
-            cols = input_shape[2] + self.padding[1][0] + self.padding[1][1]
-        else:
-            cols = None
-        return tf.TensorShape(
-            [input_shape[0], rows, cols, input_shape[3]])
-
-    def get_config(self):
-        config = {'padding': self.padding, 'mode': self.mode, 'constant_values': self.constant_values}
-        base_config = super().get_config()
-        return dict(list(base_config.items()) + list(config.items()))
-
-
 def calc_same_padding(kernel_size, dilation):
     kh, kw = kernel_size
     dh, dw = dilation
@@ -184,20 +134,24 @@ def Conv2d(in_channels: int,
 
     init_cfg = DEFAULTS['init']
     if init_cfg['type'] == 'msra':
-        distribution = 'uniform' if init_cfg['uniform'] else 'normal'
-        kernel_initializer = VarianceScaling(2.0 * init_cfg['scale'], init_cfg['mode'], distribution, DEFAULTS['seed'])
+        if init_cfg['uniform']:
+            kernel_initializer = VarianceScaling(
+                1.0 / 3 * init_cfg['scale'], init_cfg['mode'], 'uniform', DEFAULTS['seed'])
+        else:
+            kernel_initializer = VarianceScaling(
+                2.0 * init_cfg['scale'], init_cfg['mode'], 'untruncated_normal', DEFAULTS['seed'])
     elif init_cfg['type'] == 'normal':
         kernel_initializer = RandomNormal(0, init_cfg['std'], seed=DEFAULTS['seed'])
     else:
         raise ValueError("Unsupported init type: %s" % init_cfg['type'])
 
-    if bias is False:
-        use_bias = False
-    elif bias is None and norm:
-        use_bias = False
+    if bias is None:
+        use_bias = norm is None
     else:
         use_bias = bias
 
+    bound = math.sqrt(1 / (kernel_size[0] * kernel_size[1] * in_channels))
+    bias_initializer = RandomUniform(-bound, bound, seed=DEFAULTS['seed'])
     bias_regularizer = get_weight_decay() if not DEFAULTS['no_bias_decay'] else None
 
     def make_conv(name):
@@ -205,12 +159,12 @@ def Conv2d(in_channels: int,
             depth_multiplier = out_channels // in_channels
             conv = DepthwiseConv2D(kernel_size=kernel_size, strides=stride, padding='valid',
                                    use_bias=use_bias, dilation_rate=dilation, depth_multiplier=depth_multiplier,
-                                   depthwise_initializer=kernel_initializer, bias_initializer='zeros',
+                                   depthwise_initializer=kernel_initializer, bias_initializer=bias_initializer,
                                    kernel_regularizer=get_weight_decay(), bias_regularizer=bias_regularizer, name=name)
         else:
             conv = Conv2D(out_channels, kernel_size=kernel_size, strides=stride,
                           padding='valid', dilation_rate=dilation, use_bias=use_bias, groups=groups,
-                          kernel_initializer=kernel_initializer, bias_initializer='zeros',
+                          kernel_initializer=kernel_initializer, bias_initializer=bias_initializer,
                           kernel_regularizer=get_weight_decay(), bias_regularizer=bias_regularizer, name=name)
         return conv
 
@@ -335,9 +289,12 @@ def get_weight_decay():
 
 # noinspection PyUnusedLocal
 def Linear(in_channels, out_channels, act=None, name=None):
-    kernel_initializer = RandomNormal(0, 0.01, seed=DEFAULTS['seed'])
+    kernel_initializer = VarianceScaling(1.0 / 3, 'fan_in', 'uniform', DEFAULTS['seed'])
+    bound = math.sqrt(1 / in_channels)
+    bias_initializer = RandomUniform(-bound, bound, seed=DEFAULTS['seed'])
     return Dense(out_channels, activation=act,
                  kernel_initializer=kernel_initializer,
+                 bias_initializer=bias_initializer,
                  kernel_regularizer=get_weight_decay(),
                  bias_regularizer=get_weight_decay(),
                  name=name)
