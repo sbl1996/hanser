@@ -1,6 +1,15 @@
 import math
 import tensorflow as tf
 
+from hanser.models.cifar.nasnet import NASNet
+from hanser.models.nas.genotypes import PC_DARTS_cifar, DARTS_V2
+
+net = NASNet(4, 5, True, 0.2, 10, DARTS_V2)
+net.build((None, 32, 32, 3))
+
+m1 = net.cells[0]._ops[0][0].layers[0].layers[1].layers[1].depthwise_kernel
+m2 = net.cells[0]._ops[0][0].layers[0].layers[5].layers[1].depthwise_kernel
+
 import torch
 import torch.nn as nn
 

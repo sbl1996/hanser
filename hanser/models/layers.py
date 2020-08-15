@@ -137,17 +137,17 @@ def Conv2d(in_channels: int,
     if init_cfg['type'] == 'msra':
         if init_cfg['uniform']:
             kernel_initializer = VarianceScaling(
-                1.0 / 3 * init_cfg['scale'], init_cfg['mode'], 'uniform', DEFAULTS['seed'])
+                1.0 / 3 * init_cfg['scale'], init_cfg['mode'], 'uniform')
         else:
             kernel_initializer = VarianceScaling(
-                2.0 * init_cfg['scale'], init_cfg['mode'], 'untruncated_normal', DEFAULTS['seed'])
+                2.0 * init_cfg['scale'], init_cfg['mode'], 'untruncated_normal')
     elif init_cfg['type'] == 'normal':
-        kernel_initializer = RandomNormal(0, init_cfg['std'], seed=DEFAULTS['seed'])
+        kernel_initializer = RandomNormal(0, init_cfg['std'])
     else:
         raise ValueError("Unsupported init type: %s" % init_cfg['type'])
 
     bound = math.sqrt(1 / (kernel_size[0] * kernel_size[1] * in_channels))
-    bias_initializer = RandomUniform(-bound, bound, seed=DEFAULTS['seed'])
+    bias_initializer = RandomUniform(-bound, bound)
 
     if bias is None:
         use_bias = norm is None
@@ -291,9 +291,9 @@ def get_weight_decay():
 
 
 def Linear(in_channels, out_channels, act=None, name=None):
-    kernel_initializer = VarianceScaling(1.0 / 3, 'fan_in', 'uniform', DEFAULTS['seed'])
+    kernel_initializer = VarianceScaling(1.0 / 3, 'fan_in', 'uniform')
     bound = math.sqrt(1 / in_channels)
-    bias_initializer = RandomUniform(-bound, bound, seed=DEFAULTS['seed'])
+    bias_initializer = RandomUniform(-bound, bound)
     return Dense(out_channels, activation=act,
                  kernel_initializer=kernel_initializer,
                  bias_initializer=bias_initializer,
