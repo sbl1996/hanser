@@ -22,6 +22,8 @@ from hanser.train.trainer import Trainer
 from hanser.train.lr_schedule import CosineLR
 from hanser.losses import CrossEntropy
 
+set_seed(42)
+
 @curry
 def transform(image, label, training):
 
@@ -47,8 +49,6 @@ def zip_transform(data1, data2):
         lambda: cutmix(data1, data2, beta=1.0),
         lambda: data1,
     )
-
-set_seed(42)
 
 (x_train, y_train), (x_test, y_test) = load_cifar10()
 x_train, y_train = x_train[:500], y_train[:500]
@@ -87,7 +87,7 @@ model.build((None, 32, 32, 3))
 
 criterion = CrossEntropy(auxiliary_weight=0.4)
 
-base_lr = 0.1
+base_lr = 0.01
 epochs = 600
 lr_shcedule = CosineLR(base_lr * mul, steps_per_epoch, epochs=epochs,
                        min_lr=0, warmup_min_lr=base_lr, warmup_epoch=10)
@@ -104,11 +104,15 @@ trainer = Trainer(model, criterion, optimizer, metrics, test_metrics,
 
 class DropPathRateSchedule(Callback):
     def on_epoch_begin(self, epoch, logs=None):
-        rate = epoch / epochs * drop_path
+        if epoch > 5:
+            rate = 0.9999999
+        else:
+            rate = epoch / epochs * drop_path
         for l in model.submodules:
             if 'drop' in l.name:
-                l.rate = rate
+                l.rate.assign(rate)
 
 
 # trainer.fit(epochs, ds_train_dist, steps_per_epoch, ds_test_dist, test_steps, val_freq=5)
-trainer.fit(epochs, ds_train, steps_per_epoch, ds_test, test_steps, val_freq=5)
+trainer.fit(epochs, ds_train, steps_per_epoch, ds_test, test_steps, val_freq=5,
+            callbacks=[DropPathRateSchedule()])

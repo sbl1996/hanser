@@ -1,6 +1,9 @@
 import tensorflow as tf
 from tensorflow.keras import Sequential
 from tensorflow.keras.layers import Layer, InputSpec, Softmax, Dropout
+from tensorflow.keras.initializers import Constant
+
+from tensorflow.python.keras.utils.tf_utils import smart_cond
 
 from hanser.models.layers import Conv2d, Norm, Act
 
@@ -46,7 +49,36 @@ class SELayer(Layer):
 class DropPath(Dropout):
 
     def __init__(self, rate, **kwargs):
-        super().__init__(rate, noise_shape=(None, 1, 1, 1), **kwargs)
+        super(Dropout, self).__init__(**kwargs)
+        self.rate = self.add_weight(
+            name="drop_rate", shape=(), dtype=tf.float32,
+            initializer=Constant(rate), trainable=False,
+        )
+
+    def call(self, inputs, training=None):
+        if training is None:
+            training = tf.keras.backend.learning_phase()
+
+        noise_shape = (tf.shape(inputs)[0], 1, 1, 1)
+
+        def dropped_inputs():
+            return tf.nn.dropout(
+                inputs,
+                noise_shape=noise_shape,
+                rate=self.rate)
+
+        output = smart_cond(training, dropped_inputs, lambda: tf.identity(inputs))
+        return output
+
+    def compute_output_shape(self, input_shape):
+        return input_shape
+
+    def get_config(self):
+        config = {
+            'rate': self.rate,
+        }
+        base_config = super(Dropout, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
 
 
 class rSoftMax(Layer):
