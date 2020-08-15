@@ -36,7 +36,6 @@ DEFAULTS = {
         'std': 0.01,
         'scale': 1.0,
     },
-    'seed': 0,
     'no_bias_decay': False,
     'weight_decay': 0.0,
 }

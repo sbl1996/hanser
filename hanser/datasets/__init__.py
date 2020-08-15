@@ -2,6 +2,7 @@ from toolz import curry
 
 import tensorflow as tf
 
+from hanser import GLOBALS
 
 # @curry
 # def batch_to_zip_transform(image, label, zip_transform):
@@ -15,7 +16,7 @@ def prepare(ds, batch_size, transform=None, training=True, buffer_size=1024, dro
     if cache:
         ds = ds.cache()
     if training:
-        ds = ds.shuffle(buffer_size)
+        ds = ds.shuffle(buffer_size, seed=GLOBALS['seed'])
         ds = ds.repeat()
     if transform:
         ds = ds.map(transform, num_parallel_calls=tf.data.experimental.AUTOTUNE)

@@ -9,6 +9,7 @@ from tensorflow.keras import metrics as M
 from tensorflow.keras.callbacks import Callback
 import tensorflow.keras.mixed_precision.experimental as mixed_precision
 
+from hanser import set_seed
 from hanser.tpu import get_colab_tpu
 from hanser.datasets import prepare
 from hanser.datasets.cifar import load_cifar10
@@ -47,6 +48,7 @@ def zip_transform(data1, data2):
         lambda: data1,
     )
 
+set_seed(42)
 
 (x_train, y_train), (x_test, y_test) = load_cifar10()
 x_train, y_train = x_train[:500], y_train[:500]
