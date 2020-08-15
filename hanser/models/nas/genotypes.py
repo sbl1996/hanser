@@ -324,7 +324,7 @@ PDARTS = Genotype(
 )
 
 # from https://arxiv.org/abs/1812.09926
-# 422M, 2.66
+# 422M, 2.66M
 SNAS = Genotype(
     normal=[
         ('sep_conv_3x3', 0), ('sep_conv_3x3', 1),

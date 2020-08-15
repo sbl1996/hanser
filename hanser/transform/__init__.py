@@ -554,7 +554,7 @@ def pad_to_bounding_box(image, offset_height, offset_width, target_height,
         return outputs
 
 
-def random_crop(x, size, padding, fill=128):
+def random_crop(x, size, padding, fill=0):
     height, width = size
     ph, pw = padding
     x = tf.pad(x, [(ph, ph), (pw, pw), (0, 0)], constant_values=fill)
