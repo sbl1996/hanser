@@ -59,7 +59,7 @@ class SepConv(Sequential):
             Act(name='act2'),
             Conv2d(C_in, C_in, kernel_size, 1, groups=C_in, bias=False, name='depthwise2'),
             Conv2d(C_in, C_out, 1, bias=False, name='pointwise2'),
-            Norm(C_in, name='norm2'),
+            Norm(C_out, name='norm2'),
         ], name=name)
 
 

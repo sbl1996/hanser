@@ -112,6 +112,7 @@ PNASNet = Genotype(
 )
 
 # One-Shot Neural Architecture Search via Self-Evaluated Template Network, ICCV 2019
+#
 SETN = Genotype(
     normal=[
         ('skip_connect', 0), ('sep_conv_5x5', 1),
@@ -304,8 +305,7 @@ PC_DARTS_cifar = Genotype(
     reduce_concat=[2, 3, 4, 5]
 )
 
-# from https://github.com/tanglang96/MDENAS/blob/master/run_darts_cifar.sh
-# 532M, 3.43M, 2.50
+
 PDARTS = Genotype(
     normal=[
         ('skip_connect', 0), ('dil_conv_3x3', 1),
