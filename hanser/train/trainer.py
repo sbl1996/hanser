@@ -154,10 +154,18 @@ class Trainer:
             if self.strategy:
                 loss = loss / self.strategy.num_replicas_in_sync
         grads = tape.gradient(loss, self.model.trainable_variables)
+
         if self.grad_clip_norm:
+            if self.strategy:
+                grads = tf.distribute.get_replica_context().all_reduce('sum', grads)
+                experimental_aggregate_gradients = False
+            else:
+                experimental_aggregate_gradients = True
             grads = tf.clip_by_global_norm(grads, self.grad_clip_norm)[0]
-        self.optimizer.apply_gradients(
-            zip(grads, self.model.trainable_variables))
+            self.optimizer.apply_gradients(zip(grads, self.model.trainable_variables),
+                                           experimental_aggregate_gradients=experimental_aggregate_gradients)
+        else:
+            self.optimizer.apply_gradients(zip(grads, self.model.trainable_variables))
 
         preds = self.metric_transform(preds)
         for metric in self.metrics:
