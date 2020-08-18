@@ -40,7 +40,7 @@ def load_batch(fpath, label_key='labels'):
     return data, labels
 
 
-def load_cifar10():
+def load_cifar10(cache_dir=None):
 
     dirname = 'cifar-10-batches-py'
     origin = 'https://www.cs.toronto.edu/~kriz/cifar-10-python.tar.gz'
@@ -48,8 +48,9 @@ def load_cifar10():
         dirname,
         origin=origin,
         untar=True,
-        file_hash=
-        '6d958be074577803d12ecdefd02955f39262c83c16fe9348329d7fe0b5c001ce')
+        file_hash='6d958be074577803d12ecdefd02955f39262c83c16fe9348329d7fe0b5c001ce',
+        cache_dir=cache_dir
+    )
 
     num_train_samples = 50000
 
@@ -73,7 +74,7 @@ def load_cifar10():
     return (x_train, y_train), (x_test, y_test)
 
 
-def load_cifar100(label_mode='fine'):
+def load_cifar100(label_mode='fine', cache_dir=None):
 
     dirname = 'cifar-100-python'
     origin = 'https://www.cs.toronto.edu/~kriz/cifar-100-python.tar.gz'
@@ -81,8 +82,9 @@ def load_cifar100(label_mode='fine'):
         dirname,
         origin=origin,
         untar=True,
-        file_hash=
-        '85cd44d02ba6437773c5bbd22e183051d648de2e7d6b014e1ef29b855ba677a7')
+        file_hash='85cd44d02ba6437773c5bbd22e183051d648de2e7d6b014e1ef29b855ba677a7',
+        cache_dir=cache_dir
+    )
     fpath = os.path.join(path, 'train')
     x_train, y_train = load_batch(fpath, label_key=label_mode + '_labels')
 

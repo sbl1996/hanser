@@ -32,7 +32,6 @@ REQUIRED = [
     "pybind11",
     "cerberus",
     # "tensorflow_addons",
-    "googledrivedownloader",
     'tensorflow',
     "tensorflow_probability",
 ]
