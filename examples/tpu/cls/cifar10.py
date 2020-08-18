@@ -10,7 +10,7 @@ from tensorflow.keras.callbacks import Callback
 import tensorflow.keras.mixed_precision.experimental as mixed_precision
 
 from hanser.datasets import prepare
-from hanser.datasets.cifar import load_cifar10_tfds
+from hanser.datasets.cifar import load_cifar10
 from hanser.transform import random_crop, cutout, normalize, to_tensor, random_apply2, mixup, cutmix
 from hanser.transform.autoaugment import autoaugment
 
@@ -20,7 +20,7 @@ from hanser.train.trainer import Trainer
 from hanser.train.lr_schedule import CosineLR
 from hanser.losses import CrossEntropy
 
-(x_train, y_train), (x_test, y_test) = load_cifar10_tfds()
+(x_train, y_train), (x_test, y_test) = load_cifar10()
 
 from hanser.tpu import get_colab_tpu
 strategy = get_colab_tpu()

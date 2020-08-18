@@ -88,7 +88,7 @@ set_defaults({
 drop_path = 0.2
 # model = DARTS(36, 20, True, drop_path, 10, PDARTS)
 model = NASNet(4, 5, True, drop_path, 10, PDARTS)
-# model.build((None, 32, 32, 3))
+model.build((None, 32, 32, 3))
 # model.call(tf.keras.layers.Input((32, 32, 3)))
 # model.summary()
 

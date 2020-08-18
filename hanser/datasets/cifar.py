@@ -3,26 +3,7 @@ import pickle
 
 import numpy as np
 
-import tensorflow_datasets as tfds
 from tensorflow.python.keras.utils.data_utils import get_file
-
-
-def load_cifar10_tfds():
-
-    def load_data(split):
-        ds = tfds.as_numpy(tfds.load('cifar10', split=split))
-        x = []
-        y = []
-        for i, d in enumerate(ds):
-            x.append(d['image'])
-            y.append(d['label'])
-        x = np.stack(x)
-        y = np.stack(y)
-        return x, y
-
-    x_train, y_train = load_data('train')
-    x_test, y_test = load_data('test')
-    return (x_train, y_train), (x_test, y_test)
 
 
 def load_batch(fpath, label_key='labels'):

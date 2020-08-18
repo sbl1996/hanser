@@ -4,28 +4,16 @@ import numpy as np
 from toolz import curry
 
 import tensorflow as tf
-import tensorflow_datasets as tfds
 
 from tensorflow.keras.optimizers import SGD
 from tensorflow.keras.losses import SparseCategoricalCrossentropy
 from tensorflow.keras.models import Model
 
+from hanser.datasets.cifar import load_cifar10
 from hanser.models.cifar.pyramidnest import PyramidNeSt
 from hanser.datasets import prepare
 from hanser.transform import random_crop, cutout, normalize, to_tensor
 from hanser.train.callbacks import cosine_lr, LearningRateBatchScheduler
-
-
-def load_cifar10(split):
-    ds = tfds.as_numpy(tfds.load('cifar10', split=split))
-    x = []
-    y = []
-    for d in ds:
-        x.append(d['image'])
-        y.append(d['label'])
-    x = np.stack(x)
-    y = np.stack(y)
-    return x, y
 
 
 @curry
