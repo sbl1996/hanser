@@ -4,7 +4,6 @@ import tensorflow as tf
 from tensorflow.python.distribute.input_lib import DistributedDataset
 import tensorflow.keras.mixed_precision.experimental as mixed_precision
 
-from tensorflow.python.distribute.tpu_strategy import TPUStrategy, TPUStrategyV2, TPUStrategyV1
 from tensorflow.python.keras.callbacks import CallbackList
 
 from hanser.io import time_now
@@ -49,6 +48,11 @@ def run_epoch(step_fn, iterator, steps, metrics, stage="Train", multiple_steps=F
     print_results(stage, steps, metric_results)
 
 
+def is_tpu_strategy(strategy):
+    if strategy is None:
+        return False
+    return "TPUStrategy" in type(strategy).__name__
+
 @tf.function
 def identity(x):
     return x
@@ -58,7 +62,7 @@ def parse_strategy(strategy='auto'):
     if strategy is not None:
         if strategy == 'auto':
             strategy = tf.distribute.get_strategy()
-        if not isinstance(strategy, (TPUStrategy, TPUStrategyV1, TPUStrategyV2)):
+        if not is_tpu_strategy(strategy):
             strategy = None
     return strategy
 
@@ -68,7 +72,7 @@ def is_global_bfloat16():
 
 
 def validate_dataset(strategy, *datsets):
-    if isinstance(strategy, (TPUStrategy, TPUStrategyV1, TPUStrategyV2)):
+    if is_tpu_strategy(strategy):
         for ds in datsets:
             assert isinstance(ds, DistributedDataset)
 
@@ -105,7 +109,7 @@ def misc_concat(values):
 
 
 def maybe_cat(values, strategy):
-    if isinstance(strategy, TPUStrategy):
+    if is_tpu_strategy(strategy):
         return misc_concat(values)
     return values
 
