@@ -70,6 +70,8 @@ def parse_strategy(strategy='auto'):
 def is_global_bfloat16():
     return mixed_precision.global_policy().compute_dtype == 'bfloat16'
 
+def is_global_float16():
+    return mixed_precision.global_policy().compute_dtype == 'float16'
 
 def validate_dataset(strategy, *datsets):
     if is_tpu_strategy(strategy):
@@ -134,7 +136,7 @@ class Trainer:
         self.grad_clip_norm = grad_clip_norm
         self.multiple_steps = multiple_steps
 
-        self.bfloat16 = is_global_bfloat16()
+        self.float16 = is_global_bfloat16() or is_global_float16()
 
         self._epoch = tf.Variable(0, trainable=False)
         self._use_weight_decay = len(model.losses) != 0
@@ -149,7 +151,7 @@ class Trainer:
         inputs, target = data
         with tf.GradientTape() as tape:
             preds = self.model(inputs, training=True)
-            if self.bfloat16:
+            if self.float16:
                 preds = cast_fp32(preds)
             per_example_loss = self.criterion(target, preds)
             loss = tf.reduce_mean(per_example_loss)
@@ -190,7 +192,7 @@ class Trainer:
     def _test_step_fn(self, data):
         inputs, target = data
         preds = self.model(inputs, training=False)
-        if self.bfloat16:
+        if self.float16:
             preds = cast_fp32(preds)
 
         preds = self.metric_transform(preds)
@@ -212,7 +214,7 @@ class Trainer:
         def step_fn(data):
             inputs, target = data
             output = self.model(inputs, training=debug)
-            if self.bfloat16:
+            if self.float16:
                 output = cast_fp32(output)
             return target, output
 

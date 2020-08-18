@@ -2,7 +2,7 @@ import tensorflow as tf
 from tensorflow.python.keras.callbacks import CallbackList
 
 from hanser.train.trainer import cast_fp32, parse_strategy, is_global_bfloat16, identity, validate_dataset, \
-    print_results, strategy_run
+    print_results, strategy_run, is_global_float16
 
 
 def run_epoch(step_fn, args, steps, metrics, stage="Train"):
@@ -34,7 +34,7 @@ class Trainer:
         self.metric_transform = metric_transform
 
         self.strategy = parse_strategy(strategy)
-        self.bfloat16 = is_global_bfloat16()
+        self.float16 = is_global_bfloat16() or is_global_float16()
         self._epoch = tf.Variable(0, trainable=False)
 
     def _train_arch_step_fn(self, input_search, target_search):
@@ -42,7 +42,7 @@ class Trainer:
         with tf.GradientTape(watch_accessed_variables=False) as tape:
             tape.watch(arch_parameters)
             logits = self.model(input_search, training=False)
-            if self.bfloat16:
+            if self.float16:
                 logits = cast_fp32(logits)
             per_example_loss = self.criterion(target_search, logits)
             loss = tf.reduce_mean(per_example_loss)
@@ -63,7 +63,7 @@ class Trainer:
         with tf.GradientTape(watch_accessed_variables=False) as tape:
             tape.watch(model_parameters)
             logits = self.model(input, training=True)
-            if self.bfloat16:
+            if self.float16:
                 logits = cast_fp32(logits)
             per_example_loss = self.criterion(target, logits)
             loss = tf.reduce_mean(per_example_loss)
@@ -115,7 +115,7 @@ class Trainer:
         def step_fn(data):
             inputs, target = data
             preds = self.model(inputs, training=False)
-            if self.bfloat16:
+            if self.float16:
                 preds = cast_fp32(preds)
 
             preds = self.metric_transform(preds)
