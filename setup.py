@@ -104,5 +104,5 @@ setup(
     dependency_links=DEPENDENCY_LINKS,
     # include_package_data=True,
     license='MIT',
-    ext_modules=get_numpy_extensions(),
+    # ext_modules=get_numpy_extensions(),
 )
