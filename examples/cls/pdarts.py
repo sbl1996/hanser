@@ -93,7 +93,7 @@ model.build((None, 32, 32, 3))
 # model.summary()
 
 criterion = CrossEntropy(auxiliary_weight=0.4)
-
+model.fit
 base_lr = 0.025
 epochs = 600
 lr_shcedule = CosineLR(base_lr * mul, steps_per_epoch, epochs=epochs,

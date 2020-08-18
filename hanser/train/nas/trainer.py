@@ -2,7 +2,7 @@ import tensorflow as tf
 from tensorflow.python.keras.callbacks import CallbackList
 
 from hanser.train.trainer import cast_fp32, parse_strategy, is_global_bfloat16, identity, validate_dataset, \
-    print_results, strategy_run, is_global_float16
+    print_results, strategy_run, is_global_float16, minimize
 
 
 def run_epoch(step_fn, args, steps, metrics, stage="Train"):
@@ -55,8 +55,7 @@ class Trainer:
             if self.strategy:
                 loss = loss / self.strategy.num_replicas_in_sync
 
-        grads = tape.gradient(loss, arch_parameters)
-        self.optimizer_arch.apply_gradients(zip(grads, arch_parameters))
+        minimize(self.strategy, tape, self.optimizer_arch, loss, arch_parameters)
 
     def _train_model_step_fn(self, input, target):
         model_parameters = self.model.model_parameters()
@@ -76,10 +75,8 @@ class Trainer:
             if self.strategy:
                 loss = loss / self.strategy.num_replicas_in_sync
 
-        grads = tape.gradient(loss, model_parameters)
-        if self.grad_clip_norm:
-            grads = tf.clip_by_global_norm(grads, self.grad_clip_norm)[0]
-        self.optimizer_model.apply_gradients(zip(grads, model_parameters))
+        minimize(self.strategy, tape, self.optimizer_model, loss,
+                 model_parameters, self.grad_clip_norm)
 
         preds = self.metric_transform(logits)
         for metric in self.metrics:

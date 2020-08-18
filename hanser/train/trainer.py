@@ -10,6 +10,25 @@ from hanser.io import time_now
 from hanser.tpu import local_results
 
 
+def minimize(strategy, tape, optimizer, loss, trainable_variables, grad_clip_norm=None):
+
+    grads = tape.gradient(loss, trainable_variables)
+    aggregate_grads_outside_optimizer = grad_clip_norm and is_tpu_strategy(strategy)
+
+    if aggregate_grads_outside_optimizer:
+        grads = tf.distribute.get_replica_context().all_reduce('sum', grads)
+
+    if grad_clip_norm:
+        grads = tf.clip_by_global_norm(grads, grad_clip_norm)[0]
+    if trainable_variables:
+        if aggregate_grads_outside_optimizer:
+            optimizer.apply_gradients(
+                zip(grads, trainable_variables),
+                experimental_aggregate_gradients=False)
+        else:
+            optimizer.apply_gradients(zip(grads, trainable_variables))
+
+
 @tf.function
 def identity(x):
     return x
@@ -53,6 +72,7 @@ def is_tpu_strategy(strategy):
         return False
     return "TPUStrategy" in type(strategy).__name__
 
+
 @tf.function
 def identity(x):
     return x
@@ -70,8 +90,10 @@ def parse_strategy(strategy='auto'):
 def is_global_bfloat16():
     return mixed_precision.global_policy().compute_dtype == 'bfloat16'
 
+
 def is_global_float16():
     return mixed_precision.global_policy().compute_dtype == 'float16'
+
 
 def validate_dataset(strategy, *datsets):
     if is_tpu_strategy(strategy):
@@ -159,19 +181,9 @@ class Trainer:
                 loss = loss + tf.add_n(self.model.losses)
             if self.strategy:
                 loss = loss / self.strategy.num_replicas_in_sync
-        grads = tape.gradient(loss, self.model.trainable_variables)
 
-        if self.grad_clip_norm:
-            if self.strategy:
-                grads = tf.distribute.get_replica_context().all_reduce('sum', grads)
-                experimental_aggregate_gradients = False
-            else:
-                experimental_aggregate_gradients = True
-            grads = tf.clip_by_global_norm(grads, self.grad_clip_norm)[0]
-            self.optimizer.apply_gradients(zip(grads, self.model.trainable_variables),
-                                           experimental_aggregate_gradients=experimental_aggregate_gradients)
-        else:
-            self.optimizer.apply_gradients(zip(grads, self.model.trainable_variables))
+        minimize(self.strategy, tape, self.optimizer, loss,
+                 self.model.trainable_variables, self.grad_clip_norm)
 
         preds = self.metric_transform(preds)
         for metric in self.metrics:
@@ -279,7 +291,8 @@ class Trainer:
 
             callbacks.on_epoch_begin(epoch + 1)
             if self.multiple_steps:
-                run_epoch(self._train_multiple_steps, train_it, steps_per_epoch, self.metrics, "Train", self.multiple_steps)
+                run_epoch(self._train_multiple_steps, train_it, steps_per_epoch, self.metrics, "Train",
+                          self.multiple_steps)
             else:
                 run_epoch(self._train_step, train_it, steps_per_epoch, self.metrics, "Train", self.multiple_steps)
 
