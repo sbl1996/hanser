@@ -85,12 +85,14 @@ class Cell(Layer):
         return tf.concat(states[-self._multiplier:], axis=-1)
 
 
-def beta_softmax(betas, steps):
+def beta_softmax(betas, steps, scale=False):
     beta_list = []
     offset = 0
     for i in range(steps):
-        beta_list.append(
-            tf.nn.softmax(betas[offset:(offset + i + 2)], axis=0))
+        beta = tf.nn.softmax(betas[offset:(offset + i + 2)], axis=0)
+        if scale:
+            beta = beta * len(beta)
+        beta_list.append(beta)
         offset += i + 2
     betas = tf.concat(beta_list, axis=0)
     return betas
@@ -174,26 +176,28 @@ class Network(Model):
                 i = max(range(len(PRIMITIVES)), key=lambda k: w[k])
             return w[i], PRIMITIVES[i]
 
-        def _parse(alphas, betas):
+        def _parse(alphas):
             gene = []
             start = 0
             for i in range(self._steps):
                 end = start + i + 2
-                W = alphas[start:end] * betas[start:end, None]
+                W = alphas[start:end]
                 edges = sorted(range(i + 2), key=lambda x: -get_op(W[x])[0])[:2]
                 for j in edges:
                     gene.append((get_op(W[j])[1], j))
                 start = end
             return gene
 
-        gene_normal = _parse(
-            tf.nn.softmax(self.alphas_normal, axis=-1).numpy(),
-            beta_softmax(self.betas_normal, self._steps).numpy(),
-        )
-        gene_reduce = _parse(
-            tf.nn.softmax(self.alphas_reduce, axis=-1).numpy(),
-            beta_softmax(self.betas_reduce, self._steps).numpy(),
-        )
+        alphas_normal = tf.nn.softmax(self.alphas_normal, axis=-1).numpy()
+        betas_normal = beta_softmax(self.betas_normal, self._steps).numpy()
+        alphas_normal = alphas_normal * betas_normal[:, None]
+
+        alphas_reduce = tf.nn.softmax(self.alphas_reduce, axis=-1).numpy()
+        betas_reduce = beta_softmax(self.betas_reduce, self._steps).numpy()
+        alphas_reduce = alphas_reduce * betas_reduce[:, None]
+
+        gene_normal = _parse(alphas_normal)
+        gene_reduce = _parse(alphas_reduce)
 
         concat = range(2 + self._steps - self._multiplier, self._steps + 2)
         genotype = Genotype(
@@ -201,4 +205,3 @@ class Network(Model):
             reduce=gene_reduce, reduce_concat=concat
         )
         return genotype
-

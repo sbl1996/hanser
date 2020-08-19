@@ -140,16 +140,14 @@ class Network(Model):
 
         def _parse(weights):
             gene = []
-            n = 2
             start = 0
             for i in range(self._steps):
-                end = start + n
-                W = weights[start:end].copy()
+                end = start + i + 2
+                W = weights[start:end]
                 edges = sorted(range(i + 2), key=lambda x: -get_op(W[x])[0])[:2]
                 for j in edges:
                     gene.append((get_op(W[j])[1], j))
                 start = end
-                n += 1
             return gene
 
         gene_normal = _parse(tf.nn.softmax(self.alphas_normal, axis=-1).numpy())

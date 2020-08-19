@@ -15,6 +15,7 @@ class CosineAnnealingLR(LearningRateSchedule):
         min_lr,
         warmup_min_lr,
         warmup_epoch,
+        epoch_annealing=False,
     ):
         super().__init__()
 
@@ -24,11 +25,13 @@ class CosineAnnealingLR(LearningRateSchedule):
         self.min_lr = min_lr
         self.warmup_min_lr = warmup_min_lr
         self.warmup_epoch = warmup_epoch
+        self.epoch_annealing = epoch_annealing
 
         self.total_steps = epochs * steps_per_epoch
         self.warmup_steps = warmup_epoch * steps_per_epoch
 
     def __call__(self, step):
+
         base_lr = tf.convert_to_tensor(self.base_lr, name="base_lr")
         warmup_min_lr = tf.convert_to_tensor(self.warmup_min_lr, name="warmup_min_lr")
 
@@ -36,6 +39,12 @@ class CosineAnnealingLR(LearningRateSchedule):
         total_steps = tf.cast(self.total_steps, dtype)
         min_lr = tf.cast(self.min_lr, dtype)
         warmup_steps = tf.cast(self.warmup_steps, dtype)
+
+        step = tf.cast(step, dtype)
+        if self.epoch_annealing:
+            step2 = tf.floor(step / self.steps_per_epoch)
+        else:
+            step2 = step
 
         def warmup(step):
             return warmup_min_lr + (base_lr - warmup_min_lr) * step / warmup_steps
@@ -45,11 +54,10 @@ class CosineAnnealingLR(LearningRateSchedule):
             mult = (tf.cos(frac * tf.constant(math.pi)) + 1) / 2
             return min_lr + (base_lr - min_lr) * mult
 
-        global_step_recomp = tf.cast(step, dtype)
         decayed_lr = tf.cond(
-            tf.less(global_step_recomp, warmup_steps),
-            lambda: warmup(global_step_recomp),
-            lambda: cosine_decay(global_step_recomp),
+            tf.less(step, warmup_steps),
+            lambda: warmup(step),
+            lambda: cosine_decay(step2),
         )
         return decayed_lr
 
@@ -64,6 +72,7 @@ class CosineAnnealingLR(LearningRateSchedule):
             "warmup_epoch": self.warmup_epoch,
             "total_steps": self.total_steps,
             "warmup_steps": self.warmup_steps,
+            "epoch_annealing": self.epoch_annealing,
         }
 
 
