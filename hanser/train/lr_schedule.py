@@ -42,7 +42,7 @@ class CosineAnnealingLR(LearningRateSchedule):
 
         step = tf.cast(step, dtype)
         if self.epoch_annealing:
-            step2 = tf.floor(step / self.steps_per_epoch)
+            step2 = tf.floor(step / self.steps_per_epoch) * self.steps_per_epoch
         else:
             step2 = step
 
