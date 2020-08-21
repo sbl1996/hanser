@@ -2,12 +2,6 @@ from collections import namedtuple
 
 Genotype = namedtuple('Genotype', 'normal normal_concat reduce reduce_concat')
 
-PRIMITIVES_tiny = [
-    'none',
-    'skip_connect',
-    'sep_conv_3x3',
-]
-
 PRIMITIVES_nas_bench_201 = [
     'none',
     'skip_connect',
@@ -16,10 +10,25 @@ PRIMITIVES_nas_bench_201 = [
     'avg_pool_3x3',
 ]
 
+PRIMITIVES_tiny = [
+    'none',
+    'skip_connect',
+    'sep_conv_3x3',
+]
+
 PRIMITIVES_small = [
+    'none',
+    'skip_connect',
+    'sep_conv_3x3',
+    'max_pool_3x3',
+]
+
+
+PRIMITIVES_medium = [
+    'none',
+    'skip_connect',
     'max_pool_3x3',
     'avg_pool_3x3',
-    'skip_connect',
     'sep_conv_3x3',
     'sep_conv_5x5',
     'conv_3x1_1x3',
@@ -78,6 +87,8 @@ def set_primitives(search_space):
         CONFIG['primitives'] = PRIMITIVES_tiny
     elif search_space == 'small':
         CONFIG['primitives'] = PRIMITIVES_small
+    elif search_space == 'medium':
+        CONFIG['primitives'] = PRIMITIVES_medium
     elif search_space == 'large':
         CONFIG['primitives'] = PRIMITIVES_large
     elif search_space == 'huge':
