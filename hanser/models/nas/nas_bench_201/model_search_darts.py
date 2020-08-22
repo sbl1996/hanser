@@ -71,7 +71,7 @@ class BasicBlock(Layer):
         super().__init__(name=name)
         assert stride == 2
         self.conv1 = ReLUConvBN(C_prev, C, 3, stride=stride, name='conv1')
-        self.conv2 = ReLUConvBN(C, C, 3, stride=stride, name='conv2')
+        self.conv2 = ReLUConvBN(C, C, 3, stride=1, name='conv2')
         self.downsample = Sequential([
             Pool2d(2, 2, type='avg', name='pool'),
             Conv2d(C_prev, C, 1, norm='def'),
