@@ -150,7 +150,7 @@ class Trainer:
             epoch = self._epoch.assign_add(1).numpy()
 
             if val_freq and epoch % val_freq == 0:
-                run_epoch(self._test_step, val_it, val_steps, self.test_metrics, "Valid")
+                run_epoch(self._test_step, (val_it,), val_steps, self.test_metrics, "Valid")
 
         callbacks.on_train_end()
 
