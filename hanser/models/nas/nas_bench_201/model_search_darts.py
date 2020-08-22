@@ -79,7 +79,7 @@ class BasicBlock(Layer):
         self.act = Act(name='act')
         self.stride = stride
 
-    def forward(self, inputs):
+    def call(self, inputs):
         x, _ = inputs
         identity = x
         x = self.conv1(x)
