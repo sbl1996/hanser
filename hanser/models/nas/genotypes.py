@@ -1,5 +1,7 @@
 from collections import namedtuple
 
+from hanser.models.nas.operations import OPS
+
 Genotype = namedtuple('Genotype', 'normal normal_concat reduce reduce_concat')
 
 PRIMITIVES_nas_bench_201 = [
@@ -80,7 +82,7 @@ CONFIG = {
 def set_primitives(search_space):
     if isinstance(search_space, list):
         for k in search_space:
-            if not k in PRIMITIVES_darts:
+            if not k in OPS:
                 raise ValueError("Not supported operation: %s" % k)
         CONFIG['primitives'] = search_space
     elif search_space == 'tiny':
