@@ -32,6 +32,14 @@ class SimpleNASBench201:
         for i, arch in enumerate(self.d['meta_archs']):
             self.arch2index[arch] = i
 
+    @property
+    def datasets(self):
+        return ['cifar10-valid', 'cifar10', 'cifar100', 'ImageNet16-120']
+
+    @property
+    def total_archs(self):
+        return self.d['total_archs']
+
     def query_all(self, arch_or_index, dataset='cifar10'):
         if isinstance(arch_or_index, str):
             index = self.arch2index[arch_or_index]
