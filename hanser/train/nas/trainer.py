@@ -119,7 +119,7 @@ class Trainer:
             for metric in self.test_metrics:
                 metric.update_state(target, preds, None)
 
-        strategy_run(self.strategy, step_fn, (next(iterator,)))
+        strategy_run(self.strategy, step_fn, (next(iterator),))
 
     def fit(self, epochs, ds_train, ds_search, steps_per_epoch,
             ds_val, val_steps, val_freq=0, epochs_model_only=0,
