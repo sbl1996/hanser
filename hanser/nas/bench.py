@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 
 
@@ -28,9 +29,17 @@ class SimpleNASBench201:
     def __init__(self, fp):
         self.d = torch.load(fp)
 
-        self.arch2index = {}
+        self._arch2index = {}
         for i, arch in enumerate(self.d['meta_archs']):
-            self.arch2index[arch] = i
+            self._arch2index[arch] = i
+
+        self._eval_acc_rank = {}
+        for d in self.datasets:
+            ranks = sorted(range(self.total_archs), key=lambda i: np.mean(self.query_eval_acc(i, d)), reverse=True)
+            rrank = [0] * self.total_archs
+            for r, arch_index in enumerate(ranks):
+                rrank[arch_index] = r
+            self._eval_acc_rank[d] = rrank
 
     @property
     def datasets(self):
@@ -41,10 +50,7 @@ class SimpleNASBench201:
         return self.d['total_archs']
 
     def query_all(self, arch_or_index, dataset='cifar10'):
-        if isinstance(arch_or_index, str):
-            index = self.arch2index[arch_or_index]
-        else:
-            index = arch_or_index
+        index = self.get_index(arch_or_index)
         x = self.d['arch2infos'][index]['full']
         seeds = x['dataset_seed'][dataset]
         results = {}
@@ -55,3 +61,14 @@ class SimpleNASBench201:
     def query_eval_acc(self, arch_or_index, dataset='cifar10'):
         results = self.query_all(arch_or_index, dataset)
         return [r['eval_acc1es'] for r in results.values()]
+
+    def query_eval_acc_rank(self, arch_or_index, dataset='cifar10'):
+        index = self.get_index(arch_or_index)
+        return self._eval_acc_rank[dataset][index]
+
+    def get_index(self, arch_or_index):
+        if isinstance(arch_or_index, str):
+            index = self._arch2index[arch_or_index]
+        else:
+            index = arch_or_index
+        return index
