@@ -11,7 +11,7 @@ from hanser.models.layers import Conv2d, Norm, Act
 class PadChannel(Layer):
 
     def __init__(self, c, name=None):
-        super().__init__(name=name)
+        super().__init__()
         self.c = c
 
     def call(self, x, training=None):
@@ -30,14 +30,14 @@ class PadChannel(Layer):
 class SELayer(Layer):
 
     def __init__(self, in_channels, reduction, groups=1, name=None):
-        super().__init__(name=name)
+        super().__init__()
         channels = min(max(in_channels // reduction, 32), in_channels)
         if groups != 1:
             channels = round_channels(channels, groups)
-        self.pool = GlobalAvgPool(keep_dim=True, name='pool')
+        self.pool = GlobalAvgPool(keep_dim=True)
         self.fc = Sequential([
-            Conv2d(in_channels, channels, 1, groups=groups, act='def', name='fc1'),
-            Conv2d(channels, in_channels, 1, groups=groups, act='sigmoid', name='fc2'),
+            Conv2d(in_channels, channels, 1, groups=groups, act='def'),
+            Conv2d(channels, in_channels, 1, groups=groups, act='sigmoid'),
         ])
 
     def call(self, x):
@@ -130,7 +130,7 @@ class SplAtConv2d(Layer):
 
     def __init__(self, in_channels, channels, kernel_size, stride=1, padding='same',
                  dilation=1, groups=1, bias=None, radix=2, reduction=4, name=None):
-        super().__init__(name=name)
+        super().__init__()
         inter_channels = min(max(in_channels * radix // reduction, 32), in_channels)
         inter_channels = round_channels(inter_channels, groups * radix)
         self.radix = radix
@@ -138,15 +138,15 @@ class SplAtConv2d(Layer):
         self.channels = channels
 
         self.conv = Conv2d(in_channels, channels * radix, kernel_size, stride, padding, groups=groups * radix,
-                           dilation=dilation, bias=bias, name=name + "/conv")
-        self.bn = Norm(channels * radix, name=name + "/bn")
-        self.act = Act(name=name + "/act")
+                           dilation=dilation, bias=bias)
+        self.bn = Norm(channels * radix)
+        self.act = Act()
         self.attn = Sequential([
-            GlobalAvgPool(keep_dim=True, name=name + "/attn/pool"),
-            Conv2d(channels, inter_channels, 1, groups=groups, norm='default', act='default', name=name + "/attn/fc1"),
-            Conv2d(inter_channels, channels * radix, 1, groups=groups, name=name + "/attn/fc2"),
-            rSoftMax(radix, groups, name=name + "/attn/rsoftmax"),
-        ], name=name + "/attn")
+            GlobalAvgPool(keep_dim=True),
+            Conv2d(channels, inter_channels, 1, groups=groups, norm='default', act='default'),
+            Conv2d(inter_channels, channels * radix, 1, groups=groups),
+            rSoftMax(radix, groups),
+        ])
 
     def call(self, x):
         x = self.conv(x)

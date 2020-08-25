@@ -156,46 +156,36 @@ def Conv2d(in_channels: int,
     kernel_regularizer = get_weight_decay()
     bias_regularizer = get_weight_decay() if not DEFAULTS['no_bias_decay'] else None
 
-    def make_conv(name):
-        if in_channels == groups:
-            depth_multiplier = out_channels // in_channels
-            conv = DepthwiseConv2D(kernel_size=kernel_size, strides=stride, padding='valid',
-                                   use_bias=use_bias, dilation_rate=dilation, depth_multiplier=depth_multiplier,
-                                   depthwise_initializer=kernel_initializer, bias_initializer=bias_initializer,
-                                   depthwise_regularizer=kernel_regularizer, bias_regularizer=bias_regularizer, name=name)
-        else:
-            conv = Conv2D(out_channels, kernel_size=kernel_size, strides=stride,
-                          padding='valid', dilation_rate=dilation, use_bias=use_bias, groups=groups,
-                          kernel_initializer=kernel_initializer, bias_initializer=bias_initializer,
-                          kernel_regularizer=kernel_regularizer, bias_regularizer=bias_regularizer, name=name)
-        return conv
-
-    if not (norm or act):
-        if padding != (0, 0):
-            conv = Sequential([
-                ZeroPadding2D(padding, name='conv_pad'),
-                make_conv("conv"),
-            ], name=name)
-        else:
-            conv = make_conv(name)
-        return conv
+    if in_channels == groups:
+        depth_multiplier = out_channels // in_channels
+        conv = DepthwiseConv2D(kernel_size=kernel_size, strides=stride, padding='valid',
+                               use_bias=use_bias, dilation_rate=dilation, depth_multiplier=depth_multiplier,
+                               depthwise_initializer=kernel_initializer, bias_initializer=bias_initializer,
+                               depthwise_regularizer=kernel_regularizer, bias_regularizer=bias_regularizer)
     else:
-        if padding != (0, 0):
-            conv = Sequential([
-                ZeroPadding2D(padding, name='conv_pad'),
-                make_conv("conv"),
-            ], name="conv")
-        else:
-            conv = make_conv("conv")
-        layers = [conv]
-        if norm:
-            layers.append(Norm(out_channels, norm, zero_init=zero_init, name="norm"))
-        if act:
-            layers.append(Act(act, name="act"))
-        return Sequential(layers, name=name)
+        conv = Conv2D(out_channels, kernel_size=kernel_size, strides=stride,
+                      padding='valid', dilation_rate=dilation, use_bias=use_bias, groups=groups,
+                      kernel_initializer=kernel_initializer, bias_initializer=bias_initializer,
+                      kernel_regularizer=kernel_regularizer, bias_regularizer=bias_regularizer)
+
+    if padding != (0, 0):
+        conv = Sequential([
+            ZeroPadding2D(padding),
+            conv,
+        ])
+
+    layers = [conv]
+    if norm:
+        layers.append(Norm(out_channels, norm, zero_init=zero_init))
+    if act:
+        layers.append(Act(act))
+
+    if len(layers) == 1:
+        return layers[0]
+    else:
+        return Sequential(layers)
 
 
-# noinspection PyUnusedLocal
 def Norm(channels, type='default', affine=None, track_running_stats=None, zero_init=False, name=None):
     if type in ['default', 'def']:
         type = DEFAULTS['norm']
@@ -219,28 +209,27 @@ def Norm(channels, type='default', affine=None, track_running_stats=None, zero_i
         bn = SyncBatchNormalization(
             momentum=cfg['momentum'], epsilon=cfg['eps'], gamma_initializer=gamma_initializer,
             gamma_regularizer=gamma_regularizer, beta_regularizer=beta_regularizer,
-            center=affine, scale=affine, track_running_stats=track_running_stats, name=name)
+            center=affine, scale=affine, track_running_stats=track_running_stats)
     else:
         bn = BatchNormalization(
             momentum=cfg['momentum'], epsilon=cfg['eps'], gamma_initializer=gamma_initializer,
             gamma_regularizer=gamma_regularizer, beta_regularizer=beta_regularizer, fused=cfg['fused'],
-            center=affine, scale=affine, track_running_stats=track_running_stats, name=name)
+            center=affine, scale=affine, track_running_stats=track_running_stats)
     return bn
 
 
 def Act(type='default', name=None):
     if type in ['default', 'def']:
-        return Act(DEFAULTS['activation'], name)
+        return Act(DEFAULTS['activation'])
     elif type == 'mish':
         if DEFAULTS['tpu']:
-            return CustomMish(name)
+            return CustomMish()
         else:
-            return Mish(name)
+            return Mish()
     else:
-        return Activation(type, name=name)
+        return Activation(type)
 
 
-# noinspection PyUnusedLocal
 def Pool2d(kernel_size, stride, padding='same', type='avg', ceil_mode=False, name=None):
     assert padding == 0 or padding == 'same'
     if padding == 0:
@@ -253,7 +242,7 @@ def Pool2d(kernel_size, stride, padding='same', type='avg', ceil_mode=False, nam
     else:
         raise ValueError("Unsupported pool type: %s" % type)
 
-    return pool(kernel_size, stride, padding, name=name)
+    return pool(kernel_size, stride, padding)
 
 
 class GlobalAvgPool(Layer):
@@ -297,14 +286,13 @@ def Linear(in_channels, out_channels, act=None, name=None):
                  kernel_initializer=kernel_initializer,
                  bias_initializer=bias_initializer,
                  kernel_regularizer=get_weight_decay(),
-                 bias_regularizer=get_weight_decay(),
-                 name=name)
+                 bias_regularizer=get_weight_decay())
 
 
 class Mish(Layer):
 
     def __init__(self, name=None):
-        super().__init__(name=name)
+        super().__init__()
 
     def call(self, x, training=None):
         return mish(x)
@@ -317,7 +305,7 @@ def custom_mish(x):
 class CustomMish(Layer):
 
     def __init__(self, name=None):
-        super().__init__(name=name)
+        super().__init__()
 
     def call(self, x, training=None):
         return custom_mish(x)

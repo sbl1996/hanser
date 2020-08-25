@@ -11,26 +11,25 @@ from hanser.models.modules import DropPath
 
 class MixedOp(Layer):
 
-    def __init__(self, C, stride, drop_path, name):
-        super().__init__(name=name)
+    def __init__(self, C, stride, drop_path):
+        super().__init__()
         self.stride = stride
         self._ops = []
         for i, primitive in enumerate(get_primitives()):
             if drop_path:
                 op = Sequential([
-                    OPS[primitive](C, stride, name='pool'),
-                ], name=f'op{i + 1}')
+                    OPS[primitive](C, stride),
+                ])
                 if 'pool' in primitive:
-                    op.add(Norm(C, name='norm'))
-                op.add(DropPath(drop_path, name='drop'))
+                    op.add(Norm(C))
+                op.add(DropPath(drop_path))
             else:
+                op = OPS[primitive](C, stride)
                 if 'pool' in primitive:
                     op = Sequential([
-                        OPS[primitive](C, stride, name='pool'),
-                        Norm(C, name='norm')
-                    ], name=f'op{i+1}')
-                else:
-                    op = OPS[primitive](C, stride, name=f'op{i+1}')
+                        op,
+                        Norm(C)
+                    ])
             self._ops.append(op)
 
     def call(self, inputs):
@@ -40,22 +39,22 @@ class MixedOp(Layer):
 
 class Cell(Layer):
 
-    def __init__(self, steps, multiplier, C_prev_prev, C_prev, C, reduction, reduction_prev, drop_path, name):
-        super().__init__(name=name)
+    def __init__(self, steps, multiplier, C_prev_prev, C_prev, C, reduction, reduction_prev, drop_path):
+        super().__init__()
         self.reduction = reduction
 
         if reduction_prev:
-            self.preprocess0 = FactorizedReduce(C_prev_prev, C, name='preprocess0')
+            self.preprocess0 = FactorizedReduce(C_prev_prev, C)
         else:
-            self.preprocess0 = ReLUConvBN(C_prev_prev, C, 1, 1, name='preprocess0')
-        self.preprocess1 = ReLUConvBN(C_prev, C, 1, 1, name='preprocess1')
+            self.preprocess0 = ReLUConvBN(C_prev_prev, C, 1, 1)
+        self.preprocess1 = ReLUConvBN(C_prev, C, 1, 1)
         self._steps = steps
         self._multiplier = multiplier
         self._ops = []
         for i in range(self._steps):
             for j in range(2 + i):
                 stride = 2 if reduction and j < 2 else 1
-                op = MixedOp(C, stride, drop_path, name=f'mixop_{j}_{i+2}')
+                op = MixedOp(C, stride, drop_path)
                 self._ops.append(op)
 
     def call(self, inputs):
@@ -76,14 +75,14 @@ class Cell(Layer):
 class Network(Model):
 
     def __init__(self, C, layers, steps=4, multiplier=4, stem_multiplier=3, drop_path=0.6, num_classes=10):
-        super().__init__(name='network')
+        super().__init__()
         self._C = C
         self._steps = steps
         self._multiplier = multiplier
         self._drop_path = drop_path
 
         C_curr = stem_multiplier * C
-        self.stem = Conv2d(3, C_curr, 3, norm='default', name='stem')
+        self.stem = Conv2d(3, C_curr, 3, norm='default')
 
         C_prev_prev, C_prev, C_curr = C_curr, C_curr, C
         self.cells = []
@@ -94,13 +93,13 @@ class Network(Model):
                 reduction = True
             else:
                 reduction = False
-            cell = Cell(steps, multiplier, C_prev_prev, C_prev, C_curr, reduction, reduction_prev, drop_path, name=f'cell{i}')
+            cell = Cell(steps, multiplier, C_prev_prev, C_prev, C_curr, reduction, reduction_prev, drop_path)
             reduction_prev = reduction
             self.cells += [cell]
             C_prev_prev, C_prev = C_prev, multiplier * C_curr
 
-        self.global_pool = GlobalAvgPool(name='global_pool')
-        self.fc = Linear(C_prev, num_classes, name='fc')
+        self.global_pool = GlobalAvgPool()
+        self.fc = Linear(C_prev, num_classes)
 
         k = sum(2 + i for i in range(self._steps))
         num_ops = len(get_primitives())

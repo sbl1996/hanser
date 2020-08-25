@@ -20,21 +20,20 @@ def channel_shuffle(x, groups):
 
 class MixedOp(Layer):
 
-    def __init__(self, C, stride, k, name):
-        super().__init__(name=name)
+    def __init__(self, C, stride, k):
+        super().__init__()
         self.stride = stride
-        self.mp = Pool2d(2, 2, type='max', name='pool')
+        self.mp = Pool2d(2, 2, type='max')
         self.k = k
         self._ops = []
         self._channels = C // k
         for i, primitive in enumerate(get_primitives()):
+            op = OPS[primitive](self._channels, stride)
             if 'pool' in primitive:
                 op = Sequential([
-                    OPS[primitive](self._channels, stride, name='pool'),
-                    Norm(self._channels, name='norm')
-                ], name=f'op{i+1}')
-            else:
-                op = OPS[primitive](self._channels, stride, name=f'op{i+1}')
+                    op,
+                    Norm(self._channels)
+                ])
             self._ops.append(op)
 
     def call(self, inputs):
@@ -52,22 +51,22 @@ class MixedOp(Layer):
 
 class Cell(Layer):
 
-    def __init__(self, steps, multiplier, C_prev_prev, C_prev, C, reduction, reduction_prev, k, name):
-        super().__init__(name=name)
+    def __init__(self, steps, multiplier, C_prev_prev, C_prev, C, reduction, reduction_prev, k):
+        super().__init__()
         self.reduction = reduction
 
         if reduction_prev:
-            self.preprocess0 = FactorizedReduce(C_prev_prev, C, name='preprocess0')
+            self.preprocess0 = FactorizedReduce(C_prev_prev, C)
         else:
-            self.preprocess0 = ReLUConvBN(C_prev_prev, C, 1, 1, name='preprocess0')
-        self.preprocess1 = ReLUConvBN(C_prev, C, 1, 1, name='preprocess1')
+            self.preprocess0 = ReLUConvBN(C_prev_prev, C, 1, 1)
+        self.preprocess1 = ReLUConvBN(C_prev, C, 1, 1)
         self._steps = steps
         self._multiplier = multiplier
         self._ops = []
         for i in range(self._steps):
             for j in range(2 + i):
                 stride = 2 if reduction and j < 2 else 1
-                op = MixedOp(C, stride, k, name=f'mixop_{j}_{i+2}')
+                op = MixedOp(C, stride, k)
                 self._ops.append(op)
 
     def call(self, inputs):
@@ -101,14 +100,14 @@ def beta_softmax(betas, steps, scale=False):
 class Network(Model):
 
     def __init__(self, C=16, layers=8, steps=4, multiplier=4, stem_multiplier=3, k=4, num_classes=10):
-        super().__init__(name='network')
+        super().__init__()
         self._C = C
         self._steps = steps
         self._multiplier = multiplier
         self._k = k
 
         C_curr = stem_multiplier * C
-        self.stem = Conv2d(3, C_curr, 3, norm='default', name='stem')
+        self.stem = Conv2d(3, C_curr, 3, norm='default')
 
         C_prev_prev, C_prev, C_curr = C_curr, C_curr, C
         self.cells = []
@@ -119,13 +118,13 @@ class Network(Model):
                 reduction = True
             else:
                 reduction = False
-            cell = Cell(steps, multiplier, C_prev_prev, C_prev, C_curr, reduction, reduction_prev, k, name=f'cell{i}')
+            cell = Cell(steps, multiplier, C_prev_prev, C_prev, C_curr, reduction, reduction_prev, k)
             reduction_prev = reduction
             self.cells.append(cell)
             C_prev_prev, C_prev = C_prev, multiplier * C_curr
 
-        self.global_pool = GlobalAvgPool(name='global_pool')
-        self.fc = Linear(C_prev, num_classes, name='fc')
+        self.global_pool = GlobalAvgPool()
+        self.fc = Linear(C_prev, num_classes)
 
         k = sum(2 + i for i in range(self._steps))
         num_ops = len(get_primitives())

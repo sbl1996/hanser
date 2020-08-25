@@ -10,43 +10,43 @@ __all__ = [
 
 
 class AuxiliaryHead(Sequential):
-    def __init__(self, in_channels, num_classes, name):
+    def __init__(self, in_channels, num_classes):
         layers = [
-            Norm(in_channels, name='norm0'),
-            Pool2d(5, 3, padding=0, type='avg', name='pool'),
-            Conv2d(in_channels, 128, 1, norm='def', act='def', name='conv1'),
-            Conv2d(128, 768, 2, padding=0, norm='def', act='def', name='conv2'),
-            Flatten(name='flatten'),
-            Linear(768, num_classes, name='fc'),
+            Norm(in_channels),
+            Pool2d(5, 3, padding=0, type='avg'),
+            Conv2d(in_channels, 128, 1, norm='def', act='def'),
+            Conv2d(128, 768, 2, padding=0, norm='def', act='def'),
+            Flatten(),
+            Linear(768, num_classes),
         ]
-        super().__init__(layers, name=name)
+        super().__init__(layers)
 
 
 class Shortcut(Sequential):
-    def __init__(self, in_channels, out_channels, stride, name):
+    def __init__(self, in_channels, out_channels, stride):
         layers = []
         if stride == 2:
-            layers.append(Pool2d(2, 2, type='avg', name="pool"))
+            layers.append(Pool2d(2, 2, type='avg'))
         if in_channels != out_channels:
-            layers.append((PadChannel(out_channels - in_channels, name="pad")))
-        super().__init__(layers, name=name)
+            layers.append((PadChannel(out_channels - in_channels)))
+        super().__init__(layers)
 
 
 class BasicBlock(Layer):
 
-    def __init__(self, in_channels, channels, groups, stride=1, use_se=True, drop_path=0.2, name=None):
-        super().__init__(name=name)
+    def __init__(self, in_channels, channels, groups, stride=1, use_se=True, drop_path=0.2):
+        super().__init__()
         assert groups == 1
         branch1 = [
-            Norm(in_channels, name="norm0"),
-            Conv2d(in_channels, channels, kernel_size=3, norm='default', act='default', name="conv1"),
-            *([Pool2d(3, 2, name="pool")] if stride != 1 else []),
-            Conv2d(channels, channels, kernel_size=3, norm='default', name="conv2"),
-            *([SELayer(channels, 4, groups, name="se")] if use_se else []),
-            *([DropPath(drop_path, name="drop")] if drop_path and stride == 1 else []),
+            Norm(in_channels),
+            Conv2d(in_channels, channels, kernel_size=3, norm='default', act='default'),
+            *([Pool2d(3, 2)] if stride != 1 else []),
+            Conv2d(channels, channels, kernel_size=3, norm='default'),
+            *([SELayer(channels, 4, groups)] if use_se else []),
+            *([DropPath(drop_path)] if drop_path and stride == 1 else []),
         ]
-        self.branch1 = Sequential(branch1, name="branch1")
-        self.branch2 = Shortcut(in_channels, channels, stride, name="branch2")
+        self.branch1 = Sequential(branch1)
+        self.branch2 = Shortcut(in_channels, channels, stride)
 
     def call(self, x):
         return self.branch1(x) + self.branch2(x)
@@ -54,19 +54,19 @@ class BasicBlock(Layer):
 
 class Bottleneck(Layer):
 
-    def __init__(self, in_channels, channels, groups, stride=1, use_se=True, drop_path=0.2, name=None):
-        super().__init__(name=name)
+    def __init__(self, in_channels, channels, groups, stride=1, use_se=True, drop_path=0.2):
+        super().__init__()
         branch1 = [
-            Norm(in_channels, name="norm0"),
-            Conv2d(in_channels, channels, kernel_size=1, norm='default', act='default', name="conv1"),
-            *([Pool2d(3, 2, name="pool")] if stride != 1 else []),
-            Conv2d(channels, channels, kernel_size=3, groups=groups, norm='default', act='default', name="conv2"),
-            *([SELayer(channels, 4, groups, name="se")] if use_se else []),
-            Conv2d(channels, channels, kernel_size=1, norm='default', name="conv3"),
-            *([DropPath(drop_path, name="drop")] if drop_path and stride == 1 else []),
+            Norm(in_channels),
+            Conv2d(in_channels, channels, kernel_size=1, norm='default', act='default'),
+            *([Pool2d(3, 2)] if stride != 1 else []),
+            Conv2d(channels, channels, kernel_size=3, groups=groups, norm='default', act='default'),
+            *([SELayer(channels, 4, groups)] if use_se else []),
+            Conv2d(channels, channels, kernel_size=1, norm='default'),
+            *([DropPath(drop_path)] if drop_path and stride == 1 else []),
         ]
-        self.branch1 = Sequential(branch1, name="branch1")
-        self.branch2 = Shortcut(in_channels, channels, stride, name="branch2")
+        self.branch1 = Sequential(branch1)
+        self.branch2 = Shortcut(in_channels, channels, stride)
 
     def call(self, x):
         return self.branch1(x) + self.branch2(x)
@@ -102,7 +102,7 @@ class PyramidNeXt(Model):
         add_channel = widening_fractor / sum(num_layers)
         in_channels = start_channels
 
-        self.init_block = Conv2d(3, start_channels, kernel_size=3, norm='default', name="init_block")
+        self.init_block = Conv2d(3, start_channels, kernel_size=3, norm='default')
 
         channels = start_channels
         k = 1
@@ -110,31 +110,31 @@ class PyramidNeXt(Model):
         for i, (n, s) in enumerate(zip(num_layers, strides)):
             channels += add_channel
             units.append(block(in_channels, round_channels(channels, groups),
-                                    groups, stride=s, use_se=use_se, drop_path=drop_path, name=f"unit{k}"))
+                                    groups, stride=s, use_se=use_se, drop_path=drop_path))
             in_channels = round_channels(channels, groups)
             k += 1
 
             if i == 2 and self.use_aux_head:
                 self.aux_head_index = k - 1
-                self.aux_head = AuxiliaryHead(in_channels, num_classes, name='aux_head')
+                self.aux_head = AuxiliaryHead(in_channels, num_classes)
 
             for j in range(1, n):
                 channels = channels + add_channel
                 units.append(block(in_channels, round_channels(channels, groups),
-                                        groups, use_se=use_se, drop_path=drop_path, name=f"unit{k}"))
+                                        groups, use_se=use_se, drop_path=drop_path))
                 in_channels = round_channels(channels, groups)
                 k += 1
 
         self.units = units
         self.post_activ = Sequential([
-            Norm(in_channels, name="norm"),
-            Act(name="act"),
-        ], name="post_activ")
+            Norm(in_channels),
+            Act(),
+        ])
 
         assert (start_channels + widening_fractor) == in_channels
 
-        self.final_pool = GlobalAvgPool(name="final_pool")
-        self.fc = Linear(in_channels, num_classes, name="fc")
+        self.final_pool = GlobalAvgPool()
+        self.fc = Linear(in_channels, num_classes)
 
     def call(self, x):
         x = self.init_block(x)

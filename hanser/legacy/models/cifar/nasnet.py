@@ -35,15 +35,15 @@ def standardize(genotype: Genotype):
 
 class Cell(Layer):
 
-    def __init__(self, genotype, C_prev_prev, C_prev, C, reduction, reduction_prev, drop_path):
-        super().__init__()
+    def __init__(self, genotype, C_prev_prev, C_prev, C, reduction, reduction_prev, drop_path, name):
+        super().__init__(name=name)
         genotype = standardize(genotype)
         self.drop_path = drop_path
         if reduction_prev:
-            self.preprocess0 = FactorizedReduce(C_prev_prev, C)
+            self.preprocess0 = FactorizedReduce(C_prev_prev, C, name='preprocess0')
         else:
-            self.preprocess0 = ReLUConvBN(C_prev_prev, C, 1, 1)
-        self.preprocess1 = ReLUConvBN(C_prev, C, 1, 1)
+            self.preprocess0 = ReLUConvBN(C_prev_prev, C, 1, 1, name='preprocess0')
+        self.preprocess1 = ReLUConvBN(C_prev, C, 1, 1, name='preprocess1')
 
         if reduction:
             op_names, op_indices, indices = zip(*genotype.reduce)
@@ -67,11 +67,11 @@ class Cell(Layer):
             stride = 2 if reduction and index < 2 else 1
             if self.drop_path and (name != 'skip_connect' or (name == 'skip_connect' and reduction)):
                 op = Sequential([
-                    OPS[name](C, stride),
-                    DropPath(self.drop_path),
-                ])
+                    OPS[name](C, stride, name="op"),
+                    DropPath(self.drop_path, name="drop"),
+                ], name=f"op_{index}_{op_index}")
             else:
-                op = OPS[name](C, stride)
+                op = OPS[name](C, stride, name=f"op_{index}_{op_index}")
             self._ops[-1].append(op)
             self._indices[-1].append(index)
             prev_op_index = op_index
@@ -90,19 +90,19 @@ class Cell(Layer):
 
 class AuxiliaryHeadCIFAR(Layer):
 
-    def __init__(self, C, num_classes):
+    def __init__(self, C, num_classes, name):
         """assuming input size 8x8"""
-        super().__init__()
+        super().__init__(name=name)
         self.features = Sequential([
-            Act(),
-            Pool2d(5, stride=3, padding=0, type='avg'),
-            Conv2d(C, 128, 1, norm='def', act='def'),
-            Conv2d(128, 768, 2, norm='def', act='def', padding=0),
-        ])
+            Act(name='act0'),
+            Pool2d(5, stride=3, padding=0, type='avg', name='pool'),
+            Conv2d(C, 128, 1, norm='def', act='def', name='conv1'),
+            Conv2d(128, 768, 2, norm='def', act='def', padding=0, name='conv2'),
+        ], name='features')
         self.classifier = Sequential([
-            GlobalAvgPool(),
-            Linear(768, num_classes),
-        ])
+            GlobalAvgPool(name='global_pooling'),
+            Linear(768, num_classes, name='fc'),
+        ], name='classifier')
 
     def call(self, x):
         x = self.features(x)
@@ -120,7 +120,7 @@ class NASNet(Model):
 
         stem_multiplier = 3
         C_curr = stem_multiplier * C
-        self.stem = Conv2d(3, C_curr, 3, norm='def')
+        self.stem = Conv2d(3, C_curr, 3, norm='def', name='stem')
 
         C_prev_prev, C_prev, C_curr = C_curr, C_curr, C
         self.cells = []
@@ -131,7 +131,7 @@ class NASNet(Model):
                 reduction = True
             else:
                 reduction = False
-            cell = Cell(genotype, C_prev_prev, C_prev, C_curr, reduction, reduction_prev, drop_path)
+            cell = Cell(genotype, C_prev_prev, C_prev, C_curr, reduction, reduction_prev, drop_path, name=f"cell{i}")
             reduction_prev = reduction
             self.cells.append(cell)
             C_prev_prev, C_prev = C_prev, cell.multiplier * C_curr
@@ -139,11 +139,11 @@ class NASNet(Model):
                 C_to_auxiliary = C_prev
 
         if auxiliary:
-            self.auxiliary_head = AuxiliaryHeadCIFAR(C_to_auxiliary, num_classes)
+            self.auxiliary_head = AuxiliaryHeadCIFAR(C_to_auxiliary, num_classes, name='aux_head')
         self.classifier = Sequential([
-            GlobalAvgPool(),
-            Linear(C_prev, num_classes),
-        ])
+            GlobalAvgPool(name='global_pooling'),
+            Linear(C_prev, num_classes, name='fc'),
+        ], name='classifier')
 
     def call(self, input):
         s0 = s1 = self.stem(input)

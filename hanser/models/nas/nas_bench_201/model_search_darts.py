@@ -11,26 +11,25 @@ from hanser.models.modules import DropPath
 
 class MixedOp(Layer):
 
-    def __init__(self, C, stride, drop_path, name):
-        super().__init__(name=name)
+    def __init__(self, C, stride, drop_path):
+        super().__init__()
         self.stride = stride
         self._ops = []
         for i, primitive in enumerate(get_primitives()):
             if drop_path:
                 op = Sequential([
-                    OPS[primitive](C, stride, name='pool'),
-                ], name=f'op{i + 1}')
+                    OPS[primitive](C, stride),
+                ])
                 if 'pool' in primitive:
-                    op.add(Norm(C, name='norm'))
-                op.add(DropPath(drop_path, name='drop'))
+                    op.add(Norm(C))
+                op.add(DropPath(drop_path))
             else:
+                op = OPS[primitive](C, stride)
                 if 'pool' in primitive:
                     op = Sequential([
-                        OPS[primitive](C, stride, name='pool'),
-                        Norm(C, name='norm')
-                    ], name=f'op{i + 1}')
-                else:
-                    op = OPS[primitive](C, stride, name=f'op{i + 1}')
+                        op,
+                        Norm(C)
+                    ])
             self._ops.append(op)
 
     def call(self, inputs):
@@ -40,15 +39,15 @@ class MixedOp(Layer):
 
 class Cell(Layer):
 
-    def __init__(self, steps, C_prev, C, drop_path, name):
-        super().__init__(name=name)
+    def __init__(self, steps, C_prev, C, drop_path):
+        super().__init__()
 
-        self.preprocess = ReLUConvBN(C_prev, C, 1, 1, name='preprocess1')
+        self.preprocess = ReLUConvBN(C_prev, C, 1, 1)
         self._steps = steps
         self._ops = []
         for i in range(self._steps):
             for j in range(1 + i):
-                op = MixedOp(C, 1, drop_path, name=f'mixop_{j}_{i + 1}')
+                op = MixedOp(C, 1, drop_path)
                 self._ops.append(op)
 
     def call(self, inputs):
@@ -67,16 +66,16 @@ class Cell(Layer):
 
 class BasicBlock(Layer):
 
-    def __init__(self, C_prev, C, stride=2, name=None):
-        super().__init__(name=name)
+    def __init__(self, C_prev, C, stride=2):
+        super().__init__()
         assert stride == 2
-        self.conv1 = ReLUConvBN(C_prev, C, 3, stride=stride, name='conv1')
-        self.conv2 = ReLUConvBN(C, C, 3, stride=1, name='conv2')
+        self.conv1 = ReLUConvBN(C_prev, C, 3, stride=stride)
+        self.conv2 = ReLUConvBN(C, C, 3, stride=1)
         self.downsample = Sequential([
-            Pool2d(2, 2, type='avg', name='pool'),
-            Conv2d(C_prev, C, 1, norm='def'),
-        ], name='downsample')
-        self.act = Act(name='act')
+            Pool2d(2, 2, type='avg'),
+            Conv2d(C_prev, C, 1),
+        ])
+        self.act = Act()
         self.stride = stride
 
     def call(self, inputs):
@@ -92,27 +91,27 @@ class BasicBlock(Layer):
 class Network(Model):
 
     def __init__(self, C, layers, steps=3, stem_multiplier=3, drop_path=0.6, num_classes=10):
-        super().__init__(name='network')
+        super().__init__()
         self._C = C
         self._steps = steps
         self._drop_path = drop_path
 
         C_curr = stem_multiplier * C
-        self.stem = Conv2d(3, C_curr, 3, norm='default', name='stem')
+        self.stem = Conv2d(3, C_curr, 3, norm='default')
 
         C_prev, C_curr = C_curr, C
         self.cells = []
         for i in range(layers):
             if i in [layers // 3, 2 * layers // 3]:
                 C_curr *= 2
-                cell = BasicBlock(C_prev, C_curr, stride=2, name=f'cell{i}')
+                cell = BasicBlock(C_prev, C_curr, stride=2)
             else:
-                cell = Cell(steps, C_prev, C_curr, drop_path, name=f'cell{i}')
+                cell = Cell(steps, C_prev, C_curr, drop_path)
             self.cells.append(cell)
             C_prev = C_curr
 
-        self.global_pool = GlobalAvgPool(name='global_pool')
-        self.fc = Linear(C_prev, num_classes, name='fc')
+        self.global_pool = GlobalAvgPool()
+        self.fc = Linear(C_prev, num_classes)
 
         k = sum(1 + i for i in range(self._steps))
         num_ops = len(get_primitives())

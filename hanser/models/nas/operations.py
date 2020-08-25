@@ -4,69 +4,68 @@ from tensorflow.keras.layers import Layer
 from hanser.models.layers import Conv2d, Norm, Act, Pool2d
 
 OPS = {
-    'none': lambda C, stride, name: Zero(stride, name=name),
-    'avg_pool_3x3': lambda C, stride, name: Pool2d(3, stride=stride, type='avg', name=name),
-    'max_pool_3x3': lambda C, stride, name: Pool2d(3, stride=stride, type='max', name=name),
-    'skip_connect': lambda C, stride, name: Identity(name=name) if stride == 1 else FactorizedReduce(C, C, name=name),
-    'sep_conv_3x3': lambda C, stride, name: SepConv(C, C, 3, stride, name=name),
-    'sep_conv_5x5': lambda C, stride, name: SepConv(C, C, 5, stride, name=name),
-    'sep_conv_7x7': lambda C, stride, name: SepConv(C, C, 7, stride, name=name),
-    'dil_conv_3x3': lambda C, stride, name: DilConv(C, C, 3, stride, 2, name=name),
-    'dil_conv_5x5': lambda C, stride, name: DilConv(C, C, 5, stride, 2, name=name),
-    'conv_7x1_1x7': lambda C, stride, name: Sequential([
-        Act(name='act'),
-        Conv2d(C, C, (7, 1), stride=(stride, 1), bias=False, name='conv_left'),
-        Conv2d(C, C, (1, 7), stride=(1, stride), bias=False, name='conv_right'),
-        Norm(C, name='norm'),
-    ], name=name),
-    'nor_conv_1x1': lambda C, stride, name: ReLUConvBN(C, C, 1, stride, name=name),
-    'nor_conv_3x3': lambda C, stride, name: ReLUConvBN(C, C, 3, stride, name=name),
-    'max_pool_2x2': lambda C, stride, name: Pool2d(2, stride=stride, type='max', name=name),
+    'none': lambda C, stride: Zero(stride),
+    'avg_pool_3x3': lambda C, stride: Pool2d(3, stride=stride, type='avg'),
+    'max_pool_3x3': lambda C, stride: Pool2d(3, stride=stride, type='max'),
+    'skip_connect': lambda C, stride: Identity() if stride == 1 else FactorizedReduce(C, C),
+    'sep_conv_3x3': lambda C, stride: SepConv(C, C, 3, stride),
+    'sep_conv_5x5': lambda C, stride: SepConv(C, C, 5, stride),
+    'sep_conv_7x7': lambda C, stride: SepConv(C, C, 7, stride),
+    'dil_conv_3x3': lambda C, stride: DilConv(C, C, 3, stride, 2),
+    'dil_conv_5x5': lambda C, stride: DilConv(C, C, 5, stride, 2),
+    'conv_7x1_1x7': lambda C, stride: Sequential([
+        Act(),
+        Conv2d(C, C, (7, 1), stride=(stride, 1), bias=False),
+        Conv2d(C, C, (1, 7), stride=(1, stride), bias=False),
+        Norm(C),
+    ]),
+    'nor_conv_1x1': lambda C, stride: ReLUConvBN(C, C, 1, stride),
+    'nor_conv_3x3': lambda C, stride: ReLUConvBN(C, C, 3, stride),
+    'max_pool_2x2': lambda C, stride: Pool2d(2, stride=stride, type='max'),
 }
 
 
 class ReLUConvBN(Sequential):
 
-    def __init__(self, C_in, C_out, kernel_size, stride, name):
+    def __init__(self, C_in, C_out, kernel_size, stride):
         super().__init__([
-            Act(name='act'),
-            Conv2d(C_in, C_out, kernel_size, stride=stride, bias=False, name='conv'),
-            Norm(C_out, name='norm'),
-        ], name=name)
+            Act(),
+            Conv2d(C_in, C_out, kernel_size, stride=stride, bias=False),
+            Norm(C_out),
+        ])
 
 
 class DilConv(Sequential):
 
-    def __init__(self, C_in, C_out, kernel_size, stride, dilation, name):
+    def __init__(self, C_in, C_out, kernel_size, stride, dilation):
         super().__init__([
-            Act(name='act'),
-            Conv2d(C_in, C_in, kernel_size, stride=stride, dilation=dilation, groups=C_in,
-                   bias=False, name='depthwise'),
-            Conv2d(C_in, C_out, 1, bias=False, name='pointwise'),
-            Norm(C_out, name='norm'),
-        ], name=name)
+            Act(),
+            Conv2d(C_in, C_in, kernel_size, stride=stride, dilation=dilation, groups=C_in, bias=False),
+            Conv2d(C_in, C_out, 1, bias=False),
+            Norm(C_out),
+        ])
 
 
 class SepConv(Sequential):
 
-    def __init__(self, C_in, C_out, kernel_size, stride, name):
+    def __init__(self, C_in, C_out, kernel_size, stride):
         super().__init__([
-            Act(name='act1'),
-            Conv2d(C_in, C_in, kernel_size, stride=stride, groups=C_in, bias=False, name='depthwise1'),
-            Conv2d(C_in, C_in, 1, bias=False, name='pointwise1'),
-            Norm(C_in, name='norm1'),
+            Act(),
+            Conv2d(C_in, C_in, kernel_size, stride=stride, groups=C_in, bias=False),
+            Conv2d(C_in, C_in, 1, bias=False),
+            Norm(C_in),
 
-            Act(name='act2'),
-            Conv2d(C_in, C_in, kernel_size, 1, groups=C_in, bias=False, name='depthwise2'),
-            Conv2d(C_in, C_out, 1, bias=False, name='pointwise2'),
-            Norm(C_out, name='norm2'),
-        ], name=name)
+            Act(),
+            Conv2d(C_in, C_in, kernel_size, 1, groups=C_in, bias=False),
+            Conv2d(C_in, C_out, 1, bias=False),
+            Norm(C_out),
+        ])
 
 
 class Identity(Layer):
 
-    def __init__(self, name):
-        super().__init__(name=name)
+    def __init__(self):
+        super().__init__()
 
     def call(self, x):
         return x
@@ -74,8 +73,8 @@ class Identity(Layer):
 
 class Zero(Layer):
 
-    def __init__(self, stride, name):
-        super().__init__(name=name)
+    def __init__(self, stride):
+        super().__init__()
         self.stride = stride
 
     def call(self, x):
@@ -86,13 +85,13 @@ class Zero(Layer):
 
 class FactorizedReduce(Layer):
 
-    def __init__(self, C_in, C_out, name):
-        super().__init__(name=name)
+    def __init__(self, C_in, C_out):
+        super().__init__()
         assert C_out % 2 == 0
-        self.act = Act(name='act')
-        self.conv1 = Conv2d(C_in, C_out // 2, 1, stride=2, bias=False, name='conv1')
-        self.conv2 = Conv2d(C_in, C_out // 2, 1, stride=2, bias=False, name='conv2')
-        self.norm = Norm(C_out, name='norm')
+        self.act = Act()
+        self.conv1 = Conv2d(C_in, C_out // 2, 1, stride=2, bias=False)
+        self.conv2 = Conv2d(C_in, C_out // 2, 1, stride=2, bias=False)
+        self.norm = Norm(C_out)
 
     def call(self, x):
         x = self.act(x)

@@ -11,29 +11,28 @@ __all__ = [
 
 
 class Shortcut(Sequential):
-    def __init__(self, in_channels, out_channels, stride, name):
+    def __init__(self, in_channels, out_channels, stride):
         layers = []
         if stride == 2:
-            layers.append(Pool2d(2, 2, type='avg', name="pool"))
+            layers.append(Pool2d(2, 2, type='avg'))
         if in_channels != out_channels:
-            layers.append((PadChannel(out_channels - in_channels, name="pad")))
-        super().__init__(layers, name=name)
+            layers.append((PadChannel(out_channels - in_channels)))
+        super().__init__(layers)
 
 
 class BasicBlock(Layer):
     expansion = 1
 
-    def __init__(self, in_channels, channels, stride=1, name=None):
-        super().__init__(name=name)
+    def __init__(self, in_channels, channels, stride=1):
+        super().__init__()
         branch1 = [
-            Norm(in_channels, name="norm0"),
+            Norm(in_channels),
             Conv2d(in_channels, channels, kernel_size=3, stride=stride,
-                   norm='default', act='default', name="conv1"),
-            Conv2d(channels, channels, kernel_size=3,
-                   norm='default', name="conv2"),
+                   norm='default', act='default'),
+            Conv2d(channels, channels, kernel_size=3, norm='default'),
         ]
-        self.branch1 = Sequential(branch1, name="branch1")
-        self.branch2 = Shortcut(in_channels, channels, stride, name="branch2")
+        self.branch1 = Sequential(branch1)
+        self.branch2 = Shortcut(in_channels, channels, stride)
 
     def call(self, x):
         return self.branch1(x) + self.branch2(x)
@@ -42,20 +41,20 @@ class BasicBlock(Layer):
 class Bottleneck(Layer):
     expansion = 4
 
-    def __init__(self, in_channels, channels, stride=1, name=None):
-        super().__init__(name=name)
+    def __init__(self, in_channels, channels, stride=1):
+        super().__init__()
         out_channels = channels * self.expansion
         branch1 = [
-            Norm(in_channels, name="norm0"),
+            Norm(in_channels),
             Conv2d(in_channels, channels, kernel_size=1,
-                   norm='default', act='default', name="conv1"),
+                   norm='default', act='default'),
             Conv2d(channels, channels, kernel_size=3, stride=stride,
-                   norm='default', act='default', name="conv2"),
+                   norm='default', act='default'),
             Conv2d(channels, out_channels, kernel_size=1,
-                   norm='default', name="conv3"),
+                   norm='default'),
         ]
-        self.branch1 = Sequential(branch1, name="branch1")
-        self.branch2 = Shortcut(in_channels, out_channels, stride, name="branch2")
+        self.branch1 = Sequential(branch1)
+        self.branch2 = Shortcut(in_channels, out_channels, stride)
 
     def call(self, x):
         return self.branch1(x) + self.branch2(x)
@@ -85,33 +84,33 @@ class PyramidNet(Model):
         add_channel = widening_fractor / sum(num_layers)
         in_channels = start_channels
 
-        self.init_block = Conv2d(3, start_channels, kernel_size=3, norm='default', name="init_block")
+        self.init_block = Conv2d(3, start_channels, kernel_size=3, norm='default')
 
         channels = start_channels
         k = 1
         units = []
         for i, (n, s) in enumerate(zip(num_layers, strides)):
             channels += add_channel
-            units.append(block(in_channels, rd(channels), stride=s, name=f"unit{k}"))
+            units.append(block(in_channels, rd(channels), stride=s))
             in_channels = rd(channels) * block.expansion
             k += 1
 
             for j in range(1, n):
                 channels = channels + add_channel
-                units.append(block(in_channels, rd(channels), name=f"unit{k}"))
+                units.append(block(in_channels, rd(channels)))
                 in_channels = rd(channels) * block.expansion
                 k += 1
 
         self.units = units
         self.post_activ = Sequential([
-            Norm(in_channels, name="norm"),
-            Act(name="act"),
-        ], name="post_activ")
+            Norm(in_channels),
+            Act(),
+        ])
 
         assert (start_channels + widening_fractor) * block.expansion == in_channels
 
-        self.final_pool = GlobalAvgPool(name="final_pool")
-        self.fc = Linear(in_channels, num_classes, name="fc")
+        self.final_pool = GlobalAvgPool()
+        self.fc = Linear(in_channels, num_classes)
 
     def call(self, x):
         x = self.init_block(x)

@@ -24,17 +24,17 @@ def channel_shuffle(x, groups):
 
 class NormalCell(Layer):
 
-    def __init__(self, in_channels, use_se, name):
-        super().__init__(name=name)
+    def __init__(self, in_channels, use_se):
+        super().__init__()
         c = in_channels // 2
         branch2 = [
-            Conv2d(c, c, kernel_size=1, norm='def', act='def', name='conv1'),
-            Conv2d(c, c, kernel_size=3, groups=c, norm='def', name='conv2'),
-            Conv2d(c, c, kernel_size=1, norm='def', act='def', name='conv3')
+            Conv2d(c, c, kernel_size=1, norm='def', act='def'),
+            Conv2d(c, c, kernel_size=3, groups=c, norm='def'),
+            Conv2d(c, c, kernel_size=1, norm='def', act='def')
         ]
         if use_se:
-            branch2.append(SELayer(c, reduction=2, name='se'))
-        self.branch2 = Sequential(branch2, name='branch2')
+            branch2.append(SELayer(c, reduction=2))
+        self.branch2 = Sequential(branch2)
 
     def call(self, x):
         c = x.shape[-1] // 2
@@ -46,21 +46,21 @@ class NormalCell(Layer):
 
 class ReduceCell(Layer):
 
-    def __init__(self, in_channels, out_channels, use_se, name):
-        super().__init__(name=name)
+    def __init__(self, in_channels, out_channels, use_se):
+        super().__init__()
         c = out_channels // 2
         self.branch1 = Sequential([
-            Conv2d(in_channels, in_channels, kernel_size=3, stride=2, groups=in_channels, norm='def', name='conv1'),
-            Conv2d(in_channels, c, kernel_size=1, norm='def', act='def', name='conv2'),
-        ], name='branch1')
+            Conv2d(in_channels, in_channels, kernel_size=3, stride=2, groups=in_channels, norm='def'),
+            Conv2d(in_channels, c, kernel_size=1, norm='def', act='def'),
+        ])
         branch2 = [
-            Conv2d(in_channels, c, kernel_size=1, norm='def', act='def', name='conv1'),
-            Conv2d(c, c, kernel_size=3, stride=2, groups=c, norm='def', name='conv2'),
-            Conv2d(c, c, kernel_size=1, norm='def', act='def', name='conv3')
+            Conv2d(in_channels, c, kernel_size=1, norm='def', act='def'),
+            Conv2d(c, c, kernel_size=3, stride=2, groups=c, norm='def'),
+            Conv2d(c, c, kernel_size=1, norm='def', act='def')
         ]
         if use_se:
-            branch2.append(SELayer(c, reduction=2, name='se'))
-        self.branch2 = Sequential(branch2, name='branch2')
+            branch2.append(SELayer(c, reduction=2))
+        self.branch2 = Sequential(branch2)
 
     def call(self, x):
         x1 = self.branch1(x)
@@ -69,15 +69,15 @@ class ReduceCell(Layer):
         return channel_shuffle(x, 2)
 
 
-def _make_layer(in_channels, out_channels, num_units, stride, use_se, name):
+def _make_layer(in_channels, out_channels, num_units, stride, use_se):
     layers = []
     if stride == 2:
-        layers.append(ReduceCell(in_channels, out_channels, use_se, name='unit1'))
+        layers.append(ReduceCell(in_channels, out_channels, use_se))
     else:
-        layers.append(Conv2d(in_channels, out_channels, 3, norm='def', act='def', name='unit1'))
+        layers.append(Conv2d(in_channels, out_channels, 3, norm='def', act='def'))
     for i in range(1, num_units):
-        layers.append(NormalCell(out_channels, use_se, name=f'unit{i+1}'))
-    return Sequential(layers, name=name)
+        layers.append(NormalCell(out_channels, use_se))
+    return Sequential(layers)
 
 
 class ShuffleNetV2(Model):
@@ -90,17 +90,17 @@ class ShuffleNetV2(Model):
         cs = [stem_channels] + list(channels_per_stage)
         ns = units_per_stage
 
-        self.stem = Conv2d(3, stem_channels, 3, norm='def', act='def', name='stem')
+        self.stem = Conv2d(3, stem_channels, 3, norm='def', act='def')
 
-        self.stage1 = _make_layer(cs[0], cs[1], ns[0], stride=1, use_se=use_se, name='stage1')
-        self.stage2 = _make_layer(cs[1], cs[2], ns[1], stride=2, use_se=use_se, name='stage2')
-        self.stage3 = _make_layer(cs[2], cs[3], ns[2], stride=2, use_se=use_se, name='stage3')
+        self.stage1 = _make_layer(cs[0], cs[1], ns[0], stride=1, use_se=use_se)
+        self.stage2 = _make_layer(cs[1], cs[2], ns[1], stride=2, use_se=use_se)
+        self.stage3 = _make_layer(cs[2], cs[3], ns[2], stride=2, use_se=use_se)
 
-        self.final_conv = Conv2d(cs[-1], final_channels, 1, norm='def', act='def', name='final_conv')
-        self.global_pool = GlobalAvgPool(name='global_pool')
+        self.final_conv = Conv2d(cs[-1], final_channels, 1, norm='def', act='def')
+        self.global_pool = GlobalAvgPool()
         if dropout:
-            self.dropout = Dropout(dropout, name='dropout')
-        self.classifier = Linear(final_channels, num_classes, name='classifier')
+            self.dropout = Dropout(dropout)
+        self.classifier = Linear(final_channels, num_classes)
 
     def call(self, x):
         x = self.stem(x)
