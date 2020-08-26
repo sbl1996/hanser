@@ -7,7 +7,7 @@ from tensorflow.keras.layers import Layer
 from hanser.models.nas.genotypes import Genotype
 from hanser.models.modules import DropPath
 from hanser.models.layers import Conv2d, Pool2d, GlobalAvgPool, Act, Linear
-from hanser.models.nas.operations import FactorizedReduce, ReLUConvBN, OPS
+from hanser.models.nas.operations import FactorizedReduce, ReLUConvBN, OPS, Identity
 
 
 def standardize(genotype: Genotype):
@@ -64,14 +64,16 @@ class Cell(Layer):
             if op_index != prev_op_index:
                 self._ops.append([])
                 self._indices.append([])
+
             stride = 2 if reduction and index < 2 else 1
-            if self.drop_path and (name != 'skip_connect' or (name == 'skip_connect' and reduction)):
+            op = OPS[name](C, stride)
+
+            if self.drop_path and not isinstance(op, Identity):
                 op = Sequential([
-                    OPS[name](C, stride),
+                    op,
                     DropPath(self.drop_path),
                 ])
-            else:
-                op = OPS[name](C, stride)
+
             self._ops[-1].append(op)
             self._indices[-1].append(index)
             prev_op_index = op_index

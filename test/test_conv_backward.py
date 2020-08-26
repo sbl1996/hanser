@@ -44,7 +44,9 @@ def test_impl(size, channels, kernel_size, stride, dilation):
     loss_t.backward()
     gt = mt.weight.grad.permute(2, 3, 0, 1)
 
-    np.testing.assert_allclose(g.numpy(), gt.numpy(), atol=1e-5)
+    d = g.numpy() - gt.numpy()
+    print(d.mean(), d.std())
+    np.testing.assert_allclose(g.numpy(), gt.numpy(), atol=1e-6)
 
 
 sizes = [4, 7, 8, 16]
@@ -57,7 +59,9 @@ for size in sizes:
         for s in strides:
             for d in dilations:
                 try:
+                    print(size, k, s, d)
                     test_impl(size, channels, k, s, d)
                 except AssertionError as e:
+                    print("Error: ", end="")
                     print(size, k, s, d)
                     raise e
