@@ -4,6 +4,7 @@ import sys
 import stat
 import json
 import shutil
+import importlib.util
 from pathlib import Path
 from typing import Callable, Any, Union
 from datetime import datetime, timedelta
@@ -110,3 +111,10 @@ def read_pickle(fp):
 def save_pickle(obj, fp):
     with open(fp, 'wb') as f:
         pickle.dump(obj, f)
+
+
+def parse_python_config(fp):
+    spec = importlib.util.spec_from_file_location("config", fp)
+    cfg = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(cfg)
+    return cfg
