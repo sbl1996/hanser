@@ -125,7 +125,7 @@ PNASNet = Genotype(
 )
 
 # One-Shot Neural Architecture Search via Self-Evaluated Template Network, ICCV 2019
-#
+# 2.69
 SETN = Genotype(
     normal=[
         ('skip_connect', 0), ('sep_conv_5x5', 1),
@@ -513,6 +513,7 @@ DCO_EDGE_BS_64 = Genotype(
     reduce_concat=[2, 3, 4, 5]
 )
 
+# 2.55
 CDARTS_cifar_2 = Genotype(
     normal=[
         ('sep_conv_3x3', 0), ('sep_conv_3x3', 1),
@@ -530,6 +531,7 @@ CDARTS_cifar_2 = Genotype(
     reduce_concat=[2, 3, 4, 5],
 )
 
+# 2.4
 CDARTS_cifar_3 = Genotype(
     normal=[
         ('sep_conv_3x3', 0), ('sep_conv_3x3', 1),

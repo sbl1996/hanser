@@ -19,6 +19,12 @@ OPS = {
         Conv2d(C, C, (1, 7), stride=(1, stride), bias=False),
         Norm(C),
     ]),
+    'conv_3x1_1x3': lambda C, stride: Sequential([
+        Act(),
+        Conv2d(C, C, (3, 1), stride=(stride, 1), bias=False),
+        Conv2d(C, C, (1, 3), stride=(1, stride), bias=False),
+        Norm(C),
+    ]),
     'nor_conv_1x1': lambda C, stride: ReLUConvBN(C, C, 1, stride),
     'nor_conv_3x3': lambda C, stride: ReLUConvBN(C, C, 3, stride),
     'max_pool_2x2': lambda C, stride: Pool2d(2, stride=stride, type='max'),
