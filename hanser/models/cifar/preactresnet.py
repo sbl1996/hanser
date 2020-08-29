@@ -1,12 +1,12 @@
 from tensorflow.keras import Sequential, Model
 from tensorflow.keras.layers import Layer
 
-from hanser.models.modules import DropPath, SELayer
-from hanser.models.layers import Act, Conv2d, Norm, GlobalAvgPool, Linear
+from hanser.models.modules import DropPath, SELayer, Dropout
+from hanser.models.layers import Act, Conv2d, Norm, GlobalAvgPool, Linear, Identity
 
 
 class PreActDownBlock(Layer):
-    def __init__(self, in_channels, out_channels, stride=1, use_se=False):
+    def __init__(self, in_channels, out_channels, stride, dropout, use_se=False):
         super().__init__()
         self.use_se = use_se
         self.norm1 = Norm(in_channels)
@@ -14,6 +14,7 @@ class PreActDownBlock(Layer):
         self.conv1 = Conv2d(in_channels, out_channels, kernel_size=3, stride=stride)
         self.norm2 = Norm(out_channels)
         self.act2 = Act()
+        self.dropout = Dropout(dropout) if dropout else Identity()
         self.conv2 = Conv2d(out_channels, out_channels, kernel_size=3)
         if self.use_se:
             self.se = SELayer(out_channels, reduction=8)
@@ -27,6 +28,7 @@ class PreActDownBlock(Layer):
         x = self.conv1(x)
         x = self.norm2(x)
         x = self.act2(x)
+        x = self.dropout(x)
         x = self.conv2(x)
         if self.use_se:
             x = self.se(x)
@@ -34,7 +36,7 @@ class PreActDownBlock(Layer):
 
 
 class PreActResBlock(Sequential):
-    def __init__(self, in_channels, out_channels, use_se, drop_path):
+    def __init__(self, in_channels, out_channels, dropout, use_se, drop_path):
         layers = [
             Norm(in_channels),
             Act(),
@@ -43,6 +45,8 @@ class PreActResBlock(Sequential):
             Act(),
             Conv2d(out_channels, out_channels, kernel_size=3),
         ]
+        if dropout:
+            layers.insert(5, Dropout(dropout))
         if use_se:
             layers.append(SELayer(out_channels, reduction=8))
         if drop_path:
@@ -56,28 +60,32 @@ class PreActResBlock(Sequential):
 class ResNet(Model):
     stages = [16, 16, 32, 64]
 
-    def __init__(self, depth, k, use_se=False, drop_path=0, num_classes=10):
+    def __init__(self, depth, k, dropout=0, use_se=False, drop_path=0, num_classes=10):
         super().__init__()
         num_blocks = (depth - 4) // 6
         self.conv = Conv2d(3, self.stages[0], kernel_size=3)
 
         self.layer1 = self._make_layer(
-            self.stages[0] * 1, self.stages[1] * k, num_blocks, stride=1, use_se=use_se, drop_path=drop_path)
+            self.stages[0] * 1, self.stages[1] * k, num_blocks, stride=1,
+            dropout=dropout, use_se=use_se, drop_path=drop_path)
         self.layer2 = self._make_layer(
-            self.stages[1] * k, self.stages[2] * k, num_blocks, stride=2, use_se=use_se, drop_path=drop_path)
+            self.stages[1] * k, self.stages[2] * k, num_blocks, stride=2,
+            dropout=dropout, use_se=use_se, drop_path=drop_path)
         self.layer3 = self._make_layer(
-            self.stages[2] * k, self.stages[3] * k, num_blocks, stride=2, use_se=use_se, drop_path=drop_path)
+            self.stages[2] * k, self.stages[3] * k, num_blocks, stride=2,
+            dropout=dropout, use_se=use_se, drop_path=drop_path)
 
         self.norm = Norm(self.stages[3] * k)
         self.act = Act()
         self.avgpool = GlobalAvgPool()
         self.fc = Linear(self.stages[3] * k, num_classes)
 
-    def _make_layer(self, in_channels, out_channels, blocks, stride, use_se, drop_path):
-        layers = [PreActDownBlock(in_channels, out_channels, stride=stride, use_se=use_se)]
+    def _make_layer(self, in_channels, out_channels, blocks, stride, dropout, use_se, drop_path):
+        layers = [PreActDownBlock(in_channels, out_channels, stride=stride,
+                                  dropout=dropout, use_se=use_se)]
         for i in range(1, blocks):
             layers.append(
-                PreActResBlock(out_channels, out_channels, use_se=use_se, drop_path=drop_path))
+                PreActResBlock(out_channels, out_channels, dropout=dropout, use_se=use_se, drop_path=drop_path))
         return Sequential(layers)
 
     def call(self, x):
