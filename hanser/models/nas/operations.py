@@ -74,7 +74,7 @@ class Identity(Layer):
         super().__init__()
 
     def call(self, x):
-        return x
+        return tf.identity(x)
 
 
 class Zero(Layer):

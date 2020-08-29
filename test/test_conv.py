@@ -31,20 +31,25 @@ def test_impl(size, channels, kernel_size, stride, dilation):
     xt1 = torch.from_numpy(np.transpose(x1.numpy(), [0, 3, 1, 2]))
     yt1 = mt(xt1).detach().permute(0, 2, 3, 1)
 
+    d = yt1.numpy() - y1.numpy()
+    print(d.mean(), d.std())
     np.testing.assert_allclose(yt1.numpy(), y1.numpy(), atol=1e-6)
 
 
-sizes = [4, 7, 8, 16]
+dilations = [1, 2]
+sizes = [4, 7, 8, 13, 16]
 channels = 4
 kernel_sizes = [1, 3, 5, 7]
 strides = [1, 2]
-dilations = [1, 2]
-for size in sizes:
-    for k in kernel_sizes:
-        for s in strides:
-            for d in dilations:
+for d in dilations:
+    for size in sizes:
+        for k in kernel_sizes:
+            for s in strides:
                 try:
-                    test_impl(size, channels, k, s, d)
-                except AssertionError as e:
                     print(size, k, s, d)
-                    raise e
+                    test_impl(size, channels, k, s, d)
+                    print()
+                except AssertionError as e:
+                    print("Error: ", end="")
+                    print(size, k, s, d)
+                    print()

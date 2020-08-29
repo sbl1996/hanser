@@ -7,11 +7,11 @@ import tensorflow as tf
 
 from hanser.models.layers import Conv2d
 
-# size = 9
-# channels = 4
-# kernel_size = 3
-# stride = 1
-# dilation = 2
+channels = 4
+size = 4
+kernel_size = 1
+stride = 1
+dilation = 2
 
 def test_impl(size, channels, kernel_size, stride, dilation):
     h = w = size
@@ -49,19 +49,20 @@ def test_impl(size, channels, kernel_size, stride, dilation):
     np.testing.assert_allclose(g.numpy(), gt.numpy(), atol=1e-6)
 
 
-sizes = [4, 7, 8, 16]
+dilations = [1, 2]
+sizes = [4, 7, 8, 13, 16]
 channels = 4
 kernel_sizes = [1, 3, 5, 7]
 strides = [1, 2]
-dilations = [1, 2]
-for size in sizes:
-    for k in kernel_sizes:
-        for s in strides:
-            for d in dilations:
+for d in dilations:
+    for size in sizes:
+        for k in kernel_sizes:
+            for s in strides:
                 try:
                     print(size, k, s, d)
                     test_impl(size, channels, k, s, d)
+                    print()
                 except AssertionError as e:
                     print("Error: ", end="")
                     print(size, k, s, d)
-                    raise e
+                    print()

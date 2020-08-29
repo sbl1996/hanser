@@ -15,7 +15,7 @@ from hanser.models.pooling import MaxPooling2D as MaxPool2D, AveragePooling2D as
 from hanser.models.conv import DepthwiseConv2D
 from hanser.models.bn import BatchNormalization, SyncBatchNormalization
 
-__all__ = ["set_default", "set_defaults", "Act", "Conv2d", "Norm", "Linear", "GlobalAvgPool", "Pool2d"]
+__all__ = ["set_default", "set_defaults", "Act", "Conv2d", "Norm", "Linear", "GlobalAvgPool", "Pool2d", "Identity"]
 
 DEFAULTS = {
     'tpu': False,
@@ -270,6 +270,17 @@ class GlobalAvgPool(Layer):
         config = {'keep_dim': self.keep_dim}
         base_config = super().get_config()
         return {**base_config, **config}
+
+
+class Identity(Layer):
+    """Abstract class for different global pooling 2D layers.
+  """
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def call(self, inputs):
+        return tf.identity(inputs)
 
 
 def get_weight_decay():
