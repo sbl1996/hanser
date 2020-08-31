@@ -295,7 +295,7 @@ class Trainer:
             else:
                 run_epoch(self._train_step, train_it, steps_per_epoch, self.metrics, "Train", self.multiple_steps)
 
-            if (epoch + 1) % val_freq == 0 or (epoch + 1) > valid_after:
+            if (epoch + 1) % val_freq == 0 or (valid_after and (epoch + 1) > valid_after):
                 val_it = iter(ds_val)
                 run_epoch(self._test_step, val_it, val_steps, self.test_metrics, "Valid", False)
 
