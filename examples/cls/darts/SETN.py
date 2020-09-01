@@ -3,6 +3,7 @@ from hanser.models.nas.genotypes import Genotype
 seed = 42
 mul = 8
 
+# 2.69
 SETN = Genotype(
     normal=[
         ('skip_connect', 0), ('sep_conv_5x5', 1),
@@ -25,6 +26,7 @@ genotype = SETN
 batch_size = 96
 weight_decay = 5e-4
 drop_path = 0.3
+
 aux_weight = 0.4
 base_lr = 0.025
 epochs = 620
