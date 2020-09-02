@@ -3,6 +3,7 @@ import math
 import tensorflow as tf
 
 from tensorflow.keras.optimizers.schedules import LearningRateSchedule
+from tensorflow.python.framework import ops
 
 
 class CosineAnnealingLR(LearningRateSchedule):
@@ -287,3 +288,64 @@ class CosinePowerAnnealingLR(LearningRateSchedule):
 
 
 CosineLR = CosineAnnealingLR
+
+
+class MultiStepLR(LearningRateSchedule):
+
+    def __init__(self, learning_rate, steps_per_epoch, milestones, gamma, warmup_min_lr=0, warmup_epoch=0):
+        super().__init__()
+        self.base_lr = learning_rate
+        self.steps_per_epoch = steps_per_epoch
+        self.milestones = milestones
+        self.gamma = gamma
+        self.warmup_min_lr = warmup_min_lr
+        self.warmup_epoch = warmup_epoch
+        self.warmup_steps = warmup_epoch * steps_per_epoch
+
+        self.boundaries = [x * self.steps_per_epoch for x in self.milestones]
+        self.values = [self.base_lr * (gamma ** i) for i in range(len(self.milestones) + 1)]
+
+    def __call__(self, step):
+        base_lr = tf.convert_to_tensor(self.base_lr, name="base_lr")
+        boundaries = ops.convert_n_to_tensor(self.boundaries)
+        values = ops.convert_n_to_tensor(self.values)
+        warmup_min_lr = tf.convert_to_tensor(self.warmup_min_lr, name="warmup_min_lr")
+
+        dtype = base_lr.dtype
+        step = tf.cast(step, dtype)
+        warmup_steps = tf.cast(self.warmup_steps, dtype)
+        boundaries = [tf.cast(b, dtype) for b in boundaries]
+
+        def warmup(step):
+            return warmup_min_lr + (base_lr - warmup_min_lr) * step / warmup_steps
+
+        def step_decay(step):
+            pred_fn_pairs = [
+                (step <= boundaries[0], lambda: values[0]),
+                (step > boundaries[-1], lambda: values[-1])
+            ]
+            for low, high, v in zip(boundaries[:-1], boundaries[1:], values[1:-1]):
+                pred = (step > low) & (step <= high)
+                pred_fn_pairs.append((pred, lambda v=v: v))
+            default = lambda: values[0]
+            return tf.case(pred_fn_pairs, default, exclusive=True)
+
+        decayed_lr = tf.cond(
+            tf.less(step, warmup_steps),
+            lambda: warmup(step),
+            lambda: step_decay(step - warmup_steps),
+        )
+        return decayed_lr
+
+    def get_config(self):
+        return {
+            "base_lr": self.base_lr,
+            "steps_per_epoch": self.steps_per_epoch,
+            "milestones": self.milestones,
+            "gamma": self.gamma,
+            "warmup_min_lr": self.warmup_min_lr,
+            "warmup_epoch": self.warmup_epoch,
+            "warmup_steps": self.warmup_steps,
+            "boundaries": self.boundaries,
+            "values": self.values,
+        }
