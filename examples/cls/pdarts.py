@@ -8,6 +8,7 @@ from tensorflow.keras.optimizers import SGD
 from tensorflow.keras import metrics as M
 from tensorflow.keras.callbacks import Callback
 import tensorflow.keras.mixed_precision.experimental as mixed_precision
+from torchvision.transforms import RandomCrop
 
 from hanser.tpu import get_colab_tpu
 from hanser.datasets import prepare
@@ -31,14 +32,15 @@ def transform(image, label, training):
     image, label = to_tensor(image, label)
     image = normalize(image, [0.4914, 0.4822, 0.4465], [0.2470, 0.2435, 0.2616])
 
-    label = tf.one_hot(label, 10)
-    # image = tf.cast(image, tf.bfloat16)
     if training:
         image = cutout(image, 16)
 
+    # image = tf.cast(image, tf.bfloat16)
+    label = tf.one_hot(label, 10)
+
     return image, label
 
-
+RandomCrop
 (x_train, y_train), (x_test, y_test) = load_cifar10()
 x_train, y_train = x_train[:500], y_train[:500]
 x_test, y_test = x_test[:100], y_test[:100]

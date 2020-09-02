@@ -269,7 +269,6 @@ class Trainer:
         validate_dataset(self.strategy, ds_train, ds_val)
 
         train_it = iter(ds_train)
-        val_it = iter(ds_val)
 
         if save_per_epochs:
             assert self.model_dir is not None, "`model_dir` should be provided."
@@ -297,9 +296,11 @@ class Trainer:
                 run_epoch(self._train_step, train_it, steps_per_epoch, self.metrics, "Train", self.multiple_steps)
 
             if (epoch + 1) % val_freq == 0 or (valid_after and (epoch + 1) > valid_after):
+                val_it = iter(ds_val)
                 run_epoch(self._test_step, val_it, val_steps, self.test_metrics, "Valid", False)
 
             if extra_metrics and (epoch + 1) % extra_eval_freq == 0:
+                val_it = iter(ds_val)
                 start = time.time()
                 for step in range(val_steps):
                     target, output = self._predict_step(val_it, debug)

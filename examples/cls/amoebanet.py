@@ -25,7 +25,7 @@ from hanser.losses import CrossEntropy
 @curry
 def transform(image, label, training):
     if training:
-        image = random_crop(image, (32, 32), (4, 4))
+        image = random_crop(image, (32, 32), (4, 4), fill=128)
         image = tf.image.random_flip_left_right(image)
 
     image, label = to_tensor(image, label)
