@@ -309,9 +309,9 @@ class MultiStepLR(LearningRateSchedule):
         base_lr = tf.convert_to_tensor(self.base_lr, name="base_lr")
         boundaries = ops.convert_n_to_tensor(self.boundaries)
         values = ops.convert_n_to_tensor(self.values)
-        warmup_min_lr = tf.convert_to_tensor(self.warmup_min_lr, name="warmup_min_lr")
 
         dtype = base_lr.dtype
+        warmup_min_lr = tf.cast(self.warmup_min_lr, dtype)
         step = tf.cast(step, dtype)
         warmup_steps = tf.cast(self.warmup_steps, dtype)
         boundaries = [tf.cast(b, dtype) for b in boundaries]
