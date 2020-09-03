@@ -1,8 +1,21 @@
 import tensorflow as tf
 from tensorflow.python.keras.callbacks import CallbackList
 
+from hanser.io import time_now
 from hanser.train.trainer import cast_fp32, parse_strategy, is_global_bfloat16, identity, validate_dataset, \
-    print_results, strategy_run, is_global_float16, minimize
+    strategy_run, is_global_float16, minimize
+
+
+def join_metric_logs(results, delim=" - "):
+    logs = []
+    for k, v in results:
+        logs.append("%s: %.4f" % (k, v))
+    return delim.join(logs)
+
+
+def print_results(stage, steps, results):
+    print("%s %s %d/%d - %s" % (
+        time_now(), stage, steps, steps, join_metric_logs(results, delim=" - ")))
 
 
 def run_epoch(step_fn, args, steps, metrics, stage="Train"):

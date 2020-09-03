@@ -3,7 +3,8 @@ from toolz import curry
 import tensorflow as tf
 
 from hanser import GLOBALS
-
+from hanser.datasets.cifar import load_cifar10, load_cifar100
+from hanser.datasets.mnist import load_mnist
 
 def prepare(ds, batch_size, transform=None, training=True, buffer_size=1024, drop_remainder=None, cache=True,
             zip_transform=None, batch_transform=None):

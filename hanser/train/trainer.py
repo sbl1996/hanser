@@ -11,7 +11,6 @@ from hanser.tpu import local_results
 
 
 def minimize(strategy, tape, optimizer, loss, trainable_variables, grad_clip_norm=None):
-
     grads = tape.gradient(loss, trainable_variables)
     aggregate_grads_outside_optimizer = grad_clip_norm and is_tpu_strategy(strategy)
 
@@ -41,19 +40,18 @@ def strategy_run(strategy, fn, args):
         return fn(*args)
 
 
-def join_metric_logs(results, delim=" - "):
-    logs = []
+def log_metrics(stage, steps, results, metric_history=None, epoch=None):
+    log_str = "%s %s %d/%d - " % (time_now(), stage, steps, steps)
+    metric_logs = []
     for k, v in results:
-        logs.append("%s: %.4f" % (k, v))
-    return delim.join(logs)
+        metric_logs.append("%s: %.4f" % (k, v))
+        if metric_history:
+            metric_history.record(stage, epoch, k, v)
+    log_str += " - ".join(metric_logs)
+    print(log_str)
 
 
-def print_results(stage, steps, results):
-    print("%s %s %d/%d - %s" % (
-        time_now(), stage, steps, steps, join_metric_logs(results, delim=" - ")))
-
-
-def run_epoch(step_fn, iterator, steps, metrics, stage="Train", multiple_steps=False):
+def run_epoch(step_fn, iterator, steps, metrics, multiple_steps=False):
     for m in metrics:
         m.reset_states()
     if multiple_steps:
@@ -61,10 +59,11 @@ def run_epoch(step_fn, iterator, steps, metrics, stage="Train", multiple_steps=F
     else:
         for step in range(steps):
             step_fn(iterator)
-    metric_results = []
-    for m in metrics:
-        metric_results.append((m.name, m.result().numpy()))
-    print_results(stage, steps, metric_results)
+    metric_results = [
+        (m.name, m.result().numpy())
+        for m in metrics
+    ]
+    return metric_results
 
 
 def is_tpu_strategy(strategy):
@@ -138,11 +137,76 @@ def maybe_cat(values, strategy):
     return values
 
 
+class MetricHistory:
+
+    def __init__(self, stages):
+        self.stages = stages
+        # stage -> epoch -> metric -> value
+        self._history = {
+            stage: {}
+            for stage in stages
+        }
+
+    def record(self, stage, epoch, metric, value):
+        h = self._history[stage]
+        if epoch not in h:
+            h[epoch] = {}
+        h[epoch][metric] = value
+
+    def get_metric(self, metric, stage=None, start=None, end=None):
+        if stage is None:
+            return {
+                stage: self.get_metric(metric, stage, start, end)
+                for stage in self.stages
+            }
+        else:
+            h = self._history[stage]
+            epochs = list(h.keys())
+            min_epoch, max_epochs = min(epochs), max(epochs)
+            if start is None:
+                start = min_epoch
+            if end is None:
+                end = max_epochs
+            values = []
+            for e in range(start, end + 1):
+                if e in h:
+                    values.append(h[e].get(metric))
+            if all(v is None for v in values):
+                return None
+            elif len(values) == 1:
+                return values[0]
+            else:
+                return values
+
+    def get_epochs(self, start, end, stage=None):
+        if stage is None:
+            h = {
+                stage: self.get_epochs(start, end, stage)
+                for stage in self.stages
+            }
+            for k in h.keys():
+                if h[k] is None:
+                    del h[k]
+            return h
+        else:
+            h = self._history[stage]
+            metrics = set()
+            for e in range(start, end + 1):
+                if e not in h:
+                    continue
+                for m in h[e].keys():
+                    metrics.add(m)
+            return {
+                m: self.get_metric(m, stage, start, end)
+                for m in metrics
+            }
+
+
 class Trainer:
 
     def __init__(self, model, criterion, optimizer, metrics=(), test_metrics=(),
                  strategy='auto', model_dir=None, metric_transform=identity,
-                 grad_clip_norm=None, multiple_steps=False):
+                 grad_clip_norm=None, multiple_steps=True):
         self.model = model
         self.criterion = criterion
         self.optimizer = optimizer
@@ -162,6 +226,8 @@ class Trainer:
 
         self._epoch = tf.Variable(0, trainable=False)
         self._use_weight_decay = len(model.losses) != 0
+
+        self.metric_history = MetricHistory(["Train", "Valid", "Test", "Eeval"])
 
     def _make_ckpt(self, name, **kwargs):
         ckpt = tf.train.Checkpoint(**kwargs)
@@ -290,18 +356,19 @@ class Trainer:
 
             callbacks.on_epoch_begin(epoch + 1)
             if self.multiple_steps:
-                run_epoch(self._train_multiple_steps, train_it, steps_per_epoch, self.metrics, "Train",
-                          self.multiple_steps)
+                train_step_fn = self._train_multiple_steps
             else:
-                run_epoch(self._train_step, train_it, steps_per_epoch, self.metrics, "Train", self.multiple_steps)
+                train_step_fn = self._train_step
+            metric_results = run_epoch(train_step_fn, train_it, steps_per_epoch, self.metrics, self.multiple_steps)
+            log_metrics("Train", steps_per_epoch, metric_results, self.metric_history, epoch + 1)
 
             if (epoch + 1) % val_freq == 0 or (valid_after and (epoch + 1) > valid_after):
                 val_it = iter(ds_val)
-                run_epoch(self._test_step, val_it, val_steps, self.test_metrics, "Valid", False)
+                metric_results = run_epoch(self._test_step, val_it, val_steps, self.test_metrics, False)
+                log_metrics("Valid", val_steps, metric_results, self.metric_history, epoch + 1)
 
             if extra_metrics and (epoch + 1) % extra_eval_freq == 0:
                 val_it = iter(ds_val)
-                start = time.time()
                 for step in range(val_steps):
                     target, output = self._predict_step(val_it, debug)
 
@@ -317,8 +384,7 @@ class Trainer:
                 for m in extra_metrics:
                     metric_results.append((m.name, m.result().numpy()))
                     m.reset_states()
-                elapsed = time.time() - start
-                print_results("Eval", elapsed, metric_results)
+                log_metrics("Eeval", val_steps, metric_results, self.metric_history, epoch + 1)
 
             if save_per_epochs and (epoch + 1) % save_per_epochs == 0:
                 print("Saved models: %s" % model_ckpt_manager.save(epoch + 1))
@@ -329,13 +395,15 @@ class Trainer:
             epoch = self._epoch.assign_add(1).numpy()
 
         callbacks.on_train_end()
+        return self.metric_history.get_epochs(1, max_epochs, "Valid")
 
     def evaluate(self, ds_test, test_steps):
 
         validate_dataset(self.strategy, ds_test)
         test_it = iter(ds_test)
 
-        run_epoch(self._test_step, test_it, test_steps, self.test_metrics, "Test")
+        metric_results = run_epoch(self._test_step, test_it, test_steps, self.test_metrics)
+        log_metrics("Test", test_steps, metric_results)
 
     def evaluate2(self, ds_test, test_steps, metrics,
                   output_transform=tf.identity, target_transform=tf.identity, debug=False):
