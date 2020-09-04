@@ -9,6 +9,8 @@ from tensorflow.keras import metrics as M
 from tensorflow.keras.callbacks import Callback
 import tensorflow.keras.mixed_precision.experimental as mixed_precision
 
+from hhutil.io import time_now
+
 from hanser.tpu import get_colab_tpu
 from hanser.datasets import prepare
 from hanser.datasets.cifar import load_cifar10
@@ -20,8 +22,6 @@ from hanser.models.nas.genotypes import set_primitives
 from hanser.train.nas.trainer import Trainer
 from hanser.train.lr_schedule import CosineLR
 from hanser.losses import CrossEntropy
-
-from hanser.io import time_now
 
 @curry
 def transform(image, label, training):

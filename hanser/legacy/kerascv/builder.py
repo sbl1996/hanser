@@ -1,6 +1,3 @@
-from hanser.io import read_json
-
-
 class Node:
 
     def __init__(self, class_name, config, name, inbound_nodes):

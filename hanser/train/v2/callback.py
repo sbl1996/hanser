@@ -1,8 +1,7 @@
 from enum import Enum
-from queue import Queue
-from typing import Sequence, Mapping, Callable, Union
+from typing import Sequence
 
-from hanser.io import time_now
+from hhutil.io import time_now
 
 
 class Callback(object):

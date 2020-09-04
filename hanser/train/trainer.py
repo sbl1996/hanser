@@ -1,4 +1,4 @@
-import time
+from hhutil.io import time_now
 
 import tensorflow as tf
 from tensorflow.python.distribute.input_lib import DistributedDataset
@@ -6,7 +6,6 @@ import tensorflow.keras.mixed_precision.experimental as mixed_precision
 
 from tensorflow.python.keras.callbacks import CallbackList
 
-from hanser.io import time_now
 from hanser.tpu import local_results
 
 

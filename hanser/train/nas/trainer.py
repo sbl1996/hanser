@@ -1,7 +1,8 @@
+from hhutil.io import time_now
+
 import tensorflow as tf
 from tensorflow.python.keras.callbacks import CallbackList
 
-from hanser.io import time_now
 from hanser.train.trainer import cast_fp32, parse_strategy, is_global_bfloat16, identity, validate_dataset, \
     strategy_run, is_global_float16, minimize
 

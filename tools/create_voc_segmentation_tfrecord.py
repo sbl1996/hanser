@@ -1,5 +1,5 @@
 import argparse
-from hanser.io import fmt_path
+from hhutil.io import fmt_path
 from hanser.datasets.tfrecord import convert_segmentation_dataset
 
 if __name__ == '__main__':

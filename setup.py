@@ -33,6 +33,7 @@ REQUIRED = [
     "cerberus",
     # "tensorflow_addons",
     "tensorflow_probability",
+    "hhutil",
 ]
 
 DEPENDENCY_LINKS = [
