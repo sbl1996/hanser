@@ -31,4 +31,7 @@ epochs = 620
 warmup_epoch = 10
 grad_clip_norm = 5.0
 
-val_freq = 2
+sync_bn = mul == 1
+
+val_freq = 5
+valid_after = 500

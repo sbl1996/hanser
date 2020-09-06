@@ -7,7 +7,7 @@ from cerberus import Validator
 import tensorflow as tf
 from tensorflow.keras import Sequential
 from tensorflow.keras.initializers import VarianceScaling, RandomNormal, RandomUniform
-from tensorflow.keras.layers import Dense, Activation, Layer, InputSpec, Conv2D, ZeroPadding2D
+from tensorflow.keras.layers import Dense, Activation, Layer, InputSpec, Conv2D, ZeroPadding2D, LeakyReLU
 from tensorflow.keras.regularizers import l2
 from tensorflow_addons.activations import mish
 
@@ -28,6 +28,9 @@ DEFAULTS = {
         'sync': False,
     },
     'activation': 'relu',
+    'leaky_relu': {
+        'alpha': 0.1,
+    },
     'norm': 'bn',
     'init': {
         'type': 'msra',
@@ -50,7 +53,10 @@ _defaults_schema = {
         'fused': {'type': 'boolean'},
         'sync': {'type': 'boolean'},
     },
-    'activation': {'type': 'string', 'allowed': ['relu', 'swish', 'mish']},
+    'activation': {'type': 'string', 'allowed': ['relu', 'swish', 'mish', 'leaky_relu', 'sigmoid']},
+    'leaky_relu': {
+        'alpha': {'type': 'float', 'min': 0.0, 'max': 1.0},
+    },
     'norm': {'type': 'string', 'allowed': ['bn']},
     'init': {
         'type': {'type': 'string', 'allowed': ['msra', 'normal']},
@@ -226,6 +232,8 @@ def Act(type='default', name=None):
             return CustomMish()
         else:
             return Mish()
+    elif type == 'leaky_relu':
+        return LeakyReLU(alpha=DEFAULTS['leaky_relu']['alpha'])
     else:
         return Activation(type)
 
