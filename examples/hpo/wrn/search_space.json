@@ -1,0 +1,5 @@
+{
+    "weight_decay": { "_type": "loguniform", "_value": [0.0000001, 0.01] },
+    "learning_rate": { "_type": "uniform", "_value": [0.001, 0.008] },
+    "beta2": { "_type": "loguniform", "_value": [0.95, 0.999] }
+}

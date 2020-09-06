@@ -40,7 +40,6 @@ def transform(image, label, training):
 
     return image, label
 
-RandomCrop
 (x_train, y_train), (x_test, y_test) = load_cifar10()
 x_train, y_train = x_train[:500], y_train[:500]
 x_test, y_test = x_test[:100], y_test[:100]

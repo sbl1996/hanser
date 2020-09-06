@@ -161,6 +161,8 @@ class MetricHistory:
         else:
             h = self._history[stage]
             epochs = list(h.keys())
+            if len(epochs) == 0:
+                return None
             min_epoch, max_epochs = min(epochs), max(epochs)
             if start is None:
                 start = min_epoch
@@ -227,6 +229,8 @@ class Trainer:
         self._use_weight_decay = len(model.losses) != 0
 
         self.metric_history = MetricHistory(["Train", "Valid", "Test", "Eeval"])
+
+        self._end = False
 
     def _make_ckpt(self, name, **kwargs):
         ckpt = tf.train.Checkpoint(**kwargs)
@@ -390,11 +394,12 @@ class Trainer:
                 print("Saved optimizer: %s" % optim_ckpt_manager.save(epoch + 1))
 
             callbacks.on_epoch_end(epoch + 1)
-
             epoch = self._epoch.assign_add(1).numpy()
-
+            if self._end:
+                print("Train end")
+                break
         callbacks.on_train_end()
-        return self.metric_history.get_epochs(1, max_epochs, "Valid")
+        return self.metric_history.get_epochs(1, epoch, "Valid")
 
     def evaluate(self, ds_test, test_steps):
 
