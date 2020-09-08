@@ -14,8 +14,8 @@ class CosineAnnealingLR(LearningRateSchedule):
         steps_per_epoch,
         epochs,
         min_lr,
-        warmup_min_lr,
-        warmup_epoch,
+        warmup_epoch=0,
+        warmup_min_lr=0,
         epoch_annealing=False,
     ):
         super().__init__()
@@ -34,12 +34,12 @@ class CosineAnnealingLR(LearningRateSchedule):
     def __call__(self, step):
 
         base_lr = tf.convert_to_tensor(self.base_lr, name="base_lr")
-        warmup_min_lr = tf.convert_to_tensor(self.warmup_min_lr, name="warmup_min_lr")
 
         dtype = base_lr.dtype
         total_steps = tf.cast(self.total_steps, dtype)
         min_lr = tf.cast(self.min_lr, dtype)
         warmup_steps = tf.cast(self.warmup_steps, dtype)
+        warmup_min_lr = tf.cast(self.warmup_min_lr, dtype)
 
         step = tf.cast(step, dtype)
         if self.epoch_annealing:
