@@ -77,77 +77,6 @@ class CosineAnnealingLR(LearningRateSchedule):
         }
 
 
-class CosineAnnealingLR(LearningRateSchedule):
-
-    def __init__(
-        self,
-        learning_rate,
-        steps_per_epoch,
-        epochs,
-        min_lr,
-        warmup_min_lr,
-        warmup_epoch,
-        epoch_annealing=False,
-    ):
-        super().__init__()
-
-        self.base_lr = learning_rate
-        self.steps_per_epoch = steps_per_epoch
-        self.epochs = epochs
-        self.min_lr = min_lr
-        self.warmup_min_lr = warmup_min_lr
-        self.warmup_epoch = warmup_epoch
-        self.epoch_annealing = epoch_annealing
-
-        self.total_steps = epochs * steps_per_epoch
-        self.warmup_steps = warmup_epoch * steps_per_epoch
-
-    def __call__(self, step):
-
-        base_lr = tf.convert_to_tensor(self.base_lr, name="base_lr")
-        warmup_min_lr = tf.convert_to_tensor(self.warmup_min_lr, name="warmup_min_lr")
-
-        dtype = base_lr.dtype
-        total_steps = tf.cast(self.total_steps, dtype)
-        min_lr = tf.cast(self.min_lr, dtype)
-        warmup_steps = tf.cast(self.warmup_steps, dtype)
-
-        step = tf.cast(step, dtype)
-        if self.epoch_annealing:
-            step2 = tf.floor(step / self.steps_per_epoch) * self.steps_per_epoch
-        else:
-            step2 = step
-
-        def warmup(step):
-            return warmup_min_lr + (base_lr - warmup_min_lr) * step / warmup_steps
-
-        def cosine_decay(step):
-            frac = (step - warmup_steps) / (total_steps - warmup_steps)
-            mult = (tf.cos(frac * tf.constant(math.pi)) + 1) / 2
-            return min_lr + (base_lr - min_lr) * mult
-
-        decayed_lr = tf.cond(
-            tf.less(step, warmup_steps),
-            lambda: warmup(step),
-            lambda: cosine_decay(step2),
-        )
-        return decayed_lr
-
-    def get_config(self):
-        return {
-            "base_lr": self.base_lr,
-            "steps_per_epoch": self.steps_per_epoch,
-            "epochs": self.epochs,
-            "min_lr": self.min_lr,
-            "alpha": self.alpha,
-            "warmup_min_lr": self.warmup_min_lr,
-            "warmup_epoch": self.warmup_epoch,
-            "total_steps": self.total_steps,
-            "warmup_steps": self.warmup_steps,
-            "epoch_annealing": self.epoch_annealing,
-        }
-
-
 class FlatCosineLR(LearningRateSchedule):
 
     def __init__(
@@ -157,8 +86,8 @@ class FlatCosineLR(LearningRateSchedule):
         epochs,
         flat_epoch,
         min_lr,
-        warmup_min_lr,
-        warmup_epoch,
+        warmup_epoch=0,
+        warmup_min_lr=0,
     ):
         super().__init__()
 
@@ -176,12 +105,12 @@ class FlatCosineLR(LearningRateSchedule):
 
     def __call__(self, step):
         base_lr = tf.convert_to_tensor(self.base_lr, name="base_lr")
-        warmup_min_lr = tf.convert_to_tensor(self.warmup_min_lr, name="warmup_min_lr")
 
         dtype = base_lr.dtype
         total_steps = tf.cast(self.total_steps, dtype)
         min_lr = tf.cast(self.min_lr, dtype)
         warmup_steps = tf.cast(self.warmup_steps, dtype)
+        warmup_min_lr = tf.cast(self.warmup_min_lr, dtype)
         flat_steps = tf.cast(self.flat_steps, dtype)
 
         def warmup(step):
@@ -228,8 +157,8 @@ class CosinePowerAnnealingLR(LearningRateSchedule):
         epochs,
         p,
         min_lr,
-        warmup_min_lr,
-        warmup_epoch,
+        warmup_epoch=0,
+        warmup_min_lr=0,
     ):
         super().__init__()
 
@@ -247,12 +176,12 @@ class CosinePowerAnnealingLR(LearningRateSchedule):
 
     def __call__(self, step):
         base_lr = tf.convert_to_tensor(self.base_lr, name="base_lr")
-        warmup_min_lr = tf.convert_to_tensor(self.warmup_min_lr, name="warmup_min_lr")
 
         dtype = base_lr.dtype
         total_steps = tf.cast(self.total_steps, dtype)
         min_lr = tf.cast(self.min_lr, dtype)
         warmup_steps = tf.cast(self.warmup_steps, dtype)
+        warmup_min_lr = tf.cast(self.warmup_min_lr, dtype)
         p = tf.cast(self.p, dtype)
 
         def warmup(step):
@@ -292,7 +221,7 @@ CosineLR = CosineAnnealingLR
 
 class MultiStepLR(LearningRateSchedule):
 
-    def __init__(self, learning_rate, steps_per_epoch, milestones, gamma, warmup_min_lr=0, warmup_epoch=0):
+    def __init__(self, learning_rate, steps_per_epoch, milestones, gamma, warmup_epoch=0, warmup_min_lr=0):
         super().__init__()
         self.base_lr = learning_rate
         self.steps_per_epoch = steps_per_epoch
