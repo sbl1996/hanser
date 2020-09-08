@@ -104,17 +104,17 @@ class DeuantizationLayer(Layer):
 class Encoder(Model):
     B = 4
 
-    def __init__(self, feedback_bits):
+    def __init__(self, channels, feedback_bits=128):
         super().__init__()
         self.encoder1 = Sequential([
-            Conv2d(2, 32, kernel_size=3, norm='def', act='def'),
-            Conv2d(32, 32, kernel_size=(1, 9), norm='def', act='def'),
-            Conv2d(32, 32, kernel_size=(9, 1), norm='def'),
+            Conv2d(2, channels, kernel_size=3, norm='def', act='def'),
+            Conv2d(channels, channels, kernel_size=(1, 9), norm='def', act='def'),
+            Conv2d(channels, channels, kernel_size=(9, 1), norm='def'),
         ])
-        self.encoder2 = Conv2d(2, 32, kernel_size=3, norm='def')
+        self.encoder2 = Conv2d(2, channels, kernel_size=3, norm='def')
         self.encoder_conv = Sequential([
             Act(),
-            Conv2d(32 * 2, 2, kernel_size=1, norm='def', act='def'),
+            Conv2d(channels * 2, 2, kernel_size=1, norm='def', act='def'),
         ])
         self.flatten = Flatten()
         self.fc = Linear(1024, feedback_bits // self.B, act='sigmoid')
@@ -161,18 +161,16 @@ class CRBlock(Layer):
 class Decoder(Model):
     B = 4
 
-    def __init__(self, feedback_bits):
+    def __init__(self, channels, num_blocks, feedback_bits=128):
         super().__init__()
 
         self.dequantization = DeuantizationLayer(self.B)
         self.fc = Linear(feedback_bits // self.B, 1024)
         self.conv = Sequential([
-            Conv2d(2, 32, kernel_size=5, norm='def', act='def'),
-            CRBlock(32),
-            CRBlock(32),
-
+            Conv2d(2, channels, kernel_size=5, norm='def', act='def'),
+            *[ CRBlock(channels) for i in range(num_blocks) ],
         ])
-        self.out = Conv2d(32, 2, kernel_size=3, act='sigmoid')
+        self.out = Conv2d(channels, 2, kernel_size=3, act='sigmoid')
 
     def call(self, x):
         x = self.dequantization(x)
@@ -183,12 +181,13 @@ class Decoder(Model):
         return x
 
 
+
 class AutoEncoder(Model):
 
-    def __init__(self, feedback_bits=128):
+    def __init__(self, encoder, decoder):
         super().__init__()
-        self.encoder = Encoder(feedback_bits)
-        self.decoder = Decoder(feedback_bits)
+        self.encoder = encoder
+        self.decoder = decoder
 
     def call(self, x):
         x = self.encoder(x)
@@ -259,7 +258,9 @@ set_defaults({
         'alpha': 0.3,
     }
 })
-model = AutoEncoder(128)
+encoder = Encoder(32)
+decoder = Decoder(32, 2)
+model = AutoEncoder(encoder, decoder)
 model.build((None, 16, 32, 2))
 
 
