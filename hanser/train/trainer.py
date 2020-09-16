@@ -367,7 +367,11 @@ class Trainer:
 
             if (epoch + 1) % val_freq == 0 or (valid_after and (epoch + 1) > valid_after):
                 val_it = iter(ds_val)
-                metric_results = run_epoch(self._test_step, val_it, val_steps, self.test_metrics, self.multiple_steps)
+                if self.multiple_steps:
+                    test_step_fn = self._test_multiple_steps
+                else:
+                    test_step_fn = self._test_step
+                metric_results = run_epoch(test_step_fn, val_it, val_steps, self.test_metrics, self.multiple_steps)
                 log_metrics("Valid", val_steps, metric_results, self.metric_history, epoch + 1)
 
             if extra_metrics and (epoch + 1) % extra_eval_freq == 0:
@@ -406,7 +410,11 @@ class Trainer:
         validate_dataset(self.strategy, ds_test)
         test_it = iter(ds_test)
 
-        metric_results = run_epoch(self._test_step, test_it, test_steps, self.test_metrics, self.multiple_steps)
+        if self.multiple_steps:
+            test_step_fn = self._test_multiple_steps
+        else:
+            test_step_fn = self._test_step
+        metric_results = run_epoch(test_step_fn, test_it, test_steps, self.test_metrics, self.multiple_steps)
         log_metrics("Test", test_steps, metric_results)
 
     def evaluate2(self, ds_test, test_steps, metrics,
