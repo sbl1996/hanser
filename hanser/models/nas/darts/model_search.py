@@ -50,6 +50,7 @@ class Cell(Layer):
         self.preprocess1 = ReLUConvBN(C_prev, C, 1, 1)
         self._steps = steps
         self._multiplier = multiplier
+
         self._ops = []
         for i in range(self._steps):
             for j in range(2 + i):
@@ -95,11 +96,11 @@ class Network(Model):
                 reduction = False
             cell = Cell(steps, multiplier, C_prev_prev, C_prev, C_curr, reduction, reduction_prev, drop_path)
             reduction_prev = reduction
-            self.cells += [cell]
+            self.cells.append(cell)
             C_prev_prev, C_prev = C_prev, multiplier * C_curr
 
-        self.global_pool = GlobalAvgPool()
-        self.fc = Linear(C_prev, num_classes)
+        self.avg_pool = GlobalAvgPool()
+        self.classifier = Linear(C_prev, num_classes)
 
         k = sum(2 + i for i in range(self._steps))
         num_ops = len(get_primitives())
@@ -117,8 +118,8 @@ class Network(Model):
         for cell in self.cells:
             weights = weights_reduce if cell.reduction else weights_normal
             s0, s1 = s1, cell([s0, s1, weights])
-        x = self.global_pool(s1)
-        logits = self.fc(x)
+        x = self.avg_pool(s1)
+        logits = self.classifier(x)
         return logits
 
     def arch_parameters(self):

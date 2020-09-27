@@ -5,6 +5,8 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.keras.callbacks import Callback
 
+from hanser.models.modules import DropPath
+
 
 class LearningRateBatchScheduler(Callback):
 
@@ -84,3 +86,18 @@ def one_cycle_lr(epoch, base_lr, max_lr, step_size, end_steps, gamma, warmup=0, 
     else:
         lr = base_lr * gamma
     return lr
+
+
+class DropPathRateSchedule(Callback):
+
+    def __init__(self, model, drop_path, epochs):
+        self.model = model
+        self.drop_path = drop_path
+        self.epochs = epochs
+        super().__init__()
+
+    def on_epoch_begin(self, epoch, logs=None):
+        rate = (epoch - 1) / self.epochs * self.drop_path
+        for l in self.model.submodules:
+            if isinstance(l, DropPath):
+                l.rate.assign(rate)

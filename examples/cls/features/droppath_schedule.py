@@ -10,6 +10,7 @@ from tensorflow.keras.callbacks import Callback
 
 from hanser.datasets import prepare
 from hanser.datasets.cifar import load_cifar10
+from hanser.train.callbacks import DropPathRateSchedule
 from hanser.transform import random_crop, cutout, normalize, to_tensor
 
 from hanser.models.cifar.pyramidnext import PyramidNeXt
@@ -58,7 +59,7 @@ set_defaults({
 })
 # ***************
 drop_path = 0.2
-model = PyramidNeXt(4, 16 - 4, 20, 1, True, drop_path=drop_path, use_aux_head=True)
+model = PyramidNeXt(4, 16 - 4, 20, 1, True, drop_path=drop_path, use_aux_head=False)
 # ***************
 model.build((None, 32, 32, 3))
 
@@ -78,15 +79,6 @@ trainer = Trainer(model, criterion, optimizer, metrics, test_metrics, multiple_s
 
 
 # ***************
-class DropPathRateSchedule(Callback):
-    def on_epoch_begin(self, epoch, logs=None):
-        rate = epoch / epochs * drop_path
-        for l in model.submodules:
-            if 'drop' in l.name:
-                l.rate = rate
-# ***************
-
-# ***************
 trainer.fit(epochs, ds_train, steps_per_epoch, ds_test, test_steps, val_freq=5,
-            callbacks=[DropPathRateSchedule()])
+            callbacks=[DropPathRateSchedule(model, drop_path, epochs)])
 # ***************
