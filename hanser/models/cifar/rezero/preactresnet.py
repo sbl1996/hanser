@@ -31,7 +31,7 @@ class PreActResBlock(Layer):
         out = self.norm2(out)
         out = self.act2(out)
         out = self.conv2(out)
-        return out + self.res_weight * shortcut
+        return shortcut + self.res_weight * out
 
 
 class ResNet(Model):
