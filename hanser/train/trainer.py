@@ -65,15 +65,14 @@ def run_epoch(step_fn, iterator, steps, metrics, multiple_steps=False):
     return metric_results
 
 
+@tf.function
+def identity(x):
+    return x
+
 def is_tpu_strategy(strategy):
     if strategy is None:
         return False
     return "TPUStrategy" in type(strategy).__name__
-
-
-@tf.function
-def identity(x):
-    return x
 
 
 def parse_strategy(strategy='auto'):

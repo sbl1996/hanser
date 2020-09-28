@@ -14,7 +14,7 @@ def prepare(ds, batch_size, transform=None, training=True, buffer_size=1024, dro
         ds = ds.cache()
     if training:
         ds = ds.shuffle(buffer_size, seed=GLOBALS['seed'])
-        ds = ds.repeat()
+        # ds = ds.repeat()
     if transform:
         ds = ds.map(transform, num_parallel_calls=tf.data.experimental.AUTOTUNE)
     if training:
