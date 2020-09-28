@@ -156,11 +156,12 @@ class Learner(metaclass=ABCMeta):
         strategy_run(self._strategy, self.train_batch, (batch,))
 
     @tf.function
-    def _train_steps(self, iterator, callbacks, state):
-        for step, batch in enumerate(iterator):
-            state['step'].assign(step)
+    def _train_steps(self, step_fn, iterator, callbacks, state):
+        for batch in iterator:
+            state['step'].assign_add(1)
             callbacks.begin_batch(state)
-            self._train_step(batch)
+            step_fn(batch)
+            # self._train_step(batch)
             callbacks.after_batch(state)
 
     @tf.function
@@ -168,11 +169,12 @@ class Learner(metaclass=ABCMeta):
         strategy_run(self._strategy, self.eval_batch, (batch,))
 
     @tf.function
-    def _eval_steps(self, iterator, callbacks, state):
-        for step, batch in enumerate(iterator):
-            state['step'].assign(step)
+    def _eval_steps(self, step_fn, iterator, callbacks, state):
+        for batch in iterator:
+            state['step'].assign_add(1)
             callbacks.begin_batch(state)
-            self._eval_step(batch)
+            # self._eval_step(batch)
+            step_fn(batch)
             callbacks.after_batch(state)
 
     def update_metrics(self, metrics, y_true, y_pred, per_example_loss=None):
@@ -193,6 +195,7 @@ class Learner(metaclass=ABCMeta):
         state.update({
             'steps': steps,
         })
+        state['step'].assign(-1)
 
         for metric in metrics.values():
             metric.reset_states()
@@ -201,7 +204,7 @@ class Learner(metaclass=ABCMeta):
             sub_state = {
                 k: state[k] for k in ["step", "steps", "epoch", "epochs"]
             }
-            steps_fn(iterator, callbacks, sub_state)
+            steps_fn(step_fn, iterator, callbacks, sub_state)
         else:
             for step, batch in enumerate(iterator):
                 state['step'].assign(step)

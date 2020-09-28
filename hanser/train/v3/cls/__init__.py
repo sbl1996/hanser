@@ -29,6 +29,8 @@ class CNNLearner(Learner):
 
         inputs, target = batch
         preds = model(inputs, training=False)
+        if self.fp16:
+            preds = cast_fp32(preds)
         self.update_metrics(self.eval_metrics, target, preds)
 
     # def test_batch(self, batch):
