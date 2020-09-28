@@ -18,8 +18,6 @@ class PreActResBlock(Layer):
 
         if stride != 1 or in_channels != out_channels:
             self.shortcut = Conv2d(in_channels, out_channels, kernel_size=1, stride=stride)
-        else:
-            self.shortcut = Identity()
 
         self.res_weight = self.add_weight(
             name='res_weight', shape=(), dtype=tf.float32,
@@ -28,7 +26,7 @@ class PreActResBlock(Layer):
     def call(self, x):
         out = self.norm1(x)
         out = self.act1(out)
-        shortcut = self.shortcut(out)
+        shortcut = self.shortcut(out) if hasattr(self, 'shortcut') else x
         out = self.conv1(out)
         out = self.norm2(out)
         out = self.act2(out)
