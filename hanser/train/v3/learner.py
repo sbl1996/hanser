@@ -10,6 +10,7 @@ from hhutil.io import fmt_path
 from hanser.train.trainer import MetricHistory
 from hanser.train.v3.callbacks import config_callbacks
 
+
 @tf.function
 def identity(x):
     return x
@@ -58,8 +59,6 @@ class Learner(metaclass=ABCMeta):
         self._strategy = parse_strategy('auto')
         work_dir = fmt_path(work_dir)
 
-        if fp16:
-            self.fp16 = is_global_bfloat16() or is_global_float16()
 
         self.model = model
         self.criterion = criterion
@@ -67,7 +66,7 @@ class Learner(metaclass=ABCMeta):
         self.train_metrics = train_metrics
         self.eval_metrics = eval_metrics
         self.work_dir = work_dir
-        self.fp16 = fp16
+        self.fp16 = is_global_bfloat16() or is_global_float16()
         self.grad_clip_norm = grad_clip_norm
         self.multiple_steps = multiple_steps
         self.metric_transform = metric_transform
@@ -156,24 +155,14 @@ class Learner(metaclass=ABCMeta):
         strategy_run(self._strategy, self.train_batch, (batch,))
 
     @tf.function
-    def _train_steps(self, step_fn, iterator, callbacks, state):
-        for batch in iterator:
-            state['step'].assign_add(1)
-            callbacks.begin_batch(state)
-            step_fn(batch)
-            # self._train_step(batch)
-            callbacks.after_batch(state)
-
-    @tf.function
     def _eval_step(self, batch):
         strategy_run(self._strategy, self.eval_batch, (batch,))
 
     @tf.function
-    def _eval_steps(self, step_fn, iterator, callbacks, state):
+    def _run_steps(self, step_fn, iterator, callbacks, state):
         for batch in iterator:
             state['step'].assign_add(1)
             callbacks.begin_batch(state)
-            # self._eval_step(batch)
             step_fn(batch)
             callbacks.after_batch(state)
 
@@ -185,12 +174,10 @@ class Learner(metaclass=ABCMeta):
             else:
                 metric.update_state(y_true, y_pred, None)
 
-
     def _run_epoch(self, iterator, steps, callbacks, mode):
         state = self._state[mode]
         metrics = getattr(self, mode + "_metrics")
         step_fn = getattr(self, f"_{mode}_step")
-        steps_fn = getattr(self, f"_{mode}_steps")
 
         state.update({
             'steps': steps,
@@ -204,10 +191,10 @@ class Learner(metaclass=ABCMeta):
             sub_state = {
                 k: state[k] for k in ["step", "steps", "epoch", "epochs"]
             }
-            steps_fn(step_fn, iterator, callbacks, sub_state)
+            self._run_steps(step_fn, iterator, callbacks, sub_state)
         else:
-            for step, batch in enumerate(iterator):
-                state['step'].assign(step)
+            for batch in iterator:
+                state['step'].assign_add(1)
                 callbacks.begin_batch(state)
                 step_fn(batch)
                 callbacks.after_batch(state)
@@ -215,13 +202,15 @@ class Learner(metaclass=ABCMeta):
         for name, metric in metrics.items():
             state['metrics'][name] = metric.result()
 
-    def evaluate(self, ds_val, val_steps, callbacks=None):
-
+    def evaluate(self, ds_val, val_steps=None, callbacks=None):
+        val_steps = val_steps or len(ds_val)
         cbks = config_callbacks(self, callbacks, mode='eval')
-        cbks.begin_eval(self._state['eval'])
-        self._state['eval']['metrics'] = {}
-        self._eval(ds_val, val_steps, cbks)
-        cbks.after_eval(self._state['eval'])
+
+        state = self._state['eval']
+        state['metrics'] = {}
+        cbks.begin_eval(state)
+        self._run_epoch(ds_val, val_steps, cbks, 'eval')
+        cbks.after_eval(state)
 
     def predict(self, test_loader):
         pass

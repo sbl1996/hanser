@@ -95,7 +95,7 @@ eval_metrics = {
 learner = CNNLearner(
     model, criterion, optimizer,
     train_metrics=train_metrics, eval_metrics=eval_metrics,
-    work_dir="models", multiple_steps=True)
+    work_dir="models", multiple_steps=False)
 
 
 class PrintStep(Callback):
