@@ -59,7 +59,6 @@ class Learner(metaclass=ABCMeta):
         self._strategy = parse_strategy('auto')
         work_dir = fmt_path(work_dir)
 
-
         self.model = model
         self.criterion = criterion
         self.optimizers = optimizers
@@ -129,11 +128,12 @@ class Learner(metaclass=ABCMeta):
         self.set_global_state("epoch", tf.Variable(0, dtype=tf.int64))
         self.set_global_state("step", tf.Variable(0, dtype=tf.int64))
 
-        state = self._state['train']
-        state['metrics'] = {}
-        cbks.begin_train(state)
+        cbks.begin_train(self._state['train'])
         for epoch in range(start_epoch, epochs):
             self.set_global_state("epoch", epoch)
+
+            state = self._state['train']
+            state['metrics'] = {}
             cbks.begin_epoch(state)
             self._run_epoch(ds_train, steps_per_epoch, cbks, 'train')
             cbks.after_epoch(state)

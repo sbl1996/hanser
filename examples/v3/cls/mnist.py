@@ -101,7 +101,8 @@ learner = CNNLearner(
 class PrintStep(Callback):
 
     def begin_batch(self, state):
-        print(state)
+        # print(state)
+        pass
 
 
 hist = learner.fit(ds_train, epochs, ds_test, val_freq=1,
