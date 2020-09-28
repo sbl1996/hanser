@@ -200,7 +200,7 @@ class Learner(metaclass=ABCMeta):
                 callbacks.after_batch(state)
 
         for name, metric in metrics.items():
-            state['metrics'][name] = metric.result()
+            state['metrics'][name] = metric.result().numpy()
 
     def evaluate(self, ds_val, val_steps=None, callbacks=None):
         val_steps = val_steps or len(ds_val)
