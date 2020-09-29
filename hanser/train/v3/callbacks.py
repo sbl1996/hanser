@@ -1,5 +1,6 @@
 from toolz import curry
 from hhutil.io import time_now
+from tensorflow_addons.optimizers import MovingAverage
 
 
 @curry
@@ -154,17 +155,10 @@ class ModelCheckpoint(Callback):
         super().__init__()
         self.save_freq = save_freq
 
-    def get_save_dir(self):
-        return self.learner.work_dir
-
     def after_epoch(self, state):
         epoch = state['epoch'] + 1
         if epoch % self.save_freq == 0:
             self.learner.save()
-
-    def on_train_end(self):
-        path = '{}/final'.format(self.get_save_dir())
-        print('save checkpoint at %d' % path)
 
 
 class TrainEvalLogger(Callback):
@@ -206,3 +200,27 @@ class EvalLogger(Callback):
         if self._is_print():
             log_metrics('eval', state['metrics'], state['epochs'], learner._writer, learner.metric_history,
                         stage_name='valid')
+
+
+class EMA(Callback):
+
+    def __init__(self, decay=None):
+        super().__init__()
+        self.decay = decay
+
+    def init(self):
+        if self.decay is not None:
+            self.original_optimizer = self.learner.optimizers[0]
+            self.learner.optimizers[0] = MovingAverage(
+                self.original_optimizer, average_decay=self.decay)
+        else:
+            assert isinstance(self.learner.optimizers[0], MovingAverage)
+
+    def begin_eval(self, state):
+        opt: MovingAverage = self.learner.optimizers[0]
+        opt.shadow_copy(self.learner.model.trainable_variables)
+        opt.swap_weights()
+
+    def after_eval(self, state):
+        opt: MovingAverage = self.learner.optimizers[0]
+        opt.swap_weights()

@@ -11,6 +11,16 @@ from hanser.train.trainer import MetricHistory
 from hanser.train.v3.callbacks import config_callbacks
 
 
+def find_most_recent(work_dir, pattern):
+    d = fmt_path(work_dir)
+    pattern = pattern
+    saves = list(d.glob(pattern))
+    if len(saves) == 0:
+        raise FileNotFoundError("No checkpoint to load in %s" % work_dir)
+    fp = max(saves, key=lambda f: f.stat().st_mtime)
+    return fp
+
+
 @tf.function
 def identity(x):
     return x
@@ -86,6 +96,14 @@ class Learner(metaclass=ABCMeta):
         self.metric_history = MetricHistory(["train", "eval", "test"])
 
         self._terminated = False
+        self.set_global_state("epoch", tf.Variable(-1, dtype=tf.int64))
+
+        self._ckpt = tf.train.Checkpoint(
+            model=model, optimizers=optimizers,
+            epoch=self._state['train']['epoch']
+        )
+        self._ckpt_options = tf.train.CheckpointOptions(
+            experimental_io_device="/job:localhost") if self._strategy else None
 
     def train_batch(self, batch):
         pass
@@ -96,8 +114,9 @@ class Learner(metaclass=ABCMeta):
     def test_batch(self, batch):
         pass
 
-    def state_dict(self):
-        return self._state
+    @property
+    def epoch(self):
+        return self._state['train']['epoch'].numpy()
 
     def set_global_state(self, k, v):
         modes = ['train', 'eval', 'test']
@@ -122,10 +141,9 @@ class Learner(metaclass=ABCMeta):
             callbacks,
             save_freq=save_freq,
         )
-        start_epoch = self._state['train'].get('epoch', 0)
+        start_epoch = self.epoch + 1
         epochs = epochs + start_epoch
         self.set_global_state("epochs", epochs)
-        self.set_global_state("epoch", tf.Variable(0, dtype=tf.int64))
         self.set_global_state("step", tf.Variable(0, dtype=tf.int64))
 
         cbks.begin_train(self._state['train'])
@@ -240,3 +258,14 @@ class Learner(metaclass=ABCMeta):
                     experimental_aggregate_gradients=False)
             else:
                 optimizer.apply_gradients(zip(grads, trainable_variables))
+
+    def save(self):
+        save_path = str(self.work_dir / "ckpt")
+        path = self._ckpt.write(save_path, self._ckpt_options)
+        print('Save trainer to %s' % path)
+
+    def load(self, fp=None):
+        fp = fp or str(find_most_recent(self.work_dir, "ckpt.index"))[:-6]
+        self._ckpt.restore(fp, self._ckpt_options)
+        self.set_global_state('epoch', self.epoch)
+        print("Load trainer from %s" % fp)

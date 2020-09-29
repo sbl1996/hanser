@@ -9,13 +9,15 @@ from tensorflow.keras.metrics import CategoricalAccuracy as Accuracy, Mean, Cate
 import tensorflow.keras.mixed_precision.experimental as mixed_precision
 from tensorflow.keras.datasets.mnist import load_data as load_mnist
 
+from tensorflow_addons.optimizers import MovingAverage
+
 from hanser import set_seed
 from hanser.models.mnist import LeNet5
 from hanser.models.layers import set_defaults
 
 from hanser.tpu import get_colab_tpu
 from hanser.datasets import prepare
-from hanser.train.v3.callbacks import Callback
+from hanser.train.v3.callbacks import EMA
 from hanser.train.v3.cls import CNNLearner
 from hanser.transform import random_crop, cutout, normalize, to_tensor
 
@@ -78,11 +80,12 @@ model.build((None, 32, 32, 1))
 criterion = CrossEntropy()
 
 base_lr = 0.01
-epochs = 100
+epochs = 20
 lr_schedule = CosineLR(base_lr, steps_per_epoch, epochs=epochs,
                        min_lr=0, warmup_min_lr=base_lr, warmup_epoch=0)
 optimizer = SGD(lr_schedule, momentum=0.9, nesterov=True)
 # optimizer = tfa.optimizers.LAMB(lr_schedule, beta_1=0.9, beta_2=0.95)
+optimizer = MovingAverage(optimizer, average_decay=0.998)
 train_metrics = {
     "loss": Mean(),
     "acc": Accuracy(),
@@ -95,15 +98,7 @@ eval_metrics = {
 learner = CNNLearner(
     model, criterion, optimizer,
     train_metrics=train_metrics, eval_metrics=eval_metrics,
-    work_dir="models", multiple_steps=False)
+    work_dir="checkpoints", multiple_steps=True)
 
-
-class PrintStep(Callback):
-
-    def begin_batch(self, state):
-        # print(state)
-        pass
-
-
-hist = learner.fit(ds_train, epochs, ds_test, val_freq=1,
-                   callbacks=[PrintStep()])
+learner.load()
+hist = learner.fit(ds_train, epochs, ds_test, val_freq=1, save_freq=10)
