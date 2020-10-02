@@ -263,7 +263,7 @@ class Learner(metaclass=ABCMeta):
         files = list(eglob(self.work_dir, "ckpt.*"))
         if len(files) != 0:
             for f in files:
-                f.write_bytes('')
+                f.write_bytes(b'')
                 rm(f)
 
         save_path = str(self.work_dir / "ckpt")
