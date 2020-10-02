@@ -100,5 +100,5 @@ learner = CNNLearner(
     train_metrics=train_metrics, eval_metrics=eval_metrics,
     work_dir="checkpoints", multiple_steps=True)
 
-learner.load()
+# learner.load()
 hist = learner.fit(ds_train, epochs, ds_test, val_freq=1, save_freq=10)

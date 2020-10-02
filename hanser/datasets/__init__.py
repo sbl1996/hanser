@@ -6,7 +6,8 @@ from hanser import GLOBALS
 from hanser.datasets.cifar import load_cifar10, load_cifar100
 from hanser.datasets.mnist import load_mnist
 
-def prepare(ds, batch_size, transform=None, training=True, buffer_size=1024, drop_remainder=None, cache=True,
+def prepare(ds, batch_size, transform=None, training=True, buffer_size=1024,
+            drop_remainder=None, cache=True, repeat=False,
             zip_transform=None, batch_transform=None):
     if drop_remainder is None:
         drop_remainder = training
@@ -14,7 +15,8 @@ def prepare(ds, batch_size, transform=None, training=True, buffer_size=1024, dro
         ds = ds.cache()
     if training:
         ds = ds.shuffle(buffer_size, seed=GLOBALS['seed'])
-        # ds = ds.repeat()
+        if repeat:
+            ds = ds.repeat()
     if transform:
         ds = ds.map(transform, num_parallel_calls=tf.data.experimental.AUTOTUNE)
     if training:
@@ -25,5 +27,7 @@ def prepare(ds, batch_size, transform=None, training=True, buffer_size=1024, dro
             ds = ds.map(batch_transform, num_parallel_calls=tf.data.experimental.AUTOTUNE)
     else:
         ds = ds.batch(batch_size, drop_remainder=drop_remainder)
+        if repeat:
+            ds = ds.repeat()
     ds = ds.prefetch(tf.data.experimental.AUTOTUNE)
     return ds

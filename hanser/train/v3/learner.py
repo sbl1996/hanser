@@ -5,7 +5,7 @@ import tensorflow as tf
 import tensorflow.keras.mixed_precision.experimental as mixed_precision
 from tensorflow.keras.metrics import Metric, Mean
 
-from hhutil.io import fmt_path
+from hhutil.io import fmt_path, eglob, rm
 
 from hanser.train.trainer import MetricHistory
 from hanser.train.v3.callbacks import config_callbacks
@@ -260,6 +260,12 @@ class Learner(metaclass=ABCMeta):
                 optimizer.apply_gradients(zip(grads, trainable_variables))
 
     def save(self):
+        files = list(eglob(self.work_dir, "ckpt.*"))
+        if len(files) != 0:
+            for f in files:
+                f.write_bytes('')
+                rm(f)
+
         save_path = str(self.work_dir / "ckpt")
         path = self._ckpt.write(save_path, self._ckpt_options)
         print('Save trainer to %s' % path)
@@ -268,4 +274,4 @@ class Learner(metaclass=ABCMeta):
         fp = fp or str(find_most_recent(self.work_dir, "ckpt.index"))[:-6]
         self._ckpt.restore(fp, self._ckpt_options)
         self.set_global_state('epoch', self.epoch)
-        print("Load trainer at epoch %d from %s" % (self.epoch + 1, fp,))
+        print("Load trainer at epoch %d from %s" % (self.epoch + 1, fp))

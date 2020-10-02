@@ -416,3 +416,111 @@ class Swish(Layer):
     def get_config(self):
         base_config = super().get_config()
         return base_config
+
+
+# class VarianceScaling(Initializer):
+#   """Initializer capable of adapting its scale to the shape of weights tensors.
+#
+#   Initializers allow you to pre-specify an initialization strategy, encoded in
+#   the Initializer object, without knowing the shape and dtype of the variable
+#   being initialized.
+#
+#   With `distribution="truncated_normal" or "untruncated_normal"`, samples are
+#   drawn from a truncated/untruncated normal distribution with a mean of zero and
+#   a standard deviation (after truncation, if used) `stddev = sqrt(scale / n)`
+#   where n is:
+#
+#     - number of input units in the weight tensor, if mode = "fan_in"
+#     - number of output units, if mode = "fan_out"
+#     - average of the numbers of input and output units, if mode = "fan_avg"
+#
+#   With `distribution="uniform"`, samples are drawn from a uniform distribution
+#   within [-limit, limit], with `limit = sqrt(3 * scale / n)`.
+#
+#   Examples:
+#
+#   >>> def make_variables(k, initializer):
+#   ...   return (tf.Variable(initializer(shape=[k], dtype=tf.float32)),
+#   ...           tf.Variable(initializer(shape=[k, k], dtype=tf.float32)))
+#   >>> v1, v2 = make_variables(3, tf.initializers.VarianceScaling(scale=1.))
+#   >>> v1
+#   <tf.Variable ... shape=(3,) ... numpy=array([...], dtype=float32)>
+#   >>> v2
+#   <tf.Variable ... shape=(3, 3) ... numpy=
+#   ...
+#   >>> make_variables(4, tf.initializers.VarianceScaling(distribution='uniform'))
+#   (<tf.Variable...shape=(4,) dtype=float32...>, <tf.Variable...shape=(4, 4) ...
+#
+#   Args:
+#     scale: Scaling factor (positive float).
+#     mode: One of "fan_in", "fan_out", "fan_avg".
+#     distribution: Random distribution to use. One of "truncated_normal",
+#       "untruncated_normal" and  "uniform".
+#     seed: A Python integer. Used to create random seeds. See
+#       `tf.random.set_seed` for behavior.
+#
+#   Raises:
+#     ValueError: In case of an invalid value for the "scale", mode" or
+#       "distribution" arguments.
+#   """
+#
+#   def __init__(self):
+#     if scale <= 0.:
+#       raise ValueError("`scale` must be positive float.")
+#     if mode not in {"fan_in", "fan_out", "fan_avg"}:
+#       raise ValueError("Invalid `mode` argument:", mode)
+#     distribution = distribution.lower()
+#     # Compatibility with keras-team/keras.
+#     if distribution == "normal":
+#       distribution = "truncated_normal"
+#     if distribution not in {"uniform", "truncated_normal",
+#                             "untruncated_normal"}:
+#       raise ValueError("Invalid `distribution` argument:", distribution)
+#     self.scale = scale
+#     self.mode = mode
+#     self.distribution = distribution
+#     self.seed = seed
+#     self._random_generator = _RandomGenerator(seed)
+#
+#   def __call__(self, shape, dtype=dtypes.float32):
+#     """Returns a tensor object initialized as specified by the initializer.
+#
+#     Args:
+#       shape: Shape of the tensor.
+#       dtype: Optional dtype of the tensor. Only floating point types are
+#        supported.
+#
+#     Raises:
+#       ValueError: If the dtype is not floating point
+#     """
+#     partition_info = None  # Keeps logic so can be readded later if necessary
+#     dtype = _assert_float_dtype(dtype)
+#     scale = self.scale
+#     scale_shape = shape
+#     if partition_info is not None:
+#       scale_shape = partition_info.full_shape
+#     fan_in, fan_out = _compute_fans(scale_shape)
+#     if self.mode == "fan_in":
+#       scale /= max(1., fan_in)
+#     elif self.mode == "fan_out":
+#       scale /= max(1., fan_out)
+#     else:
+#       scale /= max(1., (fan_in + fan_out) / 2.)
+#     if self.distribution == "truncated_normal":
+#       # constant from scipy.stats.truncnorm.std(a=-2, b=2, loc=0., scale=1.)
+#       stddev = math.sqrt(scale) / .87962566103423978
+#       return self._random_generator.truncated_normal(shape, 0.0, stddev, dtype)
+#     elif self.distribution == "untruncated_normal":
+#       stddev = math.sqrt(scale)
+#       return self._random_generator.random_normal(shape, 0.0, stddev, dtype)
+#     else:
+#       limit = math.sqrt(3.0 * scale)
+#       return self._random_generator.random_uniform(shape, -limit, limit, dtype)
+#
+#   def get_config(self):
+#     return {
+#         "scale": self.scale,
+#         "mode": self.mode,
+#         "distribution": self.distribution,
+#         "seed": self.seed
+#     }
