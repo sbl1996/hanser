@@ -7,9 +7,10 @@ from cerberus import Validator
 import tensorflow as tf
 from tensorflow.keras import Sequential
 from tensorflow.keras.initializers import VarianceScaling, RandomNormal, RandomUniform
-from tensorflow.keras.layers import Dense, Activation, Layer, InputSpec, Conv2D, ZeroPadding2D, LeakyReLU
+from tensorflow.keras.layers import Dense, Activation, Layer, InputSpec, Conv2D, ZeroPadding2D, LeakyReLU, \
+    Conv2DTranspose
 from tensorflow.keras.regularizers import l2
-from tensorflow_addons.activations import mish
+from tensorflow_addons.activations import mish as tfa_mish
 
 from hanser.models.pooling import MaxPooling2D as MaxPool2D, AveragePooling2D as AvgPool2D
 from hanser.models.conv import DepthwiseConv2D
@@ -28,6 +29,7 @@ DEFAULTS = {
         'sync': False,
     },
     'activation': 'relu',
+    'compat': False,
     'leaky_relu': {
         'alpha': 0.1,
     },
@@ -78,6 +80,7 @@ def set_defaults(kvs: Mapping):
                 _set_defaults(v, prefix + (k,))
             else:
                 set_default(prefix + (k,), v)
+
     return _set_defaults(kvs, ())
 
 
@@ -121,9 +124,7 @@ def Conv2d(in_channels: int,
            dilation: int = 1,
            bias: Optional[bool] = None,
            norm: Optional[str] = None,
-           act: Optional[str] = None,
-           zero_init=False,
-           name: Optional[str] = None):
+           act: Optional[str] = None):
     if isinstance(kernel_size, int):
         kernel_size = (kernel_size, kernel_size)
     if isinstance(stride, int):
@@ -182,7 +183,7 @@ def Conv2d(in_channels: int,
 
     layers = [conv]
     if norm:
-        layers.append(Norm(out_channels, norm, zero_init=zero_init))
+        layers.append(Norm(out_channels, norm))
     if act:
         layers.append(Act(act))
 
@@ -192,15 +193,91 @@ def Conv2d(in_channels: int,
         return Sequential(layers)
 
 
-def Norm(channels, type='default', affine=None, track_running_stats=None, zero_init=False, name=None):
+def ConvTranspose2d(
+    in_channels: int,
+    out_channels: int,
+    kernel_size: Union[int, Tuple[int, int]],
+    stride: Union[int, Tuple[int, int]] = 1,
+    padding: Union[str, int, Tuple[int, int]] = 'same',
+    groups: int = 1,
+    dilation: int = 1,
+    bias: Optional[bool] = None,
+    norm: Optional[str] = None,
+    act: Optional[str] = None):
+    if isinstance(kernel_size, int):
+        kernel_size = (kernel_size, kernel_size)
+    if isinstance(stride, int):
+        stride = (stride, stride)
+    if isinstance(dilation, int):
+        dilation = (dilation, dilation)
+    if isinstance(padding, int):
+        padding = (padding, padding)
+    if isinstance(padding, str):
+        assert padding == 'same'
+    if padding == 'same':
+        padding = calc_same_padding(kernel_size, dilation)
+
+    # Init
+    init_cfg = DEFAULTS['init']
+    if init_cfg['type'] == 'msra':
+        if init_cfg['uniform']:
+            kernel_initializer = VarianceScaling(
+                1.0 / 3 * init_cfg['scale'], init_cfg['mode'], 'uniform')
+        else:
+            kernel_initializer = VarianceScaling(
+                2.0 * init_cfg['scale'], init_cfg['mode'], 'untruncated_normal')
+    elif init_cfg['type'] == 'normal':
+        kernel_initializer = RandomNormal(0, init_cfg['std'])
+    else:
+        raise ValueError("Unsupported init type: %s" % init_cfg['type'])
+
+    bound = math.sqrt(1 / (kernel_size[0] * kernel_size[1] * in_channels))
+    bias_initializer = RandomUniform(-bound, bound)
+
+    if bias is None:
+        use_bias = norm is None
+    else:
+        use_bias = bias
+
+    kernel_regularizer = get_weight_decay()
+    bias_regularizer = get_weight_decay() if not DEFAULTS['no_bias_decay'] else None
+
+    if in_channels == groups:
+        depth_multiplier = out_channels // in_channels
+        conv = DepthwiseConv2D(kernel_size=kernel_size, strides=stride, padding='valid',
+                               use_bias=use_bias, dilation_rate=dilation, depth_multiplier=depth_multiplier,
+                               depthwise_initializer=kernel_initializer, bias_initializer=bias_initializer,
+                               depthwise_regularizer=kernel_regularizer, bias_regularizer=bias_regularizer)
+    else:
+        conv = Conv2DTranspose(out_channels, kernel_size=kernel_size, strides=stride,
+                               padding='valid', dilation_rate=dilation, use_bias=use_bias, groups=groups,
+                               kernel_initializer=kernel_initializer, bias_initializer=bias_initializer,
+                               kernel_regularizer=kernel_regularizer, bias_regularizer=bias_regularizer)
+
+    if padding != (0, 0):
+        conv = Sequential([
+            ZeroPadding2D(padding),
+            conv,
+        ])
+
+    layers = [conv]
+    if norm:
+        layers.append(Norm(out_channels, norm))
+    if act:
+        layers.append(Act(act))
+
+    if len(layers) == 1:
+        return layers[0]
+    else:
+        return Sequential(layers)
+
+
+def Norm(channels, type='default', affine=None, track_running_stats=None):
     if type in ['default', 'def']:
         type = DEFAULTS['norm']
     assert type == 'bn'
     cfg = DEFAULTS['bn']
-    if zero_init:
-        gamma_initializer = 'zeros'
-    else:
-        gamma_initializer = 'ones'
+    gamma_initializer = 'ones'
     if DEFAULTS['no_bias_decay']:
         gamma_regularizer = None
         beta_regularizer = None
@@ -224,14 +301,13 @@ def Norm(channels, type='default', affine=None, track_running_stats=None, zero_i
     return bn
 
 
-def Act(type='default', name=None):
+def Act(type='default'):
     if type in ['default', 'def']:
         return Act(DEFAULTS['activation'])
-    elif type == 'mish':
-        if DEFAULTS['tpu']:
-            return CustomMish()
-        else:
-            return Mish()
+    if type == 'mish':
+        return Mish(compat=DEFAULTS['compat'])
+    elif type == 'swish' and DEFAULTS['compat']:
+        return Swish()
     elif type == 'leaky_relu':
         return LeakyReLU(alpha=DEFAULTS['leaky_relu']['alpha'])
     else:
@@ -308,23 +384,35 @@ def Linear(in_channels, out_channels, act=None, name=None):
                  bias_regularizer=get_weight_decay())
 
 
-class Mish(Layer):
-
-    def __init__(self, name=None):
-        super().__init__()
-
-    def call(self, x, training=None):
-        return mish(x)
-
-
-def custom_mish(x):
+def mish(x):
     return x * tf.math.tanh(tf.math.softplus(x))
 
 
-class CustomMish(Layer):
+class Mish(Layer):
 
-    def __init__(self, name=None):
-        super().__init__()
+    def __init__(self, compat=False, **kwargs):
+        self.compat = compat
+        super().__init__(**kwargs)
 
     def call(self, x, training=None):
-        return custom_mish(x)
+        if self.compat:
+            return mish(x)
+        else:
+            return tfa_mish(x)
+
+    def get_config(self):
+        base_config = super().get_config()
+        return base_config
+
+
+class Swish(Layer):
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def call(self, x, training=None):
+        return tf.nn.swish(x)
+
+    def get_config(self):
+        base_config = super().get_config()
+        return base_config

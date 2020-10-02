@@ -268,4 +268,4 @@ class Learner(metaclass=ABCMeta):
         fp = fp or str(find_most_recent(self.work_dir, "ckpt.index"))[:-6]
         self._ckpt.restore(fp, self._ckpt_options)
         self.set_global_state('epoch', self.epoch)
-        print("Load trainer from %s" % fp)
+        print("Load trainer at epoch %d from %s" % (self.epoch + 1, fp,))

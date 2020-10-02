@@ -2,6 +2,8 @@ import tensorflow as tf
 from tensorflow.keras import Sequential
 from tensorflow.keras.layers import Layer, InputSpec, Softmax, Dropout
 from tensorflow.keras.initializers import Constant
+from tensorflow.python.keras.engine.base_layer import Layer
+from tensorflow.python.keras.initializers.initializers_v2 import Constant
 
 from tensorflow.python.keras.utils.tf_utils import smart_cond
 
@@ -193,3 +195,20 @@ class GlobalAvgPool(Layer):
         config = {'keep_dim': self.keep_dim}
         base_config = super().get_config()
         return {**base_config, **config}
+
+
+class ReZero(Layer):
+
+    def __init__(self, init_val=0., **kwargs):
+        super().__init__(**kwargs)
+        self.init_val = init_val
+        self.res_weight = self.add_weight(
+            name='res_weight', shape=(), dtype=tf.float32,
+            trainable=True, initializer=Constant(init_val))
+
+    def call(self, x):
+        return x * self.res_weight
+
+    def get_config(self):
+        base_config = super(ReZero, self).get_config()
+        return base_config
