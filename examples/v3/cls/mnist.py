@@ -17,7 +17,7 @@ from hanser.models.layers import set_defaults
 
 from hanser.tpu import get_colab_tpu
 from hanser.datasets import prepare
-from hanser.train.v3.callbacks import EMA
+from hanser.train.v3.callbacks import EMA, Callback, EvalEveryAfter, DropPathRateSchedule
 from hanser.train.v3.cls import CNNLearner
 from hanser.transform import random_crop, cutout, normalize, to_tensor
 
@@ -102,3 +102,4 @@ learner = CNNLearner(
 
 # learner.load()
 hist = learner.fit(ds_train, epochs, ds_test, val_freq=1, save_freq=10)
+Callback

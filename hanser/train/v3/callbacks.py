@@ -248,4 +248,4 @@ class EvalEveryAfter(Callback):
 
     def begin_epoch(self, state):
         if state['epoch'] >= self.eval_after:
-            self._val_freq = 1
+            self.learner._val_freq = 1
