@@ -148,7 +148,6 @@ class Callback(object):
     def after_train(self, state):
         pass
 
-
 class ModelCheckpoint(Callback):
 
     def __init__(self, save_freq=1):
@@ -224,3 +223,29 @@ class EMA(Callback):
     def after_eval(self, state):
         opt: MovingAverage = self.learner.optimizers[0]
         opt.swap_weights()
+
+
+class DropPathRateSchedule(Callback):
+
+    def __init__(self, drop_path):
+        super().__init__()
+        self.drop_path = drop_path
+
+    def begin_epoch(self, state):
+        epoch = state['epoch'].numpy()
+        epochs = state['epochs']
+        rate = (epoch - 1) / epochs * self.drop_path
+        for l in self.learner.model.submodules:
+            if 'drop' in l.name:
+                l.rate.assign(rate)
+
+
+class EvalEveryAfter(Callback):
+
+    def __init__(self, eval_after):
+        super().__init__()
+        self.eval_after = eval_after
+
+    def begin_epoch(self, state):
+        if state['epoch'] >= self.eval_after:
+            self._val_freq = 1
