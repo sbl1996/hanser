@@ -97,7 +97,10 @@ class Network(Model):
         self._drop_path = drop_path
 
         C_curr = stem_multiplier * C
-        self.stem = Conv2d(3, C_curr, 3, norm='default')
+        self.stem = Sequential([
+            Conv2d(3, C_curr, 3, bias=False),
+            Norm(3, 'def', affine=True),
+        ])
 
         C_prev, C_curr = C_curr, C
         self.cells = []

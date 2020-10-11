@@ -13,6 +13,7 @@ from hanser import set_seed
 from hanser.tpu import get_colab_tpu
 from hanser.datasets import prepare
 from hanser.datasets.cifar import load_cifar10
+from hanser.train.v3.callbacks import DropPathRateSchedule
 from hanser.transform import random_crop, cutout, normalize, to_tensor, random_apply2, mixup, cutmix
 from hanser.transform.autoaugment import autoaugment
 
@@ -102,14 +103,6 @@ trainer = Trainer(model, criterion, optimizer, metrics, test_metrics,
                   metric_transform=metric_transform, multiple_steps=True)
 
 
-class DropPathRateSchedule(Callback):
-    def on_epoch_begin(self, epoch, logs=None):
-        rate = epoch / epochs * drop_path
-        for l in model.submodules:
-            if 'drop' in l.name:
-                l.rate.assign(rate)
-
-
 # trainer.fit(epochs, ds_train_dist, steps_per_epoch, ds_test_dist, test_steps, val_freq=5)
 trainer.fit(epochs, ds_train, steps_per_epoch, ds_test, test_steps, val_freq=5,
-            callbacks=[DropPathRateSchedule()])
+            callbacks=[DropPathRateSchedule(drop_path)])

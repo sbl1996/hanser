@@ -12,6 +12,7 @@ import tensorflow.keras.mixed_precision.experimental as mixed_precision
 from hanser.tpu import get_colab_tpu
 from hanser.datasets import prepare
 from hanser.datasets.cifar import load_cifar10
+from hanser.train.v3.callbacks import DropPathRateSchedule
 from hanser.transform import random_crop, cutout, normalize, to_tensor
 
 from hanser.models.cifar.nasnet import NASNet
@@ -112,15 +113,6 @@ metric_transform = lambda x: x[0]
 trainer = Trainer(model, criterion, optimizer, metrics, test_metrics,
                   grad_clip_norm=5.0, metric_transform=metric_transform,
                   multiple_steps=True)
-
-
-class DropPathRateSchedule(Callback):
-
-    def on_epoch_begin(self, epoch, logs=None):
-        rate = epoch / epochs * drop_path
-        for l in model.submodules:
-            if 'drop' in l.name:
-                l.rate = rate
 
 
 trainer.fit(epochs, ds_train, steps_per_epoch, ds_test, test_steps, val_freq=5,

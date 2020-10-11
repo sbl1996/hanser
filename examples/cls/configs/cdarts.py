@@ -32,7 +32,7 @@ base_lr = 0.025
 epochs = 600
 warmup_epoch = 10
 grad_clip_norm = 5.0
-sync_bn = mul == 1
+sync_bn = False
 
 val_freq = 5
 valid_after = 500
