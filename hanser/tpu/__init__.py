@@ -2,6 +2,34 @@ import os
 
 import tensorflow as tf
 from tensorflow.python.distribute.values import PerReplica
+import tensorflow.keras.mixed_precision.experimental as mixed_precision
+
+
+def setup(datasets, fp16=True, device='auto'):
+    if device == 'auto':
+        strategy = get_colab_tpu()
+        if strategy:
+            device = 'TPU'
+        elif tf.config.list_physical_devices('GPU'):
+            device = 'GPU'
+        else:
+            device = 'CPU'
+    elif device == 'TPU':
+        strategy = get_colab_tpu()
+
+    if device == 'TPU':
+        if fp16:
+            policy = mixed_precision.Policy('mixed_bfloat16')
+            mixed_precision.set_policy(policy)
+        tf.distribute.experimental_set_strategy(strategy)
+        return [strategy.experimental_distribute_dataset(ds) for ds in datasets]
+    elif device == 'GPU':
+        if fp16:
+            policy = mixed_precision.Policy('mixed_float16')
+            mixed_precision.set_policy(policy)
+        return datasets
+    else:
+        return datasets
 
 
 def get_colab_tpu():
