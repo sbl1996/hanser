@@ -4,7 +4,6 @@ from toolz import curry
 
 import tensorflow as tf
 
-from tensorflow.keras.optimizers import SGD
 from tensorflow.keras.metrics import CategoricalAccuracy as Accuracy, Mean, CategoricalCrossentropy as Loss
 import tensorflow.keras.mixed_precision.experimental as mixed_precision
 from tensorflow.keras.datasets.mnist import load_data as load_mnist
@@ -17,6 +16,7 @@ from hanser.models.layers import set_defaults
 
 from hanser.tpu import get_colab_tpu
 from hanser.datasets import prepare
+from hanser.train.optimizers import SGD
 from hanser.train.v3.callbacks import EMA, Callback, EvalEveryAfter, DropPathRateSchedule
 from hanser.train.v3.cls import CNNLearner
 from hanser.transform import random_crop, cutout, normalize, to_tensor
@@ -83,7 +83,7 @@ base_lr = 0.01
 epochs = 20
 lr_schedule = CosineLR(base_lr, steps_per_epoch, epochs=epochs,
                        min_lr=0, warmup_min_lr=base_lr, warmup_epoch=0)
-optimizer = SGD(lr_schedule, momentum=0.9, nesterov=True)
+optimizer = SGD(lr_schedule, momentum=0.9)
 # optimizer = tfa.optimizers.LAMB(lr_schedule, beta_1=0.9, beta_2=0.95)
 optimizer = MovingAverage(optimizer, average_decay=0.998)
 train_metrics = {
@@ -102,4 +102,3 @@ learner = CNNLearner(
 
 # learner.load()
 hist = learner.fit(ds_train, epochs, ds_test, val_freq=1, save_freq=10)
-Callback

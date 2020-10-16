@@ -548,3 +548,20 @@ CDARTS_cifar_3 = Genotype(
     ],
     reduce_concat=[2, 3, 4, 5],
 )
+
+FTSO = Genotype(
+    normal=[
+        ('sep_conv_3x3', 0), ('sep_conv_3x3', 1),
+        ('sep_conv_3x3', 0), ('sep_conv_3x3', 1),
+        ('sep_conv_3x3', 0), ('sep_conv_3x3', 1),
+        ('sep_conv_3x3', 0), ('sep_conv_3x3', 1)
+    ],
+    normal_concat=[2, 3, 4, 5],
+    reduce=[
+        ('sep_conv_3x3', 0), ('sep_conv_3x3', 1),
+        ('sep_conv_3x3', 0), ('sep_conv_3x3', 1),
+        ('sep_conv_3x3', 0), ('sep_conv_3x3', 1),
+        ('sep_conv_3x3', 0), ('sep_conv_3x3', 1)
+    ],
+    reduce_concat=[2, 3, 4, 5]
+)

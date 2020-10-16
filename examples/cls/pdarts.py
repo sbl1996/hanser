@@ -4,7 +4,6 @@ from toolz import curry
 
 import tensorflow as tf
 
-from tensorflow.keras.optimizers import SGD
 from tensorflow.keras import metrics as M
 from tensorflow.keras.callbacks import Callback
 import tensorflow.keras.mixed_precision.experimental as mixed_precision
@@ -13,6 +12,7 @@ from torchvision.transforms import RandomCrop
 from hanser.tpu import get_colab_tpu
 from hanser.datasets import prepare
 from hanser.datasets.cifar import load_cifar10
+from hanser.train.optimizers import SGD
 from hanser.train.v3.callbacks import DropPathRateSchedule
 from hanser.transform import random_crop, cutout, normalize, to_tensor
 
@@ -95,12 +95,11 @@ model.build((None, 32, 32, 3))
 # model.summary()
 
 criterion = CrossEntropy(auxiliary_weight=0.4)
-model.fit
 base_lr = 0.025
 epochs = 600
 lr_shcedule = CosineLR(base_lr * mul, steps_per_epoch, epochs=epochs,
                        min_lr=0, warmup_min_lr=base_lr, warmup_epoch=10)
-optimizer = SGD(lr_shcedule, momentum=0.9, nesterov=True)
+optimizer = SGD(lr_shcedule, momentum=0.9)
 metrics = [
     M.Mean(name='loss'), M.CategoricalAccuracy(name='acc')]
 test_metrics = [
