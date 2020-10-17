@@ -8,17 +8,19 @@ import tensorflow as tf
 from tensorflow.keras import Sequential
 from tensorflow.keras.initializers import VarianceScaling, RandomNormal, RandomUniform
 from tensorflow.keras.layers import Dense, Activation, Layer, InputSpec, Conv2D, ZeroPadding2D, LeakyReLU, \
-    Conv2DTranspose
+    Conv2DTranspose, DepthwiseConv2D
 from tensorflow.keras.regularizers import l2
 from tensorflow_addons.activations import mish as tfa_mish
 
 from hanser.models.pooling import MaxPooling2D as MaxPool2D, AveragePooling2D as AvgPool2D
-from hanser.models.conv import DepthwiseConv2D
 from hanser.models.bn import BatchNormalization, SyncBatchNormalization
 
 __all__ = ["set_default", "set_defaults", "Act", "Conv2d", "Norm", "Linear", "GlobalAvgPool", "Pool2d", "Identity"]
 
 DEFAULTS = {
+    'conv': {
+        'horch': False,
+    },
     'bn': {
         'momentum': 0.9,
         'eps': 1e-5,
@@ -45,6 +47,9 @@ DEFAULTS = {
 }
 
 _defaults_schema = {
+    'conv': {
+        'horch': {'type': 'boolean'},
+    },
     'bn': {
         'momentum': {'type': 'float', 'min': 0.0, 'max': 1.0},
         'eps': {'type': 'float', 'min': 0.0},
@@ -163,10 +168,15 @@ def Conv2d(in_channels: int,
 
     if in_channels == groups:
         depth_multiplier = out_channels // in_channels
-        conv = DepthwiseConv2D(kernel_size=kernel_size, strides=stride, padding='valid',
-                               use_bias=use_bias, dilation_rate=dilation, depth_multiplier=depth_multiplier,
-                               depthwise_initializer=kernel_initializer, bias_initializer=bias_initializer,
-                               depthwise_regularizer=kernel_regularizer, bias_regularizer=bias_regularizer)
+        if DEFAULTS['conv']['horch']:
+            from hanser.models.conv import DepthwiseConv2D as HorchDepthwiseConv2D
+            depth_conv = HorchDepthwiseConv2D
+        else:
+            depth_conv = DepthwiseConv2D
+        conv = depth_conv(kernel_size=kernel_size, strides=stride, padding='valid',
+                          use_bias=use_bias, dilation_rate=dilation, depth_multiplier=depth_multiplier,
+                          depthwise_initializer=kernel_initializer, bias_initializer=bias_initializer,
+                          depthwise_regularizer=kernel_regularizer, bias_regularizer=bias_regularizer)
     else:
         conv = Conv2D(out_channels, kernel_size=kernel_size, strides=stride,
                       padding='valid', dilation_rate=dilation, use_bias=use_bias, groups=groups,
@@ -414,7 +424,6 @@ class Swish(Layer):
     def get_config(self):
         base_config = super().get_config()
         return base_config
-
 
 # class VarianceScaling(Initializer):
 #   """Initializer capable of adapting its scale to the shape of weights tensors.
