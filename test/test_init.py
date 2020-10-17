@@ -13,8 +13,8 @@
 from horch.models.layers import Conv2d as HorchConv2d
 from hanser.models.layers import Conv2d
 
-mt = HorchConv2d(128, 128, 3, groups=128, bias=False)
-m = Conv2d(128, 128, 3, groups=128, bias=False)
+mt = HorchConv2d(128, 128, 3, groups=128, bias=True)
+m = Conv2d(128, 128, 3, groups=128, bias=True)
 m.build((None, 32, 32, 128))
 
 print(mt.weight.std())

@@ -159,7 +159,7 @@ def Conv2d(in_channels: int,
     else:
         raise ValueError("Unsupported init type: %s" % init_cfg['type'])
 
-    bound = math.sqrt(1 / (kernel_size[0] * kernel_size[1] * in_channels))
+    bound = math.sqrt(1 / (kernel_size[0] * kernel_size[1] * (in_channels // groups)))
     bias_initializer = RandomUniform(-bound, bound)
 
     if bias is None:
