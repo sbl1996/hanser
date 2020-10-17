@@ -169,7 +169,6 @@ def Conv2d(in_channels: int,
             depth_conv = DepthwiseConv2D
         conv = depth_conv(kernel_size=kernel_size, strides=stride, padding=padding,
                           use_bias=use_bias, dilation_rate=dilation, depth_multiplier=depth_multiplier,
-                          depthwise_initializer=kernel_initializer, bias_initializer=bias_initializer,
                           depthwise_regularizer=kernel_regularizer, bias_regularizer=bias_regularizer)
     else:
         conv = Conv2D(out_channels, kernel_size=kernel_size, strides=stride,
