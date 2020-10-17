@@ -19,7 +19,6 @@ from hanser.models.bn import BatchNormalization, SyncBatchNormalization
 __all__ = ["set_default", "set_defaults", "Act", "Conv2d", "Norm", "Linear", "GlobalAvgPool", "Pool2d", "Identity"]
 
 DEFAULTS = {
-    'tpu': False,
     'bn': {
         'momentum': 0.9,
         'eps': 1e-5,
@@ -46,7 +45,6 @@ DEFAULTS = {
 }
 
 _defaults_schema = {
-    'tpu': {'type': 'boolean'},
     'bn': {
         'momentum': {'type': 'float', 'min': 0.0, 'max': 1.0},
         'eps': {'type': 'float', 'min': 0.0},

@@ -70,10 +70,6 @@ if strategy:
     ds_train_dist = strategy.experimental_distribute_dataset(ds_train)
     ds_test_dist = strategy.experimental_distribute_dataset(ds_test)
 
-set_defaults({
-    'weight_decay': 1e-4,
-})
-
 model = LeNet5()
 model.build((None, 32, 32, 1))
 
@@ -83,7 +79,7 @@ base_lr = 0.01
 epochs = 20
 lr_schedule = CosineLR(base_lr, steps_per_epoch, epochs=epochs,
                        min_lr=0, warmup_min_lr=base_lr, warmup_epoch=0)
-optimizer = SGD(lr_schedule, momentum=0.9)
+optimizer = SGD(lr_schedule, momentum=0.9, nesterov=True, weight_decay=1e-4)
 # optimizer = tfa.optimizers.LAMB(lr_schedule, beta_1=0.9, beta_2=0.95)
 optimizer = MovingAverage(optimizer, average_decay=0.998)
 train_metrics = {
