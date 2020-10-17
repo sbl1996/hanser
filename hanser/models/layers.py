@@ -8,11 +8,10 @@ import tensorflow as tf
 from tensorflow.keras import Sequential
 from tensorflow.keras.initializers import VarianceScaling, RandomNormal, RandomUniform
 from tensorflow.keras.layers import Dense, Activation, Layer, InputSpec, Conv2D, ZeroPadding2D, LeakyReLU, \
-    Conv2DTranspose
+    Conv2DTranspose, DepthwiseConv2D
 from tensorflow.keras.regularizers import l2
 from tensorflow_addons.activations import mish as tfa_mish
 
-from hanser.models.conv import DepthwiseConv2D
 from hanser.models.pooling import MaxPooling2D as MaxPool2D, AveragePooling2D as AvgPool2D
 from hanser.models.bn import BatchNormalization, SyncBatchNormalization
 
@@ -142,6 +141,12 @@ def Conv2d(in_channels: int,
         stride = (stride, stride)
     if isinstance(dilation, int):
         dilation = (dilation, dilation)
+    if isinstance(padding, int):
+        padding = (padding, padding)
+    if isinstance(padding, str):
+        assert padding == 'same'
+    if padding == 'same':
+        padding = calc_same_padding(kernel_size, dilation)
 
     # Init
     init_cfg = DEFAULTS['init']
@@ -173,15 +178,26 @@ def Conv2d(in_channels: int,
 
     if in_channels == groups:
         depth_multiplier = out_channels // in_channels
-        conv = DepthwiseConv2D(kernel_size=kernel_size, strides=stride, padding='valid',
+        if DEFAULTS['conv']['horch']:
+            from hanser.models.conv import DepthwiseConv2D as HorchDepthwiseConv2D
+            depth_conv = HorchDepthwiseConv2D
+        else:
+            depth_conv = DepthwiseConv2D
+        conv = depth_conv(kernel_size=kernel_size, strides=stride, padding='valid',
                           use_bias=use_bias, dilation_rate=dilation, depth_multiplier=depth_multiplier,
                           depthwise_initializer=kernel_initializer, bias_initializer=bias_initializer,
                           depthwise_regularizer=kernel_regularizer, bias_regularizer=bias_regularizer)
     else:
         conv = Conv2D(out_channels, kernel_size=kernel_size, strides=stride,
-                      padding=padding, dilation_rate=dilation, use_bias=use_bias, groups=groups,
+                      padding='valid', dilation_rate=dilation, use_bias=use_bias, groups=groups,
                       kernel_initializer=kernel_initializer, bias_initializer=bias_initializer,
                       kernel_regularizer=kernel_regularizer, bias_regularizer=bias_regularizer)
+
+    if padding != (0, 0):
+        conv = Sequential([
+            ZeroPadding2D(padding),
+            conv,
+        ])
 
     layers = [conv]
     if norm:
@@ -212,6 +228,12 @@ def ConvTranspose2d(
         stride = (stride, stride)
     if isinstance(dilation, int):
         dilation = (dilation, dilation)
+    if isinstance(padding, int):
+        padding = (padding, padding)
+    if isinstance(padding, str):
+        assert padding == 'same'
+    if padding == 'same':
+        padding = calc_same_padding(kernel_size, dilation)
 
     # Init
     init_cfg = DEFAULTS['init']
@@ -240,15 +262,21 @@ def ConvTranspose2d(
 
     if in_channels == groups:
         depth_multiplier = out_channels // in_channels
-        conv = DepthwiseConv2D(kernel_size=kernel_size, strides=stride, padding=padding,
+        conv = DepthwiseConv2D(kernel_size=kernel_size, strides=stride, padding='valid',
                                use_bias=use_bias, dilation_rate=dilation, depth_multiplier=depth_multiplier,
                                depthwise_initializer=kernel_initializer, bias_initializer=bias_initializer,
                                depthwise_regularizer=kernel_regularizer, bias_regularizer=bias_regularizer)
     else:
         conv = Conv2DTranspose(out_channels, kernel_size=kernel_size, strides=stride,
-                               padding=padding, dilation_rate=dilation, use_bias=use_bias, groups=groups,
+                               padding='valid', dilation_rate=dilation, use_bias=use_bias, groups=groups,
                                kernel_initializer=kernel_initializer, bias_initializer=bias_initializer,
                                kernel_regularizer=kernel_regularizer, bias_regularizer=bias_regularizer)
+
+    if padding != (0, 0):
+        conv = Sequential([
+            ZeroPadding2D(padding),
+            conv,
+        ])
 
     layers = [conv]
     if norm:
@@ -406,110 +434,3 @@ class Swish(Layer):
     def get_config(self):
         base_config = super().get_config()
         return base_config
-
-# class VarianceScaling(Initializer):
-#   """Initializer capable of adapting its scale to the shape of weights tensors.
-#
-#   Initializers allow you to pre-specify an initialization strategy, encoded in
-#   the Initializer object, without knowing the shape and dtype of the variable
-#   being initialized.
-#
-#   With `distribution="truncated_normal" or "untruncated_normal"`, samples are
-#   drawn from a truncated/untruncated normal distribution with a mean of zero and
-#   a standard deviation (after truncation, if used) `stddev = sqrt(scale / n)`
-#   where n is:
-#
-#     - number of input units in the weight tensor, if mode = "fan_in"
-#     - number of output units, if mode = "fan_out"
-#     - average of the numbers of input and output units, if mode = "fan_avg"
-#
-#   With `distribution="uniform"`, samples are drawn from a uniform distribution
-#   within [-limit, limit], with `limit = sqrt(3 * scale / n)`.
-#
-#   Examples:
-#
-#   >>> def make_variables(k, initializer):
-#   ...   return (tf.Variable(initializer(shape=[k], dtype=tf.float32)),
-#   ...           tf.Variable(initializer(shape=[k, k], dtype=tf.float32)))
-#   >>> v1, v2 = make_variables(3, tf.initializers.VarianceScaling(scale=1.))
-#   >>> v1
-#   <tf.Variable ... shape=(3,) ... numpy=array([...], dtype=float32)>
-#   >>> v2
-#   <tf.Variable ... shape=(3, 3) ... numpy=
-#   ...
-#   >>> make_variables(4, tf.initializers.VarianceScaling(distribution='uniform'))
-#   (<tf.Variable...shape=(4,) dtype=float32...>, <tf.Variable...shape=(4, 4) ...
-#
-#   Args:
-#     scale: Scaling factor (positive float).
-#     mode: One of "fan_in", "fan_out", "fan_avg".
-#     distribution: Random distribution to use. One of "truncated_normal",
-#       "untruncated_normal" and  "uniform".
-#     seed: A Python integer. Used to create random seeds. See
-#       `tf.random.set_seed` for behavior.
-#
-#   Raises:
-#     ValueError: In case of an invalid value for the "scale", mode" or
-#       "distribution" arguments.
-#   """
-#
-#   def __init__(self):
-#     if scale <= 0.:
-#       raise ValueError("`scale` must be positive float.")
-#     if mode not in {"fan_in", "fan_out", "fan_avg"}:
-#       raise ValueError("Invalid `mode` argument:", mode)
-#     distribution = distribution.lower()
-#     # Compatibility with keras-team/keras.
-#     if distribution == "normal":
-#       distribution = "truncated_normal"
-#     if distribution not in {"uniform", "truncated_normal",
-#                             "untruncated_normal"}:
-#       raise ValueError("Invalid `distribution` argument:", distribution)
-#     self.scale = scale
-#     self.mode = mode
-#     self.distribution = distribution
-#     self.seed = seed
-#     self._random_generator = _RandomGenerator(seed)
-#
-#   def __call__(self, shape, dtype=dtypes.float32):
-#     """Returns a tensor object initialized as specified by the initializer.
-#
-#     Args:
-#       shape: Shape of the tensor.
-#       dtype: Optional dtype of the tensor. Only floating point types are
-#        supported.
-#
-#     Raises:
-#       ValueError: If the dtype is not floating point
-#     """
-#     partition_info = None  # Keeps logic so can be readded later if necessary
-#     dtype = _assert_float_dtype(dtype)
-#     scale = self.scale
-#     scale_shape = shape
-#     if partition_info is not None:
-#       scale_shape = partition_info.full_shape
-#     fan_in, fan_out = _compute_fans(scale_shape)
-#     if self.mode == "fan_in":
-#       scale /= max(1., fan_in)
-#     elif self.mode == "fan_out":
-#       scale /= max(1., fan_out)
-#     else:
-#       scale /= max(1., (fan_in + fan_out) / 2.)
-#     if self.distribution == "truncated_normal":
-#       # constant from scipy.stats.truncnorm.std(a=-2, b=2, loc=0., scale=1.)
-#       stddev = math.sqrt(scale) / .87962566103423978
-#       return self._random_generator.truncated_normal(shape, 0.0, stddev, dtype)
-#     elif self.distribution == "untruncated_normal":
-#       stddev = math.sqrt(scale)
-#       return self._random_generator.random_normal(shape, 0.0, stddev, dtype)
-#     else:
-#       limit = math.sqrt(3.0 * scale)
-#       return self._random_generator.random_uniform(shape, -limit, limit, dtype)
-#
-#   def get_config(self):
-#     return {
-#         "scale": self.scale,
-#         "mode": self.mode,
-#         "distribution": self.distribution,
-#         "seed": self.seed
-#     }

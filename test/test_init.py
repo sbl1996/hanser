@@ -18,7 +18,7 @@ m = Conv2d(128, 128, 3, groups=128, bias=True)
 m.build((None, 32, 32, 128))
 
 print(mt.weight.std())
-print(m.depthwise_kernel.numpy().std())
+print(m.layers[1].depthwise_kernel.numpy().std())
 
 print(mt.bias.std())
-print(m.bias.numpy().std())
+print(m.layers[1].bias.numpy().std())

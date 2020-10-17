@@ -38,7 +38,7 @@ class DepthwiseConv2D(Conv2D):
                  activity_regularizer=None,
                  depthwise_constraint=None,
                  bias_constraint=None,
-                 **kwargs):
+                 **kwargs) -> object:
         if isinstance(kernel_size, int):
             kernel_size = (kernel_size, kernel_size)
         if isinstance(strides, int):
