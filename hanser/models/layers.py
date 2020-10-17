@@ -8,10 +8,11 @@ import tensorflow as tf
 from tensorflow.keras import Sequential
 from tensorflow.keras.initializers import VarianceScaling, RandomNormal, RandomUniform
 from tensorflow.keras.layers import Dense, Activation, Layer, InputSpec, Conv2D, ZeroPadding2D, LeakyReLU, \
-    Conv2DTranspose, DepthwiseConv2D
+    Conv2DTranspose
 from tensorflow.keras.regularizers import l2
 from tensorflow_addons.activations import mish as tfa_mish
 
+from hanser.models.conv import DepthwiseConv2D
 from hanser.models.pooling import MaxPooling2D as MaxPool2D, AveragePooling2D as AvgPool2D
 from hanser.models.bn import BatchNormalization, SyncBatchNormalization
 
@@ -118,6 +119,13 @@ def calc_same_padding(kernel_size, dilation):
     return padding
 
 
+def flip_mode(m):
+    if m == 'fan_in':
+        return 'fan_out'
+    else:
+        return 'fan_in'
+
+
 def Conv2d(in_channels: int,
            out_channels: int,
            kernel_size: Union[int, Tuple[int, int]],
@@ -144,18 +152,21 @@ def Conv2d(in_channels: int,
     # Init
     init_cfg = DEFAULTS['init']
     if init_cfg['type'] == 'msra':
+        mode = init_cfg['mode']
+        if in_channels == groups:
+            mode = flip_mode(mode)
         if init_cfg['uniform']:
             kernel_initializer = VarianceScaling(
-                1.0 / 3 * init_cfg['scale'], init_cfg['mode'], 'uniform')
+                1.0 / 3 * init_cfg['scale'], mode, 'uniform')
         else:
             kernel_initializer = VarianceScaling(
-                2.0 * init_cfg['scale'], init_cfg['mode'], 'untruncated_normal')
+                2.0 * init_cfg['scale'], mode, 'untruncated_normal')
     elif init_cfg['type'] == 'normal':
         kernel_initializer = RandomNormal(0, init_cfg['std'])
     else:
         raise ValueError("Unsupported init type: %s" % init_cfg['type'])
 
-    bound = math.sqrt(1 / (kernel_size[0] * kernel_size[1] * in_channels))
+    bound = math.sqrt(1 / (kernel_size[0] * kernel_size[1] * (in_channels // groups)))
     bias_initializer = RandomUniform(-bound, bound)
 
     if bias is None:
@@ -168,12 +179,7 @@ def Conv2d(in_channels: int,
 
     if in_channels == groups:
         depth_multiplier = out_channels // in_channels
-        if DEFAULTS['conv']['horch']:
-            from hanser.models.conv import DepthwiseConv2D as HorchDepthwiseConv2D
-            depth_conv = HorchDepthwiseConv2D
-        else:
-            depth_conv = DepthwiseConv2D
-        conv = depth_conv(kernel_size=kernel_size, strides=stride, padding='valid',
+        conv = DepthwiseConv2D(kernel_size=kernel_size, strides=stride, padding='valid',
                           use_bias=use_bias, dilation_rate=dilation, depth_multiplier=depth_multiplier,
                           depthwise_initializer=kernel_initializer, bias_initializer=bias_initializer,
                           depthwise_regularizer=kernel_regularizer, bias_regularizer=bias_regularizer)
