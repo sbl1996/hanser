@@ -134,12 +134,6 @@ def Conv2d(in_channels: int,
         stride = (stride, stride)
     if isinstance(dilation, int):
         dilation = (dilation, dilation)
-    if isinstance(padding, int):
-        padding = (padding, padding)
-    if isinstance(padding, str):
-        assert padding == 'same'
-    if padding == 'same':
-        padding = calc_same_padding(kernel_size, dilation)
 
     # Init
     init_cfg = DEFAULTS['init']
@@ -173,21 +167,15 @@ def Conv2d(in_channels: int,
             depth_conv = HorchDepthwiseConv2D
         else:
             depth_conv = DepthwiseConv2D
-        conv = depth_conv(kernel_size=kernel_size, strides=stride, padding='valid',
+        conv = depth_conv(kernel_size=kernel_size, strides=stride, padding=padding,
                           use_bias=use_bias, dilation_rate=dilation, depth_multiplier=depth_multiplier,
                           depthwise_initializer=kernel_initializer, bias_initializer=bias_initializer,
                           depthwise_regularizer=kernel_regularizer, bias_regularizer=bias_regularizer)
     else:
         conv = Conv2D(out_channels, kernel_size=kernel_size, strides=stride,
-                      padding='valid', dilation_rate=dilation, use_bias=use_bias, groups=groups,
+                      padding=padding, dilation_rate=dilation, use_bias=use_bias, groups=groups,
                       kernel_initializer=kernel_initializer, bias_initializer=bias_initializer,
                       kernel_regularizer=kernel_regularizer, bias_regularizer=bias_regularizer)
-
-    if padding != (0, 0):
-        conv = Sequential([
-            ZeroPadding2D(padding),
-            conv,
-        ])
 
     layers = [conv]
     if norm:
@@ -218,12 +206,6 @@ def ConvTranspose2d(
         stride = (stride, stride)
     if isinstance(dilation, int):
         dilation = (dilation, dilation)
-    if isinstance(padding, int):
-        padding = (padding, padding)
-    if isinstance(padding, str):
-        assert padding == 'same'
-    if padding == 'same':
-        padding = calc_same_padding(kernel_size, dilation)
 
     # Init
     init_cfg = DEFAULTS['init']
@@ -252,21 +234,15 @@ def ConvTranspose2d(
 
     if in_channels == groups:
         depth_multiplier = out_channels // in_channels
-        conv = DepthwiseConv2D(kernel_size=kernel_size, strides=stride, padding='valid',
+        conv = DepthwiseConv2D(kernel_size=kernel_size, strides=stride, padding=padding,
                                use_bias=use_bias, dilation_rate=dilation, depth_multiplier=depth_multiplier,
                                depthwise_initializer=kernel_initializer, bias_initializer=bias_initializer,
                                depthwise_regularizer=kernel_regularizer, bias_regularizer=bias_regularizer)
     else:
         conv = Conv2DTranspose(out_channels, kernel_size=kernel_size, strides=stride,
-                               padding='valid', dilation_rate=dilation, use_bias=use_bias, groups=groups,
+                               padding=padding, dilation_rate=dilation, use_bias=use_bias, groups=groups,
                                kernel_initializer=kernel_initializer, bias_initializer=bias_initializer,
                                kernel_regularizer=kernel_regularizer, bias_regularizer=bias_regularizer)
-
-    if padding != (0, 0):
-        conv = Sequential([
-            ZeroPadding2D(padding),
-            conv,
-        ])
 
     layers = [conv]
     if norm:
