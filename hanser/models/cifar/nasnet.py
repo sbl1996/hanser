@@ -85,7 +85,7 @@ class Cell(Layer):
 
         states = [s0, s1]
         for ops, indices in zip(self._ops, self._indices):
-            s = tf.add_n([op(states[index]) for op, index in zip(ops, indices)])
+            s = sum([op(states[index]) for op, index in zip(ops, indices)])
             states.append(s)
         return tf.concat([states[i] for i in self._concat], axis=-1)
 
@@ -150,7 +150,10 @@ class NASNet(Model):
     def call(self, input):
         s0 = s1 = self.stem(input)
         for i, cell in enumerate(self.cells):
-            s0, s1 = s1, cell((s0, s1))
+            s = cell((s0, s1))
+            s0 = s1
+            s1 = s
+            # s0, s1 = s1, cell((s0, s1))
             if self._auxiliary and i == 2 * self._num_layers // 3:
                 logits_aux = self.auxiliary_head(s1)
         logits = self.classifier(s1)
