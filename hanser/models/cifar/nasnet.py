@@ -99,7 +99,7 @@ class AuxiliaryHeadCIFAR(Layer):
             Act(),
             Pool2d(5, stride=3, padding=0, type='avg'),
             Conv2d(C, 128, 1, norm='def', act='def'),
-            Conv2d(128, 768, 2, norm='def', act='def', padding='valid'),
+            Conv2d(128, 768, 2, norm='def', act='def', padding=0),
         ])
         self.classifier = Sequential([
             GlobalAvgPool(),
