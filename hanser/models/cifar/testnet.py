@@ -40,10 +40,10 @@ class PreActResBlock(Sequential):
         layers = [
             Norm(in_channels),
             Act(),
-            Conv2d(in_channels, out_channels, kernel_size=3),
+            Conv2d(in_channels, out_channels, kernel_size=1),
             Norm(out_channels),
             Act(),
-            Conv2d(out_channels, out_channels, kernel_size=3),
+            Conv2d(out_channels, out_channels, kernel_size=3, groups=out_channels),
         ]
         if dropout:
             layers.insert(5, Dropout(dropout))
