@@ -1,6 +1,7 @@
+from tensorflow.keras.regularizers import l2
 from tensorflow.keras import Model
 from tensorflow.keras.layers import Activation, Conv2D, BatchNormalization, Concatenate, DepthwiseConv2D, Input, \
-    GlobalAvgPool2D, Dense
+    GlobalAvgPool2D, Dense, Add
 
 
 def ReLUConvBN(x, C_out, kernel_size, stride):
@@ -41,10 +42,10 @@ def Cell(s0, s1, C, reduction, reduction_prev):
     s1 = ReLUConvBN(s1, C, 1, 1)
 
     stride = 2 if reduction else 1
-    s2 = SepConv(s0, C, 3, stride) + SepConv(s1, C, 3, stride)
-    s3 = SepConv(s0, C, 3, stride) + SepConv(s1, C, 3, stride)
-    s4 = SepConv(s0, C, 3, stride) + SepConv(s1, C, 3, stride)
-    s5 = SepConv(s0, C, 3, stride) + SepConv(s1, C, 3, stride)
+    s2 = Add()([SepConv(s0, C, 3, stride), SepConv(s1, C, 3, stride)])
+    s3 = Add()([SepConv(s0, C, 3, stride), SepConv(s1, C, 3, stride)])
+    s4 = Add()([SepConv(s0, C, 3, stride), SepConv(s1, C, 3, stride)])
+    s5 = Add()([SepConv(s0, C, 3, stride), SepConv(s1, C, 3, stride)])
 
     return Concatenate()([s2, s3, s4, s5])
 
