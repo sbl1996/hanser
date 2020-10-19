@@ -19,7 +19,10 @@ __all__ = ["set_default", "set_defaults", "Act", "Conv2d", "Norm", "Linear", "Gl
 
 DEFAULTS = {
     'conv': {
-        'horch': False,
+        'depthwise': {
+            'use_group': False,
+            'horch': False,
+        }
     },
     'bn': {
         'momentum': 0.9,
@@ -48,7 +51,10 @@ DEFAULTS = {
 
 _defaults_schema = {
     'conv': {
-        'horch': {'type': 'boolean'},
+        'depthwise': {
+            'use_group': {'type': 'boolean'},
+            'horch': {'type': 'boolean'},
+        }
     },
     'bn': {
         'momentum': {'type': 'float', 'min': 0.0, 'max': 1.0},
@@ -177,16 +183,22 @@ def Conv2d(in_channels: int,
     bias_regularizer = get_weight_decay() if not DEFAULTS['no_bias_decay'] else None
 
     if in_channels == groups:
-        depth_multiplier = out_channels // in_channels
-        if DEFAULTS['conv']['horch']:
-            from hanser.models.conv import DepthwiseConv2D as HorchDepthwiseConv2D
-            depth_conv = HorchDepthwiseConv2D
+        if DEFAULTS['conv']['depthwise']['use_group']:
+            conv = Conv2D(out_channels, kernel_size=kernel_size, strides=stride,
+                          padding='valid', dilation_rate=dilation, use_bias=use_bias, groups=groups,
+                          kernel_initializer=kernel_initializer, bias_initializer=bias_initializer,
+                          kernel_regularizer=kernel_regularizer, bias_regularizer=bias_regularizer)
         else:
-            depth_conv = DepthwiseConv2D
-        conv = depth_conv(kernel_size=kernel_size, strides=stride, padding='valid',
-                          use_bias=use_bias, dilation_rate=dilation, depth_multiplier=depth_multiplier,
-                          depthwise_initializer=kernel_initializer, bias_initializer=bias_initializer,
-                          depthwise_regularizer=kernel_regularizer, bias_regularizer=bias_regularizer)
+            depth_multiplier = out_channels // in_channels
+            if DEFAULTS['conv']['depthwise']['horch']:
+                from hanser.models.conv import DepthwiseConv2D as HorchDepthwiseConv2D
+                depth_conv = HorchDepthwiseConv2D
+            else:
+                depth_conv = DepthwiseConv2D
+            conv = depth_conv(kernel_size=kernel_size, strides=stride, padding='valid',
+                              use_bias=use_bias, dilation_rate=dilation, depth_multiplier=depth_multiplier,
+                              depthwise_initializer=kernel_initializer, bias_initializer=bias_initializer,
+                              depthwise_regularizer=kernel_regularizer, bias_regularizer=bias_regularizer)
     else:
         conv = Conv2D(out_channels, kernel_size=kernel_size, strides=stride,
                       padding='valid', dilation_rate=dilation, use_bias=use_bias, groups=groups,
