@@ -11,7 +11,8 @@ def relu(x):
 def bn(x):
     return BatchNormalization(momentum=0.9, epsilon=1e-5)(x)
 
-def get_weight_decay(wd=3e-4):
+
+def get_weight_decay(wd=0):
     if wd:
         return l2(wd * 0.5)
 
