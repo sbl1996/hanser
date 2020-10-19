@@ -1,36 +1,49 @@
-from tensorflow.keras.regularizers import l2
 from tensorflow.keras import Model
 from tensorflow.keras.layers import Activation, Conv2D, BatchNormalization, Concatenate, DepthwiseConv2D, Input, \
     GlobalAvgPool2D, Dense, Add
 
 
+def relu(x):
+    return Activation('relu')(x)
+
+
+def bn(x):
+    return BatchNormalization(momentum=0.9, epsilon=1e-5)(x)
+
+
+def conv2d(x, channels, kernel_size, stride=1, groups=1, bias=False):
+    if groups != 1:
+        return DepthwiseConv2D(kernel_size, strides=stride, padding='same', use_bias=bias)(x)
+    return Conv2D(channels, kernel_size, strides=stride, padding='same', use_bias=bias)(x)
+
+
 def ReLUConvBN(x, C_out, kernel_size, stride):
-    x = Activation('relu')(x)
-    x = Conv2D(C_out, kernel_size, strides=stride, padding='same', use_bias=False)(x)
-    x = BatchNormalization()(x)
+    x = relu(x)
+    x = conv2d(x, C_out, kernel_size, stride=stride)
+    x = bn(x)
     return x
 
 
 def FactorizedReduce(x, C_out):
     assert C_out % 2 == 0
-    x = Activation('relu')(x)
-    x1 = Conv2D(C_out // 2, 1, strides=2, use_bias=False)(x)
-    x2 = Conv2D(C_out // 2, 1, strides=2, use_bias=False)(x[:, 1:, 1:, :])
+    x = relu(x)
+    x1 = conv2d(x, C_out // 2, 1, stride=2)
+    x2 = conv2d(x[:, 1:, 1:, :], C_out // 2, 1, stride=2)
     x = Concatenate()([x1, x2])
-    x = BatchNormalization()(x)
+    x = bn(x)
     return x
 
 
 def SepConv(x, C_out, kernel_size, stride):
     C_in = x.shape[-1]
-    x = Activation('relu')(x)
-    x = DepthwiseConv2D(kernel_size, strides=stride, padding='same', use_bias=False)(x)
-    x = Conv2D(C_in, 1, use_bias=False)(x)
-    x = BatchNormalization()(x)
-    x = Activation('relu')(x)
-    x = DepthwiseConv2D(kernel_size, strides=1, padding='same', use_bias=False)(x)
-    x = Conv2D(C_out, 1, use_bias=False)(x)
-    x = BatchNormalization()(x)
+    x = relu(x)
+    x = conv2d(x, C_in, kernel_size, stride=stride, groups=C_in)
+    x = conv2d(x, C_in, 1)
+    x = bn(x)
+    x = relu(x)
+    x = conv2d(x, C_in, kernel_size, stride=1, groups=C_in)
+    x = conv2d(x, C_out, 1)
+    x = bn(x)
     return x
 
 
@@ -55,8 +68,8 @@ def NASNet(input_size, C, layers, num_classes):
 
     stem_multiplier = 3
     C_curr = stem_multiplier * C
-    x = Conv2D(C_curr, 3, padding='same', use_bias=False)(inputs)
-    x = BatchNormalization()(x)
+    x = conv2d(inputs, C_curr, 3)
+    x = bn(x)
 
     s0 = s1 = x
 
