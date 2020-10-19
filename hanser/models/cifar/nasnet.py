@@ -150,10 +150,7 @@ class NASNet(Model):
     def call(self, input):
         s0 = s1 = self.stem(input)
         for i, cell in enumerate(self.cells):
-            s = cell((s0, s1))
-            s0 = s1
-            s1 = s
-            # s0, s1 = s1, cell((s0, s1))
+            s0, s1 = s1, cell((s0, s1))
             if self._auxiliary and i == 2 * self._num_layers // 3:
                 logits_aux = self.auxiliary_head(s1)
         logits = self.classifier(s1)

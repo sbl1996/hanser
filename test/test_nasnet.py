@@ -80,9 +80,22 @@ def copy_sep_conv(src, dst):
     copy_bn(src.layers[7], dst.op[7])
 
 
+def comp_w(m, mt):
+    if isinstance(m, tf.keras.Sequential):
+        m = m.layers[1]
+    if isinstance(m, tf.keras.layers.Dense):
+        w = np.transpose(m.kernel.numpy(), [1, 0])
+    elif "Depth" in str(type(m)):
+        w = np.transpose(m.depthwise_kernel.numpy(), [2, 3, 0, 1])
+    else:
+        w = np.transpose(m.kernel.numpy(), [3, 2, 0, 1])
+    wt = mt.weight.detach().numpy()
+    dw = w - wt
+    print(dw.mean(), dw.std())
+
 weight_decay = 0
-num_layers = 20
-channels = 4
+num_layers = 8
+channels = 16
 net1 = NASNet(channels, num_layers, False, 0, 10, FTSO)
 net1.build((None, 32, 32, 3))
 net2 = DARTS(channels, num_layers, False, 0, 10, FTSO)
@@ -116,7 +129,7 @@ for i in range(num_layers):
 
 copy_linear(net1.classifier.layers[1], net2.classifier[1])
 
-for _ in range(1):
+for _ in range(10):
     x1 = tf.random.normal([2, 32, 32, 3])
     x2 = torch.from_numpy(np.transpose(x1.numpy(), [0, 3, 1, 2]))
     y1 = tf.random.uniform((2,), 0, 10, dtype=tf.int32)
@@ -137,11 +150,7 @@ for _ in range(1):
     loss2.backward()
     optimizer2.step()
 
-    d2 = p1.numpy() - p2.detach().numpy()
-    print(d2.mean(), d2.std())
+    dp = p1.numpy() - p2.detach().numpy()
+    print(dp.mean(), dp.std())
 
-    w1 = net1.stem.layers[0].layers[1].kernel
-    w1 = np.transpose(w1.numpy(), [3, 2, 0, 1])
-    w2 = net2.stem[0].weight.detach().numpy()
-    dw = w1 - w2
-    print(dw.mean(), dw.std())
+    comp_w(net1.stem.layers[0], net2.stem[0])
