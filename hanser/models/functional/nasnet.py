@@ -13,8 +13,10 @@ def bn(x):
 
 def conv2d(x, channels, kernel_size, stride=1, groups=1, bias=False):
     if groups != 1:
-        return DepthwiseConv2D(kernel_size, strides=stride, padding='same', use_bias=bias)(x)
-    return Conv2D(channels, kernel_size, strides=stride, padding='same', use_bias=bias)(x)
+        return DepthwiseConv2D(kernel_size, strides=stride, padding='same', use_bias=bias,
+                               depthwise_initializer='he_uniformV2')(x)
+    return Conv2D(channels, kernel_size, strides=stride, padding='same', use_bias=bias,
+                  kernel_initializer='he_uniformV2')(x)
 
 
 def ReLUConvBN(x, C_out, kernel_size, stride):
