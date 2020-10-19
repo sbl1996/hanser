@@ -41,9 +41,7 @@ DEFAULTS = {
     'init': {
         'type': 'msra',
         'mode': 'fan_in',
-        'uniform': True,
-        'std': 0.01,
-        'scale': 1.0,
+        'distribution': 'uniform',
     },
     'no_bias_decay': False,
     'weight_decay': 0.0,
@@ -72,9 +70,7 @@ _defaults_schema = {
     'init': {
         'type': {'type': 'string', 'allowed': ['msra', 'normal']},
         'mode': {'type': 'string', 'allowed': ['fan_in', 'fan_out']},
-        'uniform': {'type': 'boolean'},
-        'std': {'type': 'float', 'min': 0.0},
-        'scale': {'type': 'float', 'min': 0.0},
+        'distribution': {'type': 'string', 'allowed': ['uniform', 'truncated_normal','untruncated_normal']},
     },
     'seed': {'type': 'integer'},
     'no_bias_decay': {'type': 'boolean'},
@@ -158,16 +154,13 @@ def Conv2d(in_channels: int,
     init_cfg = DEFAULTS['init']
     if init_cfg['type'] == 'msra':
         mode = init_cfg['mode']
-        if in_channels == groups:
+        distribution = init_cfg['distribution']
+        if in_channels == groups and not DEFAULTS['conv']['depthwise']['use_group']:
             mode = flip_mode(mode)
-        if init_cfg['uniform']:
-            kernel_initializer = VarianceScaling(
-                1.0 / 3 * init_cfg['scale'], mode, 'uniform')
+        if 'uniform' in distribution:
+            kernel_initializer = VarianceScaling(1.0 / 3, mode, distribution)
         else:
-            kernel_initializer = VarianceScaling(
-                2.0 * init_cfg['scale'], mode, 'untruncated_normal')
-    elif init_cfg['type'] == 'normal':
-        kernel_initializer = RandomNormal(0, init_cfg['std'])
+            kernel_initializer = VarianceScaling(2.0, mode, distribution)
     else:
         raise ValueError("Unsupported init type: %s" % init_cfg['type'])
 
