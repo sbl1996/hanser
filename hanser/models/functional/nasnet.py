@@ -1,3 +1,4 @@
+from tensorflow.keras.regularizers import l2
 from tensorflow.keras import Model
 from tensorflow.keras.layers import Activation, Conv2D, BatchNormalization, Concatenate, DepthwiseConv2D, Input, \
     GlobalAvgPool2D, Dense, Add
@@ -10,13 +11,18 @@ def relu(x):
 def bn(x):
     return BatchNormalization(momentum=0.9, epsilon=1e-5)(x)
 
+def get_weight_decay(wd=3e-4):
+    if wd:
+        return l2(wd * 0.5)
+
 
 def conv2d(x, channels, kernel_size, stride=1, groups=1, bias=False):
     if groups != 1:
         return DepthwiseConv2D(kernel_size, strides=stride, padding='same', use_bias=bias,
-                               depthwise_initializer='he_uniformV2')(x)
+                               depthwise_initializer='he_uniformV2',
+                               depthwise_regularizer=get_weight_decay())(x)
     return Conv2D(channels, kernel_size, strides=stride, padding='same', use_bias=bias,
-                  kernel_initializer='he_uniformV2')(x)
+                  kernel_initializer='he_uniformV2', kernel_regularizer=get_weight_decay())(x)
 
 
 def ReLUConvBN(x, C_out, kernel_size, stride):
@@ -88,7 +94,7 @@ def NASNet(input_size, C, layers, num_classes):
         C_prev_prev, C_prev = C_prev, 4 * C_curr
 
     x = GlobalAvgPool2D()(s1)
-    logits = Dense(num_classes)(x)
+    logits = Dense(num_classes, kernel_regularizer=get_weight_decay())(x)
 
     model = Model(inputs=inputs, outputs=logits)
     return model
