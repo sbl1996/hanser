@@ -37,7 +37,7 @@ def transform(image, label, training):
         image = cutout(image, 16)
 
     # image = tf.cast(image, tf.bfloat16)
-    label = tf.one_hot(label, 10)
+    # label = tf.one_hot(label, 10)
 
     return image, label
 

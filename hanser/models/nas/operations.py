@@ -5,14 +5,8 @@ from hanser.models.layers import Conv2d, Norm, Act, Pool2d
 
 OPS = {
     'none': lambda C, stride: Zero(stride),
-    'avg_pool_3x3': lambda C, stride: Sequential([
-        Pool2d(3, stride=stride, type='avg'),
-        Norm(C),
-    ]),
-    'max_pool_3x3': lambda C, stride: Sequential([
-        Pool2d(3, stride=stride, type='max'),
-        Norm(C),
-    ]),
+    'avg_pool_3x3': lambda C, stride: Pool2d(3, stride=stride, type='avg'),
+    'max_pool_3x3': lambda C, stride: Pool2d(3, stride=stride, type='max'),
     'skip_connect': lambda C, stride: Identity() if stride == 1 else FactorizedReduce(C, C),
     'sep_conv_3x3': lambda C, stride: SepConv(C, C, 3, stride),
     'sep_conv_5x5': lambda C, stride: SepConv(C, C, 5, stride),

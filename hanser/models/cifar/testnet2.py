@@ -1,5 +1,6 @@
 from tensorflow.keras import Sequential, Model
-from hanser.models.layers import Act, Conv2d, Norm, GlobalAvgPool, Linear, Identity, Layer
+from tensorflow.keras.layers import Layer
+from hanser.models.layers import Conv2d, Norm, Act, Linear, Identity, GlobalAvgPool
 
 
 class PreActResBlock(Layer):
@@ -17,6 +18,7 @@ class PreActResBlock(Layer):
             Act(),
             Conv2d(out_channels, out_channels, kernel_size=1),
         ])
+
         if in_channels != out_channels or stride != 1:
             self.shortcut = Conv2d(in_channels, out_channels, kernel_size=1, stride=stride)
         else:
@@ -32,7 +34,7 @@ class ResNet(Model):
     def __init__(self, depth, k, num_classes=10, depthwise=True):
         super().__init__()
         num_blocks = (depth - 4) // 6
-        self.conv = Conv2d(3, self.stages[0], kernel_size=3)
+        self.stem = Conv2d(3, self.stages[0], kernel_size=3)
 
         self.layer1 = self._make_layer(
             self.stages[0] * 1, self.stages[1] * k, num_blocks, stride=1, depthwise=depthwise)
@@ -54,7 +56,7 @@ class ResNet(Model):
         return Sequential(layers)
 
     def call(self, x):
-        x = self.conv(x)
+        x = self.stem(x)
 
         x = self.layer1(x)
         x = self.layer2(x)
