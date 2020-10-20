@@ -1,10 +1,11 @@
 from tensorflow.keras import Sequential, Model
-from hanser.models.layers import Act, Conv2d, Norm, GlobalAvgPool, Linear, Identity
+from hanser.models.layers import Act, Conv2d, Norm, GlobalAvgPool, Linear, Identity, Layer
 
 
-class PreActResBlock(Sequential):
+class PreActResBlock(Layer):
     def __init__(self, in_channels, out_channels, stride=1, depthwise=True):
-        layers = [
+        super().__init__()
+        self.layers = Sequential([
             Norm(in_channels),
             Act(),
             Conv2d(in_channels, out_channels, kernel_size=1),
@@ -15,15 +16,14 @@ class PreActResBlock(Sequential):
             Norm(out_channels),
             Act(),
             Conv2d(out_channels, out_channels, kernel_size=1),
-        ]
+        ])
         if in_channels != out_channels or stride != 1:
             self.shortcut = Conv2d(in_channels, out_channels, kernel_size=1, stride=stride)
         else:
             self.shortcut = Identity()
-        super().__init__(layers)
 
-    def call(self, x, training=None):
-        return self.shortcut(x) + super().call(x, training)
+    def call(self, x):
+        return self.shortcut(x) + self.layers(x)
 
 
 class ResNet(Model):
