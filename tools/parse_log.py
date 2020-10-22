@@ -7,8 +7,8 @@ from toolz.curried import map
 from hhutil.io import read_lines
 
 epoch_p = re.compile(r"""Epoch \d+/\d+""")
-train_p = re.compile(r""".* Train \d+/\d+ - loss: (\d+\.\d{4}) - acc: (\d\.\d{4})""")
-valid_p = re.compile(r""".* Valid \d+/\d+ - loss: (\d+\.\d{4}) - acc: (\d\.\d{4})""")
+train_p = re.compile(r""".* train - loss: (\d+\.\d{4}), acc: (\d\.\d{4})""")
+valid_p = re.compile(r""".* valid - loss: (\d+\.\d{4}), acc: (\d\.\d{4})""")
 
 
 def parse_train(s):
@@ -42,9 +42,9 @@ def parse(fp):
     for l in lines:
         if 'Epoch' in l:
             epoch_lines.append(l)
-        elif 'Train' in l:
+        elif 'train' in l:
             train_lines.append(l)
-        elif 'Valid' in l:
+        elif 'valid' in l:
             valid_lines.append(l)
 
     train_losses, train_accs = zip(*map(parse_train, train_lines))

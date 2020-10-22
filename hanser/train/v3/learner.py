@@ -5,7 +5,7 @@ import tensorflow as tf
 import tensorflow.keras.mixed_precision.experimental as mixed_precision
 from tensorflow.keras.metrics import Metric, Mean
 
-from hhutil.io import fmt_path, eglob, rm
+from hhutil.io import fmt_path, eglob, rm, time_now
 
 from hanser.train.trainer import MetricHistory
 from hanser.train.v3.callbacks import config_callbacks
@@ -145,6 +145,8 @@ class Learner(metaclass=ABCMeta):
         epochs = epochs + start_epoch
         self.set_global_state("epochs", epochs)
         self.set_global_state("step", tf.Variable(0, dtype=tf.int64))
+
+        print("%s Start training" % (time_now(),))
 
         cbks.begin_train(self._state['train'])
         for epoch in range(start_epoch, epochs):
