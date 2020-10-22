@@ -5,8 +5,15 @@ import torch.nn as nn
 
 import tensorflow as tf
 
-from hanser.models.layers import Conv2d
+from hanser.models.layers import Conv2d, set_defaults
 
+set_defaults({
+    'conv': {
+        'depthwise': {
+            'horch': True,
+        }
+    }
+})
 
 def test_impl(size, channels, kernel_size, stride, dilation):
     h = w = size
@@ -39,7 +46,7 @@ def test_impl(size, channels, kernel_size, stride, dilation):
 dilations = [1, 2]
 sizes = [4, 7, 8, 13, 16]
 channels = 4
-kernel_sizes = [1, 3, 5, 7]
+kernel_sizes = [1, 3, 5]
 strides = [1, 2]
 for d in dilations:
     for size in sizes:

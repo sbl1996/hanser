@@ -4,15 +4,15 @@ from tensorflow_addons.optimizers import MovingAverage
 
 
 @curry
-def log_metrics(stage, metrics, epochs, writer, metric_history, stage_name=None):
+def log_metrics(stage, metrics, epoch, writer, metric_history, stage_name=None):
     stage_name = stage_name or stage
     log_str = "%s %s - " % (time_now(), stage_name)
     metric_logs = []
     for k, v in metrics.items():
         metric_logs.append("%s: %.4f" % (k, v))
         if writer:
-            writer.add_scalar("%s/%s" % (k, stage), v, epochs + 1)
-        metric_history.record(stage, epochs + 1, k, v)
+            writer.add_scalar("%s/%s" % (k, stage), v, epoch)
+        metric_history.record(stage, epoch, k, v)
     log_str += ", ".join(metric_logs)
     print(log_str)
 
@@ -176,12 +176,12 @@ class TrainEvalLogger(Callback):
     def after_epoch(self, state):
         learner = self.learner
         if self._is_print():
-            log_metrics('train', state['metrics'], state['epochs'], learner._writer, learner.metric_history)
+            log_metrics('train', state['metrics'], state['epoch'].numpy(), learner._writer, learner.metric_history)
 
     def after_eval(self, state):
         learner = self.learner
         if self._is_print():
-            log_metrics('eval', state['metrics'], state['epochs'], learner._writer, learner.metric_history,
+            log_metrics('eval', state['metrics'], state['epoch'].numpy(), learner._writer, learner.metric_history,
                         stage_name='valid')
 
 

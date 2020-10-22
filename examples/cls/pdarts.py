@@ -13,7 +13,7 @@ from hanser.tpu import get_colab_tpu
 from hanser.datasets import prepare
 from hanser.datasets.cifar import load_cifar10
 from hanser.train.optimizers import SGD
-from hanser.train.v3.callbacks import DropPathRateSchedule
+from hanser.train.v3.callbacks import DropPathRateSchedule, EvalEveryAfter
 from hanser.transform import random_crop, cutout, normalize, to_tensor
 
 from hanser.models.cifar.nasnet import NASNet
@@ -112,7 +112,7 @@ trainer = Trainer(model, criterion, optimizer, metrics, test_metrics,
 
 
 trainer.fit(epochs, ds_train, steps_per_epoch, ds_test, test_steps, val_freq=5,
-            callbacks=[DropPathRateSchedule(drop_path)])
+            callbacks=[DropPathRateSchedule(drop_path), EvalEveryAfter])
 
 import tensorflow_addons as tfa
 tfa.optimizers.LAMB
