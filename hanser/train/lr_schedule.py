@@ -278,3 +278,12 @@ class MultiStepLR(LearningRateSchedule):
             "boundaries": self.boundaries,
             "values": self.values,
         }
+
+
+def scale_lr(lr, mul, mode='linear'):
+    if mode == 'linear':
+        return lr * mul
+    elif mode == 'sqrt':
+        return lr * math.sqrt(mul)
+    else:
+        raise ValueError("Not supported mode: %s" % mode)
