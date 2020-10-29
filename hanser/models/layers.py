@@ -42,6 +42,7 @@ DEFAULTS = {
         'type': 'msra',
         'mode': 'fan_in',
         'distribution': 'uniform',
+        'fix': True,
     },
     'no_bias_decay': False,
     'weight_decay': 0.0,
@@ -71,6 +72,7 @@ _defaults_schema = {
         'type': {'type': 'string', 'allowed': ['msra', 'normal']},
         'mode': {'type': 'string', 'allowed': ['fan_in', 'fan_out']},
         'distribution': {'type': 'string', 'allowed': ['uniform', 'truncated_normal','untruncated_normal']},
+        'fix': {'type': 'boolean'},
     },
     'seed': {'type': 'integer'},
     'no_bias_decay': {'type': 'boolean'},
@@ -155,7 +157,7 @@ def Conv2d(in_channels: int,
     if init_cfg['type'] == 'msra':
         mode = init_cfg['mode']
         distribution = init_cfg['distribution']
-        if in_channels == groups and not DEFAULTS['conv']['depthwise']['use_group']:
+        if in_channels == groups and not DEFAULTS['conv']['depthwise']['use_group'] and DEFAULTS['init']['fix']:
             mode = flip_mode(mode)
         if 'uniform' in distribution:
             kernel_initializer = VarianceScaling(1.0 / 3, mode, distribution)

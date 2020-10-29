@@ -3,7 +3,7 @@
 from hanser.models.nas.genotypes import Genotype
 
 seed = 0
-mul = 1
+mul = 8
 
 # 2.57±0.07
 PC_DARTS_cifar = Genotype(
@@ -26,13 +26,13 @@ PC_DARTS_cifar = Genotype(
 genotype = PC_DARTS_cifar
 
 batch_size = 96
-weight_decay = 3e-4
+weight_decay = 5e-4
 drop_path = 0.3
 
 aux_weight = 0.4
 base_lr = 0.025
-warmup_epoch = 0
-epochs = 600 + warmup_epoch
+warmup_epoch = 10
+epochs = 900 + warmup_epoch
 grad_clip_norm = 5.0
 sync_bn = False
 
