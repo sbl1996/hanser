@@ -1,7 +1,7 @@
 import tensorflow as tf
 from tensorflow.keras import Sequential
 from tensorflow.keras.layers import Layer, InputSpec, Softmax, Dropout
-from tensorflow.keras.initializers import Constant
+from tensorflow.python.keras import initializers
 from tensorflow.python.keras.engine.base_layer import Layer
 from tensorflow.python.keras.initializers.initializers_v2 import Constant
 
@@ -211,4 +211,128 @@ class ReZero(Layer):
 
     def get_config(self):
         base_config = super(ReZero, self).get_config()
+        return base_config
+
+
+class Affine(Layer):
+
+    def __init__(self,
+                 axis=-1,
+                 scale=True,
+                 center=True,
+                 gamma_initializer='ones',
+                 beta_initializer='zeros',
+                 **kwargs):
+        super().__init__(**kwargs)
+        if isinstance(axis, (list, tuple)):
+            self.axis = axis[:]
+        elif isinstance(axis, int):
+            self.axis = axis
+        else:
+            raise TypeError('Expected an int or a list/tuple of ints for the '
+                            'argument \'axis\', but received: %r' % axis)
+        self.scale = scale
+        self.center = center
+        self.gamma_initializer = initializers.get(gamma_initializer)
+        self.beta_initializer = initializers.get(beta_initializer)
+
+    def call(self, inputs):
+        inputs_dtype = inputs.dtype.base_dtype
+        if inputs_dtype in (tf.float16, tf.bfloat16):
+            inputs = tf.cast(inputs, tf.float32)
+        input_shape = inputs.shape
+        ndims = len(input_shape)
+        reduction_axes = [i for i in range(ndims) if i not in self.axis]
+        broadcast_shape = [1] * ndims
+        broadcast_shape[self.axis[0]] = input_shape.dims[self.axis[0]].value
+
+        def _broadcast(v):
+            if v is not None and len(v.shape) != ndims and reduction_axes != list(range(ndims - 1)):
+                return tf.reshape(v, broadcast_shape)
+            return v
+
+        scale, offset = _broadcast(self.gamma), _broadcast(self.beta)
+        if scale is not None:
+            inputs = inputs * scale
+
+        if offset is not None:
+            inputs = inputs + offset
+        if inputs_dtype in (tf.float16, tf.bfloat16):
+            inputs = tf.cast(inputs, inputs_dtype)
+        return inputs
+
+    @property
+    def _param_dtype(self):
+        # Raise parameters of fp16 batch norm to fp32
+        if self.dtype == tf.float16 or self.dtype == tf.bfloat16:
+            return tf.float32
+        else:
+            return self.dtype or tf.float32
+
+    def build(self, input_shape):
+        input_shape = tf.TensorShape(input_shape)
+        if not input_shape.ndims:
+            raise ValueError('Input has undefined rank:', input_shape)
+        ndims = len(input_shape)
+
+        # Convert axis to list and resolve negatives
+        if isinstance(self.axis, int):
+            self.axis = [self.axis]
+
+        for idx, x in enumerate(self.axis):
+            if x < 0:
+                self.axis[idx] = ndims + x
+
+        # Validate axes
+        for x in self.axis:
+            if x < 0 or x >= ndims:
+                raise ValueError('Invalid axis: %d' % x)
+        if len(self.axis) != len(set(self.axis)):
+            raise ValueError('Duplicate axis: %s' % self.axis)
+
+        axis_to_dim = {x: input_shape.dims[x].value for x in self.axis}
+        for x in axis_to_dim:
+            if axis_to_dim[x] is None:
+                raise ValueError('Input has undefined `axis` dimension. Input shape: ',
+                                 input_shape)
+        self.input_spec = InputSpec(ndim=ndims, axes=axis_to_dim)
+
+        if len(axis_to_dim) == 1:
+            # Single axis batch norm (most common/default use-case)
+            param_shape = (list(axis_to_dim.values())[0],)
+        else:
+            # Parameter shape is the original shape but with 1 in all non-axis dims
+            param_shape = [
+                axis_to_dim[i] if i in axis_to_dim else 1 for i in range(ndims)
+            ]
+
+        if self.scale:
+            self.gamma = self.add_weight(
+                name='gamma',
+                shape=param_shape,
+                dtype=self._param_dtype,
+                initializer=self.gamma_initializer,
+                trainable=True,
+                experimental_autocast=False)
+        else:
+            self.gamma = None
+
+        if self.center:
+            self.beta = self.add_weight(
+                name='beta',
+                shape=param_shape,
+                dtype=self._param_dtype,
+                initializer=self.beta_initializer,
+                trainable=True,
+                experimental_autocast=False)
+        else:
+            self.beta = None
+
+    def get_config(self):
+        base_config = super(Affine, self).get_config()
+        base_config = {
+            "scale": self.scale,
+            "center": self.center,
+            **base_config
+        }
         return base_config
