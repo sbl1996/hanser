@@ -29,12 +29,11 @@ class PreActResBlock(Layer):
         if askc_type == 'DirectAdd':
             self.attention = DirectAddFuse()
         elif askc_type == 'ResGlobLocaforGlobLocaCha':
-            self.attention = iAFF(channels=channels)
+            self.attention = iAFF(out_channels)
         elif askc_type == 'ASKCFuse':
-            self.attention = ASKCFuse(channels=channels)
+            self.attention = AFF(out_channels)
         else:
             raise ValueError('Unknown askc_type')
-
 
     def call(self, x):
         identity = x
@@ -44,13 +43,14 @@ class PreActResBlock(Layer):
         x = self.norm2(x)
         x = self.act2(x)
         x = self.conv2(x)
-        return x + self.shortcut(identity)
+        x = self.attention((x, self.shortcut(identity)))
+        return x
 
 
 class ResNet(Model):
     stages = [16, 16, 32, 64]
 
-    def __init__(self, depth=32, k=4, deep_stem=False, num_classes=10):
+    def __init__(self, depth=32, k=4, deep_stem=False, askc_type='DirectAdd', num_classes=10):
         super().__init__()
         num_blocks = (depth - 2) // 6
         stages = [c * k for c in self.stages]
@@ -64,20 +64,20 @@ class ResNet(Model):
                 Conv2d(stem_channels, stages[0], kernel_size=3, bias=False)
             ])
 
-        self.layer1 = self._make_layer(stages[0], stages[1], num_blocks, stride=1)
-        self.layer2 = self._make_layer(stages[1], stages[2], num_blocks, stride=2)
-        self.layer3 = self._make_layer(stages[2], stages[3], num_blocks, stride=2)
+        self.layer1 = self._make_layer(stages[0], stages[1], num_blocks, stride=1, askc_type=askc_type)
+        self.layer2 = self._make_layer(stages[1], stages[2], num_blocks, stride=2, askc_type=askc_type)
+        self.layer3 = self._make_layer(stages[2], stages[3], num_blocks, stride=2, askc_type=askc_type)
 
         self.norm = Norm(stages[3])
         self.act = Act()
         self.avgpool = GlobalAvgPool()
         self.fc = Linear(stages[3], num_classes)
 
-    def _make_layer(self, in_channels, out_channels, blocks, stride):
-        layers = [PreActResBlock(in_channels, out_channels, stride=stride)]
+    def _make_layer(self, in_channels, out_channels, blocks, stride, askc_type):
+        layers = [PreActResBlock(in_channels, out_channels, stride=stride, askc_type=askc_type)]
         for i in range(1, blocks):
             layers.append(
-                PreActResBlock(out_channels, out_channels, stride=1))
+                PreActResBlock(out_channels, out_channels, stride=1, askc_type=askc_type))
         return Sequential(layers)
 
     def call(self, x):
@@ -108,19 +108,19 @@ class DirectAddFuse(Layer):
 
 class AFF(Layer):
 
-    def __init__(self, in_channels, out_channels=64, r=4):
+    def __init__(self, channels, r=4):
         super().__init__()
-        inter_channels = int(out_channels // r)
+        inter_channels = int(channels // r)
 
         self.local_att = Sequential([
-            Conv2d(in_channels, inter_channels, kernel_size=1, norm='def', act='def'),
-            Conv2d(inter_channels, out_channels, kernel_size=1, norm='def')
+            Conv2d(channels, inter_channels, kernel_size=1, norm='def', act='def'),
+            Conv2d(inter_channels, channels, kernel_size=1, norm='def')
         ])
 
         self.global_att = Sequential([
             GlobalAvgPool(keep_dim=True),
-            Conv2d(in_channels, inter_channels, kernel_size=1, norm='def', act='def'),
-            Conv2d(inter_channels, out_channels, kernel_size=1, norm='def')
+            Conv2d(channels, inter_channels, kernel_size=1, norm='def', act='def'),
+            Conv2d(inter_channels, channels, kernel_size=1, norm='def')
         ])
 
     def call(self, inputs):
@@ -137,32 +137,31 @@ class AFF(Layer):
 
 class iAFF(Layer):
 
-    def __init__(self, in_channels, out_channels=64, r=4):
+    def __init__(self, channels=64, r=4):
         super().__init__()
-        inter_channels = int(out_channels // r)
+        inter_channels = int(channels // r)
 
         self.local_att = Sequential([
-            Conv2d(in_channels, inter_channels, kernel_size=1, norm='def', act='def'),
-            Conv2d(inter_channels, out_channels, kernel_size=1, norm='def')
+            Conv2d(channels, inter_channels, kernel_size=1, norm='def', act='def'),
+            Conv2d(inter_channels, channels, kernel_size=1, norm='def')
         ])
 
         self.global_att = Sequential([
             GlobalAvgPool(keep_dim=True),
-            Conv2d(in_channels, inter_channels, kernel_size=1, norm='def', act='def'),
-            Conv2d(inter_channels, out_channels, kernel_size=1, norm='def')
+            Conv2d(channels, inter_channels, kernel_size=1, norm='def', act='def'),
+            Conv2d(inter_channels, channels, kernel_size=1, norm='def')
         ])
 
         self.local_att2 = Sequential([
-            Conv2d(out_channels, inter_channels, kernel_size=1, norm='def', act='def'),
-            Conv2d(inter_channels, out_channels, kernel_size=1, norm='def')
+            Conv2d(channels, inter_channels, kernel_size=1, norm='def', act='def'),
+            Conv2d(inter_channels, channels, kernel_size=1, norm='def')
         ])
 
         self.global_att2 = Sequential([
             GlobalAvgPool(keep_dim=True),
-            Conv2d(in_channels, inter_channels, kernel_size=1, norm='def', act='def'),
-            Conv2d(inter_channels, out_channels, kernel_size=1, norm='def')
+            Conv2d(channels, inter_channels, kernel_size=1, norm='def', act='def'),
+            Conv2d(inter_channels, channels, kernel_size=1, norm='def')
         ])
-
 
     def call(self, inputs):
         x, residual = inputs
