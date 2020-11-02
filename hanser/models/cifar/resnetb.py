@@ -6,7 +6,7 @@ from hanser.models.layers import Act, Conv2d, Norm, GlobalAvgPool, Linear, Ident
 
 
 class PreActResBlock(Layer):
-    def __init__(self, in_channels, out_channels, stride):
+    def __init__(self, in_channels, out_channels, stride, askc_type='DirectAdd'):
         super().__init__()
         self.norm1 = Norm(in_channels)
         self.act1 = Act()
@@ -26,6 +26,16 @@ class PreActResBlock(Layer):
         else:
             self.shortcut = Identity()
 
+        if askc_type == 'DirectAdd':
+            self.attention = DirectAddFuse()
+        elif askc_type == 'ResGlobLocaforGlobLocaCha':
+            self.attention = iAFF(channels=channels)
+        elif askc_type == 'ASKCFuse':
+            self.attention = ASKCFuse(channels=channels)
+        else:
+            raise ValueError('Unknown askc_type')
+
+
     def call(self, x):
         identity = x
         x = self.norm1(x)
@@ -40,7 +50,7 @@ class PreActResBlock(Layer):
 class ResNet(Model):
     stages = [16, 16, 32, 64]
 
-    def __init__(self, depth=32, k=4, deep_stem=True, num_classes=10):
+    def __init__(self, depth=32, k=4, deep_stem=False, num_classes=10):
         super().__init__()
         num_blocks = (depth - 2) // 6
         stages = [c * k for c in self.stages]
@@ -147,37 +157,30 @@ class iAFF(Layer):
             Conv2d(inter_channels, out_channels, kernel_size=1, norm='def')
         ])
 
-        self.local_att2 = nn.HybridSequential(prefix='local_att2')
-        self.local_att2.add(nn.Conv2D(inter_channels, kernel_size=1, strides=1, padding=0))
-        self.local_att2.add(nn.BatchNorm())
-        self.local_att2.add(nn.Activation('relu'))
-        self.local_att2.add(nn.Conv2D(channels, kernel_size=1, strides=1, padding=0))
-        self.local_att2.add(nn.BatchNorm())
+        self.global_att2 = Sequential([
+            GlobalAvgPool(keep_dim=True),
+            Conv2d(in_channels, inter_channels, kernel_size=1, norm='def', act='def'),
+            Conv2d(inter_channels, out_channels, kernel_size=1, norm='def')
+        ])
 
-        self.global_att2 = nn.HybridSequential(prefix='global_att2')
-        self.global_att2.add(nn.GlobalAvgPool2D())
-        self.global_att2.add(nn.Conv2D(inter_channels, kernel_size=1, strides=1, padding=0))
-        self.global_att2.add(nn.BatchNorm())
-        self.global_att2.add(nn.Activation('relu'))
-        self.global_att2.add(nn.Conv2D(channels, kernel_size=1, strides=1, padding=0))
-        self.global_att2.add(nn.BatchNorm())
-
-        self.sig1 = nn.Activation('sigmoid')
-        self.sig2 = nn.Activation('sigmoid')
 
     def call(self, inputs):
         x, residual = inputs
+
         xa = x + residual
+
         xl = self.local_att(xa)
         xg = self.global_att(xa)
         xlg = xl + xg
         s = tf.sigmoid(xlg)
 
         xi = x * s + residual * (1 - s)
+
         xl2 = self.local_att2(xi)
         xg2 = self.global_att2(xi)
-        xlg2 = F.broadcast_add(xl2, xg2)
-        wei2 = self.sig2(xlg2)
-        xo = F.broadcast_mul(x, wei2) + F.broadcast_mul(residual, 1 - wei2)
+        xlg2 = xl2 + xg2
+        s2 = tf.sigmoid(xlg2)
+
+        xo = x * s2 + residual * (1 - s2)
 
         return xo
