@@ -29,9 +29,9 @@ class PreActResBlock(Layer):
 
         if askc_type == 'DirectAdd':
             self.attention = DirectAddFuse()
-        elif askc_type == 'ResGlobLocaforGlobLocaCha':
+        elif askc_type == 'iAFF':
             self.attention = iAFF(out_channels)
-        elif askc_type == 'ASKCFuse':
+        elif askc_type == 'AFF':
             self.attention = AFF(out_channels)
         else:
             raise ValueError('Unknown askc_type')
@@ -60,7 +60,7 @@ class AFFResNeXtBlock(Layer):
 
         self.body = Sequential([
             Conv2d(in_channels, group_width, kernel_size=1, norm='def', act='def'),
-            Conv2d(group_width, group_width, kernel_size=3, groups=cardinality,
+            Conv2d(group_width, group_width, kernel_size=3, stride=stride, groups=cardinality,
                    norm='def', act='def'),
             Conv2d(group_width, out_channels, kernel_size=1, norm='def', act='def'),
         ])
@@ -87,9 +87,9 @@ class AFFResNeXtBlock(Layer):
 
         if askc_type == 'DirectAdd':
             self.attention = DirectAddFuse()
-        elif askc_type == 'ResGlobLocaforGlobLocaCha':
+        elif askc_type == 'iAFF':
             self.attention = iAFF(out_channels, r=r)
-        elif askc_type == 'ASKCFuse':
+        elif askc_type == 'AFF':
             self.attention = AFF(out_channels, r=r)
         else:
             raise ValueError('Unknown askc_type')
@@ -97,14 +97,14 @@ class AFFResNeXtBlock(Layer):
         self.post_activ = Act()
 
     def call(self, x):
-        residual = x
+        identity = x
         x = self.body(x)
 
         if self.se:
             s = self.se(x)
             x = x * s
 
-        x = self.attention((x, residual))
+        x = self.attention((x, self.shortcut(identity)))
         x = self.post_activ(x)
         return x
 
@@ -160,10 +160,10 @@ class ResNet(Model):
 class ResNeXt(Model):
     stages = [16, 16, 32, 64]
 
-    def __init__(self, depth, k, cardinality, bottleneck_width, use_se=False, askc_type='DirectAdd', num_classes=10):
+    def __init__(self, depth=38, k=4, cardinality=32, bottleneck_width=4, use_se=False, askc_type='DirectAdd', num_classes=10):
         super().__init__()
         num_blocks = (depth - 2) // 9
-        stages = [c * k * AFFResNeXtBlock.expansion for c in self.stages]
+        stages = [self.stages[0] * k] + [c * k * AFFResNeXtBlock.expansion for c in self.stages[1:]]
         self.stem = Conv2d(3, stages[0], kernel_size=3, norm='def', act='def')
 
         self.layer1 = self._make_layer(stages[0], stages[1], num_blocks, stride=1,
@@ -189,7 +189,7 @@ class ResNeXt(Model):
                 AFFResNeXtBlock(out_channels, out_channels, stride=1,
                                 cardinality=cardinality, bottleneck_width=bottleneck_width,
                                 use_se=use_se, askc_type=askc_type))
-            return Sequential(layers)
+        return Sequential(layers)
 
     def call(self, x):
         x = self.stem(x)
