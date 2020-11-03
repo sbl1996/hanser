@@ -49,7 +49,6 @@ class SGD(tf.keras.optimizers.Optimizer):
                     return False
         return True
 
-
     def _prepare_local(self, var_device, var_dtype, apply_state):
         super()._prepare_local(var_device, var_dtype, apply_state)
 
@@ -130,7 +129,6 @@ class SGD(tf.keras.optimizers.Optimizer):
         if m is not None:
             param_name = m.group(1)
         return param_name
-
 
 # @tf.keras.utils.register_keras_serializable(package="Hanser")
 # class SGDW(tf.keras.optimizers.Optimizer):
