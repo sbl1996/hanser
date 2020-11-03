@@ -124,6 +124,13 @@ class SGD(tf.keras.optimizers.Optimizer):
         )
         return config
 
+    def _get_variable_name(self, param_name):
+        """Get the variable name from the tensor name."""
+        m = re.match("^(.*):\\d+$", param_name)
+        if m is not None:
+            param_name = m.group(1)
+        return param_name
+
 
 # @tf.keras.utils.register_keras_serializable(package="Hanser")
 # class SGDW(tf.keras.optimizers.Optimizer):
@@ -240,3 +247,10 @@ class SGD(tf.keras.optimizers.Optimizer):
 #             }
 #         )
 #         return config
+#
+#     def _get_variable_name(self, param_name):
+#         """Get the variable name from the tensor name."""
+#         m = re.match("^(.*):\\d+$", param_name)
+#         if m is not None:
+#             param_name = m.group(1)
+#         return param_name
