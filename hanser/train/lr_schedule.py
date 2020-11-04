@@ -68,7 +68,6 @@ class CosineAnnealingLR(LearningRateSchedule):
             "steps_per_epoch": self.steps_per_epoch,
             "epochs": self.epochs,
             "min_lr": self.min_lr,
-            "alpha": self.alpha,
             "warmup_min_lr": self.warmup_min_lr,
             "warmup_epoch": self.warmup_epoch,
             "total_steps": self.total_steps,
@@ -138,13 +137,13 @@ class FlatCosineLR(LearningRateSchedule):
             "base_lr": self.base_lr,
             "steps_per_epoch": self.steps_per_epoch,
             "epochs": self.epochs,
-            "flat": self.flat,
+            "flat_epoch": self.flat_epoch,
             "min_lr": self.min_lr,
-            "alpha": self.alpha,
             "warmup_min_lr": self.warmup_min_lr,
             "warmup_epoch": self.warmup_epoch,
             "total_steps": self.total_steps,
             "warmup_steps": self.warmup_steps,
+            "flat_steps": self.flat_steps,
         }
 
 
@@ -208,7 +207,6 @@ class CosinePowerAnnealingLR(LearningRateSchedule):
             "epochs": self.epochs,
             "p": self.p,
             "min_lr": self.min_lr,
-            "alpha": self.alpha,
             "warmup_min_lr": self.warmup_min_lr,
             "warmup_epoch": self.warmup_epoch,
             "total_steps": self.total_steps,
@@ -262,7 +260,7 @@ class MultiStepLR(LearningRateSchedule):
         decayed_lr = tf.cond(
             tf.less(step, warmup_steps),
             lambda: warmup(step),
-            lambda: step_decay(step - warmup_steps),
+            lambda: step_decay(step),
         )
         return decayed_lr
 
