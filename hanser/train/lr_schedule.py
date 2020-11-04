@@ -192,6 +192,7 @@ class CosinePowerAnnealingLR(LearningRateSchedule):
             mult = (tf.pow(p, mult + 1) - p) / (tf.pow(p, 2) - p)
             return min_lr + (base_lr - min_lr) * mult
 
+
         global_step_recomp = tf.cast(step, dtype)
         decayed_lr = tf.cond(
             tf.less(global_step_recomp, warmup_steps),
