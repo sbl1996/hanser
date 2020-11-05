@@ -28,8 +28,8 @@ class BasicBlock(Layer):
         branch1 = [
             Norm(in_channels),
             Conv2d(in_channels, channels, kernel_size=3, stride=stride,
-                   norm='default', act='default'),
-            Conv2d(channels, channels, kernel_size=3, norm='default'),
+                   norm='def', act='def'),
+            Conv2d(channels, channels, kernel_size=3, norm='def'),
         ]
         self.branch1 = Sequential(branch1)
         self.branch2 = Shortcut(in_channels, channels, stride)
@@ -47,11 +47,11 @@ class Bottleneck(Layer):
         branch1 = [
             Norm(in_channels),
             Conv2d(in_channels, channels, kernel_size=1,
-                   norm='default', act='default'),
+                   norm='def', act='def'),
             Conv2d(channels, channels, kernel_size=3, stride=stride,
-                   norm='default', act='default'),
+                   norm='def', act='def'),
             Conv2d(channels, out_channels, kernel_size=1,
-                   norm='default'),
+                   norm='def'),
         ]
         self.branch1 = Sequential(branch1)
         self.branch2 = Shortcut(in_channels, out_channels, stride)
@@ -84,7 +84,7 @@ class PyramidNet(Model):
         add_channel = widening_fractor / sum(num_layers)
         in_channels = start_channels
 
-        self.init_block = Conv2d(3, start_channels, kernel_size=3, norm='default')
+        self.init_block = Conv2d(3, start_channels, kernel_size=3, norm='def')
 
         channels = start_channels
         k = 1
@@ -114,7 +114,7 @@ class PyramidNet(Model):
 
     def call(self, x):
         x = self.init_block(x)
-        for i, unit in enumerate(self.units):
+        for unit in self.units:
             x = unit(x)
         x = self.post_activ(x)
 
