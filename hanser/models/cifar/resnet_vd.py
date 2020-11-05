@@ -15,7 +15,7 @@ class BasicBlock(Layer):
             assert in_channels != out_channels
             self.shortcut = Sequential([
                 Pool2d(2, 2, type='avg'),
-                Conv2d(in_channels, out_channels, kernel_size=1),
+                Conv2d(in_channels, out_channels, kernel_size=1, norm='def'),
             ])
         else:
             self.shortcut = Identity()
