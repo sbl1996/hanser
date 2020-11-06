@@ -27,6 +27,8 @@ def prepare(ds, batch_size, transform=None, training=True, buffer_size=1024,
             ds = ds.map(batch_transform, num_parallel_calls=tf.data.experimental.AUTOTUNE)
     else:
         ds = ds.batch(batch_size, drop_remainder=drop_remainder)
+        if batch_transform:
+            ds = ds.map(batch_transform, num_parallel_calls=tf.data.experimental.AUTOTUNE)
         if repeat:
             ds = ds.repeat()
     ds = ds.prefetch(tf.data.experimental.AUTOTUNE)
