@@ -1,0 +1,13 @@
+Forward:  b + α - bα
+Backward: b + β - bβ
+Test:     E(b + α - bα)
+
+α = 1, β = 1 : 
+Forward:  1
+Backward: 1
+Test:     1
+
+α = 1, β = 0 : 
+Forward:  1
+Backward: b
+Test:     1

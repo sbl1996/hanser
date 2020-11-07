@@ -10,6 +10,7 @@ from tensorflow.keras.initializers import VarianceScaling, RandomNormal, RandomU
 from tensorflow.keras.layers import Dense, Activation, Layer, InputSpec, Conv2D, ZeroPadding2D, LeakyReLU, \
     Conv2DTranspose, DepthwiseConv2D
 from tensorflow.keras.regularizers import l2
+import tensorflow_addons as tfa
 from tensorflow_addons.activations import mish as tfa_mish
 
 from hanser.models.pooling import MaxPooling2D as MaxPool2D, AveragePooling2D as AvgPool2D
@@ -31,6 +32,12 @@ DEFAULTS = {
         'track_running_stats': True,
         'fused': True,
         'sync': False,
+    },
+    'gn': {
+        'groups': None,
+        'channels_per_group': 16,
+        'eps': 1e-5,
+        'affine': True,
     },
     'activation': 'relu',
     'compat': False,
@@ -63,11 +70,17 @@ _defaults_schema = {
         'fused': {'type': 'boolean'},
         'sync': {'type': 'boolean'},
     },
+    'gn': {
+        'eps': {'type': 'float', 'min': 0.0},
+        'affine': {'type': 'boolean'},
+        'groups': {'type': 'integer'},
+        'channels_per_group': {'type': 'integer'},
+    },
     'activation': {'type': 'string', 'allowed': ['relu', 'swish', 'mish', 'leaky_relu', 'sigmoid']},
     'leaky_relu': {
         'alpha': {'type': 'float', 'min': 0.0, 'max': 1.0},
     },
-    'norm': {'type': 'string', 'allowed': ['bn']},
+    'norm': {'type': 'string', 'allowed': ['bn', 'gn', 'none']},
     'init': {
         'type': {'type': 'string', 'allowed': ['msra', 'normal']},
         'mode': {'type': 'string', 'allowed': ['fan_in', 'fan_out']},
@@ -296,35 +309,57 @@ def ConvTranspose2d(
     else:
         return Sequential(layers)
 
+def get_groups(channels, ref=32):
+    if channels == 1:
+        return 1
+    xs = filter(lambda x: channels % x == 0, range(2, channels + 1))
+    c = min(xs, key=lambda x: abs(x - ref))
+    if c < 8:
+        c = max(c, channels // c)
+    return channels // c
+
 
 def Norm(channels, type='default', affine=None, track_running_stats=None):
     if type in ['default', 'def']:
         type = DEFAULTS['norm']
-    assert type == 'bn'
-    cfg = DEFAULTS['bn']
-    gamma_initializer = 'ones'
-    if DEFAULTS['no_bias_decay']:
-        gamma_regularizer = None
-        beta_regularizer = None
+    if type == 'bn':
+        cfg = DEFAULTS['bn']
+        if DEFAULTS['no_bias_decay']:
+            gamma_regularizer = None
+            beta_regularizer = None
+        else:
+            gamma_regularizer = get_weight_decay()
+            beta_regularizer = get_weight_decay()
+        if affine is None:
+            affine = cfg['affine']
+        if track_running_stats is None:
+            track_running_stats = cfg['track_running_stats']
+        if cfg['sync']:
+            bn = SyncBatchNormalization(
+                momentum=cfg['momentum'], epsilon=cfg['eps'], center=affine, scale=affine,
+                gamma_regularizer=gamma_regularizer, beta_regularizer=beta_regularizer,
+                track_running_stats=track_running_stats)
+        else:
+            bn = BatchNormalization(
+                momentum=cfg['momentum'], epsilon=cfg['eps'], center=affine, scale=affine,
+                gamma_regularizer=gamma_regularizer, beta_regularizer=beta_regularizer, fused=cfg['fused'],
+                track_running_stats=track_running_stats)
+        return bn
+    elif type == 'gn':
+        cfg = DEFAULTS['gn']
+        if affine is None:
+            affine = cfg['affine']
+        if not cfg['groups']:
+            groups = get_groups(channels, cfg['channels_per_group'])
+        else:
+            groups = cfg['groups']
+        gn = tfa.layers.GroupNormalization(
+            groups=groups, epsilon=cfg['eps'], center=affine, scale=affine)
+        return gn
+    elif type == 'none':
+        return Identity()
     else:
-        gamma_regularizer = get_weight_decay()
-        beta_regularizer = get_weight_decay()
-    if affine is None:
-        affine = cfg['affine']
-    if track_running_stats is None:
-        track_running_stats = cfg['track_running_stats']
-    if cfg['sync']:
-        bn = SyncBatchNormalization(
-            momentum=cfg['momentum'], epsilon=cfg['eps'], gamma_initializer=gamma_initializer,
-            gamma_regularizer=gamma_regularizer, beta_regularizer=beta_regularizer,
-            center=affine, scale=affine, track_running_stats=track_running_stats)
-    else:
-        bn = BatchNormalization(
-            momentum=cfg['momentum'], epsilon=cfg['eps'], gamma_initializer=gamma_initializer,
-            gamma_regularizer=gamma_regularizer, beta_regularizer=beta_regularizer, fused=cfg['fused'],
-            center=affine, scale=affine, track_running_stats=track_running_stats)
-    return bn
-
+        raise ValueError("Unsupported normalization type: %s" % type)
 
 def Act(type='default'):
     if type in ['default', 'def']:
