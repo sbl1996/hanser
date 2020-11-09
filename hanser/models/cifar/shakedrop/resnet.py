@@ -96,3 +96,4 @@ class ResNet(Model):
         return x
 
 
+from torchvision.models import MobileNetV2

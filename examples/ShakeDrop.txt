@@ -11,3 +11,8 @@ Test:     1
 Forward:  1
 Backward: b
 Test:     1
+
+α = 0, β = 0 : 
+Forward:  b
+Backward: b
+Test:     0.5

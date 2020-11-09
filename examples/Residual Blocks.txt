@@ -1,0 +1,13 @@
+Residual Blocks
+
+ResNet
+Basic: Conv-BN-ReLU-Conv-BN-Add-ReLU
+Bottleneck: Conv-BN-ReLU-Conv-BN-ReLU-Conv-BN-Add-ReLU
+
+ResNet EraseReLU
+Basic: Conv-BN-ReLU-Conv-BN-Add
+Bottleneck: Conv-BN-ReLU-Conv-BN-ReLU-Conv-BN-Add
+
+PreActResNet
+Basic: BN-ReLU-Conv-BN-ReLU-Conv-Add
+Bottleneck: BN-ReLU-Conv-BN-ReLU-Conv-BN-ReLU-Conv-Add
