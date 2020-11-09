@@ -4,13 +4,16 @@ from tensorflow.keras.layers import Layer
 @tf.custom_gradient
 def ShakeDropOp(x, p, alpha_min, alpha_max, beta_min, beta_max):
     gate = tf.random.uniform((), dtype=p.dtype) > (1 - p)
-
+    alpha_min = tf.cast(alpha_min, x.dtype)
+    alpha_max = tf.cast(alpha_max, x.dtype)
     out = tf.cond(
         gate,
         lambda: x * tf.random.uniform(x.shape, alpha_min, alpha_max, dtype=x.dtype),
         lambda: x)
 
     def custom_grad(dy):
+        beta_min = tf.cast(beta_min, dy.dtype)
+        beta_max = tf.cast(beta_max, dy.dtype)
         grad = tf.cond(
             gate,
             lambda: dy * tf.random.uniform(dy.shape, beta_min, beta_max, dtype=dy.dtype),
