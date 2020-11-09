@@ -18,7 +18,7 @@ def ShakeDropOp(x, p, alpha_min, alpha_max, beta_min, beta_max):
             gate,
             lambda: dy * tf.random.uniform(dy.shape, beta_min, beta_max, dtype=dy.dtype),
             lambda: dy)
-        return grad, None, None, None
+        return grad, None, None, None, None, None
 
     return out, custom_grad
 
