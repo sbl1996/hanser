@@ -3,7 +3,7 @@ from tensorflow.keras.layers import Layer
 
 @tf.custom_gradient
 def ShakeDropOp(x, p, alpha_min, alpha_max, beta_min, beta_max):
-    gate = tf.random.uniform() > (1 - p)
+    gate = tf.random.uniform((), dtype=x.dtype) > (1 - p)
 
     out = tf.cond(
         gate,
@@ -31,7 +31,8 @@ class ShakeDrop(Layer):
         if training:
             return ShakeDropOp(x, self.p, self.alphas[0], self.alphas[1], self.betas[0], self.betas[1])
         else:
-            return x * (1 - self.p)
+            scale = tf.cast(1 - self.p, x.dtype)
+            return x * scale
 
     def get_config(self):
         base_config = super().get_config()
