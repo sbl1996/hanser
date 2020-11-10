@@ -385,21 +385,6 @@ def _assert(cond, ex_type, msg):
             return []
 
 
-def resolve_shape(tensor, rank=None):
-    if rank is not None:
-        shape = tensor.get_shape().with_rank(rank).as_list()
-    else:
-        shape = tensor.get_shape().as_list()
-
-    if None in shape:
-        shape_dynamic = tf.shape(tensor)
-        for i in range(len(shape)):
-            if shape[i] is None:
-                shape[i] = shape_dynamic[i]
-
-    return shape
-
-
 def resize(img, size, method='bilinear'):
     if not isinstance(size, (tuple, list)):
         size = tf.cast(size, tf.float32)
@@ -457,28 +442,6 @@ def _CheckAtLeast3DImage(image, require_static=True):
         return []
 
 
-def _ImageDimensions(image, rank):
-    """Returns the dimensions of an image tensor.
-
-    Args:
-      image: A rank-D Tensor. For 3-D  of shape: `[height, width, channels]`.
-      rank: The expected rank of the image
-
-    Returns:
-      A list of corresponding to the dimensions of the
-      input image.  Dimensions that are statically known are python integers,
-      otherwise they are integer scalar tensors.
-    """
-    if image.get_shape().is_fully_defined():
-        return image.get_shape().as_list()
-    else:
-        static_shape = image.get_shape().with_rank(rank).as_list()
-        dynamic_shape = array_ops.unstack(array_ops.shape(image), rank)
-        return [
-            s if s is not None else d for s, d in zip(static_shape, dynamic_shape)
-        ]
-
-
 def pad_to_bounding_box(image, offset_height, offset_width, target_height,
                         target_width, pad_value):
     """Pads the given image with the given pad_value.
@@ -516,7 +479,7 @@ def pad_to_bounding_box(image, offset_height, offset_width, target_height,
             raise ValueError('\'image\' must have either 3 or 4 dimensions.')
 
         assert_ops = _CheckAtLeast3DImage(image, require_static=False)
-        batch, height, width, depth = _ImageDimensions(image, rank=4)
+        batch, height, width, depth = _image_dimensions(image, rank=4)
 
         after_padding_width = target_width - offset_width - width
 
@@ -554,40 +517,65 @@ def pad_to_bounding_box(image, offset_height, offset_width, target_height,
         return outputs
 
 
+def _is_batch(x):
+    return len(x.shape) == 4
+
+
 def pad(x, padding, fill=0):
     if isinstance(padding, int):
         padding = (padding, padding)
     ph, pw = padding
-    x = tf.pad(x, [(ph, ph), (pw, pw), (0, 0)], constant_values=fill)
+    paddings = [(ph, ph), (pw, pw), (0, 0)]
+    if _is_batch:
+        paddings = [(0, 0), *paddings]
+    x = tf.pad(x, paddings, constant_values=fill)
     return x
 
 
 def random_crop(x, size, padding, fill=0):
     height, width = size
     x = pad(x, padding, fill)
-    x = tf.image.random_crop(x, [height, width, x.shape[-1]])
+    crop_size = [height, width, x.shape[-1]]
+    if _is_batch(x):
+        crop_size = [tf.shape(x)[0], *crop_size]
+    x = tf.image.random_crop(x, crop_size)
     return x
 
 
-def cutout(image, length):
-    h = tf.shape(image)[0]
-    w = tf.shape(image)[1]
+def cutout(images, length):
+    is_batch = _is_batch(images)
+    if not is_batch:
+        images = images[None]
 
-    cy = tf.random.uniform((), 0, h, dtype=tf.int32)
-    cx = tf.random.uniform((), 0, w, dtype=tf.int32)
+    bs, h, w, c = _image_dimensions(images, 4)
+    cy = tf.random.uniform((bs,), 0, h, dtype=tf.int32)
+    cx = tf.random.uniform((bs,), 0, w, dtype=tf.int32)
 
     t = tf.maximum(0, cy - length // 2)
     b = tf.minimum(h, cy + length // 2)
     l = tf.maximum(0, cx - length // 2)
     r = tf.minimum(w, cx + length // 2)
-    shape = [b - t, r - l]
-    padding = [(t, h - b), (l, w - r)]
+    shape = tf.transpose([b - t, r - l], [1, 0])
 
-    mask = tf.pad(tf.zeros(shape, dtype=image.dtype), padding, constant_values=1)
+    masks = tf.TensorArray(images.dtype, bs)
+    for i in tf.range(bs):
+        padding = [
+            [t[i], h - b[i]],
+            [l[i], w - r[i]],
+        ]
+        mask = tf.pad(
+            tf.zeros(shape[i], dtype=images.dtype),
+            padding,
+            constant_values=1,
+        )
+        masks = masks.write(i, mask)
 
-    mask = tf.expand_dims(mask, -1)
-    image = image * mask
-    return image
+    masks = tf.expand_dims(masks.stack(), -1)
+    images = images * masks
+
+    if not is_batch:
+        images = images[0]
+    return images
 
 
 def invert(image):
@@ -913,11 +901,11 @@ def translate_y(image, pixels, replace):
     return unwrap(image, replace)
 
 
-def normalize(image, mean, std):
-    mean = tf.convert_to_tensor(mean, image.dtype)
-    std = tf.convert_to_tensor(std, image.dtype)
-    image = (image - mean) / std
-    return image
+def normalize(x, mean, std):
+    mean = tf.convert_to_tensor(mean, x.dtype)
+    std = tf.convert_to_tensor(std, x.dtype)
+    x = (x - mean) / std
+    return x
 
 
 def to_tensor(image, label, dtype=tf.float32):
