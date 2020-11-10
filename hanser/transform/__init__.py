@@ -526,7 +526,7 @@ def pad(x, padding, fill=0):
         padding = (padding, padding)
     ph, pw = padding
     paddings = [(ph, ph), (pw, pw), (0, 0)]
-    if _is_batch:
+    if _is_batch(x):
         paddings = [(0, 0), *paddings]
     x = tf.pad(x, paddings, constant_values=fill)
     return x
