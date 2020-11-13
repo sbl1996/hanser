@@ -6,9 +6,10 @@ def ShakeDropOp(x, p, alpha_min, alpha_max, beta_min, beta_max):
     gate = tf.random.uniform((), dtype=p.dtype) > (1 - p)
     alpha_min = tf.cast(alpha_min, x.dtype)
     alpha_max = tf.cast(alpha_max, x.dtype)
+    shape = [tf.shape(x)[0], 1, 1, 1]
     out = tf.cond(
         gate,
-        lambda: x * tf.random.uniform(x.shape, alpha_min, alpha_max, dtype=x.dtype),
+        lambda: x * tf.random.uniform(shape, alpha_min, alpha_max, dtype=x.dtype),
         lambda: x)
 
     beta_min = tf.cast(beta_min, x.dtype)
@@ -16,7 +17,7 @@ def ShakeDropOp(x, p, alpha_min, alpha_max, beta_min, beta_max):
     def custom_grad(dy):
         grad = tf.cond(
             gate,
-            lambda: dy * tf.random.uniform(dy.shape, beta_min, beta_max, dtype=dy.dtype),
+            lambda: dy * tf.random.uniform(shape, beta_min, beta_max, dtype=dy.dtype),
             lambda: dy)
         return grad, None, None, None, None, None
 
