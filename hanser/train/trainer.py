@@ -98,16 +98,21 @@ def validate_dataset(strategy, *datsets):
             assert isinstance(ds, DistributedDataset)
 
 
-def cast_fp32(xs):
+def cast(xs, dtype):
     if isinstance(xs, tf.Tensor):
-        return tf.cast(xs, tf.float32)
+        if xs.dtype != dtype:
+            xs = tf.cast(xs, dtype)
+        return xs
     elif isinstance(xs, (tuple, list)):
-        return xs.__class__(cast_fp32(x) for x in xs)
+        return xs.__class__(cast(x) for x in xs)
     elif isinstance(xs, dict):
-        return {k: cast_fp32(v) for k, v in xs.items()}
+        return {k: cast(v) for k, v in xs.items()}
     else:
         return xs
 
+
+def cast_fp32(xs):
+    return cast(xs, tf.float32)
 
 def misc_concat(values):
     if isinstance(values, (tuple, list)):
@@ -273,7 +278,7 @@ class Trainer:
         inputs, target = data
         preds = self.model(inputs, training=False)
         if self.float16:
-            preds = cast_fp32(preds)
+            preds = cast(preds, tf.float32)
 
         preds = self.metric_transform(preds)
         for metric in self.test_metrics:

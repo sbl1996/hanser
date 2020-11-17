@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from hanser.train.trainer import cast_fp32
+from hanser.train.trainer import cast
 from hanser.train.v3.learner import Learner
 
 
@@ -15,9 +15,9 @@ class CNNLearner(Learner):
 
         inputs, target = batch
         with tf.GradientTape() as tape:
+            inputs = cast(inputs, self.dtype)
             preds = model(inputs, training=True)
-            if self.fp16:
-                preds = cast_fp32(preds)
+            preds = cast(preds, self.dtype)
             per_example_loss = self.criterion(target, preds)
             loss = self.reduce_loss(per_example_loss)
 
@@ -28,9 +28,9 @@ class CNNLearner(Learner):
         model = self.model
 
         inputs, target = batch
+        inputs = cast(inputs, self.dtype)
         preds = model(inputs, training=False)
-        if self.fp16:
-            preds = cast_fp32(preds)
+        preds = cast(preds, self.dtype)
         self.update_metrics(self.eval_metrics, target, preds)
 
     # def test_batch(self, batch):
