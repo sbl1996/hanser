@@ -24,7 +24,7 @@ class Shortcut(Sequential):
 class BasicBlock(Layer):
     expansion = 1
 
-    def __init__(self, in_channels, channels, stride=1, shakedrop=True):
+    def __init__(self, in_channels, channels, stride=1, p_shakedrop=0):
         super().__init__()
         branch1 = [
             Norm(in_channels),
@@ -32,8 +32,8 @@ class BasicBlock(Layer):
                    norm='def', act='def'),
             Conv2d(channels, channels, kernel_size=3, norm='def'),
         ]
-        if shakedrop:
-            branch1.append(ShakeDrop(0.5, (-1, 1), (0, 1)))
+        if p_shakedrop:
+            branch1.append(ShakeDrop(p_shakedrop, (-1, 1), (0, 1)))
         self.branch1 = Sequential(branch1)
         self.branch2 = Shortcut(in_channels, channels, stride)
 
@@ -44,7 +44,7 @@ class BasicBlock(Layer):
 class Bottleneck(Layer):
     expansion = 4
 
-    def __init__(self, in_channels, channels, stride=1, shakedrop=True):
+    def __init__(self, in_channels, channels, stride=1, p_shakedrop=0):
         super().__init__()
         out_channels = channels * self.expansion
         branch1 = [
@@ -56,8 +56,8 @@ class Bottleneck(Layer):
             Conv2d(channels, out_channels, kernel_size=1,
                    norm='def'),
         ]
-        if shakedrop:
-            branch1.append(ShakeDrop(0.5, (-1, 1), (0, 1)))
+        if p_shakedrop:
+            branch1.append(ShakeDrop(p_shakedrop, (-1, 1), (0, 1)))
         self.branch1 = Sequential(branch1)
         self.branch2 = Shortcut(in_channels, out_channels, stride)
 
@@ -70,7 +70,7 @@ def rd(c):
 
 
 class PyramidNet(Model):
-    def __init__(self, start_channels, widening_fractor, depth, block='bottleneck', shakedrop=True, num_classes=10):
+    def __init__(self, start_channels, widening_fractor, depth, block='bottleneck', p_shakedrop=0.5, num_classes=10):
         super().__init__()
 
         if block == 'basic':
@@ -94,15 +94,12 @@ class PyramidNet(Model):
         channels = start_channels
         k = 1
         units = []
-        for i, (n, s) in enumerate(zip(num_layers, strides)):
-            channels += add_channel
-            units.append(block(in_channels, rd(channels), stride=s, shakedrop=shakedrop))
-            in_channels = rd(channels) * block.expansion
-            k += 1
-
-            for j in range(1, n):
+        for n, s in zip(num_layers, strides):
+            for i in range(n):
+                stride = s if i == 0 else 1
                 channels = channels + add_channel
-                units.append(block(in_channels, rd(channels), shakedrop=shakedrop))
+                units.append(block(in_channels, rd(channels), stride=stride,
+                                   p_shakedrop=k / sum(num_layers) * p_shakedrop))
                 in_channels = rd(channels) * block.expansion
                 k += 1
 
