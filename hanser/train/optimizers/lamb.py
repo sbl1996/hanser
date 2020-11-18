@@ -127,11 +127,10 @@ class LAMB(tf.keras.optimizers.Optimizer):
         v_t = v * coefficients["beta_2_t"] + v_scaled_g_values
         v_t = v.assign(v_t, use_locking=self._use_locking)
 
-        m_t_hat = m_t / (1.0 - coefficients["beta_1_power"])
         v_t_hat = v_t / (1.0 - coefficients["beta_2_power"])
 
         v_sqrt = tf.sqrt(v_t_hat)
-        update = m_t_hat / (v_sqrt + coefficients["epsilon"])
+        update = m_t / (v_sqrt + coefficients["epsilon"])
 
         var_name = self._get_variable_name(var.name)
         if self._do_use_weight_decay(var_name):
@@ -150,7 +149,8 @@ class LAMB(tf.keras.optimizers.Optimizer):
         update = update * ratio
         if self.use_gc:
             update = self._centralized_gradient(update)
-        var_update = var - coefficients["lr_t"] * update
+        step_size = coefficients["lr_t"] / (1.0 - coefficients["beta_1_power"])
+        var_update = var - step_size * update
         return var.assign(var_update, use_locking=self._use_locking)
 
     def _centralized_gradient(self, x):
@@ -179,11 +179,10 @@ class LAMB(tf.keras.optimizers.Optimizer):
         with tf.control_dependencies([v_t]):
             v_t = self._resource_scatter_add(v, indices, v_scaled_g_values)
 
-        m_t_hat = m_t / (1.0 - coefficients["beta_1_power"])
         v_t_hat = v_t / (1.0 - coefficients["beta_2_power"])
 
         v_sqrt = tf.sqrt(v_t_hat)
-        update = m_t_hat / (v_sqrt + coefficients["epsilon"])
+        update = m_t / (v_sqrt + coefficients["epsilon"])
 
         var_name = self._get_variable_name(var.name)
         if self._do_use_weight_decay(var_name):
@@ -199,8 +198,12 @@ class LAMB(tf.keras.optimizers.Optimizer):
                 1.0,
             )
 
+        update = update * ratio
+        if self.use_gc:
+            update = self._centralized_gradient(update)
+        step_size = coefficients["lr_t"] / (1.0 - coefficients["beta_1_power"])
         var_update = var.assign_sub(
-            ratio * coefficients["lr_t"] * update, use_locking=self._use_locking
+            step_size * update, use_locking=self._use_locking
         )
         return tf.group(*[var_update, m_t, v_t])
 
