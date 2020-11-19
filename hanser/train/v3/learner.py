@@ -22,7 +22,9 @@ def find_most_recent(work_dir, pattern):
 
 
 @tf.function
-def identity(x):
+def default_metric_transform(x):
+    if isinstance(x, (tuple, list)):
+        return x[0]
     return x
 
 
@@ -61,7 +63,8 @@ class Learner(metaclass=ABCMeta):
     def __init__(self, model, criterion, optimizers,
                  train_metrics: Mapping[str, Metric],
                  eval_metrics: Mapping[str, Metric], work_dir,
-                 fp16=False, grad_clip_norm=0.0, multiple_steps=True, metric_transform=identity):
+                 fp16=False, grad_clip_norm=0.0, multiple_steps=True, metric_transform=default_metric_transform,
+                 target_metric_transform=default_metric_transform, output_metric_transform=default_metric_transform):
         if not isinstance(optimizers, Sequence):
             optimizers = [optimizers]
         optimizers = list(optimizers)
@@ -79,6 +82,8 @@ class Learner(metaclass=ABCMeta):
         self.grad_clip_norm = grad_clip_norm
         self.multiple_steps = multiple_steps
         self.metric_transform = metric_transform
+        self.target_metric_transform = target_metric_transform
+        self.output_metric_transform = output_metric_transform
 
         self._use_weight_decay = len(model.losses) != 0
 
@@ -187,7 +192,8 @@ class Learner(metaclass=ABCMeta):
             callbacks.after_batch(state)
 
     def update_metrics(self, metrics, y_true, y_pred, per_example_loss=None):
-        y_pred = self.metric_transform(y_pred)
+        y_true = self.target_metric_transform(y_true)
+        y_pred = self.output_metric_transform(y_pred)
         for name, metric in metrics.items():
             if 'loss' in name and type(metric) == Mean:
                 metric.update_state(per_example_loss)
