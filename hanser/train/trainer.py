@@ -104,9 +104,9 @@ def cast(xs, dtype):
             xs = tf.cast(xs, dtype)
         return xs
     elif isinstance(xs, (tuple, list)):
-        return xs.__class__(cast(x) for x in xs)
+        return xs.__class__(cast(x, dtype) for x in xs)
     elif isinstance(xs, dict):
-        return {k: cast(v) for k, v in xs.items()}
+        return {k: cast(v, dtype) for k, v in xs.items()}
     else:
         return xs
 
