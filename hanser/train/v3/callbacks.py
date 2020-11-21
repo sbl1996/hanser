@@ -1,4 +1,5 @@
 from toolz import curry
+import numpy as np
 from hhutil.io import time_now
 from tensorflow_addons.optimizers import MovingAverage
 
@@ -249,3 +250,9 @@ class EvalEveryAfter(Callback):
     def begin_epoch(self, state):
         if state['epoch'] >= self.eval_after:
             self.learner._val_freq = 1
+
+
+class TerminateOnNaN(Callback):
+    def after_epoch(self, state):
+        if not np.isfinite(state['metrics']['loss']):
+            raise RuntimeError("Infinite encountered")
