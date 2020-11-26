@@ -6,8 +6,8 @@ def ShakeDropOp(x, p, alpha_min, alpha_max, beta_min, beta_max):
     gate = tf.random.uniform((), dtype=p.dtype) > (1 - p)
     alpha_min = tf.cast(alpha_min, x.dtype)
     alpha_max = tf.cast(alpha_max, x.dtype)
-    # shape = [tf.shape(x)[0], 1, 1, 1]
-    shape = x.shape
+    shape = [tf.shape(x)[0], 1, 1, 1]
+    # shape = x.shape
     out = tf.cond(
         gate,
         lambda: x * tf.random.uniform(shape, alpha_min, alpha_max, dtype=x.dtype),
