@@ -38,9 +38,9 @@ def parse(fp):
     for l in lines:
         if 'Epoch' in l:
             epoch_lines.append(l)
-        elif 'train' in l:
+        elif ' train ' in l:
             train_lines.append(l)
-        elif 'valid' in l:
+        elif ' valid ' in l:
             valid_lines.append(l)
 
     train_losses, train_accs = zip(*map(parse_train, train_lines))

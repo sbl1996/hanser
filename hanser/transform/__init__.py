@@ -908,8 +908,8 @@ def normalize(x, mean, std):
     return x
 
 
-def to_tensor(image, label, dtype=tf.float32):
-    image = tf.cast(image, dtype) / 255
+def to_tensor(image, label, dtype=tf.float32, vmax=255):
+    image = tf.cast(image, dtype) / vmax
     label = tf.cast(label, tf.int32)
 
     return image, label
