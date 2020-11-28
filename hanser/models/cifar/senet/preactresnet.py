@@ -1,13 +1,14 @@
 from tensorflow.keras import Sequential, Model
 from tensorflow.keras.layers import Layer
 
-from hanser.models.modules import Dropout
+from hanser.models.modules import SELayer, Dropout
 from hanser.models.layers import Act, Conv2d, Norm, GlobalAvgPool, Linear, Identity
 
 
 class PreActDownBlock(Layer):
-    def __init__(self, in_channels, out_channels, stride, dropout):
+    def __init__(self, in_channels, out_channels, stride, dropout, use_se=False):
         super().__init__()
+        self.use_se = use_se
         self.norm1 = Norm(in_channels)
         self.act1 = Act()
         self.conv1 = Conv2d(in_channels, out_channels, kernel_size=3, stride=stride)
@@ -15,6 +16,8 @@ class PreActDownBlock(Layer):
         self.act2 = Act()
         self.dropout = Dropout(dropout) if dropout else Identity()
         self.conv2 = Conv2d(out_channels, out_channels, kernel_size=3)
+        if self.use_se:
+            self.se = SELayer(out_channels, reduction=8)
 
         self.shortcut = Conv2d(in_channels, out_channels, kernel_size=1, stride=stride)
 
@@ -27,11 +30,13 @@ class PreActDownBlock(Layer):
         x = self.act2(x)
         x = self.dropout(x)
         x = self.conv2(x)
+        if self.use_se:
+            x = self.se(x)
         return x + self.shortcut(identity)
 
 
 class PreActResBlock(Sequential):
-    def __init__(self, in_channels, out_channels, dropout):
+    def __init__(self, in_channels, out_channels, dropout, use_se):
         layers = [
             Norm(in_channels),
             Act(),
@@ -42,6 +47,8 @@ class PreActResBlock(Sequential):
         ]
         if dropout:
             layers.insert(5, Dropout(dropout))
+        if use_se:
+            layers.append(SELayer(out_channels, reduction=8))
         super().__init__(layers)
 
     def call(self, x, training=None):
@@ -51,31 +58,32 @@ class PreActResBlock(Sequential):
 class ResNet(Model):
     stages = [16, 16, 32, 64]
 
-    def __init__(self, depth, k, dropout=0, num_classes=10):
+    def __init__(self, depth, k, dropout=0, use_se=False, num_classes=10):
         super().__init__()
         num_blocks = (depth - 4) // 6
         self.conv = Conv2d(3, self.stages[0], kernel_size=3)
 
         self.layer1 = self._make_layer(
             self.stages[0] * 1, self.stages[1] * k, num_blocks, stride=1,
-            dropout=dropout)
+            dropout=dropout, use_se=use_se)
         self.layer2 = self._make_layer(
             self.stages[1] * k, self.stages[2] * k, num_blocks, stride=2,
-            dropout=dropout)
+            dropout=dropout, use_se=use_se)
         self.layer3 = self._make_layer(
             self.stages[2] * k, self.stages[3] * k, num_blocks, stride=2,
-            dropout=dropout)
+            dropout=dropout, use_se=use_se)
 
         self.norm = Norm(self.stages[3] * k)
         self.act = Act()
         self.avgpool = GlobalAvgPool()
         self.fc = Linear(self.stages[3] * k, num_classes)
 
-    def _make_layer(self, in_channels, out_channels, blocks, stride, dropout):
-        layers = [PreActDownBlock(in_channels, out_channels, stride=stride, dropout=dropout)]
+    def _make_layer(self, in_channels, out_channels, blocks, stride, dropout, use_se):
+        layers = [PreActDownBlock(in_channels, out_channels, stride=stride,
+                                  dropout=dropout, use_se=use_se)]
         for i in range(1, blocks):
             layers.append(
-                PreActResBlock(out_channels, out_channels, dropout=dropout))
+                PreActResBlock(out_channels, out_channels, dropout=dropout, use_se=use_se))
         return Sequential(layers)
 
     def call(self, x):
