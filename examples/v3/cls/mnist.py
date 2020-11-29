@@ -19,7 +19,7 @@ from hanser.datasets import prepare
 from hanser.train.optimizers import SGD
 from hanser.train.v3.callbacks import EMA, Callback, EvalEveryAfter, DropPathRateSchedule
 from hanser.train.v3.cls import CNNLearner
-from hanser.transform import random_crop, cutout, normalize, to_tensor
+from hanser.transform import fmix, random_crop, cutout, normalize, to_tensor
 
 from hanser.train.lr_schedule import CosineLR
 from hanser.losses import CrossEntropy
@@ -41,6 +41,9 @@ def transform(image, label, training):
 
     return image, label
 
+def zip_transform(data1, data2):
+    return fmix(data1, data2, 1.0, 3.0)
+
 
 (x_train, y_train), (x_test, y_test) = load_mnist()
 x_train, x_test = x_train[:, :, :, None], x_test[:, :, :, None]
@@ -58,7 +61,8 @@ test_steps = math.ceil(num_test_examples / eval_batch_size)
 ds = tf.data.Dataset.from_tensor_slices((x_train, y_train))
 ds_test = tf.data.Dataset.from_tensor_slices((x_test, y_test))
 
-ds_train = prepare(ds, batch_size, transform(training=True), training=True, buffer_size=50000)
+ds_train = prepare(ds, batch_size, transform(training=True),
+                   zip_transform=zip_transform, training=True, buffer_size=50000)
 ds_test = prepare(ds_test, eval_batch_size, transform(training=False), training=False)
 
 strategy = get_colab_tpu()

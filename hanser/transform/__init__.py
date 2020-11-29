@@ -8,6 +8,7 @@ from tensorflow.python.ops import check_ops
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import gen_image_ops
 
+from hanser.transform.fmix import sample_mask
 
 @curry
 def mixup_batch(image, label, beta):
@@ -101,6 +102,20 @@ def cutmix(data1, data2, beta):
     lam = tf.cast(lam, label1.dtype)
     label = label1 * lam + label2 * (1. - lam)
 
+    return image, label
+
+
+@curry
+def fmix(data1, data2, alpha, decay_power):
+
+    image1, label1 = data1
+    image2, label2 = data2
+    shape = image1.shape[:2]
+    lam, mask = sample_mask(alpha, decay_power, shape)
+    image = mask * image1 + (1 - mask) * image2
+
+    lam = tf.cast(lam, label1.dtype)
+    label = lam * label1 + (1 - lam) * label2
     return image, label
 
 
