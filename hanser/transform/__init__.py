@@ -99,7 +99,6 @@ def cutmix(data1, data2, beta):
     image = image1 * mask + image2 * (1. - mask)
 
     lam = 1 - (b - t) * (r - l) / (h * w)
-    tf.print(shape)
     lam = tf.cast(lam, label1.dtype)
     label = label1 * lam + label2 * (1. - lam)
 
