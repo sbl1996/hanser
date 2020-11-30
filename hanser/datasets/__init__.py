@@ -14,7 +14,7 @@ def prepare(ds, batch_size, transform=None, training=True, buffer_size=1024,
     if cache:
         ds = ds.cache()
     if training:
-        ds = ds.shuffle(buffer_size, seed=GLOBALS['seed'])
+        ds = ds.shuffle(buffer_size)
         if repeat:
             ds = ds.repeat()
     if transform:

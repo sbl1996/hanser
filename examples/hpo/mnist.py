@@ -9,7 +9,6 @@ from tensorflow.keras.metrics import CategoricalAccuracy as Accuracy, Mean, Cate
 from tensorflow.keras.callbacks import Callback
 import tensorflow.keras.mixed_precision.experimental as mixed_precision
 
-from hanser import set_seed
 from hanser.tpu import get_colab_tpu
 from hanser.datasets import prepare
 from hanser.datasets import load_mnist

@@ -10,7 +10,6 @@ import tensorflow.keras.mixed_precision.experimental as mixed_precision
 
 import tensorflow_addons as tfa
 
-from hanser import set_seed
 from hanser.tpu import get_colab_tpu
 from hanser.datasets import prepare
 from hanser.datasets.cifar import load_cifar10
@@ -22,8 +21,6 @@ from hanser.models.layers import set_defaults
 from hanser.train.trainer import Trainer
 from hanser.train.lr_schedule import CosineLR
 from hanser.losses import CrossEntropy
-
-set_seed(42)
 
 @curry
 def transform(image, label, training):

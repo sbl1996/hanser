@@ -8,7 +8,6 @@ from tensorflow.keras.optimizers import SGD
 from tensorflow.keras.metrics import CategoricalAccuracy as Accuracy, Mean, CategoricalCrossentropy as Loss
 from tensorflow.keras.callbacks import Callback
 
-from hanser import set_seed
 from hanser.tpu import get_colab_tpu
 from hanser.datasets import prepare
 from hanser.datasets import load_mnist
@@ -88,7 +87,6 @@ def main(params):
 
 
 if __name__ == '__main__':
-    set_seed(42)
     params = {
         'batch_size': 32,
     }

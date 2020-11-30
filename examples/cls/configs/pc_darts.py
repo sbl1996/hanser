@@ -1,6 +1,5 @@
 from hanser.models.nas.genotypes import Genotype
 
-seed = 42
 mul = 1
 
 # 558M, 3.63M, 2.57±0.07

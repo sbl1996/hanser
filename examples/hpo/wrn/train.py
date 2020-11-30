@@ -12,7 +12,6 @@ import tensorflow.keras.mixed_precision.experimental as mixed_precision
 
 import tensorflow_addons as tfa
 
-from hanser import set_seed
 from hanser.tpu import get_colab_tpu
 from hanser.datasets import prepare
 from hanser.datasets.cifar import load_cifar10, load_cifar100
@@ -106,7 +105,6 @@ def main(params):
 
 
 if __name__ == '__main__':
-    set_seed(42)
     params = {}
 
     tuned_params = nni.get_next_parameter()

@@ -2,7 +2,7 @@
 
 from hanser.models.nas.genotypes import Genotype
 
-seed = 0
+ = 0
 mul = 1
 
 # 2.57±0.07

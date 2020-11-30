@@ -5,26 +5,23 @@ from toolz import curry
 import tensorflow as tf
 
 from tensorflow.keras.metrics import CategoricalAccuracy as Accuracy, Mean, CategoricalCrossentropy as Loss
-import tensorflow.keras.mixed_precision.experimental as mixed_precision
 from tensorflow.keras.datasets.mnist import load_data as load_mnist
 
 from tensorflow_addons.optimizers import MovingAverage
 
-from hanser import set_seed
 from hanser.models.mnist import LeNet5
-from hanser.models.layers import set_defaults
 
-from hanser.tpu import get_colab_tpu
+from hanser import set_seed
+from hanser.tpu import setup
 from hanser.datasets import prepare
 from hanser.train.optimizers import SGD
-from hanser.train.v3.callbacks import EMA, Callback, EvalEveryAfter, DropPathRateSchedule
 from hanser.train.v3.cls import CNNLearner
-from hanser.transform import fmix, random_crop, cutout, normalize, to_tensor
+from hanser.transform import fmix, random_crop, cutout, normalize, to_tensor, cutmix
 
 from hanser.train.lr_schedule import CosineLR
 from hanser.losses import CrossEntropy
 
-set_seed(42)
+# set_seed(42)
 
 @curry
 def transform(image, label, training):
@@ -42,7 +39,7 @@ def transform(image, label, training):
     return image, label
 
 def zip_transform(data1, data2):
-    return fmix(data1, data2, 1.0, 3.0)
+    return cutmix(data1, data2, 1.0)
 
 
 (x_train, y_train), (x_test, y_test) = load_mnist()
@@ -53,7 +50,7 @@ x_test, y_test = x_test[:100], y_test[:100]
 mul = 1
 num_train_examples = len(x_train)
 num_test_examples = len(x_test)
-batch_size = 32 * mul
+batch_size = 4 * mul
 eval_batch_size = batch_size * 2
 steps_per_epoch = num_train_examples // batch_size
 test_steps = math.ceil(num_test_examples / eval_batch_size)
@@ -65,14 +62,7 @@ ds_train = prepare(ds, batch_size, transform(training=True),
                    zip_transform=zip_transform, training=True, buffer_size=50000)
 ds_test = prepare(ds_test, eval_batch_size, transform(training=False), training=False)
 
-strategy = get_colab_tpu()
-if strategy:
-    policy = mixed_precision.Policy('mixed_bfloat16')
-    mixed_precision.set_policy(policy)
-    tf.distribute.experimental_set_strategy(strategy)
-
-    ds_train_dist = strategy.experimental_distribute_dataset(ds_train)
-    ds_test_dist = strategy.experimental_distribute_dataset(ds_test)
+ds_train, ds_test = setup([ds_train, ds_test], fp16=False)
 
 model = LeNet5()
 model.build((None, 32, 32, 1))

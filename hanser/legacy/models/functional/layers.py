@@ -62,9 +62,9 @@ def conv2d(x,
     init_cfg = DEFAULTS['init']
     if init_cfg['type'] == 'msra':
         distribution = 'uniform' if init_cfg['uniform'] else 'normal'
-        kernel_initializer = VarianceScaling(2.0 * init_cfg['scale'], init_cfg['mode'], distribution, DEFAULTS['seed'])
+        kernel_initializer = VarianceScaling(2.0 * init_cfg['scale'], init_cfg['mode'], distribution)
     elif init_cfg['type'] == 'normal':
-        kernel_initializer = RandomNormal(0, init_cfg['std'], seed=DEFAULTS['seed'])
+        kernel_initializer = RandomNormal(0, init_cfg['std'])
     else:
         raise ValueError("Unsupported init type: %s" % init_cfg['type'])
 
@@ -172,7 +172,7 @@ def get_weight_decay():
 
 
 def dense(x, out_channels, act=None, name=None):
-    kernel_initializer = RandomNormal(0, 0.01, seed=DEFAULTS['seed'])
+    kernel_initializer = RandomNormal(0, 0.01)
     return Dense(out_channels, activation=act,
                  kernel_initializer=kernel_initializer,
                  kernel_regularizer=get_weight_decay(),

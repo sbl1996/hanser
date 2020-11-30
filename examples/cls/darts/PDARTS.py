@@ -1,6 +1,5 @@
 from hanser.models.nas.genotypes import Genotype
 
-seed = 0
 mul = 1
 
 PDARTS = Genotype(
