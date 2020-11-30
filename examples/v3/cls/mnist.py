@@ -48,7 +48,7 @@ x_test, y_test = x_test[:100], y_test[:100]
 mul = 1
 num_train_examples = len(x_train)
 num_test_examples = len(x_test)
-batch_size = 4 * mul
+batch_size = 32 * mul
 eval_batch_size = batch_size * 2
 steps_per_epoch = num_train_examples // batch_size
 test_steps = math.ceil(num_test_examples / eval_batch_size)
@@ -88,4 +88,5 @@ learner = CNNLearner(
     work_dir="checkpoints", multiple_steps=True)
 
 # learner.load()
-hist = learner.fit(ds_train, epochs, ds_test, val_freq=1, save_freq=10)
+hist = learner.fit(ds_train, epochs, ds_test, val_freq=1,
+                   steps_per_epoch=steps_per_epoch, val_steps=test_steps, save_freq=10)

@@ -195,7 +195,7 @@ class Learner(metaclass=ABCMeta):
 
     @tf.function
     def _run_steps(self, step_fn, iterator, n_steps, callbacks, state):
-        for _ in range(n_steps):
+        for i in tf.range(n_steps):
             batch = next(iterator)
             state['step'].assign_add(1)
             callbacks.begin_batch(state)
