@@ -153,6 +153,8 @@ class Learner(metaclass=ABCMeta):
 
         print("%s Start training" % (time_now(),))
 
+        # May have problem when recover training from checkpoint
+        train_it = iter(ds_train) 
         cbks.begin_train(self._state['train'])
         for epoch in range(start_epoch, epochs):
             self.set_global_state("epoch", epoch)
@@ -160,14 +162,14 @@ class Learner(metaclass=ABCMeta):
             state = self._state['train']
             state['metrics'] = {}
             cbks.begin_epoch(state)
-            self._run_epoch(ds_train, steps_per_epoch, cbks, 'train')
+            self._run_epoch(train_it, steps_per_epoch, cbks, 'train')
             cbks.after_epoch(state)
 
             if do_eval and (epoch + 1) % self._val_freq == 0:
                 state = self._state['eval']
                 state['metrics'] = {}
                 cbks.begin_eval(state)
-                self._run_epoch(ds_val, val_steps, cbks, 'eval')
+                self._run_epoch(iter(ds_val), val_steps, cbks, 'eval')
                 cbks.after_eval(state)
 
             if self._terminated:
@@ -184,8 +186,17 @@ class Learner(metaclass=ABCMeta):
         strategy_run(self._strategy, self.eval_batch, (batch,))
 
     @tf.function
-    def _run_steps(self, step_fn, iterator, callbacks, state):
+    def _run_iterator(self, step_fn, iterator, callbacks, state):
         for batch in iterator:
+            state['step'].assign_add(1)
+            callbacks.begin_batch(state)
+            step_fn(batch)
+            callbacks.after_batch(state)
+
+    @tf.function
+    def _run_steps(self, step_fn, iterator, n_steps, callbacks, state):
+        for _ in range(n_steps):
+            batch = next(iterator)
             state['step'].assign_add(1)
             callbacks.begin_batch(state)
             step_fn(batch)
@@ -217,9 +228,11 @@ class Learner(metaclass=ABCMeta):
             sub_state = {
                 k: state[k] for k in ["step", "steps", "epoch", "epochs"]
             }
-            self._run_steps(step_fn, iterator, callbacks, sub_state)
+            # self._run_iterator(step_fn, iterator, callbacks, sub_state)
+            self._run_steps(step_fn, iterator, steps, callbacks, sub_state)
         else:
-            for batch in iterator:
+            for _ in range(steps):
+                batch = next(iterator)
                 state['step'].assign_add(1)
                 callbacks.begin_batch(state)
                 step_fn(batch)

@@ -21,8 +21,6 @@ from hanser.transform import fmix, random_crop, cutout, normalize, to_tensor, cu
 from hanser.train.lr_schedule import CosineLR
 from hanser.losses import CrossEntropy
 
-# set_seed(42)
-
 @curry
 def transform(image, label, training):
 
@@ -30,8 +28,8 @@ def transform(image, label, training):
     image, label = to_tensor(image, label)
     image = normalize(image, [0.1307], [0.3081])
 
-    # if training:
-    #     image = cutout(image, 16)
+    if training:
+        image = cutout(image, 16)
 
     # image = tf.cast(image, tf.bfloat16)
     label = tf.one_hot(label, 10)
@@ -58,8 +56,7 @@ test_steps = math.ceil(num_test_examples / eval_batch_size)
 ds = tf.data.Dataset.from_tensor_slices((x_train, y_train))
 ds_test = tf.data.Dataset.from_tensor_slices((x_test, y_test))
 
-ds_train = prepare(ds, batch_size, transform(training=True),
-                   zip_transform=zip_transform, training=True, buffer_size=50000)
+ds_train = prepare(ds, batch_size, transform(training=True), training=True, buffer_size=len(ds))
 ds_test = prepare(ds_test, eval_batch_size, transform(training=False), training=False)
 
 ds_train, ds_test = setup([ds_train, ds_test], fp16=False)
