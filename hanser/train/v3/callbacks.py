@@ -256,3 +256,9 @@ class TerminateOnNaN(Callback):
     def after_epoch(self, state):
         if not np.isfinite(state['metrics']['loss']):
             raise RuntimeError("Infinite encountered")
+
+
+class ColabPushResult(Callback):
+
+    def after_train(self, state):
+        

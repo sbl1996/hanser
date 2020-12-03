@@ -8,7 +8,6 @@ from hanser.models.layers import Act, Conv2d, Norm, GlobalAvgPool, Linear, Ident
 class PreActDownBlock(Layer):
     def __init__(self, in_channels, out_channels, stride, dropout, reduction=8):
         super().__init__()
-        self.use_se = use_se
         self.norm1 = Norm(in_channels)
         self.act1 = Act()
         self.conv1 = Conv2d(in_channels, out_channels, kernel_size=3, stride=stride)
