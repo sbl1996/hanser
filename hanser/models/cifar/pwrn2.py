@@ -57,11 +57,10 @@ class PreActResBlock(Sequential):
 class ResNet(Model):
     stages = [16, 16, 32, 64]
 
-    def __init__(self, depth, k, dropout=0, avg_down=True, stem_norm=False, num_classes=10):
+    def __init__(self, depth, k, dropout=0, avg_down=True, num_classes=10):
         super().__init__()
         num_blocks = (depth - 4) // 6
-        self.conv = Conv2d(3, self.stages[0], kernel_size=3,
-                           norm='def' if stem_norm else None)
+        self.conv = Conv2d(3, self.stages[0], kernel_size=3)
 
         self.layer1 = self._make_layer(
             self.stages[0] * 1, self.stages[1] * k, num_blocks, stride=1,
