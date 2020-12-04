@@ -25,10 +25,14 @@ class PreActDownBlock(Layer):
         if stride != 1 and avg_down:
             self.shortcut = Sequential([
                 Pool2d(2, 2, type='avg'),
-                Conv2d(in_channels, out_channels, kernel_size=1)
+                Conv2d(in_channels, out_channels, kernel_size=1),
+                IC(out_channels, dropout),
             ])
         else:
-            self.shortcut = Conv2d(in_channels, out_channels, kernel_size=1, stride=stride)
+            self.shortcut = Sequential([
+                Conv2d(in_channels, out_channels, kernel_size=1, stride=stride),
+                IC(out_channels, dropout),
+            ])
 
     def call(self, x):
         identity = x
