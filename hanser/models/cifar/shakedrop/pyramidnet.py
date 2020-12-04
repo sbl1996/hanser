@@ -70,7 +70,7 @@ def rd(c):
 
 
 class PyramidNet(Model):
-    def __init__(self, start_channels, widening_fractor, depth, block='bottleneck', p_shakedrop=0.5, num_classes=10):
+    def __init__(self, start_channels, alpha, depth, block='bottleneck', p_shakedrop=0.5, num_classes=10):
         super().__init__()
 
         if block == 'basic':
@@ -86,7 +86,7 @@ class PyramidNet(Model):
 
         strides = [1, 2, 2]
 
-        add_channel = widening_fractor / sum(num_layers)
+        add_channel = alpha / sum(num_layers)
         in_channels = start_channels
 
         self.init_block = Conv2d(3, start_channels, kernel_size=3, norm='def')
@@ -109,7 +109,7 @@ class PyramidNet(Model):
             Act(),
         ])
 
-        assert (start_channels + widening_fractor) * block.expansion == in_channels
+        assert (start_channels + alpha) * block.expansion == in_channels
 
         self.final_pool = GlobalAvgPool()
         self.fc = Linear(in_channels, num_classes)

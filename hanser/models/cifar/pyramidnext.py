@@ -34,7 +34,7 @@ class Shortcut(Sequential):
 
 class BasicBlock(Layer):
 
-    def __init__(self, in_channels, channels, groups, stride=1, use_se=True, drop_path=0.2):
+    def __init__(self, in_channels, channels, groups, stride=1, se_reduction=4, drop_path=0.2):
         super().__init__()
         assert groups == 1
         branch1 = [
@@ -42,7 +42,7 @@ class BasicBlock(Layer):
             Conv2d(in_channels, channels, kernel_size=3, norm='default', act='default'),
             *([Pool2d(3, 2)] if stride != 1 else []),
             Conv2d(channels, channels, kernel_size=3, norm='default'),
-            *([SELayer(channels, 4, groups)] if use_se else []),
+            *([SELayer(channels, se_reduction, groups)] if se_reduction else []),
             *([DropPath(drop_path)] if drop_path and stride == 1 else []),
         ]
         self.branch1 = Sequential(branch1)
@@ -54,14 +54,14 @@ class BasicBlock(Layer):
 
 class Bottleneck(Layer):
 
-    def __init__(self, in_channels, channels, groups, stride=1, use_se=True, drop_path=0.2):
+    def __init__(self, in_channels, channels, groups, stride=1, se_reduction=4, drop_path=0.2):
         super().__init__()
         branch1 = [
             Norm(in_channels),
             Conv2d(in_channels, channels, kernel_size=1, norm='default', act='default'),
             *([Pool2d(3, 2)] if stride != 1 else []),
             Conv2d(channels, channels, kernel_size=3, groups=groups, norm='default', act='default'),
-            *([SELayer(channels, 4, groups)] if use_se else []),
+            *([SELayer(channels, se_reduction, groups)] if se_reduction else []),
             Conv2d(channels, channels, kernel_size=1, norm='default'),
             *([DropPath(drop_path)] if drop_path and stride == 1 else []),
         ]
@@ -81,7 +81,7 @@ def round_channels(channels, divisor=8, min_depth=None):
 
 
 class PyramidNeXt(Model):
-    def __init__(self, start_channels, widening_fractor, depth, groups, use_se, drop_path, use_aux_head,
+    def __init__(self, start_channels, widening_fractor, depth, groups, se_reduction, drop_path, use_aux_head,
                  block='bottleneck', num_classes=10):
         super().__init__()
 
@@ -110,7 +110,7 @@ class PyramidNeXt(Model):
         for i, (n, s) in enumerate(zip(num_layers, strides)):
             channels += add_channel
             units.append(block(in_channels, round_channels(channels, groups),
-                                    groups, stride=s, use_se=use_se, drop_path=drop_path))
+                               groups, stride=s, se_reduction=se_reduction, drop_path=drop_path))
             in_channels = round_channels(channels, groups)
             k += 1
 
@@ -121,7 +121,7 @@ class PyramidNeXt(Model):
             for j in range(1, n):
                 channels = channels + add_channel
                 units.append(block(in_channels, round_channels(channels, groups),
-                                        groups, use_se=use_se, drop_path=drop_path))
+                                        groups, se_reduction=se_reduction, drop_path=drop_path))
                 in_channels = round_channels(channels, groups)
                 k += 1
 
