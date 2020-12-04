@@ -5,16 +5,22 @@ from hanser.models.modules import Dropout
 from hanser.models.layers import Act, Conv2d, Norm, GlobalAvgPool, Linear, Identity, Pool2d
 
 
+def IC(in_channels, dropout):
+    return Sequential([
+        Norm(in_channels),
+        Dropout(dropout)
+    ])
+
+
 class PreActDownBlock(Layer):
     def __init__(self, in_channels, out_channels, stride, dropout, avg_down):
         super().__init__()
-        self.norm1 = Norm(in_channels)
         self.conv1 = Conv2d(in_channels, out_channels, kernel_size=3, stride=stride)
-        self.norm2 = Norm(out_channels)
-        self.act2 = Act()
-        self.dropout = Dropout(dropout) if dropout else Identity()
+        self.act1 = Act()
+        self.ic1 = IC(in_channels, dropout)
         self.conv2 = Conv2d(out_channels, out_channels, kernel_size=3)
-        self.norm3 = Norm(out_channels)
+        self.act2 = Act()
+        self.ic2 = IC(out_channels, dropout)
 
         if stride != 1 and avg_down:
             self.shortcut = Sequential([
@@ -25,29 +31,26 @@ class PreActDownBlock(Layer):
             self.shortcut = Conv2d(in_channels, out_channels, kernel_size=1, stride=stride)
 
     def call(self, x):
-        x = self.norm1(x)
         identity = x
         x = self.conv1(x)
-        x = self.norm2(x)
-        x = self.act2(x)
-        x = self.dropout(x)
+        x = self.act1(x)
+        x = self.ic1(x)
         x = self.conv2(x)
-        x = self.norm3(x)
+        x = self.act2(x)
+        x = self.ic2(x)
         return x + self.shortcut(identity)
 
 
-class PreActResBlock(Sequential):
+class BasicBlock(Sequential):
     def __init__(self, in_channels, out_channels, dropout):
         layers = [
-            Norm(in_channels),
             Conv2d(in_channels, out_channels, kernel_size=3),
-            Norm(out_channels),
             Act(),
+            IC(out_channels, dropout),
             Conv2d(out_channels, out_channels, kernel_size=3),
-            Norm(out_channels),
+            Act(),
+            IC(out_channels, dropout),
         ]
-        if dropout:
-            layers.insert(4, Dropout(dropout))
         super().__init__(layers)
 
     def call(self, x, training=None):
@@ -60,7 +63,11 @@ class ResNet(Model):
     def __init__(self, depth, k, dropout=0, avg_down=True, num_classes=10):
         super().__init__()
         num_blocks = (depth - 4) // 6
-        self.conv = Conv2d(3, self.stages[0], kernel_size=3)
+        self.stem = Sequential([
+            Conv2d(3, self.stages[0], kernel_size=3),
+            Act(),
+            IC(self.stages[0], dropout),
+        ])
 
         self.layer1 = self._make_layer(
             self.stages[0] * 1, self.stages[1] * k, num_blocks, stride=1,
@@ -72,8 +79,6 @@ class ResNet(Model):
             self.stages[2] * k, self.stages[3] * k, num_blocks, stride=2,
             dropout=dropout, avg_down=avg_down)
 
-        self.norm = Norm(self.stages[3] * k)
-        self.act = Act()
         self.avgpool = GlobalAvgPool()
         self.fc = Linear(self.stages[3] * k, num_classes)
 
@@ -81,18 +86,15 @@ class ResNet(Model):
         layers = [PreActDownBlock(in_channels, out_channels, stride=stride, dropout=dropout, avg_down=avg_down)]
         for i in range(1, blocks):
             layers.append(
-                PreActResBlock(out_channels, out_channels, dropout=dropout))
+                BasicBlock(out_channels, out_channels, dropout=dropout))
         return Sequential(layers)
 
     def call(self, x):
-        x = self.conv(x)
+        x = self.stem(x)
 
         x = self.layer1(x)
         x = self.layer2(x)
         x = self.layer3(x)
-
-        x = self.norm(x)
-        x = self.act(x)
 
         x = self.avgpool(x)
         x = self.fc(x)
