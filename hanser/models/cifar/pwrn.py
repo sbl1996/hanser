@@ -16,7 +16,7 @@ class PreActDownBlock(Layer):
         self.conv2 = Conv2d(out_channels, out_channels, kernel_size=3)
         self.norm3 = Norm(out_channels)
 
-        if avg_down:
+        if stride != 1 and avg_down:
             self.shortcut = Sequential([
                 Pool2d(2, 2, type='avg'),
                 Conv2d(in_channels, out_channels, kernel_size=1)
