@@ -557,6 +557,7 @@ def random_crop(x, size, padding, fill=0):
     return x
 
 
+@curry
 def cutout(images, length):
     is_batch = _is_batch(images)
     if not is_batch:
