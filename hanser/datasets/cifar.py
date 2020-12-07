@@ -1,10 +1,13 @@
 import os
+import math
 import pickle
 
 import numpy as np
 
+import tensorflow as tf
 from tensorflow.python.keras.utils.data_utils import get_file
 
+from hanser.datasets.utils import prepare
 
 def load_batch(fpath, label_key='labels'):
 
@@ -79,3 +82,27 @@ def load_cifar100(label_mode='fine', cache_dir=None):
     y_test = np.array(y_test, dtype=np.int)
 
     return (x_train, y_train), (x_test, y_test)
+
+
+def make_cifar_dataset(load_fn, batch_size, eval_batch_size, transform, zip_transform):
+    (x_train, y_train), (x_test, y_test) = load_fn()
+
+    n_train, n_test = len(x_train), len(x_test)
+    steps_per_epoch = n_train // batch_size
+    test_steps = math.ceil(n_test / eval_batch_size)
+
+    ds = tf.data.Dataset.from_tensor_slices((x_train, y_train))
+    ds_test = tf.data.Dataset.from_tensor_slices((x_test, y_test))
+
+    ds_train = prepare(ds, batch_size, transform=transform(training=True),
+                       zip_transform=zip_transform, training=True, buffer_size=len(x_train))
+    ds_test = prepare(ds_test, eval_batch_size, transform=transform(training=False), training=False)
+    return ds_train, ds_test, steps_per_epoch, test_steps
+
+
+def make_cifar10_dataset(batch_size, eval_batch_size, transform, zip_transform=None):
+    return make_cifar_dataset(load_cifar10, batch_size, eval_batch_size, transform, zip_transform)
+
+
+def make_cifar100_dataset(batch_size, eval_batch_size, transform, zip_transform=None):
+    return make_cifar_dataset(load_cifar100, batch_size, eval_batch_size, transform, zip_transform)
