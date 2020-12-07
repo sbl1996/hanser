@@ -23,10 +23,10 @@ def mixup_batch(image, label, beta):
     return image, label
 
 @curry
-def mixup(data1, data2, beta):
+def mixup(data1, data2, alpha):
     image1, label1 = data1
     image2, label2 = data2
-    lam = tfp.distributions.Beta(beta, beta).sample(())
+    lam = tfp.distributions.Beta(alpha, alpha).sample(())
 
     lam = tf.cast(lam, image1.dtype)
     image = lam * image1 + (1 - lam) * image2
