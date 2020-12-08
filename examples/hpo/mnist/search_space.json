@@ -1,5 +1,34 @@
 {
-    "weight_decay": { "_type": "loguniform", "_value": [0.00001, 0.001] },
-    "learning_rate": { "_type": "uniform", "_value": [0.001, 0.05] },
-    "epochs": { "_type": "randint", "_value": [10, 20] }
+    "weight_decay": {
+        "_type": "loguniform",
+        "_value": [
+            0.00001,
+            0.001
+        ]
+    },
+    "learning_rate": {
+        "_type": "loguniform",
+        "_value": [
+            0.001,
+            0.05
+        ]
+    },
+    "ema": {
+        "_type": "choice",
+        "_value": [
+            {
+                "_name": "false"
+            },
+            {
+                "_name": "true",
+                "decay": {
+                    "_type": "loguniform",
+                    "_value": [
+                        0.99,
+                        0.9999
+                    ]
+                }
+            }
+        ]
+    }
 }

@@ -261,4 +261,22 @@ class TerminateOnNaN(Callback):
 # class ColabPushResult(Callback):
 
 #     def after_train(self, state):
-        
+
+
+class NNIReportIntermediateResult(Callback):
+
+    def __init__(self, metric):
+        super().__init__()
+        self.metric = metric
+
+    def after_epoch(self, state):
+        epoch = state['epoch'].numpy()
+        val_metric = self.learner.metric_history.get_metric(self.metric, "eval", epoch, epoch)
+        if val_metric:
+            import nni
+            nni.report_intermediate_result(val_metric)
+
+    def after_train(self, state):
+        final_metric = self.learner.metric_history.get_metric(self.metric, "eval")[-1]
+        import nni
+        nni.report_final_result(final_metric)

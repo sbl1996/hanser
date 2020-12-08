@@ -14,5 +14,5 @@ tuner:
 trial:
   command: python train.py
   codeDir: .
-  gpuNum: 1
+  gpuNum: 0
 logDir: /content/drive/My Drive/nni-experiments
