@@ -33,16 +33,10 @@ class CNNLearner(Learner):
         preds = cast(preds, self.dtype)
         self.update_metrics(self.eval_metrics, target, preds)
 
-    # def test_batch(self, batch):
-    #     state = self._state['test']
-    #     model = self.model
-    #
-    #     model.eval()
-    #     input = convert_tensor(batch, self.device)
-    #     with torch.no_grad():
-    #         output = model(input)
-    #
-    #     state.update({
-    #         "batch_size": input.size(0),
-    #         "y_pred": output,
-    #     })
+    def test_batch(self, inputs):
+        model = self.model
+
+        inputs = cast(inputs, self.dtype)
+        preds = model(inputs, training=False)
+        preds = cast(preds, self.dtype)
+        return preds

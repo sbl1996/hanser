@@ -63,7 +63,7 @@ class Learner(metaclass=ABCMeta):
     def __init__(self, model, criterion, optimizers,
                  train_metrics: Mapping[str, Metric],
                  eval_metrics: Mapping[str, Metric], work_dir,
-                 fp16=False, grad_clip_norm=0.0, multiple_steps=True, metric_transform=default_metric_transform,
+                 grad_clip_norm=0.0, multiple_steps=True, metric_transform=default_metric_transform,
                  target_metric_transform=default_metric_transform, output_metric_transform=default_metric_transform):
         if not isinstance(optimizers, Sequence):
             optimizers = [optimizers]
@@ -84,8 +84,6 @@ class Learner(metaclass=ABCMeta):
         self.metric_transform = metric_transform
         self.target_metric_transform = target_metric_transform
         self.output_metric_transform = output_metric_transform
-
-        self._use_weight_decay = len(model.losses) != 0
 
         self._log_dir = self.work_dir / "runs"
         self._writer = None
@@ -131,7 +129,7 @@ class Learner(metaclass=ABCMeta):
             else:
                 self._state[m][k].assign(v)
 
-    def fit(self, ds_train, epochs, ds_val=None, val_freq=1,
+    def fit(self, ds_train, max_epochs, ds_val=None, val_freq=1,
             steps_per_epoch=None, val_steps=None, save_freq=None, callbacks=None):
 
         steps_per_epoch = steps_per_epoch or len(ds_train)
@@ -147,8 +145,7 @@ class Learner(metaclass=ABCMeta):
             save_freq=save_freq,
         )
         start_epoch = self.epoch + 1
-        epochs = epochs + start_epoch
-        self.set_global_state("epochs", epochs)
+        self.set_global_state("epochs", max_epochs)
         self.set_global_state("step", tf.Variable(0, dtype=tf.int64))
 
         print("%s Start training" % (time_now(),))
@@ -156,7 +153,7 @@ class Learner(metaclass=ABCMeta):
         # May have problem when recover training from checkpoint
         train_it = iter(ds_train) 
         cbks.begin_train(self._state['train'])
-        for epoch in range(start_epoch, epochs):
+        for epoch in range(start_epoch, max_epochs):
             self.set_global_state("epoch", epoch)
 
             state = self._state['train']
@@ -173,7 +170,7 @@ class Learner(metaclass=ABCMeta):
                 cbks.after_eval(state)
 
             if self._terminated:
-                print("Terminated at epoch %d" % epochs)
+                print("Terminated at epoch %d" % (epoch + 1))
                 break
         cbks.after_train(self._state['train'])
 
@@ -186,12 +183,8 @@ class Learner(metaclass=ABCMeta):
         strategy_run(self._strategy, self.eval_batch, (batch,))
 
     @tf.function
-    def _run_iterator(self, step_fn, iterator, callbacks, state):
-        for batch in iterator:
-            state['step'].assign_add(1)
-            callbacks.begin_batch(state)
-            step_fn(batch)
-            callbacks.after_batch(state)
+    def _test_step(self, inputs):
+        strategy_run(self._strategy, self.test_batch, (inputs,))
 
     @tf.function
     def _run_steps(self, step_fn, iterator, n_steps, callbacks, state):
@@ -228,7 +221,6 @@ class Learner(metaclass=ABCMeta):
             sub_state = {
                 k: state[k] for k in ["step", "steps", "epoch", "epochs"]
             }
-            # self._run_iterator(step_fn, iterator, callbacks, sub_state)
             self._run_steps(step_fn, iterator, steps, callbacks, sub_state)
         else:
             for _ in range(steps):
@@ -256,8 +248,6 @@ class Learner(metaclass=ABCMeta):
 
     def reduce_loss(self, per_example_loss):
         loss = tf.reduce_mean(per_example_loss)
-        if self._use_weight_decay:
-            loss = loss + tf.add_n(self.model.losses)
         if self._strategy:
             loss = loss / self._strategy.num_replicas_in_sync
         return loss
