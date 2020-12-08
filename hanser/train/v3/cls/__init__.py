@@ -17,7 +17,7 @@ class CNNLearner(Learner):
         with tf.GradientTape() as tape:
             inputs = cast(inputs, self.dtype)
             preds = model(inputs, training=True)
-            preds = cast(preds, self.dtype)
+            preds = cast(preds, tf.float32)
             per_example_loss = self.criterion(target, preds)
             loss = self.reduce_loss(per_example_loss)
 
@@ -30,7 +30,7 @@ class CNNLearner(Learner):
         inputs, target = batch
         inputs = cast(inputs, self.dtype)
         preds = model(inputs, training=False)
-        preds = cast(preds, self.dtype)
+        preds = cast(preds, tf.float32)
         self.update_metrics(self.eval_metrics, target, preds)
 
     def test_batch(self, inputs):
