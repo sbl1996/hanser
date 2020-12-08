@@ -4,11 +4,10 @@ from toolz import curry
 import tensorflow as tf
 import tensorflow_addons as tfa
 import tensorflow_probability as tfp
-from tensorflow.python.ops import check_ops
-from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import gen_image_ops
 
 from hanser.transform.fmix import sample_mask
+
 
 @curry
 def mixup_batch(image, label, beta):
@@ -21,6 +20,7 @@ def mixup_batch(image, label, beta):
     lam = tf.cast(lam, label.dtype)
     label = lam * label + (1 - lam) * tf.gather(label, index)
     return image, label
+
 
 @curry
 def mixup(data1, data2, alpha):
@@ -107,7 +107,6 @@ def cutmix(data1, data2, beta):
 
 @curry
 def fmix(data1, data2, alpha, decay_power):
-
     image1, label1 = data1
     image2, label2 = data2
     shape = image1.shape[:2]
@@ -117,34 +116,6 @@ def fmix(data1, data2, alpha, decay_power):
     lam = tf.cast(lam, label1.dtype)
     label = lam * label1 + (1 - lam) * label2
     return image, label
-
-
-CROP_PADDING = 32
-
-
-def distorted_bounding_box_crop(image_bytes,
-                                bbox,
-                                min_object_covered=0.1,
-                                aspect_ratio_range=(0.75, 1.33),
-                                area_range=(0.05, 1.0),
-                                max_attempts=100):
-    shape = tf.image.extract_jpeg_shape(image_bytes)
-    sample_distorted_bounding_box = tf.image.sample_distorted_bounding_box(
-        shape,
-        bounding_boxes=bbox,
-        min_object_covered=min_object_covered,
-        aspect_ratio_range=aspect_ratio_range,
-        area_range=area_range,
-        max_attempts=max_attempts,
-        use_image_if_no_bounding_boxes=True)
-    bbox_begin, bbox_size, _ = sample_distorted_bounding_box
-
-    # Crop the image to the specified bounding box.
-    offset_y, offset_x, _ = tf.unstack(bbox_begin)
-    target_height, target_width, _ = tf.unstack(bbox_size)
-    crop_window = tf.stack([offset_y, offset_x, target_height, target_width])
-    image = tf.image.decode_and_crop_jpeg(image_bytes, crop_window, channels=3)
-    return image
 
 
 def get_ndims(image):
@@ -264,54 +235,6 @@ def transform(images, transforms, interpolation="BILINEAR", output_shape=None):
     return from_4D_image(output, original_ndims)
 
 
-def _at_least_x_are_equal(a, b, x):
-    """At least `x` of `a` and `b` `Tensors` are equal."""
-    match = tf.equal(a, b)
-    match = tf.cast(match, tf.int32)
-    return tf.greater_equal(tf.reduce_sum(match), x)
-
-
-def decode_and_random_crop(image_bytes, image_size):
-    """Make a random crop of image_size."""
-    bbox = tf.constant([0.0, 0.0, 1.0, 1.0], dtype=tf.float32, shape=[1, 1, 4])
-    image = distorted_bounding_box_crop(
-        image_bytes,
-        bbox,
-        min_object_covered=0.1,
-        aspect_ratio_range=(3. / 4, 4. / 3.),
-        area_range=(0.08, 1.0),
-        max_attempts=10)
-    original_shape = tf.image.extract_jpeg_shape(image_bytes)
-    bad = _at_least_x_are_equal(original_shape, tf.shape(image), 3)
-
-    image = tf.cond(
-        bad,
-        lambda: decode_and_center_crop(image_bytes, image_size),
-        lambda: tf.image.resize(image, [image_size, image_size], method='bicubic')
-    )
-
-    return image
-
-
-def decode_and_center_crop(image_bytes, image_size):
-    shape = tf.image.extract_jpeg_shape(image_bytes)
-    image_height = shape[0]
-    image_width = shape[1]
-
-    padded_center_crop_size = tf.cast(
-        ((image_size / (image_size + CROP_PADDING)) *
-         tf.cast(tf.minimum(image_height, image_width), tf.float32)),
-        tf.int32)
-
-    offset_height = ((image_height - padded_center_crop_size) + 1) // 2
-    offset_width = ((image_width - padded_center_crop_size) + 1) // 2
-    crop_window = tf.stack([offset_height, offset_width,
-                            padded_center_crop_size, padded_center_crop_size])
-    image = tf.image.decode_and_crop_jpeg(image_bytes, crop_window, channels=3)
-    image = tf.image.resize(image, [image_size, image_size], method='bicubic')
-    return image
-
-
 def random_apply(func, p, image):
     return tf.cond(
         tf.random.uniform(()) < p,
@@ -364,42 +287,6 @@ def _image_dimensions(image, rank):
         ]
 
 
-def _is_tensor(x):
-    """Returns `True` if `x` is a symbolic tensor-like object.
-
-    Args:
-      x: A python object to check.
-
-    Returns:
-      `True` if `x` is a `tf.Tensor` or `tf.Variable`, otherwise `False`.
-    """
-    return isinstance(x, (tf.Tensor, tf.Variable))
-
-
-def _assert(cond, ex_type, msg):
-    """A polymorphic assert, works with tensors and boolean expressions.
-
-    If `cond` is not a tensor, behave like an ordinary assert statement, except
-    that a empty list is returned. If `cond` is a tensor, return a list
-    containing a single TensorFlow assert op.
-
-    Args:
-      cond: Something evaluates to a boolean value. May be a tensor.
-      ex_type: The exception class to use.
-      msg: The error message.
-
-    Returns:
-      A list, containing at most one assert op.
-    """
-    if _is_tensor(cond):
-        return [tf.Assert(cond, [msg])]
-    else:
-        if not cond:
-            raise ex_type(msg)
-        else:
-            return []
-
-
 def resize(img, size, method='bilinear'):
     if not isinstance(size, (tuple, list)):
         size = tf.cast(size, tf.float32)
@@ -413,123 +300,6 @@ def resize(img, size, method='bilinear'):
         size = tf.stack([oh, ow])
     img = tf.image.resize(img, size, method=method)
     return img
-
-
-def _CheckAtLeast3DImage(image, require_static=True):
-    """Assert that we are working with properly shaped image.
-
-    Args:
-      image: >= 3-D Tensor of size [*, height, width, depth]
-      require_static: If `True`, requires that all dimensions of `image` are known
-        and non-zero.
-
-    Raises:
-      ValueError: if image.shape is not a [>= 3] vector.
-
-    Returns:
-      An empty list, if `image` has fully defined dimensions. Otherwise, a list
-      containing an assert op is returned.
-    """
-    try:
-        if image.get_shape().ndims is None:
-            image_shape = image.get_shape().with_rank(3)
-        else:
-            image_shape = image.get_shape().with_rank_at_least(3)
-    except ValueError:
-        raise ValueError("'image' must be at least three-dimensional.")
-    if require_static and not image_shape.is_fully_defined():
-        raise ValueError('\'image\' must be fully defined.')
-    if any(x == 0 for x in image_shape):
-        raise ValueError('all dims of \'image.shape\' must be > 0: %s' %
-                         image_shape)
-    if not image_shape.is_fully_defined():
-        return [
-            check_ops.assert_positive(
-                tf.shape(image),
-                ["all dims of 'image.shape' "
-                 'must be > 0.']),
-            check_ops.assert_greater_equal(
-                tf.rank(image),
-                3,
-                message="'image' must be at least three-dimensional.")
-        ]
-    else:
-        return []
-
-
-def pad_to_bounding_box(image, offset_height, offset_width, target_height,
-                        target_width, pad_value):
-    """Pads the given image with the given pad_value.
-
-    Works like tf.image.pad_to_bounding_box, except it can pad the image
-    with any given arbitrary pad value and also handle images whose sizes are not
-    known during graph construction.
-
-    Args:
-        image: 3-D tensor with shape [height, width, channels]
-        offset_height: Number of rows of zeros to add on top.
-        offset_width: Number of columns of zeros to add on the left.
-        target_height: Height of output image.
-        target_width: Width of output image.
-        pad_value: Value to pad the image tensor with.
-
-    Returns:
-        3-D tensor of shape [target_height, target_width, channels].
-
-    Raises:
-        ValueError: If the shape of image is incompatible with the offset_* or
-        target_* arguments.
-    """
-    with tf.name_scope('pad_to_bounding_box'):
-        is_batch = True
-        image_shape = image.get_shape()
-        if image_shape.ndims == 3:
-            is_batch = False
-            image = tf.expand_dims(image, 0)
-        elif image_shape.ndims is None:
-            is_batch = False
-            image = tf.expand_dims(image, 0)
-            image.set_shape([None] * 4)
-        elif image_shape.ndims != 4:
-            raise ValueError('\'image\' must have either 3 or 4 dimensions.')
-
-        assert_ops = _CheckAtLeast3DImage(image, require_static=False)
-        batch, height, width, depth = _image_dimensions(image, rank=4)
-
-        after_padding_width = target_width - offset_width - width
-
-        after_padding_height = target_height - offset_height - height
-
-        assert_ops += _assert(offset_height >= 0, ValueError,
-                              'offset_height must be >= 0')
-        assert_ops += _assert(offset_width >= 0, ValueError,
-                              'offset_width must be >= 0')
-        assert_ops += _assert(after_padding_width >= 0, ValueError,
-                              'width must be <= target - offset')
-        assert_ops += _assert(after_padding_height >= 0, ValueError,
-                              'height must be <= target - offset')
-        # image = control_flow_ops.with_dependencies(assert_ops, image)
-        with tf.control_dependencies(assert_ops):
-            image -= pad_value
-
-        # Do not pad on the depth dimensions.
-        paddings = array_ops.reshape(
-            array_ops.stack([
-                0, 0, offset_height, after_padding_height, offset_width,
-                after_padding_width, 0, 0
-            ]), [4, 2])
-        padded = array_ops.pad(image, paddings)
-
-        padded_shape = [
-            None if _is_tensor(i) else i
-            for i in [batch, target_height, target_width, depth]
-        ]
-        padded.set_shape(padded_shape)
-
-        if not is_batch:
-            padded = array_ops.squeeze(padded, axis=[0])
-        outputs = padded + pad_value
-        return outputs
 
 
 def _is_batch(x):
@@ -599,22 +369,6 @@ def invert(image):
 
 
 def blend(image1, image2, factor):
-    """Blend image1 and image2 using 'factor'.
-
-    Factor can be above 0.0.  A value of 0.0 means only image1 is used.
-    A value of 1.0 means only image2 is used.  A value between 0.0 and
-    1.0 means we linearly interpolate the pixel values between the two
-    images.  A value greater than 1.0 "extrapolates" the difference
-    between the two pixel values, and we clip the results to values
-    between 0 and 255.
-
-    Args:
-        image1: An image Tensor of type uint8.
-        image2: An image Tensor of type uint8.
-        factor: A floating point value above 0.0.
-    Returns:
-        A blended image Tensor of type uint8.
-    """
 
     def blend_fn(image1, image2):
         image1 = tf.cast(image1, tf.float32)
@@ -878,11 +632,6 @@ def sharpness(image, factor):
 
 
 def shear_x(image, magnitude, replace):
-    """Equivalent of PIL Shearing in X dimension."""
-    # Shear parallel to x axis is a projective transform
-    # with a matrix form of:
-    # [1  level
-    #  0  1].
     transform_or_transforms = tf.convert_to_tensor(
         [1., magnitude, 0., 0., 1., 0., 0., 0.], dtype=tf.dtypes.float32)
     image = transform(wrap(image), transform_or_transforms)
@@ -890,11 +639,6 @@ def shear_x(image, magnitude, replace):
 
 
 def shear_y(image, magnitude, replace):
-    """Equivalent of PIL Shearing in Y dimension."""
-    # Shear parallel to y axis is a projective transform
-    # with a matrix form of:
-    # [1  0
-    #  level  1].
     transform_or_transforms = tf.convert_to_tensor(
         [1., 0., 0., magnitude, 1., 0., 0., 0.], dtype=tf.dtypes.float32)
     image = transform(wrap(image), transform_or_transforms)
