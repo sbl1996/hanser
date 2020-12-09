@@ -15,4 +15,4 @@ trial:
   command: python train.py
   codeDir: .
   gpuNum: 0
-logDir: /content/drive/My Drive/nni-experiments
+logDir: /content/drive/MyDrive/nni-experiments

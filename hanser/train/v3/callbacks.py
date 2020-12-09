@@ -280,3 +280,21 @@ class NNIReportIntermediateResult(Callback):
         final_metric = self.learner.metric_history.get_metric(self.metric, "eval")[-1]
         import nni
         nni.report_final_result(final_metric)
+
+
+class OptunaReportIntermediateResult(Callback):
+
+    def __init__(self, metric, trial):
+        super().__init__()
+        self.metric = metric
+        self.trial = trial
+
+    def after_epoch(self, state):
+        epoch = state['epoch'].numpy()
+        val_metric = self.learner.metric_history.get_metric(self.metric, "eval", epoch, epoch)
+        if val_metric:
+            self.trial.report(val_metric, epoch)
+        if self.trial.should_prune():
+            self.learner._terminated = True
+            import optuna
+            raise optuna.TrialPruned()
