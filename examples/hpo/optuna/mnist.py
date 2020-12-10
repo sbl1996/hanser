@@ -75,6 +75,8 @@ def objective(trial: optuna.Trial):
 
 study = optuna.create_study(
     direction="maximize",
+    study_name="mnist1",
+    load_if_exists=True,
     pruner=optuna.pruners.MedianPruner(
         n_startup_trials=5, n_warmup_steps=5, interval_steps=2
     ),
