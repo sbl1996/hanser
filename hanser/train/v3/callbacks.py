@@ -233,7 +233,7 @@ class DropPathRateSchedule(Callback):
         self.drop_path = drop_path
 
     def begin_epoch(self, state):
-        epoch = state['epoch'].numpy()
+        epoch = int(state['epoch'].numpy())
         epochs = state['epochs']
         rate = (epoch - 1) / epochs * self.drop_path
         for l in self.learner.model.submodules:
@@ -270,7 +270,7 @@ class NNIReportIntermediateResult(Callback):
         self.metric = metric
 
     def after_epoch(self, state):
-        epoch = state['epoch'].numpy()
+        epoch = int(state['epoch'].numpy())
         val_metric = self.learner.metric_history.get_metric(self.metric, "eval", epoch, epoch)
         if val_metric:
             import nni
@@ -290,7 +290,7 @@ class OptunaReportIntermediateResult(Callback):
         self.trial = trial
 
     def after_eval(self, state):
-        epoch = state['epoch'].numpy()
+        epoch = int(state['epoch'].numpy())
         val_metric = self.learner.metric_history.get_metric(self.metric, "eval", epoch, epoch)
         if val_metric:
             self.trial.report(val_metric, epoch)
