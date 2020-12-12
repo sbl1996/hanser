@@ -3,7 +3,13 @@ import tensorflow as tf
 
 def prepare(ds, batch_size, transform=None, training=True, buffer_size=1024,
             drop_remainder=None, cache=True, repeat=True,
-            zip_transform=None, batch_transform=None):
+            zip_transform=None, batch_transform=None, datasets_num_private_threads=None):
+    if datasets_num_private_threads:
+        options = tf.data.Options()
+        options.experimental_threading.private_threadpool_size = (
+            datasets_num_private_threads)
+        ds = ds.with_options(options)
+
     if drop_remainder is None:
         drop_remainder = training
     if cache:

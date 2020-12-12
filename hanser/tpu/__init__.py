@@ -1,9 +1,11 @@
 import os
+import multiprocessing
 
 import tensorflow as tf
 from tensorflow.python.distribute.values import PerReplica
 import tensorflow.keras.mixed_precision.experimental as mixed_precision
 from tensorflow.python.distribute.input_lib import DistributedDataset
+
 
 def setup(datasets, fp16=True, device='auto'):
     if device == 'auto':
@@ -19,10 +21,12 @@ def setup(datasets, fp16=True, device='auto'):
             else:
                 device = 'GPUs'
                 strategy = tf.distribute.MirroredStrategy()
+                set_gpu_thread_mode_and_count(len(gpus))
     elif device == 'TPU':
         strategy = get_colab_tpu()
     elif isinstance(device, list):
         strategy = tf.distribute.MirroredStrategy(devices=device)
+        set_gpu_thread_mode_and_count(len(device))
     else:
         strategy = None
 
@@ -74,6 +78,20 @@ def local_results(strategy, values):
     elif isinstance(values, (list, tuple)):
         return values.__class__(local_results(strategy, v) for v in values)
     elif isinstance(values, dict):
-        return { k: local_results(strategy, v) for k, v in values.items() }
+        return {k: local_results(strategy, v) for k, v in values.items()}
     else:
         return values
+
+
+def set_gpu_thread_mode_and_count(num_gpus, gpu_thread_mode='gpu_private', per_gpu_thread_count=None):
+    cpu_count = multiprocessing.cpu_count()
+
+    per_gpu_thread_count = per_gpu_thread_count or 2
+    os.environ['TF_GPU_THREAD_MODE'] = gpu_thread_mode
+    os.environ['TF_GPU_THREAD_COUNT'] = str(per_gpu_thread_count)
+
+    total_gpu_thread_count = per_gpu_thread_count * num_gpus
+    num_runtime_threads = num_gpus
+    datasets_num_private_threads = min(
+        cpu_count - total_gpu_thread_count - num_runtime_threads, num_gpus * 8)
+    return datasets_num_private_threads
