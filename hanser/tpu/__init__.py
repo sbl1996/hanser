@@ -44,7 +44,9 @@ def setup(datasets, fp16=True, device='auto'):
         if fp16:
             policy = mixed_precision.Policy('mixed_float16')
             mixed_precision.set_policy(policy)
-        return datasets
+        return [
+            (strategy.experimental_distribute_dataset(ds) if not isinstance(ds, DistributedDataset) else ds)
+            for ds in datasets]
     else:
         return datasets
 
