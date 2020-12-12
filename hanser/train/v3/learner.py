@@ -79,6 +79,12 @@ class Learner(metaclass=ABCMeta):
         self.eval_metrics = eval_metrics
         self.work_dir = work_dir
         self.dtype = tf.dtypes.as_dtype(mixed_precision.global_policy().compute_dtype)
+        if self.dtype == tf.float16:
+            self.optimizers = [
+                mixed_precision.LossScaleOptimizer(optimizer, 'dynamic')
+                if not isinstance(optimizer, mixed_precision.LossScaleOptimizer) else optimizer
+                for optimizer in self.optimizers
+            ]
         self.grad_clip_norm = grad_clip_norm
         self.multiple_steps = multiple_steps
         self.metric_transform = metric_transform
@@ -255,6 +261,8 @@ class Learner(metaclass=ABCMeta):
     def minimize(self, tape, optimizer, loss, trainable_variables):
         grad_clip_norm = self.grad_clip_norm
         grads = tape.gradient(loss, trainable_variables)
+        if self.dtype == tf.float16:
+            grads = optimizer.get_unscaled_gradients(grads)
         aggregate_grads_outside_optimizer = grad_clip_norm and is_tpu_strategy(self._strategy)
 
         if aggregate_grads_outside_optimizer:

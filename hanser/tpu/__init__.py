@@ -10,12 +10,19 @@ def setup(datasets, fp16=True, device='auto'):
         strategy = get_colab_tpu()
         if strategy:
             device = 'TPU'
-        elif tf.config.list_physical_devices('GPU'):
-            device = 'GPU'
         else:
-            device = 'CPU'
+            gpus = tf.config.list_physical_devices('GPU')
+            if len(gpus) == 0:
+                device = 'CPU'
+            elif len(gpus) == 1:
+                device = 'GPU'
+            else:
+                device = 'GPUs'
+                strategy = tf.distribute.MirroredStrategy()
     elif device == 'TPU':
         strategy = get_colab_tpu()
+    elif isinstance(device, list):
+        strategy = tf.distribute.MirroredStrategy(devices=device)
     else:
         strategy = None
 
@@ -28,6 +35,12 @@ def setup(datasets, fp16=True, device='auto'):
             (strategy.experimental_distribute_dataset(ds) if not isinstance(ds, DistributedDataset) else ds)
             for ds in datasets]
     elif device == 'GPU':
+        if fp16:
+            policy = mixed_precision.Policy('mixed_float16')
+            mixed_precision.set_policy(policy)
+        return datasets
+    elif isinstance(device, list) or device == 'GPUs':
+        tf.distribute.experimental_set_strategy(strategy)
         if fp16:
             policy = mixed_precision.Policy('mixed_float16')
             mixed_precision.set_policy(policy)
