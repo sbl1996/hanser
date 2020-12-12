@@ -41,11 +41,21 @@ def is_tpu_strategy(strategy):
     return "TPUStrategy" in type(strategy).__name__
 
 
+def is_mirrored_strategy(strategy):
+    if strategy is None:
+        return False
+    return "MirroredStrategy" in type(strategy).__name__
+
+
+def is_distribute_strategy(strategy):
+    return is_tpu_strategy(strategy) or is_mirrored_strategy(strategy)
+
+
 def parse_strategy(strategy='auto'):
     if strategy is not None:
         if strategy == 'auto':
             strategy = tf.distribute.get_strategy()
-        if not is_tpu_strategy(strategy):
+        if not is_distribute_strategy(strategy):
             strategy = None
     return strategy
 
@@ -263,7 +273,7 @@ class Learner(metaclass=ABCMeta):
         grads = tape.gradient(loss, trainable_variables)
         if self.dtype == tf.float16:
             grads = optimizer.get_unscaled_gradients(grads)
-        aggregate_grads_outside_optimizer = grad_clip_norm and is_tpu_strategy(self._strategy)
+        aggregate_grads_outside_optimizer = grad_clip_norm and is_distribute_strategy(self._strategy)
 
         if aggregate_grads_outside_optimizer:
             grads = tf.distribute.get_replica_context().all_reduce('sum', grads)
