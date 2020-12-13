@@ -209,7 +209,7 @@ class Learner(metaclass=ABCMeta):
     def _xla_train_step(self, batch):
         strategy_run(self._strategy, self.train_batch, (batch,))
 
-    @tf.function(experimental_compile=MetricHistory)
+    @tf.function(experimental_compile=True)
     def _xla_eval_step(self, batch):
         strategy_run(self._strategy, self.eval_batch, (batch,))
 
