@@ -7,7 +7,7 @@ import tensorflow.keras.mixed_precision.experimental as mixed_precision
 from tensorflow.python.distribute.input_lib import DistributedDataset
 
 
-def setup(datasets, fp16=True, device='auto'):
+def setup(datasets, fp16=True, device='auto', cross_device_ops=None):
     if device == 'auto':
         strategy = get_colab_tpu()
         if strategy:
@@ -20,12 +20,12 @@ def setup(datasets, fp16=True, device='auto'):
                 device = 'GPU'
             else:
                 device = 'GPUs'
-                strategy = tf.distribute.MirroredStrategy()
+                strategy = tf.distribute.MirroredStrategy(cross_device_ops=cross_device_ops)
                 set_gpu_thread_mode_and_count(len(gpus))
     elif device == 'TPU':
         strategy = get_colab_tpu()
     elif isinstance(device, list):
-        strategy = tf.distribute.MirroredStrategy(devices=device)
+        strategy = tf.distribute.MirroredStrategy(devices=device, cross_device_ops=cross_device_ops)
         set_gpu_thread_mode_and_count(len(device))
     else:
         strategy = None
