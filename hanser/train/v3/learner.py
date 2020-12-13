@@ -21,7 +21,7 @@ def find_most_recent(work_dir, pattern):
     return fp
 
 
-@tf.function
+@tf.function(experimental_compile=True)
 def default_metric_transform(x):
     if isinstance(x, (tuple, list)):
         return x[0]
@@ -190,19 +190,19 @@ class Learner(metaclass=ABCMeta):
                 break
         cbks.after_train(self._state['train'])
 
-    @tf.function
+    @tf.function(experimental_compile=True)
     def _train_step(self, batch):
         strategy_run(self._strategy, self.train_batch, (batch,))
 
-    @tf.function
+    @tf.function(experimental_compile=True)
     def _eval_step(self, batch):
         strategy_run(self._strategy, self.eval_batch, (batch,))
 
-    @tf.function
+    @tf.function(experimental_compile=True)
     def _test_step(self, inputs):
         strategy_run(self._strategy, self.test_batch, (inputs,))
 
-    @tf.function
+    @tf.function(experimental_compile=True)
     def _run_steps(self, step_fn, iterator, n_steps, callbacks, state):
         for i in tf.range(n_steps):
             batch = next(iterator)
