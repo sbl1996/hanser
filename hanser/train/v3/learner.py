@@ -193,12 +193,15 @@ class Learner(metaclass=ABCMeta):
                 break
         cbks.after_train(self._state['train'])
 
+    @tf.function
     def _train_step(self, batch):
         strategy_run(self._strategy, self.train_batch, (batch,))
 
+    @tf.function
     def _eval_step(self, batch):
         strategy_run(self._strategy, self.eval_batch, (batch,))
 
+    @tf.function
     def _test_step(self, inputs):
         strategy_run(self._strategy, self.test_batch, (inputs,))
 
