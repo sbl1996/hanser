@@ -433,7 +433,7 @@ def get_weight_decay():
         return l2(wd * 0.5)
 
 
-def Linear(in_channels, out_channels, act=None, name=None):
+def Linear(in_channels, out_channels, act=None):
     kernel_initializer = VarianceScaling(1.0 / 3, 'fan_in', 'uniform')
     bound = math.sqrt(1 / in_channels)
     bias_initializer = RandomUniform(-bound, bound)
