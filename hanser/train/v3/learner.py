@@ -73,8 +73,10 @@ class Learner(metaclass=ABCMeta):
     def __init__(self, model, criterion, optimizers,
                  train_metrics: Mapping[str, Metric],
                  eval_metrics: Mapping[str, Metric], work_dir,
-                 grad_clip_norm=0.0, multiple_steps=True, metric_transform=default_metric_transform,
-                 target_metric_transform=default_metric_transform, output_metric_transform=default_metric_transform):
+                 grad_clip_norm=0.0, multiple_steps=True, xla_compile=False,
+                 metric_transform=default_metric_transform,
+                 target_metric_transform=default_metric_transform,
+                 output_metric_transform=default_metric_transform):
         if not isinstance(optimizers, Sequence):
             optimizers = [optimizers]
         optimizers = list(optimizers)
@@ -97,6 +99,7 @@ class Learner(metaclass=ABCMeta):
             ]
         self.grad_clip_norm = grad_clip_norm
         self.multiple_steps = multiple_steps
+        self.xla_compile = xla_compile
         self.metric_transform = metric_transform
         self.target_metric_transform = target_metric_transform
         self.output_metric_transform = output_metric_transform
@@ -190,16 +193,25 @@ class Learner(metaclass=ABCMeta):
                 break
         cbks.after_train(self._state['train'])
 
-    @tf.function(experimental_compile=True)
     def _train_step(self, batch):
         strategy_run(self._strategy, self.train_batch, (batch,))
 
-    @tf.function(experimental_compile=True)
     def _eval_step(self, batch):
         strategy_run(self._strategy, self.eval_batch, (batch,))
 
-    @tf.function(experimental_compile=True)
     def _test_step(self, inputs):
+        strategy_run(self._strategy, self.test_batch, (inputs,))
+
+    @tf.function(experimental_compile=True)
+    def _xla_train_step(self, batch):
+        strategy_run(self._strategy, self.train_batch, (batch,))
+
+    @tf.function(experimental_compile=MetricHistory)
+    def _xla_eval_step(self, batch):
+        strategy_run(self._strategy, self.eval_batch, (batch,))
+
+    @tf.function(experimental_compile=True)
+    def _xla_test_step(self, inputs):
         strategy_run(self._strategy, self.test_batch, (inputs,))
 
     @tf.function
@@ -223,7 +235,11 @@ class Learner(metaclass=ABCMeta):
     def _run_epoch(self, iterator, steps, callbacks, mode):
         state = self._state[mode]
         metrics = getattr(self, mode + "_metrics")
-        step_fn = getattr(self, f"_{mode}_step")
+        if self.xla_compile:
+            step_fn = getattr(self, f"_xla_{mode}_step")
+        else:
+            step_fn = getattr(self, f"_{mode}_step")
+
 
         state.update({
             'steps': steps,
