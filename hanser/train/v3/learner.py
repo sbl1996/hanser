@@ -208,7 +208,7 @@ class Learner(metaclass=ABCMeta):
     def _test_step(self, inputs):
         strategy_run(self._strategy, self.test_batch, (inputs,))
 
-    @tf.function
+    @tf.function(experimental_relax_shapes=True)
     def _run_steps(self, step_fn, iterator, n_steps, callbacks, state):
         for i in tf.range(n_steps):
             batch = next(iterator)
