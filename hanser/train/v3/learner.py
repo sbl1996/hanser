@@ -193,6 +193,9 @@ class Learner(metaclass=ABCMeta):
                 break
         cbks.after_train(self._state['train'])
 
+    def _xla_train_step(self, batch):
+        strategy_run(self._strategy, self.train_batch, (batch,))
+
     @tf.function
     def _train_step(self, batch):
         strategy_run(self._strategy, self.train_batch, (batch,))
@@ -203,18 +206,6 @@ class Learner(metaclass=ABCMeta):
 
     @tf.function
     def _test_step(self, inputs):
-        strategy_run(self._strategy, self.test_batch, (inputs,))
-
-    @tf.function(experimental_compile=True)
-    def _xla_train_step(self, batch):
-        strategy_run(self._strategy, self.train_batch, (batch,))
-
-    @tf.function(experimental_compile=True)
-    def _xla_eval_step(self, batch):
-        strategy_run(self._strategy, self.eval_batch, (batch,))
-
-    @tf.function(experimental_compile=True)
-    def _xla_test_step(self, inputs):
         strategy_run(self._strategy, self.test_batch, (inputs,))
 
     @tf.function
@@ -238,11 +229,10 @@ class Learner(metaclass=ABCMeta):
     def _run_epoch(self, iterator, steps, callbacks, mode):
         state = self._state[mode]
         metrics = getattr(self, mode + "_metrics")
-        if self.xla_compile:
-            step_fn = getattr(self, f"_xla_{mode}_step")
+        if self.xla_compile and mode == 'train':
+            step_fn = self._xla_train_step
         else:
             step_fn = getattr(self, f"_{mode}_step")
-
 
         state.update({
             'steps': steps,
