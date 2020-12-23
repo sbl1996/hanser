@@ -9,11 +9,11 @@ class CNNLearner(Learner):
     def __init__(self, model, criterion, optimizer, **kwargs):
         super().__init__(model, criterion, optimizer, **kwargs)
 
-    @tf.function(experimental_compile=True)
     def xla_train_batch(self, batch):
         model = self.model
         optimizer = self.optimizers[0]
 
+        @tf.function(experimental_compile=True)
         def local_step(inputs, target):
             with tf.GradientTape() as tape:
                 inputs = cast(inputs, self.dtype)
