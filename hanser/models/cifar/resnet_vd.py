@@ -64,10 +64,10 @@ class Bottleneck(Layer):
 
 
 class ResNet(Model):
-    stages = [16, 16, 32, 64]
 
-    def __init__(self, depth, block='basic', erase_relu=False, num_classes=10):
+    def __init__(self, depth, block='basic', erase_relu=False, num_classes=10, stages=(16, 16, 32, 64)):
         super().__init__()
+        self.stages = stages
         if block == 'basic':
             block = BasicBlock
             layers = [(depth - 2) // 6] * 3

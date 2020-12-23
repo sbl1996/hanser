@@ -3,8 +3,7 @@ import multiprocessing
 
 import tensorflow as tf
 from tensorflow.python.distribute.values import PerReplica
-import tensorflow.keras.mixed_precision.experimental as mixed_precision
-from tensorflow.python.distribute.input_lib import DistributedDataset
+import tensorflow.keras.mixed_precision as mixed_precision
 
 
 def setup(datasets, fp16=True, device='auto', cross_device_ops=None):
@@ -36,7 +35,8 @@ def setup(datasets, fp16=True, device='auto', cross_device_ops=None):
             mixed_precision.set_policy(policy)
         tf.distribute.experimental_set_strategy(strategy)
         return [
-            (strategy.experimental_distribute_dataset(ds) if not isinstance(ds, DistributedDataset) else ds)
+            (strategy.experimental_distribute_dataset(ds)
+             if not isinstance(ds, tf.distribute.DistributedDataset) else ds)
             for ds in datasets]
     elif device == 'GPU':
         if fp16:
@@ -49,7 +49,8 @@ def setup(datasets, fp16=True, device='auto', cross_device_ops=None):
             policy = mixed_precision.Policy('mixed_float16')
             mixed_precision.set_policy(policy)
         return [
-            (strategy.experimental_distribute_dataset(ds) if not isinstance(ds, DistributedDataset) else ds)
+            (strategy.experimental_distribute_dataset(ds)
+             if not isinstance(ds, tf.distribute.DistributedDataset) else ds)
             for ds in datasets]
     else:
         return datasets
