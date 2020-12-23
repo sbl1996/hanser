@@ -2,7 +2,7 @@ from abc import ABCMeta
 from typing import Sequence, Mapping
 
 import tensorflow as tf
-import tensorflow.keras.mixed_precision as mixed_precision
+import tensorflow.keras.mixed_precision.experimental as mixed_precision
 from tensorflow.keras.metrics import Metric, Mean
 
 from hhutil.io import fmt_path, eglob, rm, time_now

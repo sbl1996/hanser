@@ -3,7 +3,7 @@ import multiprocessing
 
 import tensorflow as tf
 from tensorflow.python.distribute.values import PerReplica
-import tensorflow.keras.mixed_precision as mixed_precision
+import tensorflow.keras.mixed_precision.experimental as mixed_precision
 
 
 def setup(datasets, fp16=True, device='auto', cross_device_ops=None):
