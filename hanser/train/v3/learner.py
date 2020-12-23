@@ -127,6 +127,9 @@ class Learner(metaclass=ABCMeta):
         self._ckpt_options = tf.train.CheckpointOptions(
             experimental_io_device="/job:localhost") if self._strategy else None
 
+        if self.xla_compile:
+            self.xla_train_batch = tf.function(self.train_batch, experimental_compile=True)
+
     def train_batch(self, batch):
         pass
 
@@ -237,6 +240,7 @@ class Learner(metaclass=ABCMeta):
                 metric.update_state(per_example_loss)
             else:
                 metric.update_state(y_true, y_pred, None)
+
 
     def _run_epoch(self, iterator, steps, callbacks, mode):
         state = self._state[mode]
