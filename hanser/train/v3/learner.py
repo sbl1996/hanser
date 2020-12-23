@@ -219,6 +219,12 @@ class Learner(metaclass=ABCMeta):
             step_fn(batch)
             callbacks.after_batch(state)
 
+    @tf.function
+    def _run_steps2(self, step_fn, iterator, n_steps):
+        for i in tf.range(n_steps):
+            batch = next(iterator)
+            step_fn(batch)
+
     def update_metrics(self, metrics, y_true, y_pred, per_example_loss=None):
         y_true = self.target_metric_transform(y_true)
         y_pred = self.output_metric_transform(y_pred)
@@ -229,6 +235,7 @@ class Learner(metaclass=ABCMeta):
                 metric.update_state(y_true, y_pred, None)
 
     def _run_epoch(self, iterator, steps, callbacks, mode):
+        print("Epoch %s" % time_now())
         state = self._state[mode]
         metrics = getattr(self, mode + "_metrics")
         if self.xla_compile and mode == 'train':
@@ -248,7 +255,8 @@ class Learner(metaclass=ABCMeta):
             sub_state = {
                 k: state[k] for k in ["step", "steps", "epoch", "epochs"]
             }
-            self._run_steps(step_fn, iterator, steps, callbacks, sub_state)
+            # self._run_steps(step_fn, iterator, steps, callbacks, sub_state)
+            self._run_steps2(step_fn, iterator, steps, callbacks)
         else:
             for _ in range(steps):
                 batch = next(iterator)
