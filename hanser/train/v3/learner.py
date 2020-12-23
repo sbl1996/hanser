@@ -195,6 +195,7 @@ class Learner(metaclass=ABCMeta):
                 break
         cbks.after_train(self._state['train'])
 
+    @tf.function
     def _xla_train_step(self, batch):
         strategy_run(self._strategy, self.xla_train_batch, (batch,))
 
@@ -220,7 +221,7 @@ class Learner(metaclass=ABCMeta):
             callbacks.after_batch(state)
 
     @tf.function
-    def _run_steps2(self, iterator, n_steps, callbacks, state):
+    def _run_xla_train_steps(self, iterator, n_steps, callbacks, state):
         for i in tf.range(n_steps):
             batch = next(iterator)
             state['step'].assign_add(1)
@@ -255,7 +256,7 @@ class Learner(metaclass=ABCMeta):
                 k: state[k] for k in ["step", "steps", "epoch", "epochs"]
             }
             if self.xla_compile and mode == 'train':
-                self._run_steps2(iterator, steps, callbacks, sub_state)
+                self._run_xla_train_steps(iterator, steps, callbacks, sub_state)
             else:
                 self._run_steps(step_fn, iterator, steps, callbacks, sub_state)
         else:
