@@ -194,7 +194,7 @@ class Learner(metaclass=ABCMeta):
         cbks.after_train(self._state['train'])
 
     def _xla_train_step(self, batch):
-        strategy_run(self._strategy, self.train_batch, (batch,))
+        strategy_run(self._strategy, self.xla_train_batch, (batch,))
 
     @tf.function
     def _train_step(self, batch):
