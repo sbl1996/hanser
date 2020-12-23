@@ -256,7 +256,7 @@ class Learner(metaclass=ABCMeta):
                 k: state[k] for k in ["step", "steps", "epoch", "epochs"]
             }
             # self._run_steps(step_fn, iterator, steps, callbacks, sub_state)
-            self._run_steps2(step_fn, iterator, steps, callbacks)
+            self._run_steps2(step_fn, iterator, steps)
         else:
             for _ in range(steps):
                 batch = next(iterator)
