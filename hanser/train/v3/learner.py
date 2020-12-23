@@ -152,11 +152,13 @@ class Learner(metaclass=ABCMeta):
             steps_per_epoch=None, val_steps=None, save_freq=None, callbacks=None):
 
         steps_per_epoch = steps_per_epoch or len(ds_train)
+        steps_per_epoch = tf.convert_to_tensor(steps_per_epoch, dtype=tf.int32)
 
         do_eval = ds_val is not None
         if do_eval:
             self._val_freq = val_freq
             val_steps = val_steps or len(ds_val)
+            val_steps = tf.convert_to_tensor(val_steps, dtype=tf.int32)
 
         cbks = config_callbacks(
             self,
@@ -234,7 +236,6 @@ class Learner(metaclass=ABCMeta):
         else:
             step_fn = getattr(self, f"_{mode}_step")
 
-        steps = tf.convert_to_tensor(steps, dtype=tf.int32)
         state.update({
             'steps': steps,
         })
