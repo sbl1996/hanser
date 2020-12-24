@@ -5,6 +5,8 @@ from hanser.models.layers import Conv2d, Act, Identity, GlobalAvgPool, Linear, N
 
 
 class BasicBlock(Layer):
+    expansion = 1
+
     def __init__(self, in_channels, out_channels, stride, drop_rate,
                  start_block=False, end_block=False, exclude_bn0=False):
         super().__init__()
@@ -64,13 +66,12 @@ class BasicBlock(Layer):
 
 
 class Bottleneck(Layer):
-
     expansion = 4
 
-    def __init__(self, in_channels, out_channels, stride,
+    def __init__(self, in_channels, channels, stride, drop_rate,
                  start_block=False, end_block=False, exclude_bn0=False):
         super().__init__()
-        channels = out_channels // self.expansion
+        out_channels = channels * self.expansion
         if not start_block and not exclude_bn0:
             self.bn0 = Norm(in_channels)
         if not start_block:
@@ -81,6 +82,7 @@ class Bottleneck(Layer):
         self.conv2 = Conv2d(channels, channels, kernel_size=3, stride=stride)
         self.bn2 = Norm(channels)
         self.act2 = Act()
+        self.dropout = Dropout(drop_rate) if drop_rate else Identity()
         self.conv3 = Conv2d(channels, out_channels, kernel_size=1)
 
         if start_block:
@@ -117,6 +119,7 @@ class Bottleneck(Layer):
         x = self.conv2(x)
         x = self.bn2(x)
         x = self.act2(x)
+        x = self.dropout(x)
         x = self.conv3(x)
         if self.start_block:
             x = self.bn3(x)
@@ -154,11 +157,12 @@ class ResNet(Model):
         self.avgpool = GlobalAvgPool()
         self.fc = Linear(self.stages[3], num_classes)
 
-    def _make_layer(self, block, in_channels, out_channels, blocks, stride, drop_rate):
-        layers = [block(in_channels, out_channels, stride=stride, start_block=True,
+    def _make_layer(self, block, in_channels, channels, blocks, stride, drop_rate):
+        layers = [block(in_channels, channels, stride=stride, start_block=True,
                         drop_rate=drop_rate)]
+        out_channels = channels * block.expansion
         for i in range(1, blocks):
-            layers.append(block(out_channels, out_channels, stride=1,
+            layers.append(block(out_channels, channels, stride=1,
                                 exclude_bn0=i == 1, end_block=i == blocks - 1,
                                 drop_rate=drop_rate))
         return Sequential(layers)
