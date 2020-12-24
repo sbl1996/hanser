@@ -11,14 +11,17 @@ class BasicBlock(Layer):
                             norm='def', act='def')
         self.conv2 = Conv2d(out_channels, out_channels, kernel_size=3,
                             norm='def')
-        if stride != 1:
-            assert in_channels != out_channels
-            self.shortcut = Sequential([
-                Pool2d(2, 2, type='avg'),
+
+        if stride != 1 or in_channels != out_channels:
+            shortcut = [
                 Conv2d(in_channels, out_channels, kernel_size=1, norm='def'),
-            ])
+            ]
+            if stride != 1:
+                shortcut.insert(0, Pool2d(2, 2, type='avg'))
+            self.shortcut = Sequential(shortcut)
         else:
             self.shortcut = Identity()
+
         self.act = Act() if not erase_relu else Identity()
 
     def call(self, x):
@@ -43,14 +46,17 @@ class Bottleneck(Layer):
                             norm='def', act='def')
         self.conv3 = Conv2d(channels, out_channels, kernel_size=1,
                             norm='def')
-        if stride != 1:
-            assert in_channels != out_channels
-            self.shortcut = Sequential([
-                Pool2d(2, 2, type='avg'),
-                Conv2d(in_channels, out_channels, kernel_size=1),
-            ])
+
+        if stride != 1 or in_channels != out_channels:
+            shortcut = [
+                Conv2d(in_channels, out_channels, kernel_size=1, norm='def'),
+            ]
+            if stride != 1:
+                shortcut.insert(0, Pool2d(2, 2, type='avg'))
+            self.shortcut = Sequential(shortcut)
         else:
             self.shortcut = Identity()
+
         self.act = Act() if not erase_relu else Identity()
 
     def call(self, x):

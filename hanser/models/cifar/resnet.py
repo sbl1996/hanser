@@ -11,8 +11,8 @@ class BasicBlock(Layer):
                             norm='def', act='def')
         self.conv2 = Conv2d(out_channels, out_channels, kernel_size=3,
                             norm='def')
-        if stride != 1:
-            assert in_channels != out_channels
+
+        if stride != 1 or in_channels != out_channels:
             self.shortcut = Conv2d(in_channels, out_channels, kernel_size=1, stride=stride, norm='def')
         else:
             self.shortcut = Identity()
@@ -40,8 +40,7 @@ class Bottleneck(Layer):
                             norm='def', act='def')
         self.conv3 = Conv2d(channels, out_channels, kernel_size=1,
                             norm='def')
-        if stride != 1:
-            assert in_channels != out_channels
+        if stride != 1 or in_channels != out_channels:
             self.shortcut = Conv2d(in_channels, out_channels, kernel_size=1, stride=stride, norm='def')
         else:
             self.shortcut = Identity()
