@@ -1,7 +1,7 @@
 from tensorflow.keras import Sequential, Model
 from tensorflow.keras.layers import Layer
 
-from hanser.models.layers import Conv2d, Act, Identity, GlobalAvgPool, Linear, Pool2d
+from hanser.models.layers import Conv2d, Act, Identity, GlobalAvgPool, Linear
 
 
 class BasicBlock(Layer):
