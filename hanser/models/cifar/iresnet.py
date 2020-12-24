@@ -94,7 +94,7 @@ class Bottleneck(Layer):
 
 class ResNet(Model):
 
-    def __init__(self, depth, block='basic', drop_rate=0.3, num_classes=10, stages=(16, 16, 32, 64)):
+    def __init__(self, depth, block='basic', drop_rate=0, num_classes=10, stages=(16, 16, 32, 64)):
         super().__init__()
         self.stages = stages
         if block == 'basic':
