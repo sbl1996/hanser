@@ -1,6 +1,6 @@
 import tensorflow as tf
 from tensorflow.keras import Sequential
-from tensorflow.keras.layers import Layer, InputSpec, Softmax, Dropout
+from tensorflow.keras.layers import InputSpec, Softmax, Dropout
 from tensorflow.python.keras import initializers
 from tensorflow.python.keras.engine.base_layer import Layer
 from tensorflow.python.keras.initializers.initializers_v2 import Constant
@@ -12,8 +12,8 @@ from hanser.models.layers import Conv2d, Norm, Act
 
 class PadChannel(Layer):
 
-    def __init__(self, c, name=None):
-        super().__init__()
+    def __init__(self, c, **kwargs):
+        super().__init__(**kwargs)
         self.c = c
 
     def call(self, x, training=None):

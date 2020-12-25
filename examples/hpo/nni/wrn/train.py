@@ -10,8 +10,8 @@ from hanser.transform.autoaugment import autoaugment
 
 from hanser.train.optimizers import SGD
 from hanser.models.cifar.preactresnet import ResNet
-from hanser.train.v3.cls import CNNLearner
-from hanser.train.v3.callbacks import EMA, NNIReportIntermediateResult
+from hanser.train.cls import CNNLearner
+from hanser.train.callbacks import EMA, NNIReportIntermediateResult
 from hanser.train.lr_schedule import CosineLR
 from hanser.losses import CrossEntropy
 

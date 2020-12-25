@@ -7,8 +7,8 @@ from hanser.datasets.mnist import make_mnist_dataset
 from hanser.transform import pad, to_tensor, normalize
 from hanser.models.mnist import LeNet5
 from hanser.train.optimizers import SGD
-from hanser.train.v3.cls import CNNLearner
-from hanser.train.v3.callbacks import EMA, OptunaReportIntermediateResult
+from hanser.train.cls import CNNLearner
+from hanser.train.callbacks import OptunaReportIntermediateResult
 from hanser.train.lr_schedule import CosineLR
 from hanser.losses import CrossEntropy
 

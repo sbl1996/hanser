@@ -44,11 +44,6 @@ def weighted_bce(y_true, y_pred, pos_weight, from_logits=True):
 
 @curry
 def cross_entropy(y_true, y_pred, ignore_label=None):
-    r"""
-    Args:
-        labels: (N, H, W)
-        logits: (N, H, W, C)
-    """
     y_true = tf.cast(y_true, tf.int32)
     if ignore_label is not None:
         mask = tf.not_equal(y_true, ignore_label)

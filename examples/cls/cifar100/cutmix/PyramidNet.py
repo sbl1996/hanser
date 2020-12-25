@@ -8,12 +8,12 @@ from tensorflow.keras.metrics import CategoricalAccuracy, Mean, CategoricalCross
 from hanser.tpu import setup
 from hanser.datasets import prepare
 from hanser.datasets.cifar import load_cifar100
-from hanser.transform import random_crop, normalize, to_tensor
+from hanser.transform import random_crop, normalize, to_tensor, cutmix
 
 from hanser.train.optimizers import SGD
 from hanser.models.cifar.pyramidnet import PyramidNet
 from hanser.models.layers import set_defaults
-from hanser.train.v3.cls import CNNLearner
+from hanser.train.cls import CNNLearner
 from hanser.train.lr_schedule import CosineLR
 from hanser.losses import CrossEntropy
 @curry
@@ -30,6 +30,12 @@ def transform(image, label, training):
 
     return image, label
 
+def zip_transform(data1, data2):
+    return tf.cond(
+        tf.random.uniform(()) < 0.5,
+        lambda: cutmix(data1, data2, 1.0),
+        lambda: data1,
+    )
 
 (x_train, y_train), (x_test, y_test) = load_cifar100()
 
@@ -43,7 +49,8 @@ test_steps = math.ceil(n_test / eval_batch_size)
 ds = tf.data.Dataset.from_tensor_slices((x_train, y_train))
 ds_test = tf.data.Dataset.from_tensor_slices((x_test, y_test))
 
-ds_train = prepare(ds, batch_size, transform=transform(training=True), training=True, buffer_size=len(x_train))
+ds_train = prepare(ds, batch_size, transform=transform(training=True),
+                   zip_transform=zip_transform, training=True, buffer_size=len(x_train))
 ds_test = prepare(ds_test, eval_batch_size, transform=transform(training=False), training=False)
 
 ds_train, ds_test = setup([ds_train, ds_test], fp16=True)

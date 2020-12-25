@@ -1,5 +1,6 @@
 from hanser.models.nas.genotypes import Genotype
 
+seed = 42
 mul = 8
 
 # 2.69

@@ -1,5 +1,3 @@
-import math
-
 import tensorflow as tf
 from hanser.transform import sharpness, shear_x, shear_y, solarize, autocontrast, translate_x, \
     translate_y, rotate, color, posterize, contrast, brightness, equalize, invert

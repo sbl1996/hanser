@@ -1,5 +1,5 @@
 from abc import ABCMeta
-from typing import Sequence, Mapping
+from typing import Sequence, Mapping, Optional
 
 import tensorflow as tf
 import tensorflow.keras.mixed_precision.experimental as mixed_precision
@@ -7,8 +7,8 @@ from tensorflow.keras.metrics import Metric, Mean
 
 from hhutil.io import fmt_path, eglob, rm, time_now
 
-from hanser.train.trainer import MetricHistory
-from hanser.train.v3.callbacks import config_callbacks
+from hanser.train.metric_history import MetricHistory
+from hanser.train.callbacks import config_callbacks
 
 
 def find_most_recent(work_dir, pattern):
@@ -51,7 +51,7 @@ def is_distribute_strategy(strategy):
     return is_tpu_strategy(strategy) or is_mirrored_strategy(strategy)
 
 
-def parse_strategy(strategy='auto'):
+def parse_strategy(strategy='auto') -> Optional[tf.distribute.Strategy]:
     if strategy is not None:
         if strategy == 'auto':
             strategy = tf.distribute.get_strategy()
@@ -329,3 +329,16 @@ class Learner(metaclass=ABCMeta):
         self._ckpt.restore(fp, self._ckpt_options)
         self.set_global_state('epoch', self.epoch)
         print("Load trainer at epoch %d from %s" % (self.epoch + 1, fp))
+
+
+def cast(xs, dtype):
+    if isinstance(xs, tf.Tensor):
+        if xs.dtype != dtype:
+            xs = tf.cast(xs, dtype)
+        return xs
+    elif isinstance(xs, (tuple, list)):
+        return xs.__class__(cast(x, dtype) for x in xs)
+    elif isinstance(xs, dict):
+        return {k: cast(v, dtype) for k, v in xs.items()}
+    else:
+        return xs

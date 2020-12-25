@@ -94,6 +94,3 @@ class ResNet(Model):
         x = self.avgpool(x)
         x = self.fc(x)
         return x
-
-
-from torchvision.models import MobileNetV2

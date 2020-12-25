@@ -1,4 +1,3 @@
-import tensorflow as tf
 from tensorflow.python.keras.engine.input_spec import InputSpec
 from tensorflow.python.framework import tensor_shape
 from tensorflow.python.keras import backend

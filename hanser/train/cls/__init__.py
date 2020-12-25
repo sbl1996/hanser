@@ -1,7 +1,6 @@
 import tensorflow as tf
 
-from hanser.train.trainer import cast
-from hanser.train.v3.learner import Learner
+from hanser.train.learner import Learner, cast
 
 
 class CNNLearner(Learner):

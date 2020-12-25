@@ -1,5 +1,4 @@
 import math
-import tensorflow as tf
 from tensorflow.keras import Sequential, Model
 from tensorflow.keras.layers import Layer
 

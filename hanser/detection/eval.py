@@ -4,18 +4,12 @@ from typing import List
 import numpy as np
 from toolz.curried import groupby
 
+# noinspection PyUnresolvedReferences
 from hanser._numpy import iou_mn
 from hanser.detection import BBox
 
 
 def average_precision(detections: List[BBox], ground_truths: List[BBox], iou_threshold=.5, use_07_metric=True, ignore_difficult=True):
-    r"""
-    Args:
-        detections: sequences of BBox with `score`
-        ground_truths: same size sequences of BBox
-        iou_threshold:
-        use_07_metric:
-    """
     c2dts = groupby(lambda b: b.category_id, detections)
     c2gts = groupby(lambda b: b.category_id, ground_truths)
     dts = {}
@@ -94,13 +88,6 @@ def average_precision(detections: List[BBox], ground_truths: List[BBox], iou_thr
 
 
 def average_precision2(detections: List[BBox], ground_truths: List[BBox], iou_threshold=.5, use_07_metric=True, ignore_difficult=True):
-    r"""
-    Args:
-        detections: sequences of BBox with `score`
-        ground_truths: same size sequences of BBox
-        iou_threshold:
-        use_07_metric:
-    """
     c2dts = groupby(lambda b: b.category_id, detections)
     c2gts = groupby(lambda b: b.category_id, ground_truths)
     dts = {}

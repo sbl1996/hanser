@@ -123,14 +123,6 @@ def parse_tfexample_to_img_seg(example_proto):
 # num_shards=8)
 def convert_segmentation_dataset(split_f, output_dir, image_dir, label_dir, image_format='jpg', label_format='png',
                                  num_shards=4):
-    """Converts the specified dataset split to TFRecord format.
-
-  Args:
-    dataset_split: The dataset split (e.g., train, test).
-
-  Raises:
-    RuntimeError: If loaded image and label have different shape.
-  """
     split_f = fmt_path(split_f)
     output_dir = fmt_path(output_dir)
     image_dir = fmt_path(image_dir)

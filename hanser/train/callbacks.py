@@ -1,103 +1,301 @@
 from toolz import curry
-
 import numpy as np
-
-import tensorflow as tf
-from tensorflow.keras.callbacks import Callback
-
+from hhutil.io import time_now
+from tensorflow_addons.optimizers import MovingAverage
 from hanser.models.modules import DropPath
 
 
-class LearningRateBatchScheduler(Callback):
-
-    def __init__(self, schedule, steps_per_epoch):
-        super().__init__()
-        self.schedule = schedule
-        self.steps_per_epoch = steps_per_epoch
-        self.epochs = -1
-        self.prev_lr = -1
-
-    def on_epoch_begin(self, epoch, logs=None):
-        if not hasattr(self.model.optimizer, 'lr'):
-            raise ValueError('Optimizer must have a "lr" attribute.')
-        self.epochs += 1
-
-    def on_train_batch_begin(self, batch, logs=None):
-        epochs = self.epochs + float(batch) / self.steps_per_epoch
-        lr = self.schedule(epochs)
-        if not isinstance(lr, (float, np.float32, np.float64)):
-            raise ValueError('The output of the "schedule" function should be float.')
-        if lr != self.prev_lr:
-            tf.keras.backend.set_value(self.model.optimizer.lr, lr)
-            self.prev_lr = lr
-
-
 @curry
-def step_lr(epoch, base_lr, schedule):
-    gamma, warmup = schedule[0]
-    if epoch < warmup:
-        eta_min = base_lr * gamma
-        return eta_min + (base_lr - eta_min) * epoch / warmup
-    learning_rate = base_lr
-    for mult, start_epoch in schedule:
-        if epoch >= start_epoch:
-            learning_rate = base_lr * mult
-        else:
-            break
-    return learning_rate
+def log_metrics(stage, metrics, epoch, writer, metric_history, stage_name=None):
+    stage_name = stage_name or stage
+    log_str = "%s %s - " % (time_now(), stage_name)
+    metric_logs = []
+    for k, v in metrics.items():
+        metric_logs.append("%s: %.4f" % (k, v))
+        if writer:
+            writer.add_scalar("%s/%s" % (k, stage), v, epoch)
+        metric_history.record(stage, epoch, k, v)
+    log_str += ", ".join(metric_logs)
+    print(log_str)
 
 
-@curry
-def cosine_lr(epoch, base_lr, epochs, min_lr, warmup_min_lr, warmup_epoch=5):
-    if epoch < warmup_epoch:
-        eta_min = warmup_min_lr
-        return eta_min + (base_lr - eta_min) * epoch / warmup_epoch
-    frac = (epoch - warmup_epoch) / (epochs - warmup_epoch)
-    mult = (np.cos(frac * np.pi) + 1) / 2
-    return min_lr + (base_lr - min_lr) * mult
+def config_callbacks(
+    learner,
+    callbacks=None,
+    save_freq=None,
+    mode='train',
+):
+    cbks = callbacks or []
+    cbks = cbks if isinstance(cbks, (list, tuple)) else [cbks]
 
-
-@curry
-def tf_cosine_lr(epoch, base_lr, total_epochs, warmup=0, gamma=0.1):
-    eta_min = base_lr * gamma
-    lr1 = eta_min + (base_lr - eta_min) * epoch / warmup
-
-    frac = (epoch - warmup) / (total_epochs - warmup)
-    lr2 = (tf.cos(frac * np.pi) + 1) / 2 * base_lr
-
-    lr = tf.where(epoch < warmup, lr1, lr2)
-    return lr
-
-
-@curry
-def one_cycle_lr(epoch, base_lr, max_lr, step_size, end_steps, gamma, warmup=0, warmup_gamma=0.1):
-    if epoch < warmup:
-        eta_min = base_lr * warmup_gamma
-        lr = eta_min + epoch / warmup * (base_lr - eta_min)
-    elif epoch < step_size + warmup:
-        epoch -= warmup
-        lr = base_lr + epoch / step_size * (max_lr - base_lr)
-    elif epoch < (warmup + 2 * step_size):
-        epoch -= warmup + step_size
-        lr = base_lr + (step_size - epoch) / step_size * (max_lr - base_lr)
-    elif epoch < (warmup + 2 * step_size + end_steps):
-        epoch -= warmup + 2 * step_size
-        lr = base_lr * gamma + epoch / end_steps * (base_lr - base_lr * gamma)
+    if mode == 'train':
+        if not any(isinstance(k, TrainEvalLogger) for k in cbks):
+            cbks = [TrainEvalLogger()] + cbks
+        if not any(isinstance(k, ModelCheckpoint) for k in cbks) and save_freq:
+            cbks = cbks + [ModelCheckpoint(save_freq)]
     else:
-        lr = base_lr * gamma
-    return lr
+        if not any(isinstance(k, EvalLogger) for k in cbks):
+            cbks = [EvalLogger()] + cbks
+
+    cbk_list = CallbackList(learner, cbks)
+    return cbk_list
+
+
+class CallbackList(object):
+    def __init__(self, learner, callbacks=None):
+        self.learner = learner
+        self.callbacks = [c for c in callbacks]
+        for c in self.callbacks:
+            c.learner = learner
+            c.init()
+
+    def append(self, callback):
+        callback.learner = self.learner
+        callback.init()
+        self.callbacks.append(callback)
+
+    def __iter__(self):
+        return iter(self.callbacks)
+
+    def begin_train(self, state):
+        for c in self.callbacks:
+            c.begin_train(state)
+
+    def begin_epoch(self, state):
+        for c in self.callbacks:
+            c.begin_epoch(state)
+
+    def begin_batch(self, state):
+        for c in self.callbacks:
+            c.begin_batch(state)
+
+    def after_pred(self, state):
+        for c in self.callbacks:
+            c.after_pred(state)
+
+    def after_loss(self, state):
+        for c in self.callbacks:
+            c.after_loss(state)
+
+    def after_back(self, state):
+        for c in self.callbacks:
+            c.after_back(state)
+
+    def after_step(self, state):
+        for c in self.callbacks:
+            c.after_step(state)
+
+    def after_batch(self, state):
+        for c in self.callbacks:
+            c.after_batch(state)
+
+    def after_epoch(self, state):
+        for c in self.callbacks:
+            c.after_epoch(state)
+
+    def begin_eval(self, state):
+        for c in self.callbacks:
+            c.begin_eval(state)
+
+    def after_eval(self, state):
+        for c in self.callbacks:
+            c.after_eval(state)
+
+    def after_train(self, state):
+        for c in self.callbacks:
+            c.after_train(state)
+
+
+class Callback(object):
+
+    def __init__(self):
+        self.learner = None
+
+    def init(self):
+        pass
+
+    def begin_train(self, state):
+        pass
+
+    def begin_epoch(self, state):
+        pass
+
+    def begin_batch(self, state):
+        pass
+
+    def after_pred(self, state):
+        pass
+
+    def after_loss(self, state):
+        pass
+
+    def after_back(self, state):
+        pass
+
+    def after_step(self, state):
+        pass
+
+    def after_batch(self, state):
+        pass
+
+    def after_epoch(self, state):
+        pass
+
+    def begin_eval(self, state):
+        pass
+
+    def after_eval(self, state):
+        pass
+
+    def after_train(self, state):
+        pass
+
+class ModelCheckpoint(Callback):
+
+    def __init__(self, save_freq=1):
+        super().__init__()
+        self.save_freq = save_freq
+
+    def after_epoch(self, state):
+        epoch = state['epoch'] + 1
+        if epoch % self.save_freq == 0:
+            self.learner.save()
+
+
+class TrainEvalLogger(Callback):
+
+    def __init__(self):
+        super().__init__()
+        self.verbose = True
+
+    def _is_print(self):
+        return self.verbose
+
+    def begin_epoch(self, state):
+        if self._is_print():
+            print("Epoch %d/%d" % (state['epoch'] + 1, state['epochs']))
+
+    def after_epoch(self, state):
+        learner = self.learner
+        if self._is_print():
+            log_metrics('train', state['metrics'], state['epoch'].numpy(), learner._writer, learner.metric_history)
+
+    def after_eval(self, state):
+        learner = self.learner
+        if self._is_print():
+            log_metrics('eval', state['metrics'], state['epoch'].numpy(), learner._writer, learner.metric_history,
+                        stage_name='valid')
+
+
+class EvalLogger(Callback):
+
+    def __init__(self):
+        super().__init__()
+        self.verbose = True
+
+    def _is_print(self):
+        return self.verbose
+
+    def after_eval(self, state):
+        learner = self.learner
+        if self._is_print():
+            log_metrics('eval', state['metrics'], state['epochs'], learner._writer, learner.metric_history,
+                        stage_name='valid')
+
+
+class EMA(Callback):
+
+    def __init__(self, decay=None):
+        super().__init__()
+        self.decay = decay
+
+    def init(self):
+        if self.decay is not None:
+            self.original_optimizer = self.learner.optimizers[0]
+            self.learner.optimizers[0] = MovingAverage(
+                self.original_optimizer, average_decay=self.decay)
+        else:
+            assert isinstance(self.learner.optimizers[0], MovingAverage)
+
+    def begin_eval(self, state):
+        opt: MovingAverage = self.learner.optimizers[0]
+        opt.shadow_copy(self.learner.model.trainable_variables)
+        opt.swap_weights()
+
+    def after_eval(self, state):
+        opt: MovingAverage = self.learner.optimizers[0]
+        opt.swap_weights()
 
 
 class DropPathRateSchedule(Callback):
 
-    def __init__(self, model, drop_path, epochs):
-        self.model = model
-        self.drop_path = drop_path
-        self.epochs = epochs
+    def __init__(self, drop_path):
         super().__init__()
+        self.drop_path = drop_path
 
-    def on_epoch_begin(self, epoch, logs=None):
-        rate = (epoch - 1) / self.epochs * self.drop_path
-        for l in self.model.submodules:
+    def begin_epoch(self, state):
+        epoch = int(state['epoch'].numpy())
+        epochs = state['epochs']
+        rate = (epoch - 1) / epochs * self.drop_path
+        for l in self.learner.model.submodules:
             if isinstance(l, DropPath):
                 l.rate.assign(rate)
+
+
+class EvalEveryAfter(Callback):
+
+    def __init__(self, eval_after):
+        super().__init__()
+        self.eval_after = eval_after
+
+    def begin_epoch(self, state):
+        if state['epoch'] >= self.eval_after:
+            self.learner._val_freq = 1
+
+
+class TerminateOnNaN(Callback):
+    def after_epoch(self, state):
+        if not np.isfinite(state['metrics']['loss']):
+            raise RuntimeError("Infinite encountered")
+
+
+# class ColabPushResult(Callback):
+
+#     def after_train(self, state):
+
+
+class NNIReportIntermediateResult(Callback):
+
+    def __init__(self, metric):
+        super().__init__()
+        self.metric = metric
+
+    def after_epoch(self, state):
+        epoch = int(state['epoch'].numpy())
+        val_metric = self.learner.metric_history.get_metric(self.metric, "eval", epoch, epoch)
+        if val_metric:
+            import nni
+            nni.report_intermediate_result(val_metric)
+
+    def after_eval(self, state):
+        final_metric = self.learner.metric_history.get_metric(self.metric, "eval")[-1]
+        import nni
+        nni.report_final_result(final_metric)
+
+
+class OptunaReportIntermediateResult(Callback):
+
+    def __init__(self, metric, trial):
+        super().__init__()
+        self.metric = metric
+        self.trial = trial
+
+    def after_eval(self, state):
+        epoch = int(state['epoch'].numpy())
+        val_metric = self.learner.metric_history.get_metric(self.metric, "eval", epoch, epoch)
+        if val_metric:
+            self.trial.report(val_metric, epoch)
+        if self.trial.should_prune():
+            self.learner._terminated = True
+            import optuna
+            raise optuna.TrialPruned()

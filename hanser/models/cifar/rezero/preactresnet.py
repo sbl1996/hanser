@@ -3,7 +3,7 @@ from tensorflow.keras import Sequential, Model
 from tensorflow.keras.initializers import Constant
 from tensorflow.keras.layers import Layer
 
-from hanser.models.layers import Act, Conv2d, Norm, GlobalAvgPool, Linear, Identity
+from hanser.models.layers import Act, Conv2d, Norm, GlobalAvgPool, Linear
 
 
 class PreActResBlock(Layer):
