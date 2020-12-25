@@ -49,8 +49,9 @@ class MainRes2Conv(Layer):
         return x
 
 
-def Res2Conv(channels, kernel_size, stride, scale, norm, act, start_block):
+def Res2Conv(in_channels, out_channels, kernel_size, stride, scale, norm, act, start_block):
+    assert in_channels == out_channels
     if start_block:
-        return StartRes2Conv(channels, kernel_size, stride, scale, norm, act)
+        return StartRes2Conv(in_channels, kernel_size, stride, scale, norm, act)
     else:
-        return MainRes2Conv(channels, kernel_size, stride, scale, norm, act)
+        return MainRes2Conv(in_channels, kernel_size, stride, scale, norm, act)

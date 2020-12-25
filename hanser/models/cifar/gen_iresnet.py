@@ -1,29 +1,26 @@
-import math
 from tensorflow.keras import Sequential, Model
 from tensorflow.keras.layers import Layer
 
 from hanser.models.layers import Conv2d, Act, Identity, GlobalAvgPool, Linear, Norm, Pool2d
-from hanser.models.cifar.res2net.layers import Res2Conv
 
 
 class Bottleneck(Layer):
     expansion = 4
 
-    def __init__(self, in_channels, channels, stride, base_width, scale,
-                 start_block=False, end_block=False, exclude_bn0=False):
+    def __init__(self, in_channels, channels, out_channels, stride,
+                 start_block=False, end_block=False, exclude_bn0=False,
+                 conv_cls=Conv2d):
         super().__init__()
-        out_channels = channels * self.expansion
-        width = math.floor(out_channels // self.expansion * (base_width / 64)) * scale
         if not start_block and not exclude_bn0:
             self.bn0 = Norm(in_channels)
         if not start_block:
             self.act0 = Act()
-        self.conv1 = Conv2d(in_channels, width, kernel_size=1)
-        self.bn1 = Norm(width)
+        self.conv1 = Conv2d(in_channels, channels, kernel_size=1)
+        self.bn1 = Norm(channels)
         self.act1 = Act()
-        self.conv2 = Res2Conv(width, width, kernel_size=3, stride=stride, scale=scale,
-                              norm='def', act='def', start_block=start_block)
-        self.conv3 = Conv2d(width, out_channels, kernel_size=1)
+        self.conv2 = conv_cls(channels, channels, kernel_size=3, stride=stride,
+                              norm='def', act='def')
+        self.conv3 = Conv2d(channels, out_channels, kernel_size=1)
 
         if start_block:
             self.bn3 = Norm(out_channels)
@@ -69,35 +66,36 @@ class Bottleneck(Layer):
 
 class ResNet(Model):
 
-    def __init__(self, depth, base_width=26, scale=4, num_classes=10, stages=(64, 64, 128, 256)):
+    def __init__(self, depth, num_classes=10, stages=(64, 64, 128, 256),
+                 conv_channels=None, conv_cls=Conv2d):
         super().__init__()
         self.stages = stages
+        self.conv_channels = conv_channels or stages
+        self.conv_cls = conv_cls
         block = Bottleneck
         layers = [(depth - 2) // 9] * 3
+        cs = [stages[0]] + [c * block.expansion for c in stages[1:]]
+        conv_cs = self.conv_channels
 
-        self.conv = Conv2d(3, self.stages[0], kernel_size=3, norm='def', act='def')
+        self.conv = Conv2d(3, cs[0], kernel_size=3, norm='def', act='def')
 
         self.layer1 = self._make_layer(
-            block, self.stages[0], self.stages[1], layers[0], stride=1,
-            base_width=base_width, scale=scale)
+            block, cs[0], conv_cs[0], cs[1], layers[0], stride=1)
         self.layer2 = self._make_layer(
-            block, self.stages[1], self.stages[2], layers[1], stride=2,
-            base_width=base_width, scale=scale)
+            block, cs[1], conv_cs[1], cs[2], layers[1], stride=2)
         self.layer3 = self._make_layer(
-            block, self.stages[2], self.stages[3], layers[2], stride=2,
-            base_width=base_width, scale=scale)
+            block, cs[2], conv_cs[2], cs[3], layers[2], stride=2)
 
         self.avgpool = GlobalAvgPool()
-        self.fc = Linear(self.stages[3], num_classes)
+        self.fc = Linear(cs[3], num_classes)
 
-    def _make_layer(self, block, in_channels, channels, blocks, stride, base_width, scale):
-        layers = [block(in_channels, channels, stride=stride, start_block=True,
-                        base_width=base_width, scale=scale)]
-        out_channels = channels * 4
+    def _make_layer(self, block, in_channels, conv_channels, out_channels, blocks, stride):
+        layers = [block(in_channels, conv_channels, out_channels, stride=stride, start_block=True,
+                        conv_cls=self.conv_cls)]
         for i in range(1, blocks):
-            layers.append(block(out_channels, channels, stride=1,
+            layers.append(block(out_channels, conv_channels, out_channels, stride=1,
                                 exclude_bn0=i == 1, end_block=i == blocks - 1,
-                                base_width=base_width, scale=scale))
+                                conv_cls=self.conv_cls))
         return Sequential(layers)
 
     def call(self, x):

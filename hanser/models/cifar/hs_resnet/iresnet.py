@@ -3,17 +3,17 @@ from tensorflow.keras import Sequential, Model
 from tensorflow.keras.layers import Layer
 
 from hanser.models.layers import Conv2d, Act, Identity, GlobalAvgPool, Linear, Norm, Pool2d
-from hanser.models.cifar.res2net.layers import Res2Conv
+from hanser.models.cifar.hs_resnet.layers import HSConv
 
 
 class Bottleneck(Layer):
     expansion = 4
 
-    def __init__(self, in_channels, channels, stride, base_width, scale,
+    def __init__(self, in_channels, channels, stride, base_width, split,
                  start_block=False, end_block=False, exclude_bn0=False):
         super().__init__()
         out_channels = channels * self.expansion
-        width = math.floor(out_channels // self.expansion * (base_width / 64)) * scale
+        width = math.floor(out_channels // self.expansion * (base_width / 64)) * split
         if not start_block and not exclude_bn0:
             self.bn0 = Norm(in_channels)
         if not start_block:
@@ -21,8 +21,8 @@ class Bottleneck(Layer):
         self.conv1 = Conv2d(in_channels, width, kernel_size=1)
         self.bn1 = Norm(width)
         self.act1 = Act()
-        self.conv2 = Res2Conv(width, width, kernel_size=3, stride=stride, scale=scale,
-                              norm='def', act='def', start_block=start_block)
+        self.conv2 = HSConv(width, width, kernel_size=3, stride=stride, split=split,
+                            norm='def', act='def')
         self.conv3 = Conv2d(width, out_channels, kernel_size=1)
 
         if start_block:
@@ -69,7 +69,7 @@ class Bottleneck(Layer):
 
 class ResNet(Model):
 
-    def __init__(self, depth, base_width=26, scale=4, num_classes=10, stages=(64, 64, 128, 256)):
+    def __init__(self, depth, base_width=14, split=6, num_classes=10, stages=(64, 64, 128, 256)):
         super().__init__()
         self.stages = stages
         block = Bottleneck
@@ -79,25 +79,25 @@ class ResNet(Model):
 
         self.layer1 = self._make_layer(
             block, self.stages[0], self.stages[1], layers[0], stride=1,
-            base_width=base_width, scale=scale)
+            base_width=base_width, split=split)
         self.layer2 = self._make_layer(
             block, self.stages[1], self.stages[2], layers[1], stride=2,
-            base_width=base_width, scale=scale)
+            base_width=base_width, split=split)
         self.layer3 = self._make_layer(
             block, self.stages[2], self.stages[3], layers[2], stride=2,
-            base_width=base_width, scale=scale)
+            base_width=base_width, split=split)
 
         self.avgpool = GlobalAvgPool()
         self.fc = Linear(self.stages[3], num_classes)
 
-    def _make_layer(self, block, in_channels, channels, blocks, stride, base_width, scale):
+    def _make_layer(self, block, in_channels, channels, blocks, stride, base_width, split):
         layers = [block(in_channels, channels, stride=stride, start_block=True,
-                        base_width=base_width, scale=scale)]
+                        base_width=base_width, split=split)]
         out_channels = channels * 4
         for i in range(1, blocks):
             layers.append(block(out_channels, channels, stride=1,
                                 exclude_bn0=i == 1, end_block=i == blocks - 1,
-                                base_width=base_width, scale=scale))
+                                base_width=base_width, split=split))
         return Sequential(layers)
 
     def call(self, x):
