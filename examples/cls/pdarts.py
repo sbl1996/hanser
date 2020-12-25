@@ -113,6 +113,3 @@ trainer = Trainer(model, criterion, optimizer, metrics, test_metrics,
 
 trainer.fit(epochs, ds_train, steps_per_epoch, ds_test, test_steps, val_freq=5,
             callbacks=[DropPathRateSchedule(drop_path), EvalEveryAfter])
-
-import tensorflow_addons as tfa
-tfa.optimizers.LAMB

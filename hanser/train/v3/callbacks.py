@@ -2,6 +2,7 @@ from toolz import curry
 import numpy as np
 from hhutil.io import time_now
 from tensorflow_addons.optimizers import MovingAverage
+from hanser.models.modules import DropPath
 
 
 @curry
@@ -237,7 +238,7 @@ class DropPathRateSchedule(Callback):
         epochs = state['epochs']
         rate = (epoch - 1) / epochs * self.drop_path
         for l in self.learner.model.submodules:
-            if 'drop' in l.name:
+            if isinstance(l, DropPath):
                 l.rate.assign(rate)
 
 
