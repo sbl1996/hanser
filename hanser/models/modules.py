@@ -31,8 +31,8 @@ class PadChannel(Layer):
 
 class SELayer(Layer):
 
-    def __init__(self, in_channels, reduction, groups=1, name=None):
-        super().__init__()
+    def __init__(self, in_channels, reduction, groups=1, **kwargs):
+        super().__init__(**kwargs)
         channels = min(max(in_channels // reduction, 32), in_channels)
         if groups != 1:
             channels = round_channels(channels, groups)
