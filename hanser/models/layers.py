@@ -51,8 +51,6 @@ DEFAULTS = {
         'distribution': 'uniform',
         'fix': True,
     },
-    'no_bias_decay': False,
-    'weight_decay': 0.0,
 }
 
 _defaults_schema = {
@@ -88,8 +86,6 @@ _defaults_schema = {
         'fix': {'type': 'boolean'},
     },
     'seed': {'type': 'integer'},
-    'no_bias_decay': {'type': 'boolean'},
-    'weight_decay': {'type': 'float', 'min': 0.0, 'max': 1.0},
 }
 
 
@@ -187,15 +183,11 @@ def Conv2d(in_channels: int,
     else:
         use_bias = bias
 
-    kernel_regularizer = get_weight_decay()
-    bias_regularizer = get_weight_decay() if not DEFAULTS['no_bias_decay'] else None
-
     if in_channels == groups:
         if DEFAULTS['conv']['depthwise']['use_group']:
             conv = Conv2D(out_channels, kernel_size=kernel_size, strides=stride,
                           padding='valid', dilation_rate=dilation, use_bias=use_bias, groups=groups,
-                          kernel_initializer=kernel_initializer, bias_initializer=bias_initializer,
-                          kernel_regularizer=kernel_regularizer, bias_regularizer=bias_regularizer)
+                          kernel_initializer=kernel_initializer, bias_initializer=bias_initializer)
         else:
             depth_multiplier = out_channels // in_channels
             if DEFAULTS['conv']['depthwise']['horch']:
@@ -205,13 +197,11 @@ def Conv2d(in_channels: int,
                 depth_conv = DepthwiseConv2D
             conv = depth_conv(kernel_size=kernel_size, strides=stride, padding='valid',
                               use_bias=use_bias, dilation_rate=dilation, depth_multiplier=depth_multiplier,
-                              depthwise_initializer=kernel_initializer, bias_initializer=bias_initializer,
-                              depthwise_regularizer=kernel_regularizer, bias_regularizer=bias_regularizer)
+                              depthwise_initializer=kernel_initializer, bias_initializer=bias_initializer)
     else:
         conv = Conv2D(out_channels, kernel_size=kernel_size, strides=stride,
                       padding='valid', dilation_rate=dilation, use_bias=use_bias, groups=groups,
-                      kernel_initializer=kernel_initializer, bias_initializer=bias_initializer,
-                      kernel_regularizer=kernel_regularizer, bias_regularizer=bias_regularizer)
+                      kernel_initializer=kernel_initializer, bias_initializer=bias_initializer)
 
     if padding != (0, 0):
         conv = Sequential([
@@ -277,20 +267,15 @@ def ConvTranspose2d(
     else:
         use_bias = bias
 
-    kernel_regularizer = get_weight_decay()
-    bias_regularizer = get_weight_decay() if not DEFAULTS['no_bias_decay'] else None
-
     if in_channels == groups:
         depth_multiplier = out_channels // in_channels
         conv = DepthwiseConv2D(kernel_size=kernel_size, strides=stride, padding='valid',
                                use_bias=use_bias, dilation_rate=dilation, depth_multiplier=depth_multiplier,
-                               depthwise_initializer=kernel_initializer, bias_initializer=bias_initializer,
-                               depthwise_regularizer=kernel_regularizer, bias_regularizer=bias_regularizer)
+                               depthwise_initializer=kernel_initializer, bias_initializer=bias_initializer)
     else:
         conv = Conv2DTranspose(out_channels, kernel_size=kernel_size, strides=stride,
                                padding='valid', dilation_rate=dilation, use_bias=use_bias, groups=groups,
-                               kernel_initializer=kernel_initializer, bias_initializer=bias_initializer,
-                               kernel_regularizer=kernel_regularizer, bias_regularizer=bias_regularizer)
+                               kernel_initializer=kernel_initializer, bias_initializer=bias_initializer)
 
     if padding != (0, 0):
         conv = Sequential([
@@ -324,12 +309,6 @@ def Norm(channels, type='default', affine=None, track_running_stats=None):
         type = DEFAULTS['norm']
     if type == 'bn':
         cfg = DEFAULTS['bn']
-        if DEFAULTS['no_bias_decay']:
-            gamma_regularizer = None
-            beta_regularizer = None
-        else:
-            gamma_regularizer = get_weight_decay()
-            beta_regularizer = get_weight_decay()
         if affine is None:
             affine = cfg['affine']
         if track_running_stats is None:
@@ -337,13 +316,11 @@ def Norm(channels, type='default', affine=None, track_running_stats=None):
         if cfg['sync']:
             bn = SyncBatchNormalization(
                 momentum=cfg['momentum'], epsilon=cfg['eps'], center=affine, scale=affine,
-                gamma_regularizer=gamma_regularizer, beta_regularizer=beta_regularizer,
                 track_running_stats=track_running_stats)
         else:
             bn = BatchNormalization(
                 momentum=cfg['momentum'], epsilon=cfg['eps'], center=affine, scale=affine,
-                gamma_regularizer=gamma_regularizer, beta_regularizer=beta_regularizer, fused=cfg['fused'],
-                track_running_stats=track_running_stats)
+                fused=cfg['fused'], track_running_stats=track_running_stats)
         return bn
     elif type == 'gn':
         cfg = DEFAULTS['gn']
@@ -427,21 +404,13 @@ class Identity(Layer):
         return tf.identity(inputs)
 
 
-def get_weight_decay():
-    wd = DEFAULTS['weight_decay']
-    if wd:
-        return l2(wd * 0.5)
-
-
 def Linear(in_channels, out_channels, act=None):
     kernel_initializer = VarianceScaling(1.0 / 3, 'fan_in', 'uniform')
     bound = math.sqrt(1 / in_channels)
     bias_initializer = RandomUniform(-bound, bound)
     return Dense(out_channels, activation=act,
                  kernel_initializer=kernel_initializer,
-                 bias_initializer=bias_initializer,
-                 kernel_regularizer=get_weight_decay(),
-                 bias_regularizer=get_weight_decay())
+                 bias_initializer=bias_initializer)
 
 
 def mish(x):
