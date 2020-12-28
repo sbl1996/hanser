@@ -53,8 +53,7 @@ def decode_and_transform(transform):
         return transform(image, label, training)
     return fn
 
-def input_fn(data_dir, training, transform, batch_size):
-    filenames = get_filenames(data_dir, training)
+def input_fn(filenames, training, transform, batch_size):
     dataset = tf.data.Dataset.from_tensor_slices(filenames)
 
     if training:
@@ -81,8 +80,7 @@ def input_fn(data_dir, training, transform, batch_size):
         parse_record_fn = decode_and_transform(transform)
 
     map_fn = functools.partial(
-        parse_record_fn,
-        training=training)
+        parse_record_fn, training=training)
 
     dataset = dataset.map(
         map_fn, num_parallel_calls=tf.data.experimental.AUTOTUNE)
@@ -96,7 +94,11 @@ def input_fn(data_dir, training, transform, batch_size):
     return dataset
 
 
-def make_imagenet_dataset(data_dir, batch_size, eval_batch_size, transform, **kwargs):
-    ds_train = input_fn(data_dir, training=True, transform=transform, batch_size=batch_size, **kwargs)
-    ds_eval = input_fn(data_dir, training=False, transform=transform, batch_size=eval_batch_size, **kwargs)
+def make_imagenet_dataset(data_dir, batch_size, eval_batch_size, transform, train_files=None, eval_files=None, **kwargs):
+    if train_files is None:
+        train_files = get_filenames(data_dir, training=True)
+    if eval_files is None:
+        eval_files = get_filenames(data_dir, training=False)
+    ds_train = input_fn(train_files, training=True, transform=transform, batch_size=batch_size, **kwargs)
+    ds_eval = input_fn(eval_files, training=False, transform=transform, batch_size=eval_batch_size, **kwargs)
     return ds_train, ds_eval
