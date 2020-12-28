@@ -47,8 +47,8 @@ DEFAULTS = {
     'norm': 'bn',
     'init': {
         'type': 'msra',
-        'mode': 'fan_in',
-        'distribution': 'uniform',
+        'mode': 'fan_out',
+        'distribution': 'untruncated_normal',
         'fix': True,
     },
 }

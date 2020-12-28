@@ -10,7 +10,7 @@ def split2(x):
 
 class MainHSConv(Layer):
 
-    def __init__(self, channels, kernel_size, split=5, norm='def', act='def'):
+    def __init__(self, channels, kernel_size, groups=1, split=5, norm='def', act='def'):
         super().__init__()
         assert channels % split == 0
         width = channels // split
@@ -20,7 +20,7 @@ class MainHSConv(Layer):
         self.convs = []
         for i in range(split - 1):
             self.convs.append(
-                Conv2d(c, c, kernel_size=kernel_size, norm=norm, act=act)
+                Conv2d(c, c, kernel_size=kernel_size, groups=groups, norm=norm, act=act)
             )
             c = width + c // 2
 
@@ -37,10 +37,10 @@ class MainHSConv(Layer):
         x = tf.concat(outs, axis=-1)
         return x
 
-def HSConv(in_channels, out_channels, kernel_size, stride=1, split=5, norm='def', act='def'):
+def HSConv(in_channels, out_channels, kernel_size, stride=1, groups=1, split=5, norm='def', act='def'):
     assert in_channels == out_channels
     if stride == 1:
-        return MainHSConv(in_channels, kernel_size, split, norm, act)
+        return MainHSConv(in_channels, kernel_size, groups, split, norm, act)
     else:
         return Conv2d(in_channels, out_channels, kernel_size, stride=stride,
-                      norm=norm, act=act)
+                      groups=groups, norm=norm, act=act)
