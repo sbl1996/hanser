@@ -290,6 +290,8 @@ def _image_dimensions(image, rank):
 
 
 def resize(img, size, method='bilinear'):
+    if img.dtype == tf.string:
+        img = tf.image.decode_jpeg(img, channels=3)
     if not isinstance(size, (tuple, list)):
         size = tf.cast(size, tf.float32)
         shape = tf.shape(img)

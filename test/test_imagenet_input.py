@@ -7,8 +7,6 @@ def transform(image, label, training):
         image = random_resized_crop(image, 224, scale=(0.05, 1.0), ratio=(0.75, 1.33))
         image = tf.image.random_flip_left_right(image)
     else:
-        if image.dtype == tf.string:
-            image = tf.image.decode_jpeg(image, channels=3)
         image = resize(image, 256)
         image = center_crop(image, 224)
 
