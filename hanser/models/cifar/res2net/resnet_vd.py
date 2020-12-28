@@ -14,7 +14,7 @@ class Bottle2neck(Layer):
         width = math.floor(channels * (base_width / 64)) * scale
         self.conv1 = Conv2d(in_channels, width, kernel_size=1,
                             norm='def', act='def')
-        self.conv2 = Res2Conv(width, width, kernel_size=3, stride=stride, scale=scale,
+        self.conv2 = Res2Conv(width, width, kernel_size=3, stride=stride, scale=scale, groups=1,
                               start_block=start_block, norm='def', act='def')
         self.conv3 = Conv2d(width, out_channels, kernel_size=1,
                             norm='def')

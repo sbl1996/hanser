@@ -21,7 +21,7 @@ class Bottleneck(Layer):
         self.conv1 = Conv2d(in_channels, width, kernel_size=1)
         self.bn1 = Norm(width)
         self.act1 = Act()
-        self.conv2 = Res2Conv(width, width, kernel_size=3, stride=stride, scale=scale,
+        self.conv2 = Res2Conv(width, width, kernel_size=3, stride=stride, scale=scale, groups=1,
                               norm='def', act='def', start_block=start_block)
         self.conv3 = Conv2d(width, out_channels, kernel_size=1)
 
