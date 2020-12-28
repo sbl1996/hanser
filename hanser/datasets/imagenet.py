@@ -1,10 +1,8 @@
 import os
+import math
 import functools
 import tensorflow as tf
 from hanser.datasets.imagenet_classes import IMAGENET_CLASSES
-
-DEFAULT_IMAGE_SIZE = 224
-NUM_CHANNELS = 3
 
 NUM_IMAGES = {
     'train': 1281167,
@@ -16,7 +14,6 @@ _SHUFFLE_BUFFER = 10000
 
 
 def get_filenames(data_dir, training):
-  """Return filenames for dataset."""
   if training:
     return [
         os.path.join(data_dir, 'train-%05d-of-01024' % i)
@@ -102,4 +99,6 @@ def make_imagenet_dataset(batch_size, eval_batch_size, transform, data_dir=None,
         eval_files = get_filenames(data_dir, training=False)
     ds_train = input_fn(train_files, training=True, transform=transform, batch_size=batch_size, **kwargs)
     ds_eval = input_fn(eval_files, training=False, transform=transform, batch_size=eval_batch_size, **kwargs)
-    return ds_train, ds_eval
+    steps_per_epoch = NUM_IMAGES['train'] // batch_size
+    eval_steps = math.ceil(NUM_IMAGES['validation'] / eval_batch_size)
+    return ds_train, ds_eval, steps_per_epoch, eval_steps

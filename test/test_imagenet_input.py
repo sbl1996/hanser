@@ -19,7 +19,8 @@ def transform(image, label, training):
 
 data_dir = "/Users/hrvvi/Downloads/ILSVRC2012/tfrecords/combined"
 eval_files = [ str(p) for p in eglob(data_dir, "validation-*") ]
-ds_train, ds_eval = make_imagenet_dataset(256, 512, transform, train_files=eval_files, eval_files=eval_files)
+ds_train, ds_eval, steps_per_epoch, eval_steps = make_imagenet_dataset(
+    256, 512, transform, train_files=eval_files, eval_files=eval_files)
 
 train_it = iter(ds_train)
 x, y = next(train_it)
