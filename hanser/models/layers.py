@@ -351,7 +351,7 @@ def Act(type='default'):
         return Activation(type)
 
 
-def Pool2d(kernel_size, stride, padding='same', type='avg', ceil_mode=False, name=None):
+def Pool2d(kernel_size, stride, padding='same', type='avg', ceil_mode=False):
     assert padding == 0 or padding == 'same'
     if padding == 0:
         padding = 'valid'
