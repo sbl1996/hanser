@@ -147,8 +147,9 @@ class ResNet(Model):
         else:
             block = Bottleneck
 
-        self.conv = Conv2d(3, self.stages[0], kernel_size=7, norm='def', act='def')
-        self.maxpool = Pool2d(kernel_size=3, stride=2)
+        self.conv = Conv2d(3, self.stages[0], kernel_size=7, stride=2,
+                           norm='def', act='def')
+        self.maxpool = Pool2d(kernel_size=3, stride=2, type='max')
 
         self.layer1 = self._make_layer(
             block, self.stages[0], self.stages[1], layers[0], stride=1,
