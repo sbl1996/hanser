@@ -1,6 +1,7 @@
 import os
 import functools
 import tensorflow as tf
+from hanser.datasets.imagenet_classes import IMAGENET_CLASSES
 
 DEFAULT_IMAGE_SIZE = 224
 NUM_CHANNELS = 3
@@ -94,7 +95,7 @@ def input_fn(filenames, training, transform, batch_size):
     return dataset
 
 
-def make_imagenet_dataset(data_dir, batch_size, eval_batch_size, transform, train_files=None, eval_files=None, **kwargs):
+def make_imagenet_dataset(batch_size, eval_batch_size, transform, data_dir=None, train_files=None, eval_files=None, **kwargs):
     if train_files is None:
         train_files = get_filenames(data_dir, training=True)
     if eval_files is None:

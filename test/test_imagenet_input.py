@@ -1,6 +1,7 @@
 import tensorflow as tf
-from hanser.datasets.imagenet import make_imagenet_dataset
+from hanser.datasets.imagenet import make_imagenet_dataset, IMAGENET_CLASSES
 from hanser.transform import random_resized_crop, resize, center_crop, normalize, to_tensor
+from hhutil.io import eglob
 
 def transform(image, label, training):
     if training:
@@ -17,4 +18,14 @@ def transform(image, label, training):
     return image, label
 
 data_dir = "/Users/hrvvi/Downloads/ILSVRC2012/tfrecords/combined"
-ds_train, ds_eval = make_imagenet_dataset(data_dir, 256, 512, transform)
+eval_files = [ str(p) for p in eglob(data_dir, "validation-*") ]
+ds_train, ds_eval = make_imagenet_dataset(256, 512, transform, train_files=eval_files, eval_files=eval_files)
+
+train_it = iter(ds_train)
+x, y = next(train_it)
+
+i = 10
+xt = x.values[0][i].numpy()
+xt = (xt * [0.229, 0.224, 0.225] + [0.485, 0.456, 0.406]) * 255
+plt.imshow(xt.astype(np.uint8))
+print(IMAGENET_CLASSES[np.argmax(y.values[0][i])])
