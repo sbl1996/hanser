@@ -8,6 +8,8 @@ from tensorflow.python.ops import gen_image_ops
 
 from hanser.transform.fmix import sample_mask
 
+IMAGENET_MEAN = [123.675, 116.28, 103.53]
+IMAGENET_STD = [58.395, 57.120, 57.375]
 
 @curry
 def mixup_batch(image, label, beta):
@@ -290,7 +292,8 @@ def _image_dimensions(image, rank):
 def resize(img, size, method='bilinear'):
     if not isinstance(size, (tuple, list)):
         size = tf.cast(size, tf.float32)
-        h, w = img.shape[:2]
+        shape = tf.shape(img)
+        h, w = shape[0], shape[1]
         h = tf.cast(h, tf.float32)
         w = tf.cast(w, tf.float32)
         shorter = tf.minimum(h, w)
@@ -300,6 +303,38 @@ def resize(img, size, method='bilinear'):
         size = tf.stack([oh, ow])
     img = tf.image.resize(img, size, method=method)
     return img
+
+
+def random_resized_crop(image, size, scale=(0.05, 1.0), ratio=(0.75, 1.33)):
+    bbox = tf.zeros((1,0,4), dtype=tf.float32)
+    decoded = image.dtype != tf.string
+    shape = tf.shape(image) if decoded else tf.image.extract_jpeg_shape(image)
+    sample_distorted_bounding_box = tf.image.sample_distorted_bounding_box(
+        shape,
+        bounding_boxes=bbox,
+        aspect_ratio_range=ratio,
+        area_range=scale,
+        use_image_if_no_bounding_boxes=True)
+    bbox_begin, bbox_size, _ = sample_distorted_bounding_box
+
+    offset_y, offset_x, _ = tf.unstack(bbox_begin)
+    target_height, target_width, _ = tf.unstack(bbox_size)
+    crop_window = tf.stack([offset_y, offset_x, target_height, target_width])
+
+    if decoded:
+        cropped = tf.image.crop_to_bounding_box(
+            image,
+            offset_height=offset_y,
+            offset_width=offset_x,
+            target_height=target_height,
+            target_width=target_width)
+    else:
+        cropped = tf.image.decode_and_crop_jpeg(image, crop_window, channels=3)
+
+    if not isinstance(size, (tuple, list)):
+        size = (size, size)
+    image = resize(cropped, size)
+    return image
 
 
 def _is_batch(x):
@@ -325,6 +360,21 @@ def random_crop(x, size, padding, fill=0):
         crop_size = [tf.shape(x)[0], *crop_size]
     x = tf.image.random_crop(x, crop_size)
     return x
+
+
+def center_crop(image, size):
+    shape = tf.shape(image)
+    height, width = shape[0], shape[1]
+    if not isinstance(size, (tuple, list)):
+        size = (size, size)
+    crop_height, crop_width = size
+
+    amount_to_be_cropped_h = (height - crop_height)
+    crop_top = amount_to_be_cropped_h // 2
+    amount_to_be_cropped_w = (width - crop_width)
+    crop_left = amount_to_be_cropped_w // 2
+    return tf.slice(
+        image, [crop_top, crop_left, 0], [crop_height, crop_width, -1])
 
 
 @curry
@@ -664,14 +714,18 @@ def translate_y(image, pixels, replace):
 def normalize(x, mean, std):
     mean = tf.convert_to_tensor(mean, x.dtype)
     std = tf.convert_to_tensor(std, x.dtype)
+    mean = tf.broadcast_to(mean, tf.shape(x))
+    std = tf.broadcast_to(std, tf.shape(x))
     x = (x - mean) / std
     return x
 
 
-def to_tensor(image, label, dtype=tf.float32, vmax=255):
+def to_tensor(image, label, dtype=tf.float32, vmax=255, label_offset=None):
     image = tf.cast(image, dtype) / vmax
+    label = tf.reshape(label, shape=())
     label = tf.cast(label, tf.int32)
-
+    if label_offset:
+        label -= label_offset
     return image, label
 
 
