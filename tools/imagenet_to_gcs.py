@@ -348,13 +348,14 @@ def convert_to_tf_records(
     training_synsets = [training_synsets[i] for i in training_shuffle_idx]
 
     # Glob all the validation files
-    validation_files = sorted(tf.gfile.Glob(
-        os.path.join(raw_data_dir, VALIDATION_DIRECTORY, '*', '*.JPEG')))
+    # validation_files = sorted(tf.gfile.Glob(
+    #     os.path.join(raw_data_dir, VALIDATION_DIRECTORY, '*', '*.JPEG')))
 
     # Get validation file synset labels from labels.txt
-    validation_synsets = tf.gfile.FastGFile(
-        os.path.join(raw_data_dir, LABELS_FILE), 'rb').read().splitlines()
+    # validation_synsets = tf.gfile.FastGFile(
+    #     os.path.join(raw_data_dir, LABELS_FILE), 'rb').read().splitlines()
 
+    validation_synsets = []
     # Create unique ids for all synsets
     labels = {v: k + 1 for k, v in enumerate(
         sorted(set(validation_synsets + training_synsets)))}
@@ -367,14 +368,14 @@ def convert_to_tf_records(
         TRAINING_DIRECTORY, TRAINING_SHARDS)
 
     # Create validation data
-    logging.info('Processing the validation data.')
-    validation_records = _process_dataset(
-        validation_files, validation_synsets, labels,
-        os.path.join(local_scratch_dir, VALIDATION_DIRECTORY),
-        VALIDATION_DIRECTORY, VALIDATION_SHARDS)
+    # logging.info('Processing the validation data.')
+    # validation_records = _process_dataset(
+    #     validation_files, validation_synsets, labels,
+    #     os.path.join(local_scratch_dir, VALIDATION_DIRECTORY),
+    #     VALIDATION_DIRECTORY, VALIDATION_SHARDS)
 
-    return training_records, validation_records
-
+    # return training_records, validation_records
+    return training_records
 
 def upload_to_gcs(training_records: Iterable[str],
                   validation_records: Iterable[str],
@@ -444,14 +445,15 @@ def run(raw_data_dir: str,
             'and extract the .tar files manually and provide the `raw_data_dir`.')
 
     # Convert the raw data into tf-records
-    training_records, validation_records = convert_to_tf_records(
+    # training_records, validation_records = convert_to_tf_records(
+    training_records = convert_to_tf_records(
         raw_data_dir=raw_data_dir,
         local_scratch_dir=local_scratch_dir)
 
     # Upload to GCS
     if gcs_upload:
         upload_to_gcs(training_records=training_records,
-                      validation_records=validation_records,
+                      validation_records=[],
                       gcs_output_path=gcs_output_path,
                       gcs_project=gcs_project,
                       client=client)

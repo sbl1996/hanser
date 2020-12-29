@@ -51,7 +51,7 @@ def decode_and_transform(transform):
         return transform(image, label, training)
     return fn
 
-def input_fn(filenames, training, transform, batch_size):
+def input_fn(filenames, training, transform, batch_size, batch_transform=None):
     dataset = tf.data.Dataset.from_tensor_slices(filenames)
 
     if training:
@@ -83,6 +83,9 @@ def input_fn(filenames, training, transform, batch_size):
     dataset = dataset.map(
         map_fn, num_parallel_calls=tf.data.experimental.AUTOTUNE)
     dataset = dataset.batch(batch_size, drop_remainder=training)
+    if training and batch_transform:
+        dataset = dataset.map(
+            batch_transform, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
     dataset = dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
 
