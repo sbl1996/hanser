@@ -18,15 +18,28 @@ def transform(image, label, training):
     return image, label
 
 data_dir = "/Users/hrvvi/Downloads/ILSVRC2012/tfrecords/combined"
-eval_files = [ str(p) for p in eglob(data_dir, "validation-*") ]
+# train_files = [
+#     "/Users/hrvvi/Downloads/train-00000-of-01024",
+# ]
+train_files = [ str(p) for p in eglob(data_dir, "validation-*") ]
+eval_files = [
+    "/Users/hrvvi/Downloads/ILSVRC2012/tfrecords/combined/validation-00000-of-00128",
+    "/Users/hrvvi/Downloads/ILSVRC2012/tfrecords/combined/validation-00042-of-00128"
+]
+# eval_files = [ str(p) for p in eglob(data_dir, "validation-*") ]
 ds_train, ds_eval, steps_per_epoch, eval_steps = make_imagenet_dataset(
-    256, 512, transform, train_files=eval_files, eval_files=eval_files)
+    128, 256, transform, train_files=train_files, eval_files=eval_files, cache_decoded_image=False)
 
 train_it = iter(ds_train)
-x, y = next(train_it)
+for i in range(1000):
+    x, y = next(train_it)
+    print(i, x[0].numpy().mean())
 
-i = 10
-xt = x.values[0][i].numpy()
+import numpy as np
+import matplotlib.pyplot as plt
+
+i = 5
+xt = x[i].numpy()
 xt = (xt * [0.229, 0.224, 0.225] + [0.485, 0.456, 0.406]) * 255
 plt.imshow(xt.astype(np.uint8))
-print(IMAGENET_CLASSES[np.argmax(y.values[0][i])])
+print(IMAGENET_CLASSES[np.argmax(y[i])])
