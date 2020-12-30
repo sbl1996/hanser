@@ -1,8 +1,7 @@
-import tensorflow as tf
 from tensorflow.keras import Sequential, Model
-from tensorflow.keras.initializers import Constant
 from tensorflow.keras.layers import Layer
 
+from hanser.models.modules import ReZero
 from hanser.models.layers import Act, Conv2d, Norm, GlobalAvgPool, Linear
 
 
@@ -19,9 +18,7 @@ class PreActResBlock(Layer):
         if stride != 1 or in_channels != out_channels:
             self.shortcut = Conv2d(in_channels, out_channels, kernel_size=1, stride=stride)
 
-        self.res_weight = self.add_weight(
-            name='res_weight', shape=(), dtype=tf.float32,
-            trainable=True, initializer=Constant(0.))
+        self.rezero = ReZero()
 
     def call(self, x):
         out = self.norm1(x)
@@ -31,7 +28,7 @@ class PreActResBlock(Layer):
         out = self.norm2(out)
         out = self.act2(out)
         out = self.conv2(out)
-        return shortcut + self.res_weight * out
+        return shortcut + self.rezero(out)
 
 
 class ResNet(Model):
