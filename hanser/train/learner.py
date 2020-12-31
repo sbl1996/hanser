@@ -275,6 +275,9 @@ class Learner(metaclass=ABCMeta):
             state['metrics'][name] = metric.result().numpy()
 
     def evaluate(self, ds_val, val_steps=None, callbacks=None):
+        if 'step' not in self._state['eval']:
+            self._state['eval']['step'] = tf.Variable(0, dtype=tf.int64)
+
         val_steps = val_steps or len(ds_val)
         cbks = config_callbacks(self, callbacks, mode='eval')
 
