@@ -281,7 +281,7 @@ class Learner(metaclass=ABCMeta):
         state = self._state['eval']
         state['metrics'] = {}
         cbks.begin_eval(state)
-        self._run_epoch(ds_val, val_steps, cbks, 'eval')
+        self._run_epoch(iter(ds_val), val_steps, cbks, 'eval')
         cbks.after_eval(state)
 
     def predict(self, test_loader):
