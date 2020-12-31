@@ -282,6 +282,8 @@ class Learner(metaclass=ABCMeta):
             self.set_state('step', tf.Variable(0, dtype=tf.int64), 'eval')
         if 'epoch' not in self._state['eval']:
             self.set_state('epoch', tf.Variable(0, dtype=tf.int64), 'eval')
+        if 'epochs' not in self._state['eval']:
+            self.set_state('epochs', tf.Variable(0, dtype=tf.int64), 'eval')
 
         val_steps = val_steps or len(ds_val)
         cbks = config_callbacks(self, callbacks, mode='eval')
