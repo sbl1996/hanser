@@ -51,7 +51,8 @@ def decode_and_transform(transform):
         return transform(image, label, training)
     return fn
 
-def input_fn(filenames, training, transform, batch_size, batch_transform=None, cache_decoded_image=True):
+def input_fn(filenames, training, transform, batch_size, batch_transform=None,
+             cache_dataset=True, cache_decoded_image=True):
     dataset = tf.data.Dataset.from_tensor_slices(filenames)
 
     if training:
@@ -66,7 +67,8 @@ def input_fn(filenames, training, transform, batch_size, batch_transform=None, c
         dataset = dataset.map(
             parse_example_proto_and_decode,
             num_parallel_calls=tf.data.experimental.AUTOTUNE)
-    dataset = dataset.cache()
+    if cache_dataset:
+        dataset = dataset.cache()
 
     if training:
         dataset = dataset.shuffle(buffer_size=_SHUFFLE_BUFFER)
@@ -106,3 +108,9 @@ def make_imagenet_dataset(
     steps_per_epoch = NUM_IMAGES['train'] // batch_size
     eval_steps = math.ceil(NUM_IMAGES['validation'] / eval_batch_size)
     return ds_train, ds_eval, steps_per_epoch, eval_steps
+
+def make_imagenet_dataset_split(
+    batch_size, transform, filenames, split, **kwargs):
+    ds = input_fn(filenames, training=split == 'train', transform=transform, batch_size=batch_size, **kwargs)
+    steps = NUM_IMAGES[split] // batch_size
+    return ds, steps
