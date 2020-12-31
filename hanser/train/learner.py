@@ -143,13 +143,16 @@ class Learner(metaclass=ABCMeta):
     def epoch(self):
         return self._state['train']['epoch'].numpy()
 
+    def set_state(self, k, v, mode):
+        if k not in self._state[mode] or not isinstance(self._state[mode][k], tf.Variable):
+            self._state[mode][k] = v
+        else:
+            self._state[mode][k].assign(v)
+
     def set_global_state(self, k, v):
         modes = ['train', 'eval', 'test']
         for m in modes:
-            if k not in self._state[m] or not isinstance(self._state[m][k], tf.Variable):
-                self._state[m][k] = v
-            else:
-                self._state[m][k].assign(v)
+            self.set_state(k, v, m)
 
     def fit(self, ds_train, max_epochs, ds_val=None, val_freq=1,
             steps_per_epoch=None, val_steps=None, save_freq=None, callbacks=None):
@@ -276,7 +279,9 @@ class Learner(metaclass=ABCMeta):
 
     def evaluate(self, ds_val, val_steps=None, callbacks=None):
         if 'step' not in self._state['eval']:
-            self._state['eval']['step'] = tf.Variable(0, dtype=tf.int64)
+            self.set_state('step', tf.Variable(0, dtype=tf.int64), 'eval')
+        if 'epoch' not in self._state['eval']:
+            self.set_state('epoch', tf.Variable(0, dtype=tf.int64), 'eval')
 
         val_steps = val_steps or len(ds_val)
         cbks = config_callbacks(self, callbacks, mode='eval')

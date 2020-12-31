@@ -199,7 +199,7 @@ class EvalLogger(Callback):
     def after_eval(self, state):
         learner = self.learner
         if self._is_print():
-            log_metrics('eval', state['metrics'], state['epochs'], learner._writer, learner.metric_history,
+            log_metrics('eval', state['metrics'], state['epoch'].numpy(), learner._writer, learner.metric_history,
                         stage_name='valid')
 
 
@@ -235,7 +235,7 @@ class DropPathRateSchedule(Callback):
 
     def begin_epoch(self, state):
         epoch = int(state['epoch'].numpy())
-        epochs = state['epochs']
+        epochs = state['epochs'].numpy()
         rate = (epoch - 1) / epochs * self.drop_path
         for l in self.learner.model.submodules:
             if isinstance(l, DropPath):
