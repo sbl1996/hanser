@@ -8,9 +8,10 @@ from hanser.models.layers import Conv2d, Act, Identity, GlobalAvgPool, Linear, N
 class BasicBlock(Layer):
     expansion = 1
 
-    def __init__(self, in_channels, out_channels, stride, dropout, drop_path,
+    def __init__(self, in_channels, channels, stride, dropout, drop_path,
                  start_block=False, end_block=False, exclude_bn0=False):
         super().__init__()
+        out_channels = channels * self.expansion
         if not start_block and not exclude_bn0:
             self.bn0 = Norm(in_channels)
 
@@ -24,7 +25,7 @@ class BasicBlock(Layer):
         self.conv2 = Conv2d(out_channels, out_channels, kernel_size=3)
 
         if start_block:
-            self.bn2 = Norm(out_channels, gamma_init='zeros')
+            self.bn2 = Norm(out_channels)
 
         self.drop_path = DropPath(drop_path) if drop_path else Identity()
 
@@ -90,7 +91,7 @@ class Bottleneck(Layer):
         self.conv3 = Conv2d(channels, out_channels, kernel_size=1)
 
         if start_block:
-            self.bn3 = Norm(out_channels, gamma_init='zeros')
+            self.bn3 = Norm(out_channels)
 
         self.drop_path = DropPath(drop_path) if drop_path else Identity()
 
@@ -156,32 +157,32 @@ class ResNet(Model):
                    norm='def', act='def'),
         ])
         self.maxpool = Pool2d(kernel_size=3, stride=2, type='max')
+        self.in_channels = self.stages[0]
 
         self.layer1 = self._make_layer(
-            block, self.stages[0], self.stages[1], layers[0], stride=1,
+            block, self.stages[1], layers[0], stride=1,
             dropout=dropout, drop_path=drop_path)
         self.layer2 = self._make_layer(
-            block, self.stages[1], self.stages[2], layers[1], stride=2,
+            block, self.stages[2], layers[1], stride=2,
             dropout=dropout, drop_path=drop_path)
         self.layer3 = self._make_layer(
-            block, self.stages[2], self.stages[3], layers[2], stride=2,
+            block, self.stages[3], layers[2], stride=2,
             dropout=dropout, drop_path=drop_path)
         self.layer4 = self._make_layer(
-            block, self.stages[3], self.stages[4], layers[3], stride=2,
+            block, self.stages[4], layers[3], stride=2,
             dropout=dropout, drop_path=drop_path)
 
         self.avgpool = GlobalAvgPool()
-        self.fc = Linear(self.stages[-1], num_classes)
+        self.fc = Linear(self.in_channels, num_classes)
 
-    def _make_layer(self, block, in_channels, channels, blocks, stride,
-                    dropout, drop_path):
-        layers = [block(in_channels, channels, stride=stride, start_block=True,
-                        dropout=dropout, drop_path=drop_path)]
-        out_channels = channels * block.expansion
+    def _make_layer(self, block, channels, blocks, stride, **kwargs):
+        layers = [block(self.in_channels, channels, stride=stride, start_block=True,
+                        **kwargs)]
+        self.in_channels = channels * block.expansion
         for i in range(1, blocks):
-            layers.append(block(out_channels, channels, stride=1,
+            layers.append(block(self.in_channels, channels, stride=1,
                                 exclude_bn0=i == 1, end_block=i == blocks - 1,
-                                dropout=dropout, drop_path=drop_path))
+                                **kwargs))
         return Sequential(layers)
 
     def call(self, x):
