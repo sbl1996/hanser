@@ -142,10 +142,6 @@ class ResNet(Model):
     def __init__(self, block, layers, dropout=0, drop_path=0, num_classes=1000, stages=(64, 64, 128, 256, 512)):
         super().__init__()
         self.stages = stages
-        if block == 'basic':
-            block = BasicBlock
-        else:
-            block = Bottleneck
 
         self.conv = Conv2d(3, self.stages[0], kernel_size=7, stride=2,
                            norm='def', act='def')
