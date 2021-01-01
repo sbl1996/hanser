@@ -118,5 +118,8 @@ def make_imagenet_dataset(
 def make_imagenet_dataset_split(
     batch_size, transform, filenames, split, **kwargs):
     ds = input_fn(filenames, training=split == 'train', transform=transform, batch_size=batch_size, **kwargs)
-    steps = NUM_IMAGES[split] // batch_size
+    if split == 'train':
+        steps = NUM_IMAGES[split] // batch_size
+    else:
+        steps = math.ceil(NUM_IMAGES[split] / batch_size)
     return ds, steps

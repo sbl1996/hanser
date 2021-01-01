@@ -1,6 +1,6 @@
 import tensorflow as tf
 from hanser.datasets.imagenet import IMAGENET_CLASSES, make_imagenet_dataset_split
-from hanser.transform import random_resized_crop, resize, center_crop, normalize, to_tensor, mixup, mixup_batch
+from hanser.transform import random_resized_crop, resize, center_crop, normalize, to_tensor, mixup, mixup_batch, mixup_in_batch
 
 
 def transform(image, label, training):
@@ -21,7 +21,7 @@ def zip_transform(data1, data2):
     return mixup(data1, data2, alpha=0.2)
 
 def batch_transform(image, label):
-    return mixup_batch(image, label, 0.2)
+    return mixup_in_batch(image, label, 0.2)
 
 
 train_files = [
@@ -29,16 +29,16 @@ train_files = [
     for i in range(32)
 ]
 
-batch_size = 128
+batch_size = 128 * 2
 ds_train = make_imagenet_dataset_split(
     batch_size, transform, train_files, split='train',
     cache_dataset=True, cache_decoded_image=False,
-    zip_transform=zip_transform)[0]
+    batch_transform=batch_transform)[0]
 
 steps_per_epoch = 10
 
 train_it = iter(ds_train)
-for i in range(50000 // 4 // batch_size + 1):
+for i in range(50000 // 4 // batch_size * 2 + 1):
     x, y = next(train_it)
     print(i, x[0].numpy().mean())
 
