@@ -338,14 +338,14 @@ class Learner(metaclass=ABCMeta):
         save_path = str(self.work_dir / "ckpt")
         ckpt, ckpt_options = self._make_ckpt()
         path = ckpt.write(save_path, ckpt_options)
-        print('Save trainer to %s' % path)
+        print('Save learner to %s' % path)
 
     def load(self, fp=None):
         fp = fp or str(find_most_recent(self.work_dir, "ckpt.index"))[:-6]
         ckpt, ckpt_options = self._make_ckpt()
         ckpt.restore(fp, ckpt_options)
         self.set_global_state('epoch', self.epoch)
-        print("Load trainer at epoch %d from %s" % (self.epoch + 1, fp))
+        print("Load learner at epoch %d from %s" % (self.epoch + 1, fp))
 
 
 def cast(xs, dtype):
