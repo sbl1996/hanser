@@ -120,15 +120,20 @@ class Learner(metaclass=ABCMeta):
         self._terminated = False
         self.set_global_state("epoch", tf.Variable(-1, dtype=tf.int64))
 
-        self._ckpt = tf.train.Checkpoint(
-            model=model, optimizers=optimizers,
-            epoch=self._state['train']['epoch']
-        )
-        self._ckpt_options = tf.train.CheckpointOptions(
-            experimental_io_device="/job:localhost") if self._strategy else None
-
         if self.xla_compile:
             self.xla_train_batch = tf.function(self.train_batch, experimental_compile=True)
+
+    def _make_ckpt(self):
+        optimizers = self.optimizers
+        if len(optimizers) == 1 and hasattr(self, "original_optimizer"):
+            optimizers = [self.original_optimizer]
+        ckpt = tf.train.Checkpoint(
+            model=self.model, optimizers=optimizers,
+            epoch=self._state['train']['epoch']
+        )
+        ckpt_options = tf.train.CheckpointOptions(
+            experimental_io_device="/job:localhost") if self._strategy else None
+        return ckpt, ckpt_options
 
     def train_batch(self, batch):
         pass
@@ -331,12 +336,14 @@ class Learner(metaclass=ABCMeta):
                 rm(f)
 
         save_path = str(self.work_dir / "ckpt")
-        path = self._ckpt.write(save_path, self._ckpt_options)
+        ckpt, ckpt_options = self._make_ckpt()
+        path = ckpt.write(save_path, ckpt_options)
         print('Save trainer to %s' % path)
 
     def load(self, fp=None):
         fp = fp or str(find_most_recent(self.work_dir, "ckpt.index"))[:-6]
-        self._ckpt.restore(fp, self._ckpt_options)
+        ckpt, ckpt_options = self._make_ckpt()
+        ckpt.restore(fp, ckpt_options)
         self.set_global_state('epoch', self.epoch)
         print("Load trainer at epoch %d from %s" % (self.epoch + 1, fp))
 
