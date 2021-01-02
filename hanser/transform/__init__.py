@@ -81,9 +81,9 @@ def rand_bbox(h, w, lam):
     return l, t, r, b
 
 
-def rand_mask(image, lam):
+def rand_mask(image, lam, batch_size=None):
     shape = tf.shape(image)
-    n = shape[0]
+    n = batch_size or shape[0]
     h = shape[1]
     w = shape[2]
 
@@ -108,11 +108,11 @@ def rand_mask(image, lam):
 
 
 @curry
-def cutmix_batch(image, label, alpha, uniform=False):
+def cutmix_batch(image, label, alpha, uniform=False, batch_size=None):
     n = tf.shape(image)[0]
     lam = _get_lam((n,), alpha, uniform)
 
-    masks, lam = rand_mask(image, lam)
+    masks, lam = rand_mask(image, lam, batch_size)
 
     index = tf.random.shuffle(tf.range(n))
     image2 = tf.gather(image, index)
@@ -125,13 +125,13 @@ def cutmix_batch(image, label, alpha, uniform=False):
 
 
 @curry
-def cutmix_in_batch(image, label, alpha, uniform=False):
+def cutmix_in_batch(image, label, alpha, uniform=False, batch_size=None):
     n = tf.shape(image)[0] // 2
     lam = _get_lam((n,), alpha, uniform)
 
     image1, image2 = image[:n], image[n:]
     label1, label2 = label[:n], label[n:]
-    masks, lam = rand_mask(image1, lam)
+    masks, lam = rand_mask(image1, lam, batch_size)
     image = image1 * masks + image2 * (1. - masks)
 
     lam = tf.cast(lam, label.dtype)[:, None]
