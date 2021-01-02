@@ -81,28 +81,14 @@ def rand_bbox(h, w, lam):
     return l, t, r, b
 
 
-def rand_mask(image, lam, batch_size=None):
-    shape = tf.shape(image)
-    n = batch_size or shape[0]
-    h = shape[1]
-    w = shape[2]
-
+def rand_mask(image, lam):
+    n, h, w = _image_dimensions(image, 4)[:3]
     l, t, r, b = rand_bbox(h, w, lam)
-    shape = tf.transpose([b - t, r - l], [1, 0])
-    masks = tf.TensorArray(image.dtype, n)
-    for i in tf.range(n):
-        padding = [
-            [t[i], h - b[i]],
-            [l[i], w - r[i]],
-        ]
-        mask = tf.pad(
-            tf.zeros(shape[i], dtype=image.dtype),
-            padding,
-            constant_values=1,
-        )
-        masks = masks.write(i, mask)
-
-    masks = tf.expand_dims(masks.stack(), -1)
+    hi = tf.range(h)[None, :, None, None]
+    mh = (hi >= t[:, None, None, None]) & (hi < b[:, None, None, None])
+    wi = tf.range(w)[None, None, :, None]
+    mw = (wi >= l[:, None, None, None]) & (wi < r[:, None, None, None])
+    masks = tf.cast(tf.logical_not(mh & mw), image.dtype)
     lam = 1 - (b - t) * (r - l) / (h * w)
     return masks, lam
 
@@ -110,11 +96,9 @@ def rand_mask(image, lam, batch_size=None):
 @curry
 def cutmix_batch(image, label, alpha, uniform=False):
     n = _image_dimensions(image, 4)[0]
-    print(_image_dimensions(image, 4))
-    tf.print(_image_dimensions(image, 4))
     lam = _get_lam((n,), alpha, uniform)
 
-    masks, lam = rand_mask(image, lam, batch_size=n)
+    masks, lam = rand_mask(image, lam)
 
     index = tf.random.shuffle(tf.range(n))
     image2 = tf.gather(image, index)
@@ -453,22 +437,13 @@ def cutout(images, length):
     b = tf.minimum(h, cy + length // 2)
     l = tf.maximum(0, cx - length // 2)
     r = tf.minimum(w, cx + length // 2)
-    shape = tf.transpose([b - t, r - l], [1, 0])
 
-    masks = tf.TensorArray(images.dtype, bs)
-    for i in tf.range(bs):
-        padding = [
-            [t[i], h - b[i]],
-            [l[i], w - r[i]],
-        ]
-        mask = tf.pad(
-            tf.zeros(shape[i], dtype=images.dtype),
-            padding,
-            constant_values=1,
-        )
-        masks = masks.write(i, mask)
+    hi = tf.range(h)[None, :, None, None]
+    mh = (hi >= t[:, None, None, None]) & (hi < b[:, None, None, None])
+    wi = tf.range(w)[None, None, :, None]
+    mw = (wi >= l[:, None, None, None]) & (wi < r[:, None, None, None])
+    masks = tf.cast(tf.logical_not(mh & mw), images.dtype)
 
-    masks = tf.expand_dims(masks.stack(), -1)
     images = images * masks
 
     if not is_batch:
