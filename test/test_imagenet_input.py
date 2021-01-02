@@ -21,7 +21,7 @@ def zip_transform(data1, data2):
     return mixup(data1, data2, alpha=0.2)
 
 def batch_transform(image, label):
-    return mixup_in_batch(image, label, beta=0.2)
+    return mixup_in_batch(image, label, alpha=0.2)
 
 
 train_files = [

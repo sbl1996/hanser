@@ -1,13 +1,12 @@
 import tensorflow as tf
 
 from hanser.train.learner import Learner, cast
-from hanser.transform import mixup_batch
 
 
 class CNNLearner(Learner):
 
-    def __init__(self, model, criterion, optimizer, mixup_alpha=None, **kwargs):
-        self.mixup_alpha = mixup_alpha
+    def __init__(self, model, criterion, optimizer, mixup_fn=None, **kwargs):
+        self.mixup_fn = mixup_fn
         super().__init__(model, criterion, optimizer, **kwargs)
 
     def train_batch(self, batch):
@@ -15,8 +14,8 @@ class CNNLearner(Learner):
         optimizer = self.optimizers[0]
 
         inputs, target = batch
-        if self.mixup_alpha is not None:
-            inputs, target = mixup_batch(inputs, target, self.mixup_alpha)
+        if self.mixup_fn is not None:
+            inputs, target = self.mixup_fn(inputs, target)
         with tf.GradientTape() as tape:
             inputs = cast(inputs, self.dtype)
             preds = model(inputs, training=True)

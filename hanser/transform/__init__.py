@@ -11,33 +11,44 @@ from hanser.transform.fmix import sample_mask
 IMAGENET_MEAN = [123.675, 116.28, 103.53]
 IMAGENET_STD = [58.395, 57.120, 57.375]
 
-@curry
-def mixup_batch(image, label, beta):
-    n = tf.shape(image)[0]
-    lam = tfp.distributions.Beta(beta, beta).sample((n,))
-    index = tf.random.shuffle(tf.range(tf.shape(image)[0]))
 
-    lam_image = tf.cast(lam, image.dtype)[:, None, None, None]
-    image = lam_image * image + (1 - lam_image) * tf.gather(image, index)
+def _mixup(image1, label1, image2, label2, lam):
+    if len(lam.shape) == 0:
+        lam = lam[None]
 
-    lam_label = tf.cast(lam, label.dtype)[:, None]
-    label = lam_label * label + (1 - lam_label) * tf.gather(label, index)
-    return image, label
-
-
-@curry
-def mixup_in_batch(image, label, beta):
-    n = tf.shape(image)[0] // 2
-    lam = tfp.distributions.Beta(beta, beta).sample((n,))
-    image1, image2 = image[:n], image[n:]
-    label1, label2 = label[:n], label[n:]
-
-    lam_image = tf.cast(lam, image.dtype)[:, None, None, None]
+    lam_image = tf.cast(lam, image1.dtype)[:, None, None, None]
     image = lam_image * image1 + (1 - lam_image) * image2
 
-    lam_label = tf.cast(lam, label.dtype)[:, None]
+    lam_label = tf.cast(lam, label1.dtype)[:, None]
     label = lam_label * label1 + (1 - lam_label) * label2
     return image, label
+
+
+def _get_lam(shape, alpha, uniform=False):
+    if uniform:
+        lam = tf.random.uniform(shape)
+    else:
+        lam = tfp.distributions.Beta(alpha, alpha).sample(shape)
+    return lam
+
+
+@curry
+def mixup_batch(image, label, alpha, uniform=False):
+    n = tf.shape(image)[0]
+    index = tf.random.shuffle(tf.range(n))
+    image2 = tf.gather(image, index)
+    label2 = tf.gather(label, index)
+    lam = _get_lam((n,), alpha, uniform)
+    return _mixup(image, label, image2, label2, lam)
+
+
+@curry
+def mixup_in_batch(image, label, alpha, uniform=False):
+    n = tf.shape(image)[0] // 2
+    lam = _get_lam((n,), alpha, uniform)
+    image1, image2 = image[:n], image[n:]
+    label1, label2 = label[:n], label[n:]
+    return _mixup(image1, label1, image2, label2, lam)
 
 
 @curry
@@ -59,8 +70,8 @@ def rand_bbox(h, w, lam):
     cut_w = tf.cast(tf.cast(w, lam.dtype) * cut_rat, tf.int32)
     cut_h = tf.cast(tf.cast(h, lam.dtype) * cut_rat, tf.int32)
 
-    cx = tf.random.uniform((), 0, w, dtype=tf.int32)
-    cy = tf.random.uniform((), 0, h, dtype=tf.int32)
+    cx = tf.random.uniform(tf.shape(lam), 0, w, dtype=tf.int32)
+    cy = tf.random.uniform(tf.shape(lam), 0, h, dtype=tf.int32)
 
     l = tf.clip_by_value(cx - cut_w // 2, 0, w)
     t = tf.clip_by_value(cy - cut_h // 2, 0, h)
@@ -70,38 +81,69 @@ def rand_bbox(h, w, lam):
     return l, t, r, b
 
 
-@curry
-def cutmix_batch(image, label, beta):
-    lam = tfp.distributions.Beta(beta, beta).sample(())
-    index = tf.random.shuffle(tf.range(tf.shape(image)[0]))
-
+def rand_mask(image, lam):
     shape = tf.shape(image)
+    n = shape[0]
     h = shape[1]
     w = shape[2]
 
     l, t, r, b = rand_bbox(h, w, lam)
-    shape = [b - t, r - l]
-    padding = [(t, h - b), (l, w - r)]
+    shape = tf.transpose([b - t, r - l], [1, 0])
+    masks = tf.TensorArray(image.dtype, n)
+    for i in tf.range(n):
+        padding = [
+            [t[i], h - b[i]],
+            [l[i], w - r[i]],
+        ]
+        mask = tf.pad(
+            tf.zeros(shape[i], dtype=image.dtype),
+            padding,
+            constant_values=1,
+        )
+        masks = masks.write(i, mask)
 
-    mask = tf.pad(tf.zeros(shape, dtype=image.dtype), padding, constant_values=1)
-    mask = tf.expand_dims(tf.expand_dims(mask, 0), -1)
+    masks = tf.expand_dims(masks.stack(), -1)
+    lam = 1 - (b - t) * (r - l) / (h * w)
+    return masks, lam
 
+
+@curry
+def cutmix_batch(image, label, alpha, uniform=False):
+    n = tf.shape(image)[0]
+    lam = _get_lam((n,), alpha, uniform)
+
+    masks, lam = rand_mask(image, lam)
+
+    index = tf.random.shuffle(tf.range(n))
     image2 = tf.gather(image, index)
     label2 = tf.gather(label, index)
-    image = image * mask + image2 * (1. - mask)
+    image = image * masks + image2 * (1. - masks)
 
-    lam = 1 - (b - t) * (r - l) / (h * w)
-    lam = tf.cast(lam, label.dtype)
+    lam = tf.cast(lam, label.dtype)[:, None]
     label = label * lam + label2 * (1. - lam)
-
     return image, label
 
 
 @curry
-def cutmix(data1, data2, beta):
+def cutmix_in_batch(image, label, alpha, uniform=False):
+    n = tf.shape(image)[0] // 2
+    lam = _get_lam((n,), alpha, uniform)
+
+    image1, image2 = image[:n], image[n:]
+    label1, label2 = label[:n], label[n:]
+    masks, lam = rand_mask(image1, lam)
+    image = image1 * masks + image2 * (1. - masks)
+
+    lam = tf.cast(lam, label.dtype)[:, None]
+    label = label1 * lam + label2 * (1. - lam)
+    return image, label
+
+
+@curry
+def cutmix(data1, data2, alpha):
     image1, label1 = data1
     image2, label2 = data2
-    lam = tfp.distributions.Beta(beta, beta).sample(())
+    lam = tfp.distributions.Beta(alpha, alpha).sample(())
 
     shape = tf.shape(image1)
     h = shape[0]
