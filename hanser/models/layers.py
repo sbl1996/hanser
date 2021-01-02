@@ -370,8 +370,6 @@ class GlobalAvgPool(Layer):
     def __init__(self, keep_dim=False, **kwargs):
         super().__init__(**kwargs)
         self.keep_dim = keep_dim
-        self.input_spec = InputSpec(ndim=4)
-        self._supports_ragged_inputs = True
 
     def compute_output_shape(self, input_shape):
         input_shape = tf.TensorShape(input_shape).as_list()
