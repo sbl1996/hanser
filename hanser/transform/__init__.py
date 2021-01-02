@@ -111,13 +111,13 @@ def cutmix_batch(image, label, alpha, uniform=False):
 
 
 @curry
-def cutmix_in_batch(image, label, alpha, uniform=False, batch_size=None):
+def cutmix_in_batch(image, label, alpha, uniform=False):
     n = tf.shape(image)[0] // 2
     lam = _get_lam((n,), alpha, uniform)
 
     image1, image2 = image[:n], image[n:]
     label1, label2 = label[:n], label[n:]
-    masks, lam = rand_mask(image1, lam, batch_size)
+    masks, lam = rand_mask(image1, lam)
     image = image1 * masks + image2 * (1. - masks)
 
     lam = tf.cast(lam, label.dtype)[:, None]
