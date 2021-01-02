@@ -13,14 +13,15 @@ IMAGENET_STD = [58.395, 57.120, 57.375]
 
 @curry
 def mixup_batch(image, label, beta):
-    lam = tfp.distributions.Beta(beta, beta).sample(())
+    n = tf.shape(image)[0]
+    lam = tfp.distributions.Beta(beta, beta).sample((n,))
     index = tf.random.shuffle(tf.range(tf.shape(image)[0]))
 
-    lam = tf.cast(lam, image.dtype)
-    image = lam * image + (1 - lam) * tf.gather(image, index)
+    lam_image = tf.cast(lam, image.dtype)[:, None, None, None]
+    image = lam_image * image + (1 - lam_image) * tf.gather(image, index)
 
-    lam = tf.cast(lam, label.dtype)
-    label = lam * label + (1 - lam) * tf.gather(label, index)
+    lam_label = tf.cast(lam, label.dtype)[:, None]
+    label = lam_label * label + (1 - lam_label) * tf.gather(label, index)
     return image, label
 
 

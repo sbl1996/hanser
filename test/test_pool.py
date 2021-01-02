@@ -13,7 +13,7 @@ def test_impl(size, kernel_size, stride):
     h = w = size
     x = tf.random.normal([2, h, w, 3])
 
-    m = Pool2d(kernel_size, stride, padding='same', type='max')
+    m = Pool2d(kernel_size, stride, padding='same', type='avg')
     with tf.GradientTape() as tape:
         tape.watch(x)
         y = m(x)
@@ -22,7 +22,7 @@ def test_impl(size, kernel_size, stride):
 
     padding = (kernel_size - 1) // 2
     xt = torch.from_numpy(np.transpose(x, [0, 3, 1, 2])).requires_grad_(True)
-    mt = nn.MaxPool2d(kernel_size, stride, padding=padding, ceil_mode=False)
+    mt = nn.AvgPool2d(kernel_size, stride, padding=padding, ceil_mode=False)
     yt = mt(xt)
     loss_t = yt.sum()
     loss_t.backward()
@@ -38,11 +38,11 @@ def test_impl(size, kernel_size, stride):
 
 
 
-sizes = [4, 8, 16]
+sizes = [4, 14, 8, 16]
+# kernel_sizes = [2]
+# strides = [2]
 kernel_sizes = [2]
 strides = [2]
-# kernel_sizes = [3]
-# strides = [1, 2]
 for size in sizes:
     for k in kernel_sizes:
         for s in strides:
