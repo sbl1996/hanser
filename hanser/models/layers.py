@@ -11,7 +11,7 @@ from tensorflow.keras.layers import Dense, Activation, Layer, InputSpec, Conv2D,
     Conv2DTranspose, DepthwiseConv2D
 from tensorflow.keras.regularizers import l2
 import tensorflow_addons as tfa
-from tensorflow_addons.activations import mish as tfa_mish
+from tensorflow_addons.activations import mish
 
 from hanser.models.pooling import MaxPooling2D as MaxPool2D, AveragePooling2D as AvgPool2D
 from hanser.models.bn import BatchNormalization, SyncBatchNormalization
@@ -40,7 +40,6 @@ DEFAULTS = {
         'affine': True,
     },
     'activation': 'relu',
-    'compat': False,
     'leaky_relu': {
         'alpha': 0.1,
     },
@@ -342,9 +341,7 @@ def Act(type='default'):
     if type in ['default', 'def']:
         return Act(DEFAULTS['activation'])
     if type == 'mish':
-        return Mish(compat=DEFAULTS['compat'])
-    elif type == 'swish' and DEFAULTS['compat']:
-        return Swish()
+        return Mish()
     elif type == 'leaky_relu':
         return LeakyReLU(alpha=DEFAULTS['leaky_relu']['alpha'])
     else:
@@ -413,34 +410,13 @@ def Linear(in_channels, out_channels, act=None):
                  bias_initializer=bias_initializer)
 
 
-def mish(x):
-    return x * tf.math.tanh(tf.math.softplus(x))
-
-
 class Mish(Layer):
-
-    def __init__(self, compat=False, **kwargs):
-        self.compat = compat
-        super().__init__(**kwargs)
-
-    def call(self, x, training=None):
-        if self.compat:
-            return mish(x)
-        else:
-            return tfa_mish(x)
-
-    def get_config(self):
-        base_config = super().get_config()
-        return base_config
-
-
-class Swish(Layer):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
     def call(self, x, training=None):
-        return tf.nn.swish(x)
+        return mish(x)
 
     def get_config(self):
         base_config = super().get_config()
