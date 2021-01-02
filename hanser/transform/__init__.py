@@ -108,11 +108,11 @@ def rand_mask(image, lam, batch_size=None):
 
 
 @curry
-def cutmix_batch(image, label, alpha, uniform=False, batch_size=None):
-    n = tf.shape(image)[0]
+def cutmix_batch(image, label, alpha, uniform=False):
+    n = _image_dimensions(image, 4)[0]
     lam = _get_lam((n,), alpha, uniform)
 
-    masks, lam = rand_mask(image, lam, batch_size)
+    masks, lam = rand_mask(image, lam, batch_size=n)
 
     index = tf.random.shuffle(tf.range(n))
     image2 = tf.gather(image, index)
