@@ -77,7 +77,6 @@ class Learner(metaclass=ABCMeta):
                  metric_transform=default_metric_transform,
                  target_metric_transform=default_metric_transform,
                  output_metric_transform=default_metric_transform,
-                 n_batches_per_step=None,
                  batch_mix_fn=None):
         if not isinstance(optimizers, Sequence):
             optimizers = [optimizers]
@@ -125,7 +124,6 @@ class Learner(metaclass=ABCMeta):
         if self.xla_compile:
             self.xla_train_batch = tf.function(self.train_batch, experimental_compile=True)
 
-        self.n_batches_per_step = n_batches_per_step
         self.batch_mix_fn = batch_mix_fn
 
     def _make_ckpt(self):
@@ -230,11 +228,8 @@ class Learner(metaclass=ABCMeta):
     @tf.function
     def _run_steps(self, step_fn, iterator, n_steps, callbacks, state):
         for i in tf.range(n_steps):
-            if self.n_batches_per_step is not None:
-                batches = []
-                for bi in tf.range(self.n_batches_per_step):
-                    batches.append(next(iterator))
-                batch = self.batch_mix_fn(*batches)
+            if self.batch_mix_fn is not None:
+                batch = self.batch_mix_fn(next(iterator), next(iterator))
             else:
                 batch = next(iterator)
             state['step'].assign_add(1)
