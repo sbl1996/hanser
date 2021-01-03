@@ -5,8 +5,11 @@ from hanser.train.learner import Learner, cast
 
 class CNNLearner(Learner):
 
-    def __init__(self, model, criterion, optimizer, batch_transform=None, **kwargs):
+    def __init__(self, model, criterion, optimizer,
+                 batch_transform=None, batches_transform=None,
+                 **kwargs):
         self.batch_transform = batch_transform
+        self.batches_transform = batches_transform
         super().__init__(model, criterion, optimizer, **kwargs)
 
     def train_batch(self, batch):
@@ -27,6 +30,10 @@ class CNNLearner(Learner):
 
         self.minimize(tape, optimizer, loss, model.trainable_variables)
         self.update_metrics(self.train_metrics, target, preds, per_example_loss)
+
+    def train_batches(self, *batches):
+        batch = self.batches_transform(*batches)
+        return self.train_batch(batch)
 
     def eval_batch(self, batch):
         model = self.model
