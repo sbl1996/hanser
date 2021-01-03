@@ -8,13 +8,13 @@ from hanser.models.layers import Conv2d, Act, Identity, GlobalAvgPool, Linear, P
 class BasicBlock(Layer):
     expansion = 1
 
-    def __init__(self, in_channels, channels, stride, reduction=16):
+    def __init__(self, in_channels, channels, stride, zero_init_residual=True, reduction=16):
         super().__init__()
         out_channels = channels * self.expansion
         self.conv1 = Conv2d(in_channels, out_channels, kernel_size=3, stride=stride,
                             norm='def', act='def')
         self.conv2 = Conv2d(out_channels, out_channels, kernel_size=3)
-        self.bn2 = Norm(out_channels, gamma_init='zeros')
+        self.bn2 = Norm(out_channels, gamma_init='zeros' if zero_init_residual else 'ones')
         self.se = SELayer(out_channels, reduction=reduction)
 
         if stride != 1 or in_channels != out_channels:
@@ -43,7 +43,7 @@ class BasicBlock(Layer):
 class Bottleneck(Layer):
     expansion = 4
 
-    def __init__(self, in_channels, channels, stride, reduction=16):
+    def __init__(self, in_channels, channels, stride, zero_init_residual=True, reduction=16):
         super().__init__()
         out_channels = channels * self.expansion
         self.conv1 = Conv2d(in_channels, channels, kernel_size=1,
@@ -51,7 +51,7 @@ class Bottleneck(Layer):
         self.conv2 = Conv2d(channels, channels, kernel_size=3, stride=stride,
                             norm='def', act='def')
         self.conv3 = Conv2d(channels, out_channels, kernel_size=1)
-        self.bn3 = Norm(out_channels, gamma_init='zeros')
+        self.bn3 = Norm(out_channels, gamma_init='zeros' if zero_init_residual else 'ones')
         self.se = SELayer(out_channels, reduction=reduction)
 
         if stride != 1 or in_channels != out_channels:
@@ -80,7 +80,7 @@ class Bottleneck(Layer):
 
 class ResNet(Model):
 
-    def __init__(self, block, layers, num_classes=1000, stages=(64, 64, 128, 256, 512), reduction=16):
+    def __init__(self, block, layers, num_classes=1000, stages=(64, 64, 128, 256, 512), zero_init_residual=True, reduction=16):
         super().__init__()
         self.stages = stages
 
@@ -96,13 +96,17 @@ class ResNet(Model):
         self.in_channels = self.stages[0]
 
         self.layer1 = self._make_layer(
-            block, self.stages[1], layers[0], stride=1, reduction=reduction)
+            block, self.stages[1], layers[0], stride=1,
+            zero_init_residual=zero_init_residual, reduction=reduction)
         self.layer2 = self._make_layer(
-            block, self.stages[2], layers[1], stride=2, reduction=reduction)
+            block, self.stages[2], layers[1], stride=2,
+            zero_init_residual=zero_init_residual, reduction=reduction)
         self.layer3 = self._make_layer(
-            block, self.stages[3], layers[2], stride=2, reduction=reduction)
+            block, self.stages[3], layers[2], stride=2,
+            zero_init_residual=zero_init_residual, reduction=reduction)
         self.layer4 = self._make_layer(
-            block, self.stages[4], layers[3], stride=2, reduction=reduction)
+            block, self.stages[4], layers[3], stride=2,
+            zero_init_residual=zero_init_residual, reduction=reduction)
 
         self.avgpool = GlobalAvgPool()
         self.fc = Linear(self.in_channels, num_classes)
