@@ -52,16 +52,20 @@ def mixup_in_batch(image, label, alpha, uniform=False):
 
 
 @curry
-def mixup(data1, data2, alpha):
+def mixup(data1, data2, alpha, uniform=False):
     image1, label1 = data1
     image2, label2 = data2
-    lam = tfp.distributions.Beta(alpha, alpha).sample(())
 
-    lam = tf.cast(lam, image1.dtype)
-    image = lam * image1 + (1 - lam) * image2
+    is_batch = _is_batch(image1)
+    image1, label1, image2, label2 = wrap_batch([
+        image1, label1, image2, label2
+    ], is_batch)
 
-    lam = tf.cast(lam, label1.dtype)
-    label = lam * label1 + (1 - lam) * label2
+    n = _image_dimensions(image1, 4)[0]
+    lam = _get_lam((n,), alpha, uniform)
+
+    image, label = _mixup(image1, label1, image2, label2, lam)
+    image, label = unwrap_batch([image, label], is_batch)
     return image, label
 
 
@@ -103,6 +107,7 @@ def cutmix_batch(image, label, alpha, uniform=False):
     index = tf.random.shuffle(tf.range(n))
     image2 = tf.gather(image, index)
     label2 = tf.gather(label, index)
+
     image = image * masks + image2 * (1. - masks)
 
     lam = tf.cast(lam, label.dtype)[:, None]
@@ -118,6 +123,7 @@ def cutmix_in_batch(image, label, alpha, uniform=False):
     image1, image2 = image[:n], image[n:]
     label1, label2 = label[:n], label[n:]
     masks, lam = rand_mask(image1, lam)
+
     image = image1 * masks + image2 * (1. - masks)
 
     lam = tf.cast(lam, label.dtype)[:, None]
@@ -125,29 +131,35 @@ def cutmix_in_batch(image, label, alpha, uniform=False):
     return image, label
 
 
+def wrap_batch(tensors, is_batch):
+    return tuple(t if is_batch else t[None] for t in tensors)
+
+
+def unwrap_batch(tensors, is_batch):
+    return tuple(t[0] if is_batch else t for t in tensors)
+
+
 @curry
-def cutmix(data1, data2, alpha):
+def cutmix(data1, data2, alpha, uniform=False):
     image1, label1 = data1
     image2, label2 = data2
-    lam = tfp.distributions.Beta(alpha, alpha).sample(())
 
-    shape = tf.shape(image1)
-    h = shape[0]
-    w = shape[1]
+    is_batch = _is_batch(image1)
+    image1, label1, image2, label2 = wrap_batch([
+        image1, label1, image2, label2
+    ], is_batch)
 
-    l, t, r, b = rand_bbox(h, w, lam)
-    shape = [b - t, r - l]
-    padding = [(t, h - b), (l, w - r)]
+    n = _image_dimensions(image1, 4)[0]
+    lam = _get_lam((n,), alpha, uniform)
 
-    mask = tf.pad(tf.zeros(shape, dtype=image1.dtype), padding, constant_values=1)
-    mask = tf.expand_dims(mask, -1)
+    masks, lam = rand_mask(image1, lam)
 
-    image = image1 * mask + image2 * (1. - mask)
+    image = image1 * masks + image2 * (1. - masks)
 
-    lam = 1 - (b - t) * (r - l) / (h * w)
-    lam = tf.cast(lam, label1.dtype)
+    lam = tf.cast(lam, label1.dtype)[:, None]
     label = label1 * lam + label2 * (1. - lam)
 
+    image, label = unwrap_batch([image, label], is_batch)
     return image, label
 
 
