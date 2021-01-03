@@ -136,7 +136,7 @@ def wrap_batch(tensors, is_batch):
 
 
 def unwrap_batch(tensors, is_batch):
-    return tuple(t[0] if is_batch else t for t in tensors)
+    return tuple(t if is_batch else t[0] for t in tensors)
 
 
 @curry
