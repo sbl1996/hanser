@@ -33,26 +33,28 @@ def _get_lam(shape, alpha, uniform=False):
 
 
 @curry
-def mixup_batch(image, label, alpha, uniform=False):
+def mixup_batch(image, label, alpha, uniform=False, hard=False):
     n = tf.shape(image)[0]
     index = tf.random.shuffle(tf.range(n))
     image2 = tf.gather(image, index)
     label2 = tf.gather(label, index)
-    lam = _get_lam((n,), alpha, uniform)
+    lam_shape = (n,) if hard else ()
+    lam = _get_lam(lam_shape, alpha, uniform)
     return _mixup(image, label, image2, label2, lam)
 
 
 @curry
-def mixup_in_batch(image, label, alpha, uniform=False):
+def mixup_in_batch(image, label, alpha, uniform=False, hard=False):
     n = tf.shape(image)[0] // 2
-    lam = _get_lam((n,), alpha, uniform)
+    lam_shape = (n,) if hard else ()
+    lam = _get_lam(lam_shape, alpha, uniform)
     image1, image2 = image[:n], image[n:]
     label1, label2 = label[:n], label[n:]
     return _mixup(image1, label1, image2, label2, lam)
 
 
 @curry
-def mixup(data1, data2, alpha, uniform=False):
+def mixup(data1, data2, alpha, uniform=False, hard=False):
     image1, label1 = data1
     image2, label2 = data2
 
@@ -62,7 +64,8 @@ def mixup(data1, data2, alpha, uniform=False):
     ], is_batch)
 
     n = _image_dimensions(image1, 4)[0]
-    lam = _get_lam((n,), alpha, uniform)
+    lam_shape = (n,) if hard else ()
+    lam = _get_lam(lam_shape, alpha, uniform)
 
     image, label = _mixup(image1, label1, image2, label2, lam)
     image, label = unwrap_batch([image, label], is_batch)

@@ -57,7 +57,7 @@ log_file = args.log
 train_start, train_losses, valid_ends, valid_accs,valid_acc5s = parse_log(log_file)
 total_time = timedelta(seconds=dtime(valid_ends[-1], train_start).seconds)
 total_epochs = len(valid_ends)
-epoch_train_time = (parse(valid_ends[-1]) - parse(valid_ends[2])).seconds / (total_epochs - 3)
+epoch_train_time = (parse(valid_ends[-1]) - parse(valid_ends[1])).seconds / (total_epochs - 2)
 print(f"%.2f %.2f %.4f %s %.1f" % (
     valid_accs[-1] * 100, valid_acc5s[-1] * 100, train_losses[-1],
     total_time, epoch_train_time))
