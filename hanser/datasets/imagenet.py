@@ -65,13 +65,14 @@ def input_fn(filenames, training, transform, batch_size,
 
     dataset = dataset.interleave(
         tf.data.TFRecordDataset,
-        cycle_length=10,
-        num_parallel_calls=tf.data.experimental.AUTOTUNE)
+        num_parallel_calls=tf.data.experimental.AUTOTUNE,
+        deterministic=False)
 
     if training and cache_decoded_image:
         dataset = dataset.map(
             parse_example_proto_and_decode,
-            num_parallel_calls=tf.data.experimental.AUTOTUNE)
+            num_parallel_calls=tf.data.experimental.AUTOTUNE,
+            deterministic=False)
     if cache_dataset:
         dataset = dataset.cache()
 
@@ -89,22 +90,24 @@ def input_fn(filenames, training, transform, batch_size,
         parse_record_fn, training=training)
 
     dataset = dataset.map(
-        map_fn, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+        map_fn, num_parallel_calls=tf.data.experimental.AUTOTUNE,
+        deterministic=False)
 
     if training and zip_transform:
-        if zip_transform:
-            dataset = tf.data.Dataset.zip((dataset, dataset)).map(
-                zip_transform, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+        dataset = tf.data.Dataset.zip((dataset, dataset)).map(
+            zip_transform, num_parallel_calls=tf.data.experimental.AUTOTUNE,
+            deterministic=False)
     dataset = dataset.batch(batch_size, drop_remainder=training)
     if training and batch_transform:
         dataset = dataset.map(
-            batch_transform, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+            batch_transform, num_parallel_calls=tf.data.experimental.AUTOTUNE,
+            deterministic=False)
 
     dataset = dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
 
-    options = tf.data.Options()
-    options.experimental_slack = True
-    dataset = dataset.with_options(options)
+    # options = tf.data.Options()
+    # options.experimental_slack = True
+    # dataset = dataset.with_options(options)
     return dataset
 
 
