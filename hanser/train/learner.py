@@ -166,8 +166,7 @@ class Learner(metaclass=ABCMeta):
             self.set_state(k, v, m)
 
     def fit(self, ds_train, max_epochs, ds_val=None, val_freq=1,
-            steps_per_epoch=None, val_steps=None, save_freq=None, callbacks=None,
-            reuse_eval_iter=False):
+            steps_per_epoch=None, val_steps=None, save_freq=None, callbacks=None):
 
         steps_per_epoch = steps_per_epoch or len(ds_train)
         steps_per_epoch = tf.convert_to_tensor(steps_per_epoch, dtype=tf.int32)
@@ -191,8 +190,6 @@ class Learner(metaclass=ABCMeta):
 
         # May have problem when recover training from checkpoint
         train_it = iter(ds_train)
-        if do_eval and reuse_eval_iter:
-            eval_iter = iter(ds_val)
         cbks.begin_train(self._state['train'])
         for epoch in range(start_epoch, max_epochs):
             self.set_global_state("epoch", epoch)
@@ -207,9 +204,7 @@ class Learner(metaclass=ABCMeta):
                 state = self._state['eval']
                 state['metrics'] = {}
                 cbks.begin_eval(state)
-                if not reuse_eval_iter:
-                    eval_iter = iter(ds_val)
-                self._run_epoch(eval_iter, val_steps, cbks, 'eval')
+                self._run_epoch(iter(ds_val), val_steps, cbks, 'eval')
                 cbks.after_eval(state)
 
             if self._terminated:
