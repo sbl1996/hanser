@@ -65,6 +65,7 @@ def input_fn(filenames, training, transform, batch_size,
 
     dataset = dataset.interleave(
         tf.data.TFRecordDataset,
+        cycle_length=10,
         num_parallel_calls=tf.data.experimental.AUTOTUNE,
         deterministic=False)
 
