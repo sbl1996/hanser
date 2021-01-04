@@ -239,7 +239,8 @@ class Learner(metaclass=ABCMeta):
             state['step'].assign_add(1)
             callbacks.begin_batch(state)
             if n_batches_per_step is not None:
-                batches = tuple(next(iterator) for bi in range(n_batches_per_step))
+                # batches = tuple(next(iterator) for bi in range(n_batches_per_step))
+                batches = (next(iterator), next(iterator))
                 step_fn(batches)
             else:
                 batch = next(iterator)
