@@ -223,7 +223,7 @@ class Learner(metaclass=ABCMeta):
 
     @tf.function
     def _train_step_on_batches(self, batches):
-        strategy_run(self._strategy, self.train_batches, batches)
+        strategy_run(self._strategy, self.train_batches, (batches,))
 
     @tf.function
     def _eval_step(self, batch):
