@@ -227,7 +227,7 @@ class Learner(metaclass=ABCMeta):
 
     @tf.function
     def _train_step_on_batches(self, batches):
-        strategy_run(self._strategy, self.train_batches, (batches,))
+        strategy_run(self._strategy, self.train_batches, batches)
 
     @tf.function
     def _eval_step(self, batch):
@@ -243,8 +243,7 @@ class Learner(metaclass=ABCMeta):
             state['step'].assign_add(1)
             callbacks.begin_batch(state)
             if n_batches_per_step is not None:
-                # batches = tuple(next(iterator) for bi in range(n_batches_per_step))
-                batches = (next(iterator), next(iterator))
+                batches = tuple(next(iterator) for bi in range(n_batches_per_step))
                 step_fn(batches)
             else:
                 batch = next(iterator)

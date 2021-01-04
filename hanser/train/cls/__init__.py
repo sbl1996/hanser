@@ -31,8 +31,8 @@ class CNNLearner(Learner):
         self.minimize(tape, optimizer, loss, model.trainable_variables)
         self.update_metrics(self.train_metrics, target, preds, per_example_loss)
 
-    def train_batches(self, batches):
-        batch = self.batches_transform(batches[0], batches[1])
+    def train_batches(self, *batches):
+        batch = self.batches_transform(*batches)
         return self.train_batch(batch)
 
     def eval_batch(self, batch):
