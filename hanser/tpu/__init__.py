@@ -32,7 +32,7 @@ def setup(datasets, fp16=True, device='auto', cross_device_ops=None):
     if device == 'TPU':
         if fp16:
             policy = mixed_precision.Policy('mixed_bfloat16')
-            mixed_precision.set_policy(policy)
+            mixed_precision.set_global_policy(policy)
         tf.distribute.experimental_set_strategy(strategy)
         return [
             (strategy.experimental_distribute_dataset(ds)
@@ -41,13 +41,13 @@ def setup(datasets, fp16=True, device='auto', cross_device_ops=None):
     elif device == 'GPU':
         if fp16:
             policy = mixed_precision.Policy('mixed_float16')
-            mixed_precision.set_policy(policy)
+            mixed_precision.set_global_policy(policy)
         return datasets
     elif isinstance(device, list) or device == 'GPUs':
         tf.distribute.experimental_set_strategy(strategy)
         if fp16:
             policy = mixed_precision.Policy('mixed_float16')
-            mixed_precision.set_policy(policy)
+            mixed_precision.set_global_policy(policy)
         return [
             (strategy.experimental_distribute_dataset(ds)
              if not isinstance(ds, tf.distribute.DistributedDataset) else ds)
