@@ -79,7 +79,9 @@ def input_fn(filenames, training, transform, batch_size,
 
     if training:
         dataset = dataset.shuffle(buffer_size=_SHUFFLE_BUFFER)
-    if repeat:
+    if isinstance(repeat, int):
+        dataset = dataset.repeat(repeat)
+    elif repeat:
         dataset = dataset.repeat()
 
     if training and cache_decoded_image:
