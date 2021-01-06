@@ -136,12 +136,17 @@ def make_imagenet_dataset(
 def make_imagenet_dataset_split(
     batch_size, transform, filenames, split, **kwargs):
     ds = input_fn(filenames, training=split == 'train', transform=transform, batch_size=batch_size, **kwargs)
+    n = NUM_IMAGES[split]
     if split == 'train':
-        n = NUM_IMAGES[split]
         chunksize = math.ceil(n / 1024)
-        steps = min(len(filenames) * chunksize, n) // batch_size
+        n = min(len(filenames) * chunksize, n)
+        if 'repeat' in kwargs and type(kwargs['repeat']) == int:
+            n *= kwargs['repeat']
+        steps = n // batch_size
     else:
-        n = NUM_IMAGES[split]
         chunksize = math.ceil(n / 128)
-        steps = math.ceil(min(len(filenames) * chunksize, n) / batch_size)
+        n = min(len(filenames) * chunksize, n)
+        if 'repeat' in kwargs and type(kwargs['repeat']) == int:
+            n *= kwargs['repeat']
+        steps = math.ceil(n / batch_size)
     return ds, steps

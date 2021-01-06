@@ -27,7 +27,7 @@ class CNNLearner(Learner):
             loss = self.reduce_loss(per_example_loss)
             if self.dtype == tf.float16:
                 loss = optimizer.get_scaled_loss(loss)
-
+        optimizer.minimize()
         self.minimize(tape, optimizer, loss, model.trainable_variables)
         self.update_metrics(self.train_metrics, target, preds, per_example_loss)
 
