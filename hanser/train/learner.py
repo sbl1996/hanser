@@ -191,7 +191,7 @@ class Learner(metaclass=ABCMeta):
 
         # May have problem when recover training from checkpoint
         if reuse_train_iterator:
-            train_it = iter(ds_train)
+            self._train_it = iter(ds_train)
         cbks.begin_train(self._state['train'])
         for epoch in range(start_epoch, max_epochs):
             self.set_global_state("epoch", epoch)
@@ -200,8 +200,8 @@ class Learner(metaclass=ABCMeta):
             state['metrics'] = {}
             cbks.begin_epoch(state)
             if not reuse_train_iterator:
-                train_it = iter(ds_train)
-            self._run_epoch(train_it, steps_per_epoch, cbks, 'train')
+                self._train_it = iter(ds_train)
+            self._run_epoch(self._train_it, steps_per_epoch, cbks, 'train')
             cbks.after_epoch(state)
 
             if do_eval and (epoch + 1) % self._val_freq == 0:
