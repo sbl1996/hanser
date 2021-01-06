@@ -106,9 +106,9 @@ def input_fn(filenames, training, transform, batch_size,
 
     dataset = dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
 
-    # options = tf.data.Options()
-    # options.experimental_slack = True
-    # dataset = dataset.with_options(options)
+    options = tf.data.Options()
+    options.experimental_slack = True
+    dataset = dataset.with_options(options)
     return dataset
 
 

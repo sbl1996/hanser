@@ -8,7 +8,7 @@ def transform(image, label, training):
         image = random_resized_crop(image, 160, scale=(0.05, 1.0), ratio=(0.75, 1.33))
         image = tf.image.random_flip_left_right(image)
     else:
-        image = resize(image, 256)
+        image = resize(image, int(256 / 224 * 224))
         image = center_crop(image, 224)
 
     image, label = to_tensor(image, label, label_offset=1)
@@ -26,21 +26,25 @@ def batch_transform(image, label):
 
 train_files = [
     "/Users/hrvvi/Downloads/ILSVRC2012/tfrecords/combined/validation-%05d-of-00128" % i
-    for i in range(32)
+    for i in range(16)
 ]
 
 batch_size = 128 * 2
 ds_train = make_imagenet_dataset_split(
     batch_size, transform, train_files, split='train',
-    cache_dataset=True, cache_decoded_image=False,
-    batch_transform=batch_transform)[0]
+    cache_dataset=True, cache_decoded_image=False, repeat=False,
+    zip_transform=zip_transform)[0]
 
 steps_per_epoch = 10
 
-train_it = iter(ds_train)
-for i in range(50000 // 4 // batch_size * 2 + 1):
-    x, y = next(train_it)
-    print(i, x[0].numpy().mean())
+import time
+for e in range(10):
+    train_it = iter(ds_train)
+    for i in range(50000 // 8 // batch_size):
+        x, y = next(train_it)
+        print(i, x[0].numpy().mean())
+    # del train_it
+    time.sleep(5)
 
 # 2.07GB
 # batch 2.10GB
