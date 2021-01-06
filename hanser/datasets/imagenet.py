@@ -135,9 +135,11 @@ def make_imagenet_dataset_split(
     batch_size, transform, filenames, split, **kwargs):
     ds = input_fn(filenames, training=split == 'train', transform=transform, batch_size=batch_size, **kwargs)
     if split == 'train':
-        chunksize = math.ceil(NUM_IMAGES[split] / 1024)
-        steps = len(filenames) * chunksize // batch_size
+        n = NUM_IMAGES[split]
+        chunksize = math.ceil(n / 1024)
+        steps = min(len(filenames) * chunksize, n) // batch_size
     else:
-        chunksize = math.ceil(NUM_IMAGES[split] / 128)
-        steps = math.ceil(len(filenames) * chunksize / batch_size)
+        n = NUM_IMAGES[split]
+        chunksize = math.ceil(n / 128)
+        steps = math.ceil(min(len(filenames) * chunksize, n) / batch_size)
     return ds, steps
