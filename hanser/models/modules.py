@@ -1,11 +1,8 @@
 import tensorflow as tf
+from tensorflow.keras import initializers
 from tensorflow.keras import Sequential
-from tensorflow.keras.layers import InputSpec, Softmax, Dropout
-from tensorflow.python.keras import initializers
-from tensorflow.python.keras.engine.base_layer import Layer
-from tensorflow.python.keras.initializers.initializers_v2 import Constant
-
-from tensorflow.python.keras.utils.tf_utils import smart_cond
+from tensorflow.keras.layers import InputSpec, Softmax, Dropout, Layer
+from tensorflow.python.keras.utils.control_flow_util import smart_cond
 
 from hanser.models.layers import Conv2d, Norm, Act
 
@@ -54,7 +51,7 @@ class DropPath(Dropout):
         super(Dropout, self).__init__(**kwargs)
         self.rate = self.add_weight(
             name="drop_rate", shape=(), dtype=tf.float32,
-            initializer=Constant(rate), trainable=False,
+            initializer=initializers.Constant(rate), trainable=False,
         )
 
     def call(self, inputs, training=None):
@@ -204,7 +201,7 @@ class ReZero(Layer):
         self.init_val = init_val
         self.res_weight = self.add_weight(
             name='res_weight', shape=(), dtype=tf.float32,
-            trainable=True, initializer=Constant(init_val))
+            trainable=True, initializer=initializers.Constant(init_val))
 
     def call(self, x):
         return x * self.res_weight
