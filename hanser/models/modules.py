@@ -2,9 +2,9 @@ import tensorflow as tf
 from tensorflow.keras import initializers
 from tensorflow.keras import Sequential
 from tensorflow.keras.layers import InputSpec, Softmax, Dropout, Layer
-from tensorflow.python.keras.utils.control_flow_util import smart_cond
 
 from hanser.models.layers import Conv2d, Norm, Act
+from tensorflow.python.layers.utils import smart_cond
 
 
 class PadChannel(Layer):
