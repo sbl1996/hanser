@@ -79,7 +79,7 @@ def input_fn(filenames, training, transform, batch_size,
 
     if training:
         dataset = dataset.shuffle(buffer_size=_SHUFFLE_BUFFER)
-    if isinstance(repeat, int):
+    if type(repeat) == int:
         dataset = dataset.repeat(repeat)
     elif repeat:
         dataset = dataset.repeat()
