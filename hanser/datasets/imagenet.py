@@ -54,7 +54,7 @@ def decode_and_transform(transform):
 def input_fn(filenames, training, transform, batch_size,
              batch_transform=None, zip_transform=None,
              cache_dataset=True, cache_decoded_image=False,
-             repeat=False):
+             repeat=False, buffer_size=_SHUFFLE_BUFFER):
 
     dataset = tf.data.Dataset.from_tensor_slices(filenames)
 
@@ -76,7 +76,7 @@ def input_fn(filenames, training, transform, batch_size,
         dataset = dataset.cache()
 
     if training:
-        dataset = dataset.shuffle(buffer_size=_SHUFFLE_BUFFER)
+        dataset = dataset.shuffle(buffer_size=buffer_size)
     if type(repeat) == int:
         dataset = dataset.repeat(repeat)
     elif repeat:
