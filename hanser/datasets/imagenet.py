@@ -54,9 +54,7 @@ def decode_and_transform(transform):
 def input_fn(filenames, training, transform, batch_size,
              batch_transform=None, zip_transform=None,
              cache_dataset=True, cache_decoded_image=False,
-             repeat=None):
-    if repeat is None:
-        repeat = training
+             repeat=False):
 
     dataset = tf.data.Dataset.from_tensor_slices(filenames)
 

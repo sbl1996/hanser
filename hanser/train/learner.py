@@ -167,7 +167,7 @@ class Learner(metaclass=ABCMeta):
 
     def fit(self, ds_train, max_epochs, ds_val=None, val_freq=1,
             steps_per_epoch=None, val_steps=None, save_freq=None, callbacks=None,
-            reuse_train_iterator=True):
+            reuse_train_iterator=False):
 
         steps_per_epoch = steps_per_epoch or len(ds_train)
         steps_per_epoch = tf.convert_to_tensor(steps_per_epoch, dtype=tf.int32)
