@@ -113,8 +113,7 @@ def input_fn(filenames, training, transform, batch_size,
 
 
 def make_imagenet_dataset(
-    batch_size, eval_batch_size, transform, data_dir=None, train_files=None, eval_files=None,
-    repeat_eval=False, **kwargs):
+    batch_size, eval_batch_size, transform, data_dir=None, train_files=None, eval_files=None, **kwargs):
 
     if train_files is None:
         train_files = get_filenames(data_dir, training=True)
@@ -124,8 +123,7 @@ def make_imagenet_dataset(
     ds_train = input_fn(
         train_files, training=True, transform=transform, batch_size=batch_size, **kwargs)
     ds_eval = input_fn(
-        eval_files, training=False, transform=transform, batch_size=eval_batch_size,
-        repeat=repeat_eval, **kwargs)
+        eval_files, training=False, transform=transform, batch_size=eval_batch_size, **kwargs)
 
     steps_per_epoch = NUM_IMAGES['train'] // batch_size
     eval_steps = math.ceil(NUM_IMAGES['validation'] / eval_batch_size)
