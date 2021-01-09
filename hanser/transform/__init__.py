@@ -39,12 +39,9 @@ def _get_lam(shape, alpha, uniform=False, mc=False):
 @curry
 def mixup_batch(image, label, alpha, hard=False, **gen_lam_kwargs):
     n = tf.shape(image)[0]
-    index = tf.random.shuffle(tf.range(n))
-    image2 = tf.gather(image, index)
-    label2 = tf.gather(label, index)
     lam_shape = (n,) if hard else ()
     lam = _get_lam(lam_shape, alpha, **gen_lam_kwargs)
-    return _mixup(image, label, image2, label2, lam)
+    return _mixup(image, label, image[::-1], label[::-1], lam)
 
 
 @curry
@@ -111,9 +108,8 @@ def cutmix_batch(image, label, alpha, **gen_lam_kwargs):
 
     masks, lam = rand_mask(image, lam)
 
-    index = tf.random.shuffle(tf.range(n))
-    image2 = tf.gather(image, index)
-    label2 = tf.gather(label, index)
+    image2 = image[::-1]
+    label2 = label[::-1]
 
     image = image * masks + image2 * (1. - masks)
 

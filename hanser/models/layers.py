@@ -7,9 +7,8 @@ from cerberus import Validator
 import tensorflow as tf
 from tensorflow.keras import Sequential
 from tensorflow.keras.initializers import VarianceScaling, RandomNormal, RandomUniform
-from tensorflow.keras.layers import Dense, Activation, Layer, InputSpec, Conv2D, ZeroPadding2D, LeakyReLU, \
-    Conv2DTranspose, DepthwiseConv2D
-from tensorflow.keras.regularizers import l2
+from tensorflow.keras.layers import Dense, Activation, Layer, Conv2D, ZeroPadding2D, LeakyReLU, \
+    Conv2DTranspose, DepthwiseConv2D, MaxPooling2D as KerasMaxPool2D, AveragePooling2D as KerasAvgPool2D
 import tensorflow_addons as tfa
 from tensorflow_addons.activations import mish
 
@@ -19,6 +18,7 @@ from hanser.models.bn import BatchNormalization, SyncBatchNormalization
 __all__ = ["set_default", "set_defaults", "Act", "Conv2d", "Norm", "Linear", "GlobalAvgPool", "Pool2d", "Identity"]
 
 DEFAULTS = {
+    'naive': False,
     'conv': {
         'depthwise': {
             'use_group': False,
@@ -53,6 +53,7 @@ DEFAULTS = {
 }
 
 _defaults_schema = {
+    'naive': {'type': 'boolean'},
     'conv': {
         'depthwise': {
             'use_group': {'type': 'boolean'},
@@ -155,6 +156,12 @@ def Conv2d(in_channels: int,
         dilation = (dilation, dilation)
     if isinstance(padding, int):
         padding = (padding, padding)
+
+    if DEFAULTS['naive']:
+        conv_padding = padding
+    else:
+        conv_padding = 'valid'
+
     if isinstance(padding, str):
         assert padding == 'same'
     if padding == 'same':
@@ -185,7 +192,7 @@ def Conv2d(in_channels: int,
     if in_channels == groups:
         if DEFAULTS['conv']['depthwise']['use_group']:
             conv = Conv2D(out_channels, kernel_size=kernel_size, strides=stride,
-                          padding='valid', dilation_rate=dilation, use_bias=use_bias, groups=groups,
+                          padding=conv_padding, dilation_rate=dilation, use_bias=use_bias, groups=groups,
                           kernel_initializer=kernel_initializer, bias_initializer=bias_initializer)
         else:
             depth_multiplier = out_channels // in_channels
@@ -194,15 +201,15 @@ def Conv2d(in_channels: int,
                 depth_conv = HorchDepthwiseConv2D
             else:
                 depth_conv = DepthwiseConv2D
-            conv = depth_conv(kernel_size=kernel_size, strides=stride, padding='valid',
+            conv = depth_conv(kernel_size=kernel_size, strides=stride, padding=conv_padding,
                               use_bias=use_bias, dilation_rate=dilation, depth_multiplier=depth_multiplier,
                               depthwise_initializer=kernel_initializer, bias_initializer=bias_initializer)
     else:
         conv = Conv2D(out_channels, kernel_size=kernel_size, strides=stride,
-                      padding='valid', dilation_rate=dilation, use_bias=use_bias, groups=groups,
+                      padding=conv_padding, dilation_rate=dilation, use_bias=use_bias, groups=groups,
                       kernel_initializer=kernel_initializer, bias_initializer=bias_initializer)
 
-    if padding != (0, 0):
+    if not DEFAULTS['naive'] and padding != (0, 0):
         conv = Sequential([
             ZeroPadding2D(padding),
             conv,
@@ -239,6 +246,12 @@ def ConvTranspose2d(
         dilation = (dilation, dilation)
     if isinstance(padding, int):
         padding = (padding, padding)
+
+    if DEFAULTS['naive']:
+        conv_padding = padding
+    else:
+        conv_padding = 'valid'
+
     if isinstance(padding, str):
         assert padding == 'same'
     if padding == 'same':
@@ -268,15 +281,15 @@ def ConvTranspose2d(
 
     if in_channels == groups:
         depth_multiplier = out_channels // in_channels
-        conv = DepthwiseConv2D(kernel_size=kernel_size, strides=stride, padding='valid',
+        conv = DepthwiseConv2D(kernel_size=kernel_size, strides=stride, padding=conv_padding,
                                use_bias=use_bias, dilation_rate=dilation, depth_multiplier=depth_multiplier,
                                depthwise_initializer=kernel_initializer, bias_initializer=bias_initializer)
     else:
         conv = Conv2DTranspose(out_channels, kernel_size=kernel_size, strides=stride,
-                               padding='valid', dilation_rate=dilation, use_bias=use_bias, groups=groups,
+                               padding=conv_padding, dilation_rate=dilation, use_bias=use_bias, groups=groups,
                                kernel_initializer=kernel_initializer, bias_initializer=bias_initializer)
 
-    if padding != (0, 0):
+    if not DEFAULTS['naive'] and padding != (0, 0):
         conv = Sequential([
             ZeroPadding2D(padding),
             conv,
@@ -354,9 +367,9 @@ def Pool2d(kernel_size, stride, padding='same', type='avg', ceil_mode=False):
         padding = 'valid'
 
     if type == 'avg':
-        pool = AvgPool2D
+        pool = KerasAvgPool2D if DEFAULTS['naive'] else AvgPool2D
     elif type == 'max':
-        pool = MaxPool2D
+        pool = KerasMaxPool2D if DEFAULTS['naive'] else MaxPool2D
     else:
         raise ValueError("Unsupported pool type: %s" % type)
 
