@@ -117,6 +117,8 @@ def set_default(keys: Union[str, Sequence[str]], value):
             loop(d[k], keys[1:], schema[k])
 
     if isinstance(keys, str):
+        if keys == 'activation':
+            return
         keys = [keys]
     loop(DEFAULTS, keys, _defaults_schema)
 
