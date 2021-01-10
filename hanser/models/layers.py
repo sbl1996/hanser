@@ -112,6 +112,7 @@ def set_default(keys: Union[str, Sequence[str]], value):
             v = Validator({k: schema[k]})
             if not v.validate({k: value}):
                 raise ValueError(v.errors)
+
             d[k] = value
         else:
             loop(d[k], keys[1:], schema[k])
@@ -120,6 +121,7 @@ def set_default(keys: Union[str, Sequence[str]], value):
         keys = [keys]
 
     if len(keys) == 1 and keys[0] == 'activation':
+        DEFAULTS['activation'] = value
         return
     loop(DEFAULTS, keys, _defaults_schema)
 
