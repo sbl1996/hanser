@@ -74,7 +74,6 @@ _defaults_schema = {
         'groups': {'type': 'integer'},
         'channels_per_group': {'type': 'integer'},
     },
-    'activation': {'type': 'string', 'allowed': ['relu', 'swish', 'mish', 'leaky_relu', 'sigmoid']},
     'leaky_relu': {
         'alpha': {'type': 'float', 'min': 0.0, 'max': 1.0},
     },

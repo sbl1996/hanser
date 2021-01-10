@@ -28,7 +28,7 @@ class BasicBlock(Layer):
 
         if end_block:
             self.bn2 = Norm(out_channels)
-            self.act2 = Norm(out_channels)
+            self.act2 = Act()
 
         if stride != 1 or in_channels != out_channels:
             shortcut = []

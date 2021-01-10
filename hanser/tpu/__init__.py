@@ -68,6 +68,21 @@ def get_colab_tpu():
         return strategy
 
 
+def get_colab_runtime_version():
+    from cloud_tpu_client import Client
+    tpu_address = os.environ.get("COLAB_TPU_ADDR")
+    client = Client(tpu="grpc://" + tpu_address)
+    return client.runtime_version()
+
+
+def set_colab_runtime_version(version=tf.__version__):
+    from cloud_tpu_client import Client
+    tpu_address = os.environ.get("COLAB_TPU_ADDR")
+    client = Client(tpu="grpc://" + tpu_address)
+    client.configure_tpu_version(tf.__version__, restart_type='ifNeeded')
+    client.wait_for_healthy()
+
+
 def auth():
     # noinspection PyUnresolvedReferences
     from google.colab import auth
