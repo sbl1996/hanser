@@ -120,6 +120,7 @@ def set_default(keys: Union[str, Sequence[str]], value):
         keys = [keys]
 
     if len(keys) == 1 and keys[0] == 'activation':
+        DEFAULTS['activation'] = value
         return
     loop(DEFAULTS, keys, _defaults_schema)
 
