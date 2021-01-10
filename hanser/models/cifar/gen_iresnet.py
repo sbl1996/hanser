@@ -32,7 +32,7 @@ class GenBottleneck(Layer):
 
         if end_block:
             self.bn3 = Norm(out_channels)
-            self.act3 = Norm(out_channels)
+            self.act3 = Act()
 
         if stride != 1 or in_channels != out_channels:
             shortcut = []
