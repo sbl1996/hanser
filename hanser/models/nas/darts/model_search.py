@@ -86,7 +86,7 @@ class Network(Model):
         # self.stem = Conv2d(3, C_curr, 3, norm='def')
         self.stem = Sequential([
             Conv2d(3, C_curr, 3, bias=False),
-            Norm(3, 'def', affine=True),
+            Norm(C_curr, 'def', affine=True),
         ])
 
         C_prev_prev, C_prev, C_curr = C_curr, C_curr, C

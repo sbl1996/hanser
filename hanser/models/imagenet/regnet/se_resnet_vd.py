@@ -20,17 +20,33 @@ class SELayer2(Layer):
         return x * s
 
 
+class SELayer3(Layer):
+
+    def __init__(self, channels, **kwargs):
+        super().__init__(**kwargs)
+        self.pool = GlobalAvgPool(keep_dim=True)
+        self.conv = Conv2d(channels, channels, kernel_size=1, bias=False)
+
+    def call(self, x):
+        s = self.pool(x)
+        s = tf.sigmoid(self.conv(s))
+        return x * s
+
+
 class Bottleneck(Layer):
     expansion = 1
 
-    def __init__(self, in_channels, out_channels, stride, groups):
+    def __init__(self, in_channels, out_channels, stride, groups, se_var=2):
         super().__init__()
 
         self.conv1 = Conv2d(in_channels, out_channels, kernel_size=1,
                             norm='def', act='def')
         self.conv2 = Conv2d(out_channels, out_channels, kernel_size=3, stride=stride, groups=groups,
                             norm='def', act='def')
-        self.se = SELayer2(out_channels)
+        if se_var == 2:
+            self.se = SELayer2(out_channels)
+        else:
+            self.se = SELayer3(out_channels)
         self.conv3 = Sequential([
             Conv2d(out_channels, out_channels, kernel_size=1, bias=False),
             Norm(out_channels, gamma_init='zeros')
@@ -59,7 +75,7 @@ class Bottleneck(Layer):
 
 class RegNet(Model):
 
-    def __init__(self, stem_channels, stages, layers, channels_per_group, num_classes=1000):
+    def __init__(self, stem_channels, stages, layers, channels_per_group, se_var=2, num_classes=1000):
         super().__init__()
         block = Bottleneck
 
@@ -69,24 +85,24 @@ class RegNet(Model):
         gs = [c // channels_per_group for c in stages]
 
         self.stage1 = self._make_layer(
-            block, stages[0], layers[0], stride=2, groups=gs[0])
+            block, stages[0], layers[0], stride=2, groups=gs[0], se_var=se_var)
         self.stage2 = self._make_layer(
-            block, stages[1], layers[1], stride=2, groups=gs[1])
+            block, stages[1], layers[1], stride=2, groups=gs[1], se_var=se_var)
         self.stage3 = self._make_layer(
-            block, stages[2], layers[2], stride=2, groups=gs[2])
+            block, stages[2], layers[2], stride=2, groups=gs[2], se_var=se_var)
         self.stage4 = self._make_layer(
-            block, stages[3], layers[3], stride=2, groups=gs[3])
+            block, stages[3], layers[3], stride=2, groups=gs[3], se_var=se_var)
 
         self.avgpool = GlobalAvgPool()
         self.fc = Linear(self.in_channels, num_classes)
 
-    def _make_layer(self, block, channels, blocks, stride, groups):
+    def _make_layer(self, block, channels, blocks, stride, **kwargs):
         layers = [block(self.in_channels, channels, stride=stride,
-                        groups=groups)]
+                        **kwargs)]
         self.in_channels = channels * block.expansion
         for i in range(1, blocks):
             layers.append(block(self.in_channels, channels, stride=1,
-                                groups=groups))
+                                **kwargs))
         return Sequential(layers)
 
     def call(self, x):
@@ -102,38 +118,38 @@ class RegNet(Model):
         return x
 
 
-def regnety_200MF():
-    return RegNet(32, (24, 56, 152, 368), (1, 1, 4, 7), 8)
+def regnety_200MF(**kwargs):
+    return RegNet(32, (24, 56, 152, 368), (1, 1, 4, 7), 8, **kwargs)
 
-def regnety_400MF():
-    return RegNet(32, (48, 104, 208, 440), (1, 3, 6, 6), 8)
+def regnety_400MF(**kwargs):
+    return RegNet(32, (48, 104, 208, 440), (1, 3, 6, 6), 8, **kwargs)
 
-def regnety_600MF():
-    return RegNet(32, (48, 112, 256, 608), (1, 3, 7, 4), 16)
+def regnety_600MF(**kwargs):
+    return RegNet(32, (48, 112, 256, 608), (1, 3, 7, 4), 16, **kwargs)
 
-def regnety_800MF():
-    return RegNet(32, (64, 128, 320, 768), (1, 3, 8, 2), 16)
+def regnety_800MF(**kwargs):
+    return RegNet(32, (64, 128, 320, 768), (1, 3, 8, 2), 16, **kwargs)
 
-def regnety_1_6GF():
-    return RegNet(32, (48, 120, 336, 888), (2, 6, 17, 2), 24)
+def regnety_1_6GF(**kwargs):
+    return RegNet(32, (48, 120, 336, 888), (2, 6, 17, 2), 24, **kwargs)
 
-def regnety_3_2GF():
-    return RegNet(32, (72, 216, 576, 1512), (2, 5, 13, 1), 24)
+def regnety_3_2GF(**kwargs):
+    return RegNet(32, (72, 216, 576, 1512), (2, 5, 13, 1), 24, **kwargs)
 
-def regnety_4_0GF():
-    return RegNet(32, (128, 192, 512, 1088), (2, 6, 12, 2), 64)
+def regnety_4_0GF(**kwargs):
+    return RegNet(32, (128, 192, 512, 1088), (2, 6, 12, 2), 64, **kwargs)
 
-def regnety_6_4GF():
-    return RegNet(32, (144, 288, 576, 1296), (2, 7, 14, 2), 72)
+def regnety_6_4GF(**kwargs):
+    return RegNet(32, (144, 288, 576, 1296), (2, 7, 14, 2), 72, **kwargs)
 
-# def regnety_8_0GF():
-#     return RegNet(32, (128, 192, 512, 1088), (2, 6, 12, 2), 64)
+# def regnety_8_0GF(**kwargs):
+#     return RegNet(32, (128, 192, 512, 1088), (2, 6, 12, 2), 64, **kwargs)
 #
-# def regnety_12GF():
-#     return RegNet(32, (128, 192, 512, 1088), (2, 6, 12, 2), 64)
+# def regnety_12GF(**kwargs):
+#     return RegNet(32, (128, 192, 512, 1088), (2, 6, 12, 2), 64, **kwargs)
 #
-# def regnety_16GF():
-#     return RegNet(32, (128, 192, 512, 1088), (2, 6, 12, 2), 64)
+# def regnety_16GF(**kwargs):
+#     return RegNet(32, (128, 192, 512, 1088), (2, 6, 12, 2), 64, **kwargs)
 #
-# def regnety_32GF():
-#     return RegNet(32, (128, 192, 512, 1088), (2, 6, 12, 2), 64)
+# def regnety_32GF(**kwargs):
+#     return RegNet(32, (128, 192, 512, 1088), (2, 6, 12, 2), 64, **kwargs)

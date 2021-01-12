@@ -29,7 +29,7 @@ class Bottleneck(Layer):
             self.shortcut = Identity()
         self.act = Act()
 
-    def forward(self, x):
+    def call(self, x):
         identity = self.shortcut(x)
         x = self.conv1(x)
         x = self.conv2(x)
@@ -76,7 +76,7 @@ class RegNet(Model):
                                 **kwargs))
         return Sequential(layers)
 
-    def forward(self, x):
+    def call(self, x):
         x = self.stem(x)
 
         x = self.stage1(x)
