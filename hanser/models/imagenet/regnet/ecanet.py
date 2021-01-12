@@ -100,28 +100,28 @@ class RegNet(Model):
 
 
 def regnety_200MF():
-    return RegNet(32, (24, 56, 152, 368), (1, 1, 4, 7), 8, 4)
+    return RegNet(32, (24, 56, 152, 368), (1, 1, 4, 7), 8)
 
 def regnety_400MF():
-    return RegNet(32, (48, 104, 208, 440), (1, 3, 6, 6), 8, 4)
+    return RegNet(32, (48, 104, 208, 440), (1, 3, 6, 6), 8)
 
 def regnety_600MF():
-    return RegNet(32, (48, 112, 256, 608), (1, 3, 7, 4), 16, 4)
+    return RegNet(32, (48, 112, 256, 608), (1, 3, 7, 4), 16)
 
 def regnety_800MF():
-    return RegNet(32, (64, 128, 320, 768), (1, 3, 8, 2), 16, 4)
+    return RegNet(32, (64, 128, 320, 768), (1, 3, 8, 2), 16)
 
 def regnety_1_6GF():
-    return RegNet(32, (48, 120, 336, 888), (2, 6, 17, 2), 24, 4)
+    return RegNet(32, (48, 120, 336, 888), (2, 6, 17, 2), 24)
 
 def regnety_3_2GF():
-    return RegNet(32, (72, 216, 576, 1512), (2, 5, 13, 1), 24, 4)
+    return RegNet(32, (72, 216, 576, 1512), (2, 5, 13, 1), 24)
 
 def regnety_4_0GF():
-    return RegNet(32, (128, 192, 512, 1088), (2, 6, 12, 2), 64, 4)
+    return RegNet(32, (128, 192, 512, 1088), (2, 6, 12, 2), 64)
 
 def regnety_6_4GF():
-    return RegNet(32, (144, 288, 576, 1296), (2, 7, 14, 2), 72, 4)
+    return RegNet(32, (144, 288, 576, 1296), (2, 7, 14, 2), 72)
 
 # def regnety_8_0GF():
 #     return RegNet(32, (128, 192, 512, 1088), (2, 6, 12, 2), 64, 4)
