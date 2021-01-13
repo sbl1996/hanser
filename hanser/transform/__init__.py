@@ -1,13 +1,15 @@
 import math
 
-from hanser.ops import beta_mc
 from toolz import curry
+
+import numpy as np
 
 import tensorflow as tf
 import tensorflow_addons as tfa
 import tensorflow_probability as tfp
 from tensorflow.python.ops import gen_image_ops
 
+from hanser.ops import beta_mc
 from hanser.transform.fmix import sample_mask
 
 IMAGENET_MEAN = [123.675, 116.28, 103.53]
@@ -829,3 +831,22 @@ def color_jitter2(image, brightness, contrast, saturation, hue):
     image = tf.cast(image * 255, tf.uint8)
 
     return image
+
+
+_EIG_VALS = [[0.2175, 0.0188, 0.0045]]
+_EIG_VECS = [
+    [-0.5675, 0.7192, 0.4009],
+    [-0.5808, -0.0045, -0.8140],
+    [-0.5836, -0.6948, 0.4203],
+]
+
+
+def lighting(x, alpha_std, eig_val=_EIG_VALS, eig_vec=_EIG_VECS, vmax=255):
+    """Performs AlexNet-style PCA jitter (used for training)."""
+    eig_val = np.repeat(np.array(eig_val), 3, axis=0)
+    alpha = np.random.normal(0, alpha_std, size=(1, 3))
+    alpha = np.repeat(alpha, 3, axis=0)
+    rgb = np.sum(np.array(eig_vec) * alpha * eig_val, axis=1) * vmax
+    rgb = tf.convert_to_tensor(rgb, x.dtype)
+    x = x + rgb
+    return x
