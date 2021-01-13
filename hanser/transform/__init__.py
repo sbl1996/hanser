@@ -843,10 +843,10 @@ _EIG_VECS = [
 
 def lighting(x, alpha_std, eig_val=_EIG_VALS, eig_vec=_EIG_VECS, vmax=255):
     """Performs AlexNet-style PCA jitter (used for training)."""
-    eig_val = np.repeat(np.array(eig_val), 3, axis=0)
-    alpha = np.random.normal(0, alpha_std, size=(1, 3))
-    alpha = np.repeat(alpha, 3, axis=0)
-    rgb = np.sum(np.array(eig_vec) * alpha * eig_val, axis=1) * vmax
-    rgb = tf.convert_to_tensor(rgb, x.dtype)
+    eig_val = tf.convert_to_tensor(eig_val, x.dtype)
+    eig_vec = tf.convert_to_tensor(eig_vec, x.dtype)
+    alpha = tf.random.normal((1, 3), 0, alpha_std, x.dtype)
+    rgb = tf.reduce_sum(eig_val * eig_vec * alpha, axis=1)
+    rgb = rgb * tf.convert_to_tensor(vmax, x.dtype)
     x = x + rgb
     return x
