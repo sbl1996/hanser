@@ -353,15 +353,17 @@ def Norm(channels, type='default', affine=None, track_running_stats=None, gamma_
     else:
         raise ValueError("Unsupported normalization type: %s" % type)
 
-def Act(type='default'):
+def Act(type='default', **kwargs):
     if type in ['default', 'def']:
-        return Act(DEFAULTS['activation'])
+        return Act(DEFAULTS['activation'], **kwargs)
     if type == 'mish':
         return Mish()
     elif type == 'leaky_relu':
-        return LeakyReLU(alpha=DEFAULTS['leaky_relu']['alpha'])
+        if 'alpha' not in kwargs:
+            kwargs = {**kwargs, 'alpha': DEFAULTS['leaky_relu']['alpha']}
+        return LeakyReLU(**kwargs)
     else:
-        return Activation(type)
+        return Activation(type, **kwargs)
 
 
 def Pool2d(kernel_size, stride, padding='same', type='avg', ceil_mode=False):

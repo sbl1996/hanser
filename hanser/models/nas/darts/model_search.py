@@ -115,6 +115,13 @@ class Network(Model):
             'alphas_reduce', (k, num_ops), initializer=RandomNormal(stddev=1e-2), trainable=True,
         )
 
+
+    def arch_parameters(self):
+        return self.trainable_variables[-2:]
+
+    def model_parameters(self):
+        return self.trainable_variables[:-2]
+
     def call(self, x):
         s0 = s1 = self.stem(x)
         weights_reduce = tf.nn.softmax(self.alphas_reduce, axis=-1)
@@ -125,12 +132,6 @@ class Network(Model):
         x = self.avg_pool(s1)
         logits = self.classifier(x)
         return logits
-
-    def arch_parameters(self):
-        return self.trainable_variables[-2:]
-
-    def model_parameters(self):
-        return self.trainable_variables[:-2]
 
     def genotype(self):
         PRIMITIVES = get_primitives()
