@@ -85,6 +85,7 @@ class ResNet(Model):
 
     def call(self, x):
         x = self.stem(x)
+        x = self.maxpool(x)
 
         x = self.layer1(x)
         x = self.layer2(x)
