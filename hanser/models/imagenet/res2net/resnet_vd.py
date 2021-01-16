@@ -8,7 +8,7 @@ from hanser.models.cifar.res2net.layers import Res2Conv
 class Bottle2neck(Layer):
     expansion = 4
 
-    def __init__(self, in_channels, channels, stride, base_width=26, scale=4, start_block=False):
+    def __init__(self, in_channels, channels, stride, base_width=26, scale=4, start_block=False, erase_relu=False):
         super().__init__()
         out_channels = channels * self.expansion
         width = math.floor(channels * (base_width / 64)) * scale
@@ -29,7 +29,7 @@ class Bottle2neck(Layer):
         else:
             self.shortcut = Identity()
 
-        self.act = Act()
+        self.act = Act() if not erase_relu else Identity()
 
     def call(self, x):
         identity = self.shortcut(x)
@@ -43,7 +43,8 @@ class Bottle2neck(Layer):
 
 class ResNet(Model):
 
-    def __init__(self, block, layers, base_width=26, scale=4, num_classes=1000, stages=(64, 64, 128, 256, 512)):
+    def __init__(self, block, layers, base_width=26, scale=4,
+                 erase_relu=False, num_classes=1000, stages=(64, 64, 128, 256, 512)):
         super().__init__()
         self.stages = stages
 
@@ -60,16 +61,16 @@ class ResNet(Model):
 
         self.layer1 = self._make_layer(
             block, self.stages[1], layers[0], stride=1,
-            base_width=base_width, scale=scale)
+            base_width=base_width, scale=scale, erase_relu=erase_relu)
         self.layer2 = self._make_layer(
             block, self.stages[2], layers[1], stride=2,
-            base_width=base_width, scale=scale)
+            base_width=base_width, scale=scale, erase_relu=erase_relu)
         self.layer3 = self._make_layer(
             block, self.stages[3], layers[2], stride=2,
-            base_width=base_width, scale=scale)
+            base_width=base_width, scale=scale, erase_relu=erase_relu)
         self.layer4 = self._make_layer(
             block, self.stages[4], layers[3], stride=2,
-            base_width=base_width, scale=scale)
+            base_width=base_width, scale=scale, erase_relu=erase_relu)
 
         self.avgpool = GlobalAvgPool()
         self.fc = Linear(self.in_channels, num_classes)

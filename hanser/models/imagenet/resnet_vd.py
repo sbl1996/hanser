@@ -7,7 +7,7 @@ from hanser.models.layers import Conv2d, Act, Identity, GlobalAvgPool, Linear, P
 class BasicBlock(Layer):
     expansion = 1
 
-    def __init__(self, in_channels, channels, stride):
+    def __init__(self, in_channels, channels, stride, erase_relu):
         super().__init__()
         out_channels = channels * self.expansion
         self.conv1 = Conv2d(in_channels, out_channels, kernel_size=3, stride=stride,
@@ -25,7 +25,7 @@ class BasicBlock(Layer):
         else:
             self.shortcut = Identity()
 
-        self.act = Act()
+        self.act = Act() if not erase_relu else Identity()
 
     def call(self, x):
         identity = self.shortcut(x)
@@ -40,7 +40,7 @@ class BasicBlock(Layer):
 class Bottleneck(Layer):
     expansion = 4
 
-    def __init__(self, in_channels, channels, stride):
+    def __init__(self, in_channels, channels, stride, erase_relu):
         super().__init__()
         out_channels = channels * self.expansion
         self.conv1 = Conv2d(in_channels, channels, kernel_size=1,
@@ -60,7 +60,7 @@ class Bottleneck(Layer):
         else:
             self.shortcut = Identity()
 
-        self.act = Act()
+        self.act = Act() if not erase_relu else Identity()
 
     def call(self, x):
         identity = self.shortcut(x)
@@ -75,7 +75,7 @@ class Bottleneck(Layer):
 
 class ResNet(Model):
 
-    def __init__(self, block, layers, num_classes=1000, stages=(64, 64, 128, 256, 512)):
+    def __init__(self, block, layers, erase_relu=False, num_classes=1000, stages=(64, 64, 128, 256, 512)):
         super().__init__()
         self.stages = stages
 
@@ -91,13 +91,13 @@ class ResNet(Model):
         self.in_channels = self.stages[0]
 
         self.layer1 = self._make_layer(
-            block, self.stages[1], layers[0], stride=1)
+            block, self.stages[1], layers[0], stride=1, erase_relu=erase_relu)
         self.layer2 = self._make_layer(
-            block, self.stages[2], layers[1], stride=2)
+            block, self.stages[2], layers[1], stride=2, erase_relu=erase_relu)
         self.layer3 = self._make_layer(
-            block, self.stages[3], layers[2], stride=2)
+            block, self.stages[3], layers[2], stride=2, erase_relu=erase_relu)
         self.layer4 = self._make_layer(
-            block, self.stages[4], layers[3], stride=2)
+            block, self.stages[4], layers[3], stride=2, erase_relu=erase_relu)
 
         self.avgpool = GlobalAvgPool()
         self.fc = Linear(self.in_channels, num_classes)
