@@ -1,15 +1,16 @@
-from tensorflow.keras import Sequential, Model
+from tensorflow.keras import Model
+from hanser.models.layers import Conv2d, Linear, Sequential, GlobalAvgPool, Pool2d
 
-from hanser.models.layers import Conv2d, GlobalAvgPool, Linear, Pool2d
-from hanser.models.cifar.resnet_vd import BasicBlock, Bottleneck
+from hanser.models.cifar.ppnas.resnet_vd import Bottleneck
 
 
 class ResNet(Model):
 
-    def __init__(self, block, layers, erase_relu=False, zero_init_residual=False,
+    def __init__(self, genotype, block, layers, base_width=24, splits=4, zero_init_residual=False,
                  num_classes=1000, stages=(64, 64, 128, 256, 512)):
         super().__init__()
         self.stages = stages
+        self.splits = splits
 
         self.stem = Sequential([
             Conv2d(3, self.stages[0] // 2, kernel_size=3, stride=2,
@@ -24,27 +25,29 @@ class ResNet(Model):
 
         self.layer1 = self._make_layer(
             block, self.stages[1], layers[0], stride=1,
-            erase_relu=erase_relu, zero_init_residual=zero_init_residual)
+            base_width=base_width, splits=splits,
+            zero_init_residual=zero_init_residual, genotype=genotype)
         self.layer2 = self._make_layer(
             block, self.stages[2], layers[1], stride=2,
-            erase_relu=erase_relu, zero_init_residual=zero_init_residual)
+            base_width=base_width, splits=splits,
+            zero_init_residual=zero_init_residual, genotype=genotype)
         self.layer3 = self._make_layer(
             block, self.stages[3], layers[2], stride=2,
-            erase_relu=erase_relu, zero_init_residual=zero_init_residual)
+            base_width=base_width, splits=splits,
+            zero_init_residual=zero_init_residual, genotype=genotype)
         self.layer4 = self._make_layer(
             block, self.stages[4], layers[3], stride=2,
-            erase_relu=erase_relu, zero_init_residual=zero_init_residual)
+            base_width=base_width, splits=splits,
+            zero_init_residual=zero_init_residual, genotype=genotype)
 
         self.avgpool = GlobalAvgPool()
         self.fc = Linear(self.in_channels, num_classes)
 
-    def _make_layer(self, block, channels, blocks, stride=1, **kwargs):
-        layers = [block(self.in_channels, channels, stride=stride,
-                        **kwargs)]
+    def _make_layer(self, block, channels, blocks, stride, **kwargs):
+        layers = [block(self.in_channels, channels, stride=stride, **kwargs)]
         self.in_channels = channels * block.expansion
         for i in range(1, blocks):
-            layers.append(block(self.in_channels, channels, stride=1,
-                                **kwargs))
+            layers.append(block(self.in_channels, channels, stride=1, **kwargs))
         return Sequential(layers)
 
     def call(self, x):
@@ -61,17 +64,11 @@ class ResNet(Model):
         return x
 
 
-def resnet18(**kwargs):
-    return ResNet(BasicBlock, [2, 2, 2, 2], **kwargs)
+def resnet50(genotype, **kwargs):
+    return ResNet(genotype, Bottleneck, [3, 4, 6, 3], **kwargs)
 
-def resnet34(**kwargs):
-    return ResNet(BasicBlock, [3, 4, 6, 3], **kwargs)
+def resnet101(genotype, **kwargs):
+    return ResNet(genotype, Bottleneck, [3, 4, 23, 3], **kwargs)
 
-def resnet50(**kwargs):
-    return ResNet(Bottleneck, [3, 4, 6, 3], **kwargs)
-
-def resnet101(**kwargs):
-    return ResNet(Bottleneck, [3, 4, 23, 3], **kwargs)
-
-def resnet152(**kwargs):
-    return ResNet(Bottleneck, [3, 8, 36, 3], **kwargs)
+def resnet152(genotype, **kwargs):
+    return ResNet(genotype, Bottleneck, [3, 8, 36, 3], **kwargs)

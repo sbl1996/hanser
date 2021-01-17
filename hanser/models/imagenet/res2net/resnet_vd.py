@@ -7,7 +7,7 @@ from hanser.models.cifar.res2net.resnet_vd import Bottle2neck
 class ResNet(Model):
 
     def __init__(self, block, layers, base_width=26, scale=4,
-                 erase_relu=False, zero_init_residual=True,
+                 erase_relu=False, zero_init_residual=False,
                  num_classes=1000, stages=(64, 64, 128, 256, 512)):
         super().__init__()
         self.stages = stages

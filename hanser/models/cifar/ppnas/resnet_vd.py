@@ -42,7 +42,7 @@ class PPConv(Layer):
 class Bottleneck(Layer):
     expansion = 4
 
-    def __init__(self, in_channels, channels, stride, base_width, splits, genotype):
+    def __init__(self, in_channels, channels, stride, base_width, splits, zero_init_residual, genotype):
         super().__init__()
         self.stride = stride
 
@@ -56,7 +56,7 @@ class Bottleneck(Layer):
             self.conv2 = Conv2d(width, width, kernel_size=3, stride=2, groups=splits,
                                 norm='def', act='def')
         self.conv3 = Conv2d(width, out_channels, kernel_size=1)
-        self.bn3 = Norm(out_channels, gamma_init='zeros')
+        self.bn3 = Norm(out_channels, gamma_init='zeros' if zero_init_residual else 'ones')
 
         if stride != 1 or in_channels != out_channels:
             shortcut = []
@@ -83,7 +83,8 @@ class Bottleneck(Layer):
 
 class ResNet(Model):
 
-    def __init__(self, genotype, depth=110, base_width=26, splits=4, num_classes=10, stages=(64, 64, 128, 256)):
+    def __init__(self, genotype, depth=110, base_width=24, splits=4, zero_init_residual=True,
+                 num_classes=10, stages=(64, 64, 128, 256)):
         super().__init__()
         self.stages = stages
         self.splits = splits
@@ -95,13 +96,16 @@ class ResNet(Model):
 
         self.layer1 = self._make_layer(
             block, self.stages[1], layers[0], stride=1,
-            base_width=base_width, splits=splits, genotype=genotype)
+            base_width=base_width, splits=splits,
+            zero_init_residual=zero_init_residual, genotype=genotype)
         self.layer2 = self._make_layer(
             block, self.stages[2], layers[1], stride=2,
-            base_width=base_width, splits=splits, genotype=genotype)
+            base_width=base_width, splits=splits,
+            zero_init_residual=zero_init_residual, genotype=genotype)
         self.layer3 = self._make_layer(
             block, self.stages[3], layers[2], stride=2,
-            base_width=base_width, splits=splits, genotype=genotype)
+            base_width=base_width, splits=splits,
+            zero_init_residual=zero_init_residual, genotype=genotype)
 
         self.avgpool = GlobalAvgPool()
         self.fc = Linear(self.in_channels, num_classes)
