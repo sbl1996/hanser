@@ -24,6 +24,14 @@ def _rotate_level_to_arg(level):
     return level
 
 
+def _shrink_level_to_arg(level):
+    """Converts level to ratio by which we shrink the image content."""
+    if level == 0:
+        return 1.0
+    level = 2. / (CONSTS['max_level'] / level) + 0.9
+    return level
+
+
 def _enhance_level_to_arg(level):
     return (level / CONSTS['max_level']) * 1.8 + 0.1
 
@@ -60,21 +68,7 @@ def _cutout_level_to_arg(level):
 
 
 def cutout(image, pad_size, replace=0):
-    """Apply cutout (https://arxiv.org/abs/1708.04552) to image.
-  This operation applies a (2*pad_size x 2*pad_size) mask of zeros to
-  a random location within `img`. The pixel values filled in will be of the
-  value `replace`. The located where the mask will be applied is randomly
-  chosen uniformly over the whole image.
-  Args:
-    image: An image Tensor of type uint8.
-    pad_size: Specifies how big the zero mask that will be generated is that
-      is applied to the image. The mask will be of size
-      (2*pad_size x 2*pad_size).
-    replace: What pixel value to fill in the image in the area that has
-      the cutout mask applied to it.
-  Returns:
-    An image Tensor that is of type uint8.
-  """
+
     image_height = tf.shape(image)[0]
     image_width = tf.shape(image)[1]
 
@@ -230,35 +224,35 @@ def imagenet_policy_v0():
     # (operation, probability, magnitude). each element in policy is a
     # sub-policy that will be applied sequentially on the image.
     policies = [
-        sub_policy('equalize', 0.8, 1, 'sheary', 0.8, 4),
-        sub_policy('color', 0.4, 9, 'equalize', 0.6, 3),
-        sub_policy('color', 0.4, 1, 'rotate', 0.6, 8),
-        sub_policy('solarize', 0.8, 3, 'equalize', 0.4, 7),
-        sub_policy('solarize', 0.4, 2, 'solarize', 0.6, 2),
+        sub_policy(0.8, 'equalize', 1, 0.8, 'sheary',   4),
+        sub_policy(0.4, 'color',    9, 0.6, 'equalize', 3),
+        sub_policy(0.4, 'color',    1, 0.6, 'rotate',   8),
+        sub_policy(0.8, 'solarize', 3, 0.4, 'equalize', 7),
+        sub_policy(0.4, 'solarize', 2, 0.6, 'solarize', 2),
 
-        sub_policy('color', 0.2, 0, 'equalize', 0.8, 8),
-        sub_policy('equalize', 0.4, 8, 'solarize_add', 0.8, 3),
-        sub_policy('shearX', 0.2, 9, 'rotate', 0.6, 8),
-        sub_policy('color', 0.6, 1, 'equalize', 1.0, 2),
-        sub_policy('invert', 0.4, 9, 'rotate', 0.6, 0),
+        sub_policy(0.2, 'color',    0, 0.8, 'equalize',     8),
+        sub_policy(0.4, 'equalize', 8, 0.8, 'solarize_add', 3),
+        sub_policy(0.2, 'shearX',   9, 0.6, 'rotate',       8),
+        sub_policy(0.6, 'color',    1, 1.0, 'equalize',     2),
+        sub_policy(0.4, 'invert',   9, 0.6, 'rotate',       0),
 
-        sub_policy('equalize', 1.0, 9, 'shearY', 0.6, 3),
-        sub_policy('color', 0.4, 7, 'equalize', 0.6, 0),
-        sub_policy('posterize', 0.4, 6, 'autocontrast', 0.4, 7),
-        sub_policy('solarize', 0.6, 8, 'color', 0.6, 9),
-        sub_policy('solarize', 0.2, 4, 'rotate', 0.8, 9),
+        sub_policy(1.0, 'equalize',  9, 0.6, 'shearY',       3),
+        sub_policy(0.4, 'color',     7, 0.6, 'equalize',     0),
+        sub_policy(0.4, 'posterize', 6, 0.4, 'autocontrast', 7),
+        sub_policy(0.6, 'solarize',  8, 0.6, 'color',        9),
+        sub_policy(0.2, 'solarize',  4, 0.8, 'rotate',       9),
 
-        sub_policy('rotate', 1.0, 7, 'translateY', 0.8, 9),
-        sub_policy('shearX', 0.0, 0, 'solarize', 0.8, 4),
-        sub_policy('shearY', 0.8, 0, 'color', 0.6, 4),
-        sub_policy('color', 1.0, 0, 'rotate', 0.6, 2),
-        sub_policy('equalize', 0.8, 4, 'equalize', 0.0, 8),
+        sub_policy(1.0, 'rotate',   7, 0.8, 'translateY', 9),
+        sub_policy(0.0, 'shearX',   0, 0.8, 'solarize',   4),
+        sub_policy(0.8, 'shearY',   0, 0.6, 'color',      4),
+        sub_policy(1.0, 'color',    0, 0.6, 'rotate',     2),
+        sub_policy(0.8, 'equalize', 4, 0.0, 'equalize',   8),
 
-        sub_policy('equalize', 1.0, 4, 'autocontrast', 0.6, 2),
-        sub_policy('shearY', 0.4, 7, 'solarize_add', 0.6, 7),
-        sub_policy('posterize', 0.8, 2, 'solarize', 0.6, 10),
-        sub_policy('solarize', 0.6, 8, 'equalize', 0.6, 1),
-        sub_policy('color', 0.8, 6, 'rotate', 0.4, 5),
+        sub_policy(1.0, 'equalize',  4, 0.6, 'autocontrast', 2),
+        sub_policy(0.4, 'shearY',    7, 0.6, 'solarize_add', 7),
+        sub_policy(0.8, 'posterize', 2, 0.6, 'solarize',     10),
+        sub_policy(0.6, 'solarize',  8, 0.6, 'equalize',     1),
+        sub_policy(0.8, 'color',     6, 0.4, 'rotate',       5),
     ]
     return policies
 

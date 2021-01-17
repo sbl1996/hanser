@@ -481,7 +481,7 @@ def blend(image1, image2, factor):
         difference = image2 - image1
         scaled = factor * difference
 
-        temp = tf.cast(image1, tf.float32) + scaled
+        temp = image1 + scaled
         return tf.cond(
             tf.logical_and(tf.greater(factor, 0.0), tf.less(factor, 1.0)),
             lambda: tf.cast(temp, tf.uint8),

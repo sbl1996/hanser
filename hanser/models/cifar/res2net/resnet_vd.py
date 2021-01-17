@@ -8,7 +8,8 @@ from hanser.models.cifar.res2net.layers import Res2Conv
 class Bottle2neck(Layer):
     expansion = 4
 
-    def __init__(self, in_channels, channels, stride, base_width=26, scale=4, start_block=False, erase_relu=False):
+    def __init__(self, in_channels, channels, stride, base_width=26, scale=4, start_block=False,
+                 erase_relu=False, zero_init_residual=True):
         super().__init__()
         out_channels = channels * self.expansion
         width = math.floor(channels * (base_width / 64)) * scale
@@ -17,7 +18,7 @@ class Bottle2neck(Layer):
         self.conv2 = Res2Conv(width, width, kernel_size=3, stride=stride, scale=scale, groups=1,
                               start_block=start_block, norm='def', act='def')
         self.conv3 = Conv2d(width, out_channels, kernel_size=1)
-        self.bn3 = Norm(out_channels, gamma_init='zeros')
+        self.bn3 = Norm(out_channels, gamma_init='zeros' if zero_init_residual else 'ones')
 
         if stride != 1 or in_channels != out_channels:
             shortcut = []
