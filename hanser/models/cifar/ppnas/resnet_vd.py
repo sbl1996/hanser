@@ -4,7 +4,7 @@ from tensorflow.keras import Model
 from tensorflow.keras.layers import Layer
 from hanser.models.layers import Conv2d, Norm, Act, Linear, Pool2d, Sequential, Identity, GlobalAvgPool
 
-from tfnas.models.ppnas.operations import OPS
+from hanser.models.cifar.ppnas.operations import OPS
 
 def parse_genotype(genotype):
     connections = []
