@@ -2,7 +2,7 @@ import math
 from tensorflow.keras import Sequential, Model
 from tensorflow.keras.layers import Layer
 
-from hanser.models.layers import Conv2d, Identity, GlobalAvgPool, Linear, Act, Pool2d
+from hanser.models.layers import Conv2d, Identity, GlobalAvgPool, Linear, Act, Pool2d, Norm
 from hanser.models.cifar.res2net.layers import Res2Conv
 
 class Bottle2neck(Layer):
@@ -16,8 +16,8 @@ class Bottle2neck(Layer):
                             norm='def', act='def')
         self.conv2 = Res2Conv(width, width, kernel_size=3, stride=stride, scale=scale, groups=1,
                               start_block=start_block, norm='def', act='def')
-        self.conv3 = Conv2d(width, out_channels, kernel_size=1,
-                            norm='def')
+        self.conv3 = Conv2d(width, out_channels, kernel_size=1)
+        self.bn3 = Norm(out_channels, gamma_init='zeros')
 
         if stride != 1 or in_channels != out_channels:
             shortcut = []
@@ -36,6 +36,7 @@ class Bottle2neck(Layer):
         x = self.conv1(x)
         x = self.conv2(x)
         x = self.conv3(x)
+        x = self.bn3(x)
         x = x + identity
         x = self.act(x)
         return x

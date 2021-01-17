@@ -1,7 +1,7 @@
 from tensorflow.keras import Sequential, Model
 from tensorflow.keras.layers import Layer
 
-from hanser.models.layers import Conv2d, Act, Identity, GlobalAvgPool, Linear, Pool2d
+from hanser.models.layers import Conv2d, Act, Identity, GlobalAvgPool, Linear, Pool2d, Norm
 
 
 class BasicBlock(Layer):
@@ -46,15 +46,15 @@ class Bottleneck(Layer):
                             norm='def', act='def')
         self.conv2 = Conv2d(channels, channels, kernel_size=3, stride=stride,
                             norm='def', act='def')
-        self.conv3 = Conv2d(channels, out_channels, kernel_size=1,
-                            norm='def')
+        self.conv3 = Conv2d(channels, out_channels, kernel_size=1)
+        self.bn3 = Norm(out_channels, gamma_init='zeros')
 
         if stride != 1 or in_channels != out_channels:
-            shortcut = [
-                Conv2d(in_channels, out_channels, kernel_size=1, norm='def'),
-            ]
+            shortcut = []
             if stride != 1:
-                shortcut.insert(0, Pool2d(2, 2, type='avg'))
+                shortcut.append(Pool2d(2, 2, type='avg'))
+            shortcut.append(
+                Conv2d(in_channels, out_channels, kernel_size=1, norm='def'))
             self.shortcut = Sequential(shortcut)
         else:
             self.shortcut = Identity()
@@ -66,6 +66,7 @@ class Bottleneck(Layer):
         x = self.conv1(x)
         x = self.conv2(x)
         x = self.conv3(x)
+        x = self.bn3(x)
         x = x + identity
         x = self.act(x)
         return x
