@@ -130,8 +130,10 @@ def make_imagenet_dataset(
     return ds_train, ds_eval, steps_per_epoch, eval_steps
 
 def make_imagenet_dataset_split(
-    batch_size, transform, filenames, split, **kwargs):
-    ds = input_fn(filenames, training=split == 'train', transform=transform, batch_size=batch_size, **kwargs)
+    batch_size, transform, filenames, split, training=None, **kwargs):
+    if training is None:
+        training = split == 'train'
+    ds = input_fn(filenames, training=training, transform=transform, batch_size=batch_size, **kwargs)
     n = NUM_IMAGES[split]
     if split == 'train':
         chunksize = math.ceil(n / 1024)
