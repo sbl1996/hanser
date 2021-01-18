@@ -46,3 +46,12 @@ PP_ResNet_ImageNet_NS_1 = Genotype(
         [(1, 4, 'nor_conv_3x3'), (3, 2, 'nor_conv_3x3'), (6, 4, 'nor_conv_3x3'), (2, 7, 'nor_conv_3x3')]
     ],
 )
+
+PP_ResNet_ImageNet_NS_2 = Genotype(
+    normal=[
+        [(2, 3, 'nor_conv_3x3'), (5, 1, 'nor_conv_3x3'), (6, 4, 'nor_conv_3x3'), (7, 6, 'nor_conv_3x3')],
+        [(2, 4, 'nor_conv_3x3'), (5, 4, 'nor_conv_3x3'), (6, 1, 'nor_conv_3x3'), (7, 3, 'nor_conv_3x3')],
+        [(2, 4, 'nor_conv_3x3'), (5, 3, 'nor_conv_3x3'), (6, 3, 'nor_conv_3x3'), (7, 1, 'nor_conv_3x3')],
+        [(3, 1, 'nor_conv_3x3'), (2, 5, 'nor_conv_3x3'), (6, 2, 'nor_conv_3x3'), (4, 7, 'nor_conv_3x3')]
+    ],
+)
