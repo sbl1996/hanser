@@ -1,7 +1,7 @@
 from tensorflow.keras import Model, Sequential
 from hanser.models.layers import Conv2d, Linear, GlobalAvgPool, Pool2d
 
-from hanser.models.cifar.ppnas.resnet_vd_ns import Bottleneck
+from hanser.models.cifar.ppnas.resnet_vd_fair import Bottleneck
 
 
 class ResNet(Model):

@@ -39,13 +39,20 @@ class BasicBlock(Layer):
 class Bottleneck(Layer):
     expansion = 4
 
-    def __init__(self, in_channels, channels, stride, erase_relu, zero_init_residual=True):
+    def __init__(self, in_channels, channels, stride, erase_relu, zero_init_residual=True, avd=False):
         super().__init__()
         out_channels = channels * self.expansion
         self.conv1 = Conv2d(in_channels, channels, kernel_size=1,
                             norm='def', act='def')
-        self.conv2 = Conv2d(channels, channels, kernel_size=3, stride=stride,
-                            norm='def', act='def')
+        if avd and stride != 1:
+            self.conv2 = Sequential([
+                Pool2d(3, stride, type='avg'),
+                Conv2d(channels, channels, kernel_size=3, stride=1,
+                       norm='def', act='def'),
+            ])
+        else:
+            self.conv2 = Conv2d(channels, channels, kernel_size=3, stride=stride,
+                                norm='def', act='def')
         self.conv3 = Conv2d(channels, out_channels, kernel_size=1)
         self.bn3 = Norm(out_channels, gamma_init='zeros' if zero_init_residual else 'ones')
 
@@ -74,7 +81,7 @@ class Bottleneck(Layer):
 
 class ResNet(Model):
 
-    def __init__(self, depth, block='basic', erase_relu=False, num_classes=10, stages=(16, 16, 32, 64)):
+    def __init__(self, depth, block='basic', erase_relu=False, avd=False, num_classes=10, stages=(16, 16, 32, 64)):
         super().__init__()
         self.stages = stages
         if block == 'basic':
@@ -89,13 +96,13 @@ class ResNet(Model):
 
         self.layer1 = self._make_layer(
             block, self.stages[1], layers[0], stride=1,
-            erase_relu=erase_relu)
+            erase_relu=erase_relu, avd=avd)
         self.layer2 = self._make_layer(
             block, self.stages[2], layers[1], stride=2,
-            erase_relu=erase_relu)
+            erase_relu=erase_relu, avd=avd)
         self.layer3 = self._make_layer(
             block, self.stages[3], layers[2], stride=2,
-            erase_relu=erase_relu)
+            erase_relu=erase_relu, avd=avd)
 
         self.avgpool = GlobalAvgPool()
         self.fc = Linear(self.in_channels, num_classes)

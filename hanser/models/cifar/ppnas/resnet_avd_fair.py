@@ -1,5 +1,6 @@
 import math
 import tensorflow as tf
+from hanser.models.cifar.res2net.layers import StartRes2Conv
 from tensorflow.keras import Model
 from tensorflow.keras.layers import Layer
 from hanser.models.layers import Conv2d, Norm, Act, Linear, Pool2d, Sequential, Identity, GlobalAvgPool
@@ -50,11 +51,14 @@ class Bottleneck(Layer):
         width = math.floor(out_channels // self.expansion * (base_width / 64)) * splits
         self.conv1 = Conv2d(in_channels, width, kernel_size=1,
                             norm='def', act='def')
-        if stride == 1:
-            self.conv2 = PPConv(width, splits=splits, genotype=genotype)
+        if stride != 1:
+            self.conv2 = Sequential([
+                Pool2d(3, stride=stride, type='avg'),
+                StartRes2Conv(width, kernel_size=3, stride=1, scale=splits,
+                              norm='def', act='def'),
+            ])
         else:
-            self.conv2 = Conv2d(width, width, kernel_size=3, stride=2, groups=splits,
-                                norm='def', act='def')
+            self.conv2 = PPConv(width, splits=splits, genotype=genotype)
         self.conv3 = Conv2d(width, out_channels, kernel_size=1)
         self.bn3 = Norm(out_channels, gamma_init='zeros' if zero_init_residual else 'ones')
 
@@ -83,7 +87,7 @@ class Bottleneck(Layer):
 
 class ResNet(Model):
 
-    def __init__(self, genotype, depth=110, base_width=24, splits=4, zero_init_residual=True,
+    def __init__(self, genotype, depth=110, base_width=26, splits=4, zero_init_residual=True,
                  num_classes=10, stages=(64, 64, 128, 256)):
         super().__init__()
         self.stages = stages
