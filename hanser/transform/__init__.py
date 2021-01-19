@@ -104,9 +104,10 @@ def rand_mask(image, lam):
 
 
 @curry
-def cutmix_batch(image, label, alpha, **gen_lam_kwargs):
+def cutmix_batch(image, label, alpha, hard=False, **gen_lam_kwargs):
     n = _image_dimensions(image, 4)[0]
-    lam = _get_lam((n,), alpha, **gen_lam_kwargs)
+    lam_shape = (n,) if hard else ()
+    lam = _get_lam(lam_shape, alpha, **gen_lam_kwargs)
 
     masks, lam = rand_mask(image, lam)
 
@@ -121,9 +122,10 @@ def cutmix_batch(image, label, alpha, **gen_lam_kwargs):
 
 
 @curry
-def cutmix_in_batch(image, label, alpha, **gen_lam_kwargs):
+def cutmix_in_batch(image, label, alpha, hard=False, **gen_lam_kwargs):
     n = tf.shape(image)[0] // 2
-    lam = _get_lam((n,), alpha, **gen_lam_kwargs)
+    lam_shape = (n,) if hard else ()
+    lam = _get_lam(lam_shape, alpha, **gen_lam_kwargs)
 
     image1, image2 = image[:n], image[n:]
     label1, label2 = label[:n], label[n:]
@@ -145,7 +147,7 @@ def unwrap_batch(tensors, is_batch):
 
 
 @curry
-def cutmix(data1, data2, alpha, **gen_lam_kwargs):
+def cutmix(data1, data2, alpha, hard=False, **gen_lam_kwargs):
     image1, label1 = data1
     image2, label2 = data2
 
@@ -155,7 +157,8 @@ def cutmix(data1, data2, alpha, **gen_lam_kwargs):
     ], is_batch)
 
     n = _image_dimensions(image1, 4)[0]
-    lam = _get_lam((n,), alpha, **gen_lam_kwargs)
+    lam_shape = (n,) if hard else ()
+    lam = _get_lam(lam_shape, alpha, **gen_lam_kwargs)
 
     masks, lam = rand_mask(image1, lam)
 
