@@ -128,25 +128,25 @@ PP_ResNet_ImageNet_FAIR_1 = Genotype(normal=[
 
 PP_ResNet_ImageNet_T_1 = Genotype([
     [
-        (3, 4, 'identity'),
+        (3, 4, 'skip_connect'),
         (1, 5, 'nor_conv_3x3'),
         (2, 6, 'nor_conv_3x3'),
         (1, 7, 'nor_conv_3x3'),
     ],
     [
-        (3, 4, 'identity'),
+        (3, 4, 'skip_connect'),
         (1, 5, 'nor_conv_3x3'),
         (2, 6, 'nor_conv_3x3'),
         (1, 7, 'nor_conv_3x3'),
     ],
     [
-        (3, 4, 'identity'),
+        (3, 4, 'skip_connect'),
         (1, 5, 'nor_conv_3x3'),
         (2, 6, 'nor_conv_3x3'),
         (1, 7, 'nor_conv_3x3'),
     ],
     [
-        (3, 4, 'identity'),
+        (3, 4, 'skip_connect'),
         (1, 5, 'nor_conv_3x3'),
         (2, 6, 'nor_conv_3x3'),
         (1, 7, 'nor_conv_3x3'),
