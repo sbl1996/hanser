@@ -106,7 +106,7 @@ def rand_mask(image, lam):
 @curry
 def cutmix_batch(image, label, alpha, hard=False, **gen_lam_kwargs):
     n = _image_dimensions(image, 4)[0]
-    lam_shape = (n,) if hard else ()
+    lam_shape = (n,) if hard else (1,)
     lam = _get_lam(lam_shape, alpha, **gen_lam_kwargs)
 
     masks, lam = rand_mask(image, lam)
