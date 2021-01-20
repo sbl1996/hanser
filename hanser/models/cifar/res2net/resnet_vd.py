@@ -5,18 +5,27 @@ from tensorflow.keras.layers import Layer
 from hanser.models.layers import Conv2d, Identity, GlobalAvgPool, Linear, Act, Pool2d, Norm
 from hanser.models.cifar.res2net.layers import Res2Conv
 
+
 class Bottle2neck(Layer):
     expansion = 4
 
     def __init__(self, in_channels, channels, stride, base_width=26, scale=4, start_block=False,
-                 erase_relu=False, zero_init_residual=True):
+                 erase_relu=False, zero_init_residual=True, avd=False):
         super().__init__()
         out_channels = channels * self.expansion
         width = math.floor(channels * (base_width / 64)) * scale
         self.conv1 = Conv2d(in_channels, width, kernel_size=1,
                             norm='def', act='def')
-        self.conv2 = Res2Conv(width, width, kernel_size=3, stride=stride, scale=scale, groups=1,
-                              start_block=start_block, norm='def', act='def')
+        if avd and stride != 1:
+            self.conv2 = Sequential([
+                Pool2d(3, stride=stride, type='avg'),
+                Res2Conv(width, width, kernel_size=3, stride=1, scale=scale, groups=1,
+                         start_block=start_block, norm='def', act='def'),
+            ])
+        else:
+            self.conv2 = Res2Conv(width, width, kernel_size=3, stride=stride, scale=scale, groups=1,
+                                  start_block=start_block, norm='def', act='def')
+
         self.conv3 = Conv2d(width, out_channels, kernel_size=1)
         self.bn3 = Norm(out_channels, gamma_init='zeros' if zero_init_residual else 'ones')
 
@@ -45,7 +54,8 @@ class Bottle2neck(Layer):
 
 class ResNet(Model):
 
-    def __init__(self, depth, base_width=26, scale=4, erase_relu=False, num_classes=10, stages=(64, 64, 128, 256)):
+    def __init__(self, depth, base_width=26, scale=4, erase_relu=False, avd=False,
+                 num_classes=10, stages=(64, 64, 128, 256)):
         super().__init__()
         self.stages = stages
         block = Bottle2neck
@@ -56,13 +66,16 @@ class ResNet(Model):
 
         self.layer1 = self._make_layer(
             block, self.stages[1], layers[0], stride=1,
-            base_width=base_width, scale=scale, erase_relu=erase_relu)
+            base_width=base_width, scale=scale,
+            erase_relu=erase_relu, avd=avd)
         self.layer2 = self._make_layer(
             block, self.stages[2], layers[1], stride=2,
-            base_width=base_width, scale=scale, erase_relu=erase_relu)
+            base_width=base_width, scale=scale,
+            erase_relu=erase_relu, avd=avd)
         self.layer3 = self._make_layer(
             block, self.stages[3], layers[2], stride=2,
-            base_width=base_width, scale=scale, erase_relu=erase_relu)
+            base_width=base_width, scale=scale,
+            erase_relu=erase_relu, avd=avd)
 
         self.avgpool = GlobalAvgPool()
         self.fc = Linear(self.in_channels, num_classes)
