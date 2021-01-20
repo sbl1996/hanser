@@ -224,7 +224,7 @@ def imagenet_policy_v0():
     # (operation, probability, magnitude). each element in policy is a
     # sub-policy that will be applied sequentially on the image.
     policies = [
-        sub_policy(0.8, 'equalize', 1, 0.8, 'sheary',   4),
+        sub_policy(0.8, 'equalize', 1, 0.8, 'shearY',   4),
         sub_policy(0.4, 'color',    9, 0.6, 'equalize', 3),
         sub_policy(0.4, 'color',    1, 0.6, 'rotate',   8),
         sub_policy(0.8, 'solarize', 3, 0.4, 'equalize', 7),

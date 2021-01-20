@@ -367,7 +367,10 @@ def resize(img, size, method='bilinear'):
         oh = tf.cast(tf.math.ceil(h * scale), tf.int32)
         ow = tf.cast(tf.math.ceil(w * scale), tf.int32)
         size = tf.stack([oh, ow])
+    dtype = img.dtype
     img = tf.image.resize(img, size, method=method)
+    if img.dtype != dtype:
+        img = tf.cast(img, dtype)
     return img
 
 
@@ -493,10 +496,10 @@ def blend(image1, image2, factor):
 
     return tf.cond(
         tf.equal(factor, 0.0),
-        lambda: tf.convert_to_tensor(image1),
+        lambda: tf.identity(image1),
         lambda: tf.cond(
             tf.equal(factor, 1.0),
-            lambda: tf.convert_to_tensor(image2),
+            lambda: tf.identity(image2),
             lambda: blend_fn(image1, image2)
         )
     )
@@ -515,7 +518,7 @@ def solarize_add(image, addition=0, threshold=128):
     # we add 'addition' amount to it and then clip the
     # pixel value to be between 0 and 255. The value
     # of 'addition' is between -128 and 128.
-    added_image = tf.cast(image, tf.int64) + addition
+    added_image = tf.cast(image, tf.int32) + addition
     added_image = tf.cast(tf.clip_by_value(added_image, 0, 255), tf.uint8)
     return tf.where(image < threshold, added_image, image)
 
