@@ -241,3 +241,24 @@ PP_ResNet_CIFAR100_FAIR_AVD_1 = Genotype([
         (7, 'nor_conv_3x3')
     ]
 ])
+
+PP_ResNet_CIFAR100_FAIR_AVD_2 = Genotype([
+    [
+        (4, 'skip_connect'),
+        (1, 2, 3, 'nor_conv_3x3'),
+        (6, 'nor_conv_3x3'),
+        (6, 7, 'nor_conv_3x3')
+    ],
+    [
+        (2, 3, 'skip_connect'),
+        (1, 4, 'nor_conv_3x3'),
+        (6, 'nor_conv_3x3'),
+        (7, 'nor_conv_3x3')
+    ],
+    [
+        (1, 2, 4, 'skip_connect'),
+        (3, 'nor_conv_3x3'),
+        (6, 'nor_conv_3x3'),
+        (7, 'nor_conv_3x3')
+    ]
+])
