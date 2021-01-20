@@ -77,7 +77,6 @@ PP_ResNet_CIFAR10_FAIR_1 = Genotype(normal=[
     ]
 ])
 
-
 PP_ResNet_CIFAR100_FAIR_1 = Genotype(normal=[
     [
         (2, 4, 'nor_conv_3x3'),
@@ -177,5 +176,68 @@ PP_ResNet_ImageNet_FAIR_AVD_1 = Genotype([
         (3, 4, 'nor_conv_3x3'),
         (6, 'nor_conv_3x3'),
         (3, 4, 7, 'nor_conv_3x3')
+    ]
+])
+
+PP_ResNet_CIFAR10_FAIR_AVD_1 = Genotype([
+    [
+        (2, 3, 'skip_connect'),
+        (1, 2, 4, 'nor_conv_3x3'),
+        (6, 'nor_conv_3x3'),
+        (6, 7, 'nor_conv_3x3')
+    ],
+    [
+        (2, 3, 'skip_connect'),
+        (1, 4, 'nor_conv_3x3'),
+        (6, 'nor_conv_3x3'),
+        (6, 7, 'nor_conv_3x3')
+    ],
+    [
+        (1, 2, 3, 4, 'skip_connect'),
+        (1, 2, 'nor_conv_3x3'),
+        (6, 'nor_conv_3x3'),
+        (7, 'nor_conv_3x3')
+    ]
+])
+
+PP_ResNet_CIFAR10_FAIR_AVD_2 = Genotype([
+    [
+        (1, 4, 'skip_connect'),
+        (2, 3, 4, 5, 'nor_conv_3x3'),
+        (6, 'nor_conv_3x3'),
+        (7, 'nor_conv_3x3')
+    ],
+    [
+        (1, 'skip_connect'),
+        (2, 3, 4, 'nor_conv_3x3'),
+        (6, 'nor_conv_3x3'),
+        (6, 7, 'nor_conv_3x3')
+    ],
+    [
+        (2, 4, 'skip_connect'),
+        (1, 3, 5, 'nor_conv_3x3'),
+        (6, 'nor_conv_3x3'),
+        (7, 'nor_conv_3x3')
+    ]
+])
+
+PP_ResNet_CIFAR100_FAIR_AVD_1 = Genotype([
+    [
+        (2, 3, 'skip_connect'),
+        (1, 4, 5, 'nor_conv_3x3'),
+        (6, 'nor_conv_3x3'),
+        (6, 7, 'nor_conv_3x3')
+    ],
+    [
+        (1, 4, 'skip_connect'),
+        (2, 3, 'nor_conv_3x3'),
+        (6, 'nor_conv_3x3'),
+        (7, 'nor_conv_3x3')
+    ],
+    [
+        (1, 3, 'skip_connect'),
+        (1, 2, 4, 5, 'nor_conv_3x3'),
+        (6, 'nor_conv_3x3'),
+        (7, 'nor_conv_3x3')
     ]
 ])
