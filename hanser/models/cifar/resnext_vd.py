@@ -4,6 +4,12 @@ from tensorflow.keras.layers import Layer
 
 from hanser.models.layers import Conv2d, Act, Identity, GlobalAvgPool, Linear, Pool2d, Norm
 
+class NaiveGroupConv2d(Layer):
+
+    def __init__(self, in_channels, out_channels, kernel_size, stride, groups, norm, act):
+        super().__init__()
+
+
 
 class Bottleneck(Layer):
     expansion = 4

@@ -2,8 +2,6 @@ import math
 
 from toolz import curry
 
-import numpy as np
-
 import tensorflow as tf
 import tensorflow_addons as tfa
 import tensorflow_probability as tfp
@@ -17,8 +15,6 @@ IMAGENET_STD = [58.395, 57.120, 57.375]
 
 
 def _mixup(image1, label1, image2, label2, lam):
-    if len(lam.shape) == 0:
-        lam = lam[None]
 
     lam_image = tf.cast(lam, image1.dtype)[:, None, None, None]
     image = lam_image * image1 + (1 - lam_image) * image2
@@ -41,7 +37,7 @@ def _get_lam(shape, alpha, uniform=False, mc=False):
 @curry
 def mixup_batch(image, label, alpha, hard=False, **gen_lam_kwargs):
     n = tf.shape(image)[0]
-    lam_shape = (n,) if hard else ()
+    lam_shape = (n,) if hard else (1,)
     lam = _get_lam(lam_shape, alpha, **gen_lam_kwargs)
     return _mixup(image, label, image[::-1], label[::-1], lam)
 
@@ -49,7 +45,7 @@ def mixup_batch(image, label, alpha, hard=False, **gen_lam_kwargs):
 @curry
 def mixup_in_batch(image, label, alpha, hard=False, **gen_lam_kwargs):
     n = tf.shape(image)[0] // 2
-    lam_shape = (n,) if hard else ()
+    lam_shape = (n,) if hard else (1,)
     lam = _get_lam(lam_shape, alpha, **gen_lam_kwargs)
     image1, image2 = image[:n], image[n:]
     label1, label2 = label[:n], label[n:]
@@ -67,7 +63,7 @@ def mixup(data1, data2, alpha, hard=False, **gen_lam_kwargs):
     ], is_batch)
 
     n = _image_dimensions(image1, 4)[0]
-    lam_shape = (n,) if hard else ()
+    lam_shape = (n,) if hard else (1,)
     lam = _get_lam(lam_shape, alpha, **gen_lam_kwargs)
 
     image, label = _mixup(image1, label1, image2, label2, lam)
