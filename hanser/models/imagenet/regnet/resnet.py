@@ -23,7 +23,7 @@ class SELayer(Layer):
 class Bottleneck(Layer):
     expansion = 1
 
-    def __init__(self, in_channels, out_channels, stride, groups, se_channels):
+    def __init__(self, in_channels, out_channels, stride, groups, se_channels, zero_init_residual):
         super().__init__()
 
         self.conv1 = Conv2d(in_channels, out_channels, kernel_size=1,
@@ -33,7 +33,7 @@ class Bottleneck(Layer):
         self.se = SELayer(out_channels, se_channels)
         self.conv3 = Sequential([
             Conv2d(out_channels, out_channels, kernel_size=1, bias=False),
-            Norm(out_channels, gamma_init='zeros')
+            Norm(out_channels, gamma_init='zeros' if zero_init_residual else 'ones')
         ])
         if stride != 1 or in_channels != out_channels:
             self.shortcut = Conv2d(
@@ -55,7 +55,8 @@ class Bottleneck(Layer):
 
 class RegNet(Model):
 
-    def __init__(self, stem_channels, stages, layers, channels_per_group, se_reduction, num_classes=1000):
+    def __init__(self, stem_channels, stages, layers, channels_per_group, se_reduction,
+                 zero_init_residual=True, num_classes=1000):
         super().__init__()
         block = Bottleneck
 
@@ -65,24 +66,28 @@ class RegNet(Model):
         gs = [c // channels_per_group for c in stages]
 
         self.stage1 = self._make_layer(
-            block, stages[0], layers[0], stride=2, groups=gs[0], reduction=se_reduction)
+            block, stages[0], layers[0], stride=2, groups=gs[0],
+            reduction=se_reduction, zero_init_residual=zero_init_residual)
         self.stage2 = self._make_layer(
-            block, stages[1], layers[1], stride=2, groups=gs[1], reduction=se_reduction)
+            block, stages[1], layers[1], stride=2, groups=gs[1],
+            reduction=se_reduction, zero_init_residual=zero_init_residual)
         self.stage3 = self._make_layer(
-            block, stages[2], layers[2], stride=2, groups=gs[2], reduction=se_reduction)
+            block, stages[2], layers[2], stride=2, groups=gs[2],
+            reduction=se_reduction, zero_init_residual=zero_init_residual)
         self.stage4 = self._make_layer(
-            block, stages[3], layers[3], stride=2, groups=gs[3], reduction=se_reduction)
+            block, stages[3], layers[3], stride=2, groups=gs[3],
+            reduction=se_reduction, zero_init_residual=zero_init_residual)
 
         self.avgpool = GlobalAvgPool()
         self.fc = Linear(self.in_channels, num_classes)
 
-    def _make_layer(self, block, channels, blocks, stride, groups, reduction):
+    def _make_layer(self, block, channels, blocks, stride, groups, reduction, **kwargs):
         layers = [block(self.in_channels, channels, stride=stride,
-                        groups=groups, se_channels=self.in_channels // reduction)]
+                        groups=groups, se_channels=self.in_channels // reduction, **kwargs)]
         self.in_channels = channels * block.expansion
         for i in range(1, blocks):
             layers.append(block(self.in_channels, channels, stride=1,
-                                groups=groups, se_channels=self.in_channels // reduction))
+                                groups=groups, se_channels=self.in_channels // reduction, **kwargs))
         return Sequential(layers)
 
     def call(self, x):
