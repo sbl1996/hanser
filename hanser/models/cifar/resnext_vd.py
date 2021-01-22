@@ -1,14 +1,36 @@
 import math
+import tensorflow as tf
 from tensorflow.keras import Sequential, Model
 from tensorflow.keras.layers import Layer
 
 from hanser.models.layers import Conv2d, Act, Identity, GlobalAvgPool, Linear, Pool2d, Norm
 
+
 class NaiveGroupConv2d(Layer):
 
     def __init__(self, in_channels, out_channels, kernel_size, stride, groups, norm, act):
         super().__init__()
+        self.groups = groups
+        D_in = in_channels // groups
+        D_out = out_channels // groups
+        self.convs = [
+            Conv2d(D_in, D_out, kernel_size=kernel_size, stride=stride)
+            for _ in range(groups)
+        ]
+        self.norm = Norm(out_channels, norm) if norm is not None else None
+        self.act = Act(act) if act is not None else None
 
+    def call(self, x):
+        xs = tf.split(x, self.groups, axis=-1)
+        xs = [
+            conv(x) for conv, x in zip(self.convs, xs)
+        ]
+        x = tf.concat(xs, axis=-1)
+        if self.norm is not None:
+            x = self.norm(x)
+        if self.act is not None:
+            x = self.act(x)
+        return x
 
 
 class Bottleneck(Layer):
@@ -23,8 +45,9 @@ class Bottleneck(Layer):
 
         self.conv1 = Conv2d(in_channels, D * C, kernel_size=1,
                             norm='def', act='def')
-        self.conv2 = Conv2d(D * C, D * C, kernel_size=3, stride=stride, groups=cardinality,
-                            norm='def', act='def')
+        self.conv2 = NaiveGroupConv2d(
+            D * C, D * C, kernel_size=3, stride=stride, groups=cardinality,
+            norm='def', act='def')
         self.conv3 = Conv2d(D * C, out_channels, kernel_size=1,
                             norm='def')
         self.conv3 = Conv2d(D * C, out_channels, kernel_size=1)
