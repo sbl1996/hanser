@@ -389,9 +389,14 @@ class NaiveGroupConv2D(Layer):
         ]
 
     def call(self, x):
-        C = self.in_channels // self.groups
-        x = tf.concat([
-            conv(x[:, :, :, i * C: (i + 1) * C])
-            for i, conv in enumerate(self.convs)
-        ], axis=-1)
+        # C = self.in_channels // self.groups
+        # x = tf.concat([
+        #     conv(x[:, :, :, i * C: (i + 1) * C])
+        #     for i, conv in enumerate(self.convs)
+        # ], axis=-1)
+        xs = tf.split(x, self.groups, axis=-1)
+        xs = [
+            conv(x) for conv, x in zip(self.convs, xs)
+        ]
+        x = tf.concat(xs, axis=-1)
         return x
