@@ -220,7 +220,7 @@ def Conv2d(in_channels: int,
                               use_bias=use_bias, dilation_rate=dilation, depth_multiplier=depth_multiplier,
                               depthwise_initializer=kernel_initializer, bias_initializer=bias_initializer)
     elif conv_cfg['group']['smart_naive'] and 1 < groups <= conv_cfg['group']['max_naive_groups']:
-        conv = NaiveGroupConv2d(
+        conv = NaiveGroupConv2D(
             in_channels, out_channels, kernel_size=kernel_size, stride=stride,
             padding=conv_padding, groups=groups)
     else:
@@ -376,7 +376,7 @@ class Mish(Layer):
         return base_config
 
 
-class NaiveGroupConv2d(Layer):
+class NaiveGroupConv2D(Layer):
 
     def __init__(self, in_channels, out_channels, kernel_size, stride, padding, groups):
         super().__init__()
@@ -385,7 +385,7 @@ class NaiveGroupConv2d(Layer):
         D_in = in_channels // groups
         D_out = out_channels // groups
         self.convs = [
-            Conv2d(D_in, D_out, kernel_size=kernel_size, stride=stride, padding=padding)
+            Conv2D(D_out, kernel_size=kernel_size, stride=stride, padding=padding)
             for _ in range(groups)
         ]
 
