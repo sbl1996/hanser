@@ -385,7 +385,7 @@ class NaiveGroupConv2D(Layer):
         D_in = in_channels // groups
         D_out = out_channels // groups
         self.convs = [
-            Conv2D(D_out, kernel_size=kernel_size, stride=stride, padding=padding)
+            Conv2D(D_out, kernel_size=kernel_size, strides=stride, padding=padding)
             for _ in range(groups)
         ]
 
