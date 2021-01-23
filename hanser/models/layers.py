@@ -222,7 +222,7 @@ def Conv2d(in_channels: int,
     elif conv_cfg['group']['smart_naive'] and 1 < groups <= conv_cfg['group']['max_naive_groups']:
         conv = NaiveGroupConv2d(
             in_channels, out_channels, kernel_size=kernel_size, stride=stride,
-            padding=padding, groups=groups)
+            padding=conv_padding, groups=groups)
     else:
         conv = Conv2D(out_channels, kernel_size=kernel_size, strides=stride,
                       padding=conv_padding, dilation_rate=dilation, use_bias=use_bias, groups=groups,
