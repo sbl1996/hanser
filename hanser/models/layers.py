@@ -6,9 +6,9 @@ from cerberus import Validator
 
 import tensorflow as tf
 from tensorflow.keras import Sequential
-from tensorflow.keras.initializers import VarianceScaling, RandomNormal, RandomUniform
+from tensorflow.keras.initializers import VarianceScaling, RandomUniform
 from tensorflow.keras.layers import Dense, Activation, Layer, Conv2D, ZeroPadding2D, LeakyReLU, \
-    Conv2DTranspose, DepthwiseConv2D, MaxPooling2D as KerasMaxPool2D, AveragePooling2D as KerasAvgPool2D
+    DepthwiseConv2D, MaxPooling2D as KerasMaxPool2D, AveragePooling2D as KerasAvgPool2D
 import tensorflow_addons as tfa
 from tensorflow_addons.activations import mish
 
@@ -18,12 +18,22 @@ from hanser.models.bn import BatchNormalization, SyncBatchNormalization
 __all__ = ["set_default", "set_defaults", "Act", "Conv2d", "Norm", "Linear", "GlobalAvgPool", "Pool2d", "Identity"]
 
 DEFAULTS = {
-    'naive': False,
+    'naive_padding': False,
     'conv': {
         'depthwise': {
             'use_group': False,
             'horch': False,
-        }
+        },
+        'group': {
+            'smart_naive': False,
+            'max_naive_groups': 8,
+        },
+        'init': {
+            'type': 'msra',
+            'mode': 'fan_out',
+            'distribution': 'untruncated_normal',
+            'fix': True,
+        },
     },
     'bn': {
         'momentum': 0.9,
@@ -44,21 +54,26 @@ DEFAULTS = {
         'alpha': 0.1,
     },
     'norm': 'bn',
-    'init': {
-        'type': 'msra',
-        'mode': 'fan_out',
-        'distribution': 'untruncated_normal',
-        'fix': True,
-    },
 }
 
 _defaults_schema = {
-    'naive': {'type': 'boolean'},
+    'naive_padding': {'type': 'boolean'},
     'conv': {
         'depthwise': {
             'use_group': {'type': 'boolean'},
             'horch': {'type': 'boolean'},
-        }
+        },
+        'group': {
+            'smart_naive': {'type': 'boolean'},
+            'max_naive_groups': {'type': 'integer'},
+        },
+        'init': {
+            'type': {'type': 'string', 'allowed': ['msra', 'normal']},
+            'mode': {'type': 'string', 'allowed': ['fan_in', 'fan_out']},
+            'distribution': {'type': 'string', 'allowed': ['uniform', 'truncated_normal', 'untruncated_normal']},
+            'fix': {'type': 'boolean'},
+        },
+
     },
     'bn': {
         'momentum': {'type': 'float', 'min': 0.0, 'max': 1.0},
@@ -78,12 +93,6 @@ _defaults_schema = {
         'alpha': {'type': 'float', 'min': 0.0, 'max': 1.0},
     },
     'norm': {'type': 'string', 'allowed': ['bn', 'gn', 'none']},
-    'init': {
-        'type': {'type': 'string', 'allowed': ['msra', 'normal']},
-        'mode': {'type': 'string', 'allowed': ['fan_in', 'fan_out']},
-        'distribution': {'type': 'string', 'allowed': ['uniform', 'truncated_normal','untruncated_normal']},
-        'fix': {'type': 'boolean'},
-    },
     'seed': {'type': 'integer'},
 }
 
@@ -160,7 +169,11 @@ def Conv2d(in_channels: int,
     if isinstance(padding, int):
         padding = (padding, padding)
 
-    if DEFAULTS['naive']:
+    conv_cfg = DEFAULTS['conv']
+    naive_padding = DEFAULTS['naive_padding']
+    init_cfg = conv_cfg['init']
+
+    if naive_padding:
         conv_padding = padding
     else:
         conv_padding = 'valid'
@@ -171,11 +184,10 @@ def Conv2d(in_channels: int,
         padding = calc_same_padding(kernel_size, dilation)
 
     # Init
-    init_cfg = DEFAULTS['init']
     if init_cfg['type'] == 'msra':
         mode = init_cfg['mode']
         distribution = init_cfg['distribution']
-        if in_channels == groups and not DEFAULTS['conv']['depthwise']['use_group'] and DEFAULTS['init']['fix']:
+        if in_channels == groups and not conv_cfg['depthwise']['use_group'] and init_cfg['fix']:
             mode = flip_mode(mode)
         if 'uniform' in distribution:
             kernel_initializer = VarianceScaling(1.0 / 3, mode, distribution)
@@ -193,13 +205,13 @@ def Conv2d(in_channels: int,
         use_bias = bias
 
     if in_channels == groups:
-        if DEFAULTS['conv']['depthwise']['use_group']:
+        if conv_cfg['depthwise']['use_group']:
             conv = Conv2D(out_channels, kernel_size=kernel_size, strides=stride,
                           padding=conv_padding, dilation_rate=dilation, use_bias=use_bias, groups=groups,
                           kernel_initializer=kernel_initializer, bias_initializer=bias_initializer)
         else:
             depth_multiplier = out_channels // in_channels
-            if DEFAULTS['conv']['depthwise']['horch']:
+            if conv_cfg['depthwise']['horch']:
                 from hanser.models.conv import DepthwiseConv2D as HorchDepthwiseConv2D
                 depth_conv = HorchDepthwiseConv2D
             else:
@@ -207,12 +219,16 @@ def Conv2d(in_channels: int,
             conv = depth_conv(kernel_size=kernel_size, strides=stride, padding=conv_padding,
                               use_bias=use_bias, dilation_rate=dilation, depth_multiplier=depth_multiplier,
                               depthwise_initializer=kernel_initializer, bias_initializer=bias_initializer)
+    elif conv_cfg['group']['smart_naive'] and 1 < groups <= conv_cfg['group']['max_naive_groups']:
+        conv = NaiveGroupConv2d(
+            in_channels, out_channels, kernel_size=kernel_size, stride=stride,
+            padding=padding, groups=groups)
     else:
         conv = Conv2D(out_channels, kernel_size=kernel_size, strides=stride,
                       padding=conv_padding, dilation_rate=dilation, use_bias=use_bias, groups=groups,
                       kernel_initializer=kernel_initializer, bias_initializer=bias_initializer)
 
-    if not DEFAULTS['naive'] and padding != (0, 0):
+    if not naive_padding and padding != (0, 0):
         conv = Sequential([
             ZeroPadding2D(padding),
             conv,
@@ -229,85 +245,6 @@ def Conv2d(in_channels: int,
     else:
         return Sequential(layers)
 
-
-def ConvTranspose2d(
-    in_channels: int,
-    out_channels: int,
-    kernel_size: Union[int, Tuple[int, int]],
-    stride: Union[int, Tuple[int, int]] = 1,
-    padding: Union[str, int, Tuple[int, int]] = 'same',
-    groups: int = 1,
-    dilation: int = 1,
-    bias: Optional[bool] = None,
-    norm: Optional[str] = None,
-    act: Optional[str] = None):
-    if isinstance(kernel_size, int):
-        kernel_size = (kernel_size, kernel_size)
-    if isinstance(stride, int):
-        stride = (stride, stride)
-    if isinstance(dilation, int):
-        dilation = (dilation, dilation)
-    if isinstance(padding, int):
-        padding = (padding, padding)
-
-    if DEFAULTS['naive']:
-        conv_padding = padding
-    else:
-        conv_padding = 'valid'
-
-    if isinstance(padding, str):
-        assert padding == 'same'
-    if padding == 'same':
-        padding = calc_same_padding(kernel_size, dilation)
-
-    # Init
-    init_cfg = DEFAULTS['init']
-    if init_cfg['type'] == 'msra':
-        if init_cfg['uniform']:
-            kernel_initializer = VarianceScaling(
-                1.0 / 3 * init_cfg['scale'], init_cfg['mode'], 'uniform')
-        else:
-            kernel_initializer = VarianceScaling(
-                2.0 * init_cfg['scale'], init_cfg['mode'], 'untruncated_normal')
-    elif init_cfg['type'] == 'normal':
-        kernel_initializer = RandomNormal(0, init_cfg['std'])
-    else:
-        raise ValueError("Unsupported init type: %s" % init_cfg['type'])
-
-    bound = math.sqrt(1 / (kernel_size[0] * kernel_size[1] * in_channels))
-    bias_initializer = RandomUniform(-bound, bound)
-
-    if bias is None:
-        use_bias = norm is None
-    else:
-        use_bias = bias
-
-    if in_channels == groups:
-        depth_multiplier = out_channels // in_channels
-        conv = DepthwiseConv2D(kernel_size=kernel_size, strides=stride, padding=conv_padding,
-                               use_bias=use_bias, dilation_rate=dilation, depth_multiplier=depth_multiplier,
-                               depthwise_initializer=kernel_initializer, bias_initializer=bias_initializer)
-    else:
-        conv = Conv2DTranspose(out_channels, kernel_size=kernel_size, strides=stride,
-                               padding=conv_padding, dilation_rate=dilation, use_bias=use_bias, groups=groups,
-                               kernel_initializer=kernel_initializer, bias_initializer=bias_initializer)
-
-    if not DEFAULTS['naive'] and padding != (0, 0):
-        conv = Sequential([
-            ZeroPadding2D(padding),
-            conv,
-        ])
-
-    layers = [conv]
-    if norm:
-        layers.append(Norm(out_channels, norm))
-    if act:
-        layers.append(Act(act))
-
-    if len(layers) == 1:
-        return layers[0]
-    else:
-        return Sequential(layers)
 
 def get_groups(channels, ref=32):
     if channels == 1:
@@ -372,9 +309,9 @@ def Pool2d(kernel_size, stride, padding='same', type='avg', ceil_mode=False):
         padding = 'valid'
 
     if type == 'avg':
-        pool = KerasAvgPool2D if DEFAULTS['naive'] else AvgPool2D
+        pool = KerasAvgPool2D if DEFAULTS['naive_padding'] else AvgPool2D
     elif type == 'max':
-        pool = KerasMaxPool2D if DEFAULTS['naive'] else MaxPool2D
+        pool = KerasMaxPool2D if DEFAULTS['naive_padding'] else MaxPool2D
     else:
         raise ValueError("Unsupported pool type: %s" % type)
 
@@ -437,3 +374,25 @@ class Mish(Layer):
     def get_config(self):
         base_config = super().get_config()
         return base_config
+
+
+class NaiveGroupConv2d(Layer):
+
+    def __init__(self, in_channels, out_channels, kernel_size, stride, padding, groups):
+        super().__init__()
+        self.in_channels = in_channels
+        self.groups = groups
+        D_in = in_channels // groups
+        D_out = out_channels // groups
+        self.convs = [
+            Conv2d(D_in, D_out, kernel_size=kernel_size, stride=stride, padding=padding)
+            for _ in range(groups)
+        ]
+
+    def call(self, x):
+        C = self.in_channels // self.groups
+        x = tf.concat([
+            conv(x[i * C: (i + 1) * C])
+            for i, conv in enumerate(self.convs)
+        ], axis=-1)
+        return x
