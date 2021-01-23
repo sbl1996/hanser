@@ -5,22 +5,7 @@ from tensorflow.keras.layers import Layer
 from hanser.models.layers import Conv2d, Norm, Act, Identity, GlobalAvgPool, Linear, Pool2d
 
 
-class SELayer2(Layer):
-
-    def __init__(self, channels, **kwargs):
-        super().__init__(**kwargs)
-        self.pool = GlobalAvgPool(keep_dim=True)
-        self.weight = self.add_weight(
-            name='weight', shape=(1, 1, 1, channels), dtype=self.dtype,
-            trainable=True, initializer=tf.keras.initializers.Constant(1.))
-
-    def call(self, x):
-        s = self.pool(x)
-        s = tf.sigmoid(self.weight * s)
-        return x * s
-
-
-class SELayer3(Layer):
+class SELayer(Layer):
 
     def __init__(self, channels, **kwargs):
         super().__init__(**kwargs)
@@ -36,20 +21,24 @@ class SELayer3(Layer):
 class Bottleneck(Layer):
     expansion = 1
 
-    def __init__(self, in_channels, out_channels, stride, groups, se_var=2):
+    def __init__(self, in_channels, out_channels, stride, groups, zero_init_residual, avd):
         super().__init__()
 
         self.conv1 = Conv2d(in_channels, out_channels, kernel_size=1,
                             norm='def', act='def')
-        self.conv2 = Conv2d(out_channels, out_channels, kernel_size=3, stride=stride, groups=groups,
-                            norm='def', act='def')
-        if se_var == 2:
-            self.se = SELayer2(out_channels)
+        if stride != 1 and avd:
+            self.conv2 = Sequential([
+                Pool2d(3, stride=stride, type='avg'),
+                Conv2d(in_channels, out_channels,  kernel_size=3, groups=groups,
+                       norm='def', act='def')
+            ])
         else:
-            self.se = SELayer3(out_channels)
+            self.conv2 = Conv2d(out_channels, out_channels, kernel_size=3, stride=stride, groups=groups,
+                                norm='def', act='def')
+        self.se = SELayer(out_channels)
         self.conv3 = Sequential([
             Conv2d(out_channels, out_channels, kernel_size=1, bias=False),
-            Norm(out_channels, gamma_init='zeros')
+            Norm(out_channels,  gamma_init='zeros' if zero_init_residual else 'ones')
         ])
         if stride != 1 or in_channels != out_channels:
             shortcut = []
@@ -75,7 +64,8 @@ class Bottleneck(Layer):
 
 class RegNet(Model):
 
-    def __init__(self, stem_channels, stages, layers, channels_per_group, se_var=2, num_classes=1000):
+    def __init__(self, stem_channels, stages, layers, channels_per_group,
+                 zero_init_residual=False, avd=False, num_classes=1000):
         super().__init__()
         block = Bottleneck
 
@@ -85,13 +75,17 @@ class RegNet(Model):
         gs = [c // channels_per_group for c in stages]
 
         self.stage1 = self._make_layer(
-            block, stages[0], layers[0], stride=2, groups=gs[0], se_var=se_var)
+            block, stages[0], layers[0], stride=2, groups=gs[0],
+            zero_init_residual=zero_init_residual, avd=avd)
         self.stage2 = self._make_layer(
-            block, stages[1], layers[1], stride=2, groups=gs[1], se_var=se_var)
+            block, stages[1], layers[1], stride=2, groups=gs[1],
+            zero_init_residual=zero_init_residual, avd=avd)
         self.stage3 = self._make_layer(
-            block, stages[2], layers[2], stride=2, groups=gs[2], se_var=se_var)
+            block, stages[2], layers[2], stride=2, groups=gs[2],
+            zero_init_residual=zero_init_residual, avd=avd)
         self.stage4 = self._make_layer(
-            block, stages[3], layers[3], stride=2, groups=gs[3], se_var=se_var)
+            block, stages[3], layers[3], stride=2, groups=gs[3],
+            zero_init_residual=zero_init_residual, avd=avd)
 
         self.avgpool = GlobalAvgPool()
         self.fc = Linear(self.in_channels, num_classes)
