@@ -112,23 +112,6 @@ def input_fn(filenames, training, transform, batch_size,
     return dataset
 
 
-def make_imagenet_dataset(
-    batch_size, eval_batch_size, transform, data_dir=None, train_files=None, eval_files=None, **kwargs):
-
-    if train_files is None:
-        train_files = get_filenames(data_dir, training=True)
-    if eval_files is None:
-        eval_files = get_filenames(data_dir, training=False)
-
-    ds_train = input_fn(
-        train_files, training=True, transform=transform, batch_size=batch_size, **kwargs)
-    ds_eval = input_fn(
-        eval_files, training=False, transform=transform, batch_size=eval_batch_size, **kwargs)
-
-    steps_per_epoch = NUM_IMAGES['train'] // batch_size
-    eval_steps = math.ceil(NUM_IMAGES['validation'] / eval_batch_size)
-    return ds_train, ds_eval, steps_per_epoch, eval_steps
-
 def make_imagenet_dataset_split(
     batch_size, transform, filenames, split, training=None, **kwargs):
     if training is None:
@@ -148,3 +131,18 @@ def make_imagenet_dataset_split(
             n *= kwargs['repeat']
         steps = math.ceil(n / batch_size)
     return ds, steps
+
+
+def make_imagenet_dataset(
+    batch_size, eval_batch_size, transform, data_dir=None, train_files=None, eval_files=None, **kwargs):
+
+    if train_files is None:
+        train_files = get_filenames(data_dir, training=True)
+    if eval_files is None:
+        eval_files = get_filenames(data_dir, training=False)
+
+    ds_train, steps_per_epoch = make_imagenet_dataset_split(
+        batch_size, transform, train_files, 'train', training=True, **kwargs)
+    ds_eval, eval_steps = input_fn(
+        eval_batch_size, transform, eval_files, 'validation', training=False, **kwargs)
+    return ds_train, ds_eval, steps_per_epoch, eval_steps
