@@ -143,6 +143,6 @@ def make_imagenet_dataset(
 
     ds_train, steps_per_epoch = make_imagenet_dataset_split(
         batch_size, transform, train_files, 'train', training=True, **kwargs)
-    ds_eval, eval_steps = input_fn(
+    ds_eval, eval_steps = make_imagenet_dataset_split(
         eval_batch_size, transform, eval_files, 'validation', training=False, **kwargs)
     return ds_train, ds_eval, steps_per_epoch, eval_steps
