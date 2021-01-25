@@ -67,6 +67,7 @@ def mixup(data1, data2, alpha, hard=False, **gen_lam_kwargs):
     lam = _get_lam(lam_shape, alpha, **gen_lam_kwargs)
 
     image, label = _mixup(image1, label1, image2, label2, lam)
+
     image, label = unwrap_batch([image, label], is_batch)
     return image, label
 

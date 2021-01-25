@@ -1,2 +1,2 @@
-from hanser.models.cifar.iresnet.resnet import ResNet
-from hanser.models.cifar.iresnet.resnext import ResNeXt
+from hanser.models.cifar.iresnet.resnet_vd import ResNet
+from hanser.models.cifar.iresnet.resnext_vd import ResNeXt

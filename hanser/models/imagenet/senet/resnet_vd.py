@@ -80,7 +80,8 @@ class Bottleneck(Layer):
 
 class ResNet(Model):
 
-    def __init__(self, block, layers, num_classes=1000, stages=(64, 64, 128, 256, 512), zero_init_residual=True, reduction=16):
+    def __init__(self, block, layers, num_classes=1000, stages=(64, 64, 128, 256, 512),
+                 zero_init_residual=False, reduction=16):
         super().__init__()
         self.stages = stages
 

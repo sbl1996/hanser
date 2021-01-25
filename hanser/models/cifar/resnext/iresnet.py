@@ -7,11 +7,11 @@ from hanser.models.layers import Conv2d, Act, Identity, GlobalAvgPool, Linear, N
 class Bottleneck(Layer):
     expansion = 4
 
-    def __init__(self, in_channels, channels, stride, group_channels, cardinality,
+    def __init__(self, in_channels, channels, stride, channels_per_group, cardinality,
                  start_block=False, end_block=False, exclude_bn0=False):
         super().__init__()
         out_channels = channels * self.expansion
-        width = group_channels * cardinality
+        width = channels_per_group * cardinality
         if not start_block and not exclude_bn0:
             self.bn0 = Norm(in_channels)
         if not start_block:
@@ -33,7 +33,7 @@ class Bottleneck(Layer):
         if stride != 1 or in_channels != out_channels:
             shortcut = []
             if stride != 1:
-                shortcut.append(Pool2d(2, 2, type='avg'))
+                shortcut.append(Pool2d(3, 2, type='max'))
             shortcut.append(
                 Conv2d(in_channels, out_channels, kernel_size=1, norm='def'))
             self.shortcut = Sequential(shortcut)
@@ -67,45 +67,45 @@ class Bottleneck(Layer):
 
 class ResNeXt(Model):
 
-    def __init__(self, depth, group_channels=(64, 128, 256), cardinality=(8, 8, 8),
+    def __init__(self, depth, channels_per_group=(64, 128, 256), cardinality=(8, 8, 8),
                  num_classes=100, stages=(64, 64, 128, 256)):
         super().__init__()
         self.stages = stages
         block = Bottleneck
         layers = [(depth - 2) // 9] * 3
-        if isinstance(group_channels, int):
-            group_channels = [group_channels] * 3
+        if isinstance(channels_per_group, int):
+            channels_per_group = [channels_per_group] * 3
         if isinstance(cardinality, int):
             cardinality = [cardinality] * 3
 
-        self.conv = Conv2d(3, self.stages[0], kernel_size=3, norm='def', act='def')
+        self.stem = Conv2d(3, self.stages[0], kernel_size=3, norm='def', act='def')
+        self.in_channels = self.stages[0]
 
         self.layer1 = self._make_layer(
-            block, self.stages[0], self.stages[1], layers[0], stride=1,
-            group_channels=group_channels[0], cardinality=cardinality[0])
+            block, self.stages[1], layers[0], stride=1,
+            channels_per_group=channels_per_group[0], cardinality=cardinality[0])
         self.layer2 = self._make_layer(
-            block, self.stages[1], self.stages[2], layers[1], stride=2,
-            group_channels=group_channels[1], cardinality=cardinality[1])
+            block, self.stages[2], layers[1], stride=2,
+            channels_per_group=channels_per_group[1], cardinality=cardinality[1])
         self.layer3 = self._make_layer(
-            block, self.stages[2], self.stages[3], layers[2], stride=2,
-            group_channels=group_channels[2], cardinality=cardinality[2])
+            block, self.stages[3], layers[2], stride=2,
+            channels_per_group=channels_per_group[2], cardinality=cardinality[2])
 
         self.avgpool = GlobalAvgPool()
-        self.fc = Linear(self.stages[3], num_classes)
+        self.fc = Linear(self.in_channels, num_classes)
 
-    def _make_layer(self, block, in_channels, channels, blocks, stride,
-                    group_channels, cardinality):
-        layers = [block(in_channels, channels, stride=stride, start_block=True,
-                        group_channels=group_channels, cardinality=cardinality)]
-        out_channels = channels * 4
+    def _make_layer(self, block, channels, blocks, stride, **kwargs):
+        layers = [block(self.in_channels, channels, stride=stride, start_block=True,
+                        **kwargs)]
+        self.in_channels = channels * block.expansion
         for i in range(1, blocks):
-            layers.append(block(out_channels, channels, stride=1,
+            layers.append(block(self.in_channels, channels, stride=1,
                                 exclude_bn0=i == 1, end_block=i == blocks - 1,
-                                group_channels=group_channels, cardinality=cardinality))
+                                **kwargs))
         return Sequential(layers)
 
     def call(self, x):
-        x = self.conv(x)
+        x = self.stem(x)
 
         x = self.layer1(x)
         x = self.layer2(x)

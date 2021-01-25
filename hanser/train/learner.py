@@ -16,9 +16,10 @@ def find_most_recent(work_dir, pattern):
     pattern = pattern
     saves = list(d.glob(pattern))
     if len(saves) == 0:
-        raise FileNotFoundError("No checkpoint to load in %s" % work_dir)
-    fp = max(saves, key=lambda f: f.stat().st_mtime)
-    return fp
+        return None
+    else:
+        fp = max(saves, key=lambda f: f.stat().st_mtime)
+        return fp
 
 
 @tf.function
@@ -363,8 +364,15 @@ class Learner(metaclass=ABCMeta):
         path = ckpt.write(save_path, ckpt_options)
         print('Save learner to %s' % path)
 
-    def load(self, fp=None):
-        fp = fp or str(find_most_recent(self.work_dir, "ckpt.index"))[:-6]
+    def load(self, fp=None, miss_ok=False):
+        if fp is None:
+            fp = find_most_recent(self.work_dir, "ckpt.index")
+            if fp is None:
+                if miss_ok:
+                    print("No checkpoint in %s" % self.work_dir)
+                else:
+                    raise FileNotFoundError("No checkpoint to load in %s" % self.work_dir)
+            fp = str(fp)[:-6]
         ckpt, ckpt_options = self._make_ckpt()
         ckpt.restore(fp, ckpt_options)
         self.set_global_state('epoch', self.epoch)

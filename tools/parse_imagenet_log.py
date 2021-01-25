@@ -2,6 +2,7 @@ import argparse
 import re
 
 import numpy as np
+import pandas as pd
 from toolz.curried import map, curry
 from datetime import timedelta
 from dateutil.parser import parse
@@ -45,19 +46,32 @@ def parse_log(fp):
         np.array(x) for x in [train_losses, valid_accs, valid_acc5s]]
     return train_start, train_losses, valid_ends, valid_accs, valid_acc5s
 
+def estimate_epoch_cost(valid_ends):
+    epoch_seconds = list(map(lambda t: dtime(t[0], t[1]).seconds, zip(valid_ends[1:], valid_ends[:-1])))
+    n = len(epoch_seconds)
+    second_counts = pd.value_counts(epoch_seconds)
+    sum = 0
+    tc = 0
+    for cost, freq in second_counts.iteritems():
+        sum += cost * freq
+        tc += freq
+        if tc / n > 0.75:
+            break
+    return sum / tc
+
 parser = argparse.ArgumentParser()
 parser.add_argument('-f','--log', type=str, help='Log file', required=True)
 args = parser.parse_args()
+log_file = args.log
 
 epoch_p = re.compile(r"""Epoch \d+/\d+""")
 dt_p = "\d{2}:\d{2}:\d{2}"
 m_p = "\d+\.\d{4}"
 
-log_file = args.log
-train_start, train_losses, valid_ends, valid_accs,valid_acc5s = parse_log(log_file)
-total_time = timedelta(seconds=dtime(valid_ends[-1], train_start).seconds)
-total_epochs = len(valid_ends)
-epoch_train_time = (parse(valid_ends[-1]) - parse(valid_ends[1])).seconds / (total_epochs - 2)
+train_start, train_losses, valid_ends, valid_accs, valid_acc5s = parse_log(log_file)
+total_cost = timedelta(seconds=dtime(valid_ends[-1], train_start).seconds)
+epoch_cost = estimate_epoch_cost(valid_ends)
+max_acc_epoch = np.argmax(valid_accs)
 print(f"%.2f %.2f %.4f %s %.1f" % (
-    valid_accs[-1] * 100, valid_acc5s[-1] * 100, train_losses[-1],
-    total_time, epoch_train_time))
+    valid_accs[max_acc_epoch] * 100, valid_acc5s[max_acc_epoch] * 100, train_losses[-1],
+    total_cost, epoch_cost))

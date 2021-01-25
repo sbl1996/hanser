@@ -1,3 +1,7 @@
+# DEPRECATED
+# The original IResNet uses MaxPool in projection shortcut with downsampling.
+# Therefore, these is no need to use AvgPool here.
+
 from tensorflow.keras import Sequential, Model
 from tensorflow.keras.layers import Layer, Dropout
 
@@ -8,7 +12,7 @@ from hanser.models.layers import Conv2d, Act, Identity, GlobalAvgPool, Linear, N
 class BasicBlock(Layer):
     expansion = 1
 
-    def __init__(self, in_channels, channels, stride, dropout, drop_path,
+    def __init__(self, in_channels, channels, stride, dropout=0, drop_path=0,
                  start_block=False, end_block=False, exclude_bn0=False):
         super().__init__()
         out_channels = channels * self.expansion
@@ -74,7 +78,7 @@ class BasicBlock(Layer):
 class Bottleneck(Layer):
     expansion = 4
 
-    def __init__(self, in_channels, channels, stride, drop_path=0,
+    def __init__(self, in_channels, channels, stride, dropout=0, drop_path=0,
                  start_block=False, end_block=False, exclude_bn0=False):
         super().__init__()
         out_channels = channels * self.expansion
@@ -88,6 +92,7 @@ class Bottleneck(Layer):
         self.conv2 = Conv2d(channels, channels, kernel_size=3, stride=stride)
         self.bn2 = Norm(channels)
         self.act2 = Act()
+        self.dropout = Dropout(dropout) if dropout else Identity()
         self.conv3 = Conv2d(channels, out_channels, kernel_size=1)
 
         if start_block:
@@ -122,22 +127,17 @@ class Bottleneck(Layer):
                 x = self.bn0(x)
             x = self.act0(x)
             x = self.conv1(x)
-
         x = self.bn1(x)
         x = self.act1(x)
-
         x = self.conv2(x)
         x = self.bn2(x)
         x = self.act2(x)
-
+        x = self.dropout(x)
         x = self.conv3(x)
-
         if self.start_block:
             x = self.bn3(x)
-
         x = self.drop_path(x)
         x = x + identity
-
         if self.end_block:
             x = self.bn3(x)
             x = self.act3(x)
@@ -146,7 +146,7 @@ class Bottleneck(Layer):
 
 class ResNet(Model):
 
-    def __init__(self, depth, block, dropout=0, drop_path=0, num_classes=10, stages=(64, 64, 128, 256)):
+    def __init__(self, depth, block='basic', dropout=0, drop_path=0, num_classes=10, stages=(64, 64, 128, 256)):
         super().__init__()
         self.stages = stages
         if block == 'basic':
