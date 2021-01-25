@@ -259,11 +259,6 @@ class TerminateOnNaN(Callback):
             raise RuntimeError("Infinite encountered")
 
 
-# class ColabPushResult(Callback):
-
-#     def after_train(self, state):
-
-
 class NNIReportIntermediateResult(Callback):
 
     def __init__(self, metric):

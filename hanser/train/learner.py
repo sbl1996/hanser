@@ -370,6 +370,7 @@ class Learner(metaclass=ABCMeta):
             if fp is None:
                 if miss_ok:
                     print("No checkpoint in %s" % self.work_dir)
+                    return
                 else:
                     raise FileNotFoundError("No checkpoint to load in %s" % self.work_dir)
             fp = str(fp)[:-6]
