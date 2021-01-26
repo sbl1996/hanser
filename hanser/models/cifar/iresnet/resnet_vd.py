@@ -13,7 +13,7 @@ class BasicBlock(Layer):
     expansion = 1
 
     def __init__(self, in_channels, channels, stride, dropout=0, drop_path=0,
-                 start_block=False, end_block=False, exclude_bn0=False):
+                 avd=False, start_block=False, end_block=False, exclude_bn0=False):
         super().__init__()
         out_channels = channels * self.expansion
         if not start_block and not exclude_bn0:
@@ -79,9 +79,10 @@ class Bottleneck(Layer):
     expansion = 4
 
     def __init__(self, in_channels, channels, stride, dropout=0, drop_path=0,
-                 start_block=False, end_block=False, exclude_bn0=False):
+                 avd=False, start_block=False, end_block=False, exclude_bn0=False):
         super().__init__()
         out_channels = channels * self.expansion
+
         if not start_block and not exclude_bn0:
             self.bn0 = Norm(in_channels)
         if not start_block:
@@ -89,10 +90,18 @@ class Bottleneck(Layer):
         self.conv1 = Conv2d(in_channels, channels, kernel_size=1)
         self.bn1 = Norm(channels)
         self.act1 = Act()
-        self.conv2 = Conv2d(channels, channels, kernel_size=3, stride=stride)
+
+        if avd and stride != 1:
+            self.conv2 = Sequential([
+                Pool2d(3, stride, type='avg'),
+                Conv2d(channels, channels, kernel_size=3, stride=1),
+            ])
+        else:
+            self.conv2 = Conv2d(channels, channels, kernel_size=3, stride=stride)
         self.bn2 = Norm(channels)
         self.act2 = Act()
         self.dropout = Dropout(dropout) if dropout else Identity()
+
         self.conv3 = Conv2d(channels, out_channels, kernel_size=1)
 
         if start_block:
