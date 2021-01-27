@@ -7,7 +7,7 @@ from hanser.models.layers import Conv2d, Act, Identity, GlobalAvgPool, Linear, P
 class BasicBlock(Layer):
     expansion = 1
 
-    def __init__(self, in_channels, channels, stride, erase_relu, zero_init_residual=False):
+    def __init__(self, in_channels, channels, stride, erase_relu=False, zero_init_residual=False):
         super().__init__()
         out_channels = channels * self.expansion
         self.conv1 = Conv2d(in_channels, out_channels, kernel_size=3, stride=stride,
@@ -39,7 +39,7 @@ class BasicBlock(Layer):
 class Bottleneck(Layer):
     expansion = 4
 
-    def __init__(self, in_channels, channels, stride, erase_relu, zero_init_residual=True, avd=False):
+    def __init__(self, in_channels, channels, stride, erase_relu=False, zero_init_residual=True, avd=False):
         super().__init__()
         out_channels = channels * self.expansion
         self.conv1 = Conv2d(in_channels, channels, kernel_size=1,

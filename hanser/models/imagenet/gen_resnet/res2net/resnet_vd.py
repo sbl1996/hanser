@@ -5,11 +5,11 @@ from hanser.models.imagenet.gen_resnet.resnet_vd import ResNet as GenResNet
 class ResNet(GenResNet):
 
     def __init__(self, block, layers, base_width=26, scale=4,
-                 erase_relu=False, zero_init_residual=False, avd=False,
+                 zero_init_residual=False, avd=False,
                  num_classes=1000, stages=(64, 64, 128, 256, 512)):
         super().__init__(
             block, layers, num_classes, stages,
-            base_width=base_width, scale=scale, erase_relu=erase_relu,
+            base_width=base_width, scale=scale,
             zero_init_residual=zero_init_residual, avd=avd,
         )
 

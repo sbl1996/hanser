@@ -1,6 +1,7 @@
 from hanser.models.profile.fvcore import profile, count_mac
 from hanser.models.imagenet.gen_resnet.res2net.resnet import resnet50
 from hanser.models.imagenet.gen_resnet.resnet import resnet50
+from hanser.models.imagenet.efficientnet import efficientnet_b2
 model = resnet50()
 model.build((None, 224, 224, 3))
 n, t = profile(model)

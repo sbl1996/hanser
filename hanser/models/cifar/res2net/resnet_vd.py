@@ -55,7 +55,7 @@ class Bottle2neck(Layer):
 
 class ResNet(Model):
 
-    def __init__(self, depth, base_width=26, scale=4, erase_relu=False, avd=False,
+    def __init__(self, depth, base_width=26, scale=4, avd=False,
                  num_classes=10, stages=(64, 64, 128, 256)):
         super().__init__()
         self.stages = stages

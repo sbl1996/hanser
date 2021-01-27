@@ -7,7 +7,7 @@ from hanser.models.imagenet.stem import ResNetvdStem
 
 class ResNet(Model):
 
-    def __init__(self, block, layers, erase_relu=False, zero_init_residual=False,
+    def __init__(self, block, layers, zero_init_residual=False,
                  avd=False, num_classes=1000, stages=(64, 64, 128, 256, 512)):
         super().__init__()
         self.stages = stages
@@ -17,16 +17,16 @@ class ResNet(Model):
 
         self.layer1 = self._make_layer(
             block, self.stages[1], layers[0], stride=1,
-            erase_relu=erase_relu, zero_init_residual=zero_init_residual, avd=avd)
+            zero_init_residual=zero_init_residual, avd=avd)
         self.layer2 = self._make_layer(
             block, self.stages[2], layers[1], stride=2,
-            erase_relu=erase_relu, zero_init_residual=zero_init_residual, avd=avd)
+            zero_init_residual=zero_init_residual, avd=avd)
         self.layer3 = self._make_layer(
             block, self.stages[3], layers[2], stride=2,
-            erase_relu=erase_relu, zero_init_residual=zero_init_residual, avd=avd)
+            zero_init_residual=zero_init_residual, avd=avd)
         self.layer4 = self._make_layer(
             block, self.stages[4], layers[3], stride=2,
-            erase_relu=erase_relu, zero_init_residual=zero_init_residual, avd=avd)
+            zero_init_residual=zero_init_residual, avd=avd)
 
         self.avgpool = GlobalAvgPool()
         self.fc = Linear(self.in_channels, num_classes)

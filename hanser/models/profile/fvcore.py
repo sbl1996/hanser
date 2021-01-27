@@ -81,7 +81,6 @@ layer_table = {
 
 
 def count_mac(layer: Layer, input_shape=None):
-    print(layer)
     if isinstance(layer, (Model, Sequential)):
         total = 0
         input_shape = layer.layers[0].input_shape

@@ -96,7 +96,7 @@ class MBConv(Layer):
 
 class EfficientNet(Model):
 
-    def __init__(self, width_coefficient, depth_coefficient, dropout, drop_connect=0.2, depth_divisor=8,
+    def __init__(self, width_coefficient, depth_coefficient, dropout, drop_connect=0.3, depth_divisor=8,
                  num_classes=1000):
         super().__init__()
         round_channels_ = partial(
