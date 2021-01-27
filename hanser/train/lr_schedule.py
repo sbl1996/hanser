@@ -278,6 +278,69 @@ class MultiStepLR(LearningRateSchedule):
         }
 
 
+class ExponentialDecay(LearningRateSchedule):
+
+    def __init__(
+        self,
+        learning_rate,
+        steps_per_epoch,
+        decay_epochs,
+        decay_rate,
+        staircase=False,
+        warmup_epoch=0,
+        warmup_min_lr=0,
+    ):
+
+        super().__init__()
+        self.base_lr = learning_rate
+        self.steps_per_epoch = steps_per_epoch
+        self.decay_epochs = decay_epochs
+        self.decay_rate = decay_rate
+        self.staircase = staircase
+        self.warmup_min_lr = warmup_min_lr
+        self.warmup_epoch = warmup_epoch
+
+        self.decay_steps = decay_epochs * steps_per_epoch
+        self.warmup_steps = warmup_epoch * steps_per_epoch
+
+    def __call__(self, step):
+        base_lr = tf.convert_to_tensor(self.base_lr, name="base_lr")
+        dtype = base_lr.dtype
+        decay_steps = tf.cast(self.decay_steps, dtype)
+        decay_rate = tf.cast(self.decay_rate, dtype)
+        warmup_steps = tf.cast(self.warmup_steps, dtype)
+        warmup_min_lr = tf.cast(self.warmup_min_lr, dtype)
+
+        step = tf.cast(step, dtype)
+
+        def warmup(step):
+            return warmup_min_lr + (base_lr - warmup_min_lr) * step / warmup_steps
+
+        def exponential_decay(step):
+            p = step / decay_steps
+            if self.staircase:
+                p = tf.math.floor(p)
+            return tf.math.multiply(base_lr, tf.math.pow(decay_rate, p))
+
+        return tf.cond(
+            tf.less(step, warmup_steps),
+            lambda: warmup(step),
+            lambda: exponential_decay(step - warmup_steps),
+        )
+
+    def get_config(self):
+        return {
+            "base_lr": self.base_lr,
+            "steps_per_epoch": self.steps_per_epoch,
+            "decay_epochs": self.decay_epochs,
+            "decay_rate": self.decay_rate,
+            "staircase": self.staircase,
+            "warmup_min_lr": self.warmup_min_lr,
+            "warmup_epoch": self.warmup_epoch,
+            "decay_steps": self.decay_steps,
+            "warmup_steps": self.warmup_steps,
+        }
+
 def scale_lr(lr, mul, mode='linear'):
     if mode == 'linear':
         return lr * mul
