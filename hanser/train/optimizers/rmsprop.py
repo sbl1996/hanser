@@ -91,24 +91,24 @@ class RMSprop(tf.keras.optimizers.Optimizer):
 
         square_avg_t = (coefficients["alpha"] * square_avg +
                  coefficients["one_minus_alpha"] * tf.math.square(grad))
-        square_avg_t = tf.assign(square_avg, square_avg_t, use_locking=self._use_locking)
+        square_avg_t = square_avg.assign(square_avg_t, use_locking=self._use_locking)
 
         denom_t = square_avg_t
         if self.centered:
             grad_avg = self.get_slot(var, "grad_avg")
             grad_avg_t = coefficients["alpha"] * grad_avg + coefficients["one_minus_alpha"] * grad
-            grad_avg_t = tf.assign(grad_avg, grad_avg_t, use_locking=self._use_locking)
+            grad_avg_t = grad_avg.assign(grad_avg_t, use_locking=self._use_locking)
             denom_t = square_avg_t - tf.math.square(grad_avg_t)
         avg = tf.math.sqrt(denom_t) + coefficients["eps"]
 
         if self._momentum:
             momentum = self.get_slot(var, "momentum")
             momentum_t = momentum * coefficients['momentum'] + grad / avg
-            update = tf.assign(momentum, momentum_t, use_locking=self._use_locking)
+            update = momentum.assign(momentum_t, use_locking=self._use_locking)
         else:
             update = grad / avg
         var_t = var - coefficients["lr_t"] * update
-        return tf.assign(var, var_t, use_locking=self._use_locking).op
+        return var.assign(var_t, use_locking=self._use_locking)
 
     def _resource_apply_sparse(self, grad, var, indices, apply_state=None):
       var_device, var_dtype = var.device, var.dtype.base_dtype
@@ -146,8 +146,8 @@ class RMSprop(tf.keras.optimizers.Optimizer):
               use_locking=self._use_locking)
       else:
         rms_scaled_g_values = (grad * grad) * coefficients["one_minus_alpha"]
-        rms_t = tf.assign(square_avg, square_avg * coefficients["alpha"],
-                                 use_locking=self._use_locking)
+        rms_t = square_avg.assign(square_avg * coefficients["alpha"],
+                                  use_locking=self._use_locking)
         with tf.control_dependencies([rms_t]):
           rms_t = self._resource_scatter_add(square_avg, indices, rms_scaled_g_values)
           rms_slice = tf.gather(rms_t, indices)
@@ -155,8 +155,8 @@ class RMSprop(tf.keras.optimizers.Optimizer):
         if self.centered:
           grad_avg = self.get_slot(var, "grad_avg")
           grad_avg_scaled_g_values = grad * coefficients["one_minus_alpha"]
-          grad_avg_t = tf.assign(grad_avg, grad_avg * coefficients["alpha"],
-                                  use_locking=self._use_locking)
+          grad_avg_t = grad_avg.assign(grad_avg * coefficients["alpha"],
+                                       use_locking=self._use_locking)
           with tf.control_dependencies([grad_avg_t]):
             grad_avg_t = self._resource_scatter_add(grad_avg, indices, grad_avg_scaled_g_values)
             grad_avg_slice = tf.gather(grad_avg_t, indices)
