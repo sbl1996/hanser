@@ -2,6 +2,7 @@ from tensorflow.keras import Model, Sequential
 from hanser.models.layers import Conv2d, Linear, GlobalAvgPool, Pool2d
 
 from hanser.models.cifar.ppnas.resnet_avd_fair import Bottleneck
+from hanser.models.imagenet.stem import ResNetvdStem
 
 
 class ResNet(Model):
@@ -13,15 +14,7 @@ class ResNet(Model):
         self.splits = splits
         genotype = genotype.normal
 
-        self.stem = Sequential([
-            Conv2d(3, self.stages[0] // 2, kernel_size=3, stride=2,
-                   norm='def', act='def'),
-            Conv2d(self.stages[0] // 2, self.stages[0] // 2, kernel_size=3,
-                   norm='def', act='def'),
-            Conv2d(self.stages[0] // 2, self.stages[0], kernel_size=3,
-                   norm='def', act='def'),
-        ])
-        self.maxpool = Pool2d(kernel_size=3, stride=2, type='max')
+        self.stem = ResNetvdStem(self.stages[0])
         self.in_channels = self.stages[0]
 
         self.layer1 = self._make_layer(
@@ -53,7 +46,6 @@ class ResNet(Model):
 
     def call(self, x):
         x = self.stem(x)
-        x = self.maxpool(x)
 
         x = self.layer1(x)
         x = self.layer2(x)

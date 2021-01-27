@@ -139,7 +139,7 @@ def calc_same_padding(kernel_size, dilation):
     dh, dw = dilation
     ph = (kh + (kh - 1) * (dh - 1) - 1) // 2
     pw = (kw + (kw - 1) * (dw - 1) - 1) // 2
-    padding = (ph, pw)
+    padding = ((ph, ph), (pw, pw))
     return padding
 
 
@@ -152,7 +152,7 @@ def flip_mode(m):
 
 def Conv2d(in_channels: int,
            out_channels: int,
-           kernel_size: Union[int, Tuple[int, int]],
+           kernel_size: Union[int, Tuple[int, int], Tuple[Tuple[int, int], Tuple[int, int]]],
            stride: Union[int, Tuple[int, int]] = 1,
            padding: Union[str, int, Tuple[int, int]] = 'same',
            groups: int = 1,
@@ -167,11 +167,15 @@ def Conv2d(in_channels: int,
     if isinstance(dilation, int):
         dilation = (dilation, dilation)
     if isinstance(padding, int):
-        padding = (padding, padding)
+        padding = ((padding, padding), (padding, padding))
+    elif isinstance(padding, tuple) and isinstance(padding[0], int):
+        assert len(padding) == 2
+        ph, pw = padding
+        padding = ((ph, ph), (pw, pw))
 
     conv_cfg = DEFAULTS['conv']
-    naive_padding = DEFAULTS['naive_padding']
     init_cfg = conv_cfg['init']
+    naive_padding = DEFAULTS['naive_padding'] or padding == 'SAME'
 
     if naive_padding:
         conv_padding = padding
@@ -179,7 +183,7 @@ def Conv2d(in_channels: int,
         conv_padding = 'valid'
 
     if isinstance(padding, str):
-        assert padding == 'same'
+        assert padding in ['same', 'SAME']
     if padding == 'same':
         padding = calc_same_padding(kernel_size, dilation)
 
@@ -228,7 +232,7 @@ def Conv2d(in_channels: int,
                       padding=conv_padding, dilation_rate=dilation, use_bias=use_bias, groups=groups,
                       kernel_initializer=kernel_initializer, bias_initializer=bias_initializer)
 
-    if not naive_padding and padding != (0, 0):
+    if not naive_padding and padding != ((0, 0), (0, 0)):
         conv = Sequential([
             ZeroPadding2D(padding),
             conv,
@@ -325,13 +329,6 @@ class GlobalAvgPool(Layer):
     def __init__(self, keep_dim=False, **kwargs):
         super().__init__(**kwargs)
         self.keep_dim = keep_dim
-
-    def compute_output_shape(self, input_shape):
-        input_shape = tf.TensorShape(input_shape).as_list()
-        if self.keep_dim:
-            return tf.TensorShape([input_shape[0], 1, 1, input_shape[3]])
-        else:
-            return tf.TensorShape([input_shape[0], input_shape[3]])
 
     # noinspection PyMethodOverriding
     def call(self, inputs):

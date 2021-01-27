@@ -136,17 +136,23 @@ class Bottleneck(Layer):
                 x = self.bn0(x)
             x = self.act0(x)
             x = self.conv1(x)
+
         x = self.bn1(x)
         x = self.act1(x)
+
         x = self.conv2(x)
         x = self.bn2(x)
         x = self.act2(x)
         x = self.dropout(x)
+
         x = self.conv3(x)
+
         if self.start_block:
             x = self.bn3(x)
+
         x = self.drop_path(x)
         x = x + identity
+
         if self.end_block:
             x = self.bn3(x)
             x = self.act3(x)

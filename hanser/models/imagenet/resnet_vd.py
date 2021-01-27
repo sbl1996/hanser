@@ -1,7 +1,8 @@
 from tensorflow.keras import Sequential, Model
 
-from hanser.models.layers import Conv2d, GlobalAvgPool, Linear, Pool2d
+from hanser.models.layers import GlobalAvgPool, Linear
 from hanser.models.cifar.resnet_vd import BasicBlock, Bottleneck
+from hanser.models.imagenet.stem import ResNetvdStem
 
 
 class ResNet(Model):
@@ -11,15 +12,7 @@ class ResNet(Model):
         super().__init__()
         self.stages = stages
 
-        self.stem = Sequential([
-            Conv2d(3, self.stages[0] // 2, kernel_size=3, stride=2,
-                   norm='def', act='def'),
-            Conv2d(self.stages[0] // 2, self.stages[0] // 2, kernel_size=3,
-                   norm='def', act='def'),
-            Conv2d(self.stages[0] // 2, self.stages[0], kernel_size=3,
-                   norm='def', act='def'),
-        ])
-        self.maxpool = Pool2d(kernel_size=3, stride=2, type='max')
+        self.stem = ResNetvdStem(self.stages[0])
         self.in_channels = self.stages[0]
 
         self.layer1 = self._make_layer(
@@ -49,7 +42,6 @@ class ResNet(Model):
 
     def call(self, x):
         x = self.stem(x)
-        x = self.maxpool(x)
 
         x = self.layer1(x)
         x = self.layer2(x)

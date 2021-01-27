@@ -78,6 +78,7 @@ class Bottleneck(Layer):
                  start_block=False, end_block=False, exclude_bn0=False):
         super().__init__()
         out_channels = channels * self.expansion
+
         if not start_block and not exclude_bn0:
             self.bn0 = Norm(in_channels)
         if not start_block:

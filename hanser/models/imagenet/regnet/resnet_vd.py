@@ -3,6 +3,7 @@ from tensorflow.keras.layers import Layer
 
 from hanser.models.layers import Conv2d, Norm, Act, Identity, GlobalAvgPool, Linear, Pool2d
 from hanser.models.imagenet.regnet.resnet import SELayer
+from hanser.models.imagenet.stem import SimpleStem
 
 
 class Bottleneck(Layer):
@@ -49,8 +50,7 @@ class RegNet(Model):
         super().__init__()
         block = Bottleneck
 
-        self.stem = Conv2d(3, stem_channels, kernel_size=3, stride=2,
-                           norm='def', act='def')
+        self.stem = SimpleStem(stem_channels)
         self.in_channels = stem_channels
         gs = [c // channels_per_group for c in stages]
 

@@ -47,8 +47,8 @@ class PreActResBlock(Sequential):
         layers.append(SELayer(out_channels, reduction=reduction))
         super().__init__(layers)
 
-    def call(self, x, training=None):
-        return x + super().call(x, training)
+    def call(self, x):
+        return x + super().call(x)
 
 
 class ResNet(Model):

@@ -9,10 +9,11 @@ from hanser.models.cifar.res2net.layers import Res2Conv
 class Bottle2neck(Layer):
     expansion = 4
 
-    def __init__(self, in_channels, channels, stride, base_width=26, scale=4, start_block=False,
+    def __init__(self, in_channels, channels, stride, base_width=26, scale=4,
                  erase_relu=False, zero_init_residual=True, avd=False):
         super().__init__()
         out_channels = channels * self.expansion
+        start_block = stride != 1 or in_channels != out_channels
         width = math.floor(channels * (base_width / 64)) * scale
         self.conv1 = Conv2d(in_channels, width, kernel_size=1,
                             norm='def', act='def')

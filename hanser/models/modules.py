@@ -1,9 +1,10 @@
+import numpy as np
 import tensorflow as tf
 from tensorflow.keras import initializers
 from tensorflow.keras import Sequential
 from tensorflow.keras.layers import InputSpec, Softmax, Dropout, Layer
 
-from hanser.models.layers import Conv2d, Norm, Act
+from hanser.models.layers import Conv2d, Norm, Act, GlobalAvgPool
 from tensorflow.python.layers.utils import smart_cond
 
 
@@ -28,14 +29,15 @@ class PadChannel(Layer):
 
 class SELayer(Layer):
 
-    def __init__(self, in_channels, reduction, groups=1, **kwargs):
+    def __init__(self, in_channels, reduction=None, groups=1, se_channels=None,
+                 min_se_channels=32, act='def', **kwargs):
         super().__init__(**kwargs)
-        channels = min(max(in_channels // reduction, 32), in_channels)
+        channels = se_channels or min(max(in_channels // reduction, min_se_channels), in_channels)
         if groups != 1:
             channels = round_channels(channels, groups)
         self.pool = GlobalAvgPool(keep_dim=True)
         self.fc = Sequential([
-            Conv2d(in_channels, channels, 1, groups=groups, act='def'),
+            Conv2d(in_channels, channels, 1, groups=groups, act=act),
             Conv2d(channels, in_channels, 1, groups=groups, act='sigmoid'),
         ])
 
@@ -166,32 +168,6 @@ class SplAtConv2d(Layer):
         else:
             out = gap * x
         return out
-
-
-class GlobalAvgPool(Layer):
-    """Abstract class for different global pooling 2D layers.
-  """
-
-    def __init__(self, keep_dim=False, **kwargs):
-        super().__init__(**kwargs)
-        self.keep_dim = keep_dim
-        self.input_spec = InputSpec(ndim=4)
-        self._supports_ragged_inputs = True
-
-    def compute_output_shape(self, input_shape):
-        input_shape = tf.TensorShape(input_shape).as_list()
-        if self.keep_dim:
-            return tf.TensorShape([input_shape[0], 1, 1, input_shape[3]])
-        else:
-            return tf.TensorShape([input_shape[0], input_shape[3]])
-
-    def call(self, inputs):
-        return tf.reduce_mean(inputs, axis=[1, 2], keepdims=self.keep_dim)
-
-    def get_config(self):
-        config = {'keep_dim': self.keep_dim}
-        base_config = super().get_config()
-        return {**base_config, **config}
 
 
 class ReZero(Layer):
@@ -330,6 +306,87 @@ class Affine(Layer):
         base_config = {
             "scale": self.scale,
             "center": self.center,
+            **base_config
+        }
+        return base_config
+
+
+class AntiAliasing(Layer):
+
+    def __init__(self, kernel_size=3, stride=2, **kwargs):
+        super().__init__(**kwargs)
+        self.kernel_size = kernel_size
+        self.stride = stride
+
+    def build(self, input_shape):
+        kernel_size = self.kernel_size
+        padding = int((kernel_size - 1) // 2)
+        self.paddings = [
+            [0, 0], [padding, padding], [padding, padding], [0, 0]
+        ]
+
+        if kernel_size == 1:
+            a = np.array([1., ])
+        elif kernel_size == 2:
+            a = np.array([1., 1.])
+        elif kernel_size == 3:
+            a = np.array([1., 2., 1.])
+        elif kernel_size == 4:
+            a = np.array([1., 3., 3., 1.])
+        elif kernel_size == 5:
+            a = np.array([1., 4., 6., 4., 1.])
+        elif kernel_size == 6:
+            a = np.array([1., 5., 10., 10., 5., 1.])
+        elif kernel_size == 7:
+            a = np.array([1., 6., 15., 20., 15., 6., 1.])
+        else:
+            raise ValueError("Not supported kernel_size: %d" % kernel_size)
+
+        G = input_shape[-1]
+
+        kernel = a[:, None] * a[None, :]
+        kernel = kernel / kernel.sum()
+        kernel = np.tile(kernel[:, :, None, None], [1, 1, G, 1])
+
+        self.kernel = self.add_weight(
+            name="kernel", shape=kernel.shape, dtype=self.dtype,
+            initializer=initializers.Constant(kernel), trainable=False)
+
+    def call(self, inputs, training=None):
+        stride = self.stride
+
+        if self.kernel_size == 1:
+            return inputs[:, :, ::stride, ::stride]
+        else:
+            inputs = tf.pad(inputs, self.paddings, "REFLECT")
+            strides = (1, stride, stride, 1)
+            output = tf.nn.depthwise_conv2d(
+                inputs, self.kernel, strides=strides, padding='VALID')
+            return output
+
+    def get_config(self):
+        base_config = super().get_config()
+        base_config = {
+            "kernel_size": self.kernel_size,
+            "stride": self.stride,
+            **base_config
+        }
+        return base_config
+
+
+class SpaceToDepth(Layer):
+
+    def __init__(self, block_size, **kwargs):
+        super().__init__(**kwargs)
+        self.block_size = block_size
+
+    def call(self, inputs):
+        return tf.nn.space_to_depth(inputs, self.block_size)
+
+    def get_config(self):
+        base_config = super().get_config()
+        base_config = {
+            "block_size": self.block_size,
             **base_config
         }
         return base_config
