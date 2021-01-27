@@ -390,3 +390,24 @@ class SpaceToDepth(Layer):
             **base_config
         }
         return base_config
+
+
+class Slice(Layer):
+
+    def __init__(self, begin, size, **kwargs):
+        super().__init__(**kwargs)
+        self.begin = begin
+        self.size = size
+        assert len(begin) == len(size)
+
+    def compute_output_shape(self, input_shape):
+        begins = self.begin[1:]
+        sizes = self.size[1:]
+        ends = [shape if size == -1 else begin + size for (begin, size, shape) in zip(
+            begins, sizes, input_shape[1:])]
+        sizes = [end - begin for begin, end in zip(begins, ends)]
+        output_shape = (input_shape[0], *sizes)
+        return output_shape
+
+    def call(self, x):
+        return tf.slice(x, (0, *self.begin), (-1, *self.size))

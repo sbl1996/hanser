@@ -10,9 +10,10 @@ class Bottleneck(Layer):
     expansion = 4
 
     def __init__(self, in_channels, channels, stride, base_width, scale, cardinality,
-                 start_block=False, end_block=False, exclude_bn0=False):
+                 end_block=False, exclude_bn0=False):
         super().__init__()
         out_channels = channels * self.expansion
+        start_block = stride != 1 or in_channels != out_channels
         width = math.floor(channels * (base_width / 64)) * scale * cardinality
         if not start_block and not exclude_bn0:
             self.bn0 = Norm(in_channels)
@@ -92,7 +93,7 @@ class ResNeXt(Model):
         self.fc = Linear(self.in_channels, num_classes)
 
     def _make_layer(self, block, channels, blocks, stride, **kwargs):
-        layers = [block(self.in_channels, channels, stride=stride, start_block=True,
+        layers = [block(self.in_channels, channels, stride=stride,
                         **kwargs)]
         self.in_channels = channels * block.expansion
         for i in range(1, blocks):

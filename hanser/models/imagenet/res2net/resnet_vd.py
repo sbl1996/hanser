@@ -1,6 +1,6 @@
 from tensorflow.keras import Sequential, Model
 
-from hanser.models.layers import Conv2d, GlobalAvgPool, Linear, Pool2d
+from hanser.models.layers import GlobalAvgPool, Linear
 from hanser.models.cifar.res2net.resnet_vd import Bottle2neck
 from hanser.models.imagenet.stem import ResNetvdStem
 
@@ -37,7 +37,7 @@ class ResNet(Model):
         self.fc = Linear(self.in_channels, num_classes)
 
     def _make_layer(self, block, channels, blocks, stride, **kwargs):
-        layers = [block(self.in_channels, channels, stride=stride, start_block=True,
+        layers = [block(self.in_channels, channels, stride=stride,
                         **kwargs)]
         self.in_channels = channels * block.expansion
         for i in range(1, blocks):

@@ -1,6 +1,7 @@
 import tensorflow as tf
 from tensorflow.keras import Sequential
-from tensorflow.keras.layers import Layer
+from tensorflow.keras.layers import Layer, Concatenate, Lambda
+from hanser.models.modules import Slice
 from hanser.models.layers import Conv2d, Norm, Act, Pool2d
 
 OPS = {
@@ -95,12 +96,14 @@ class FactorizedReduce(Layer):
         super().__init__()
         assert C_out % 2 == 0
         self.act = Act()
+        self.slice = Slice([1, 1, 0], [-1, -1, -1])
         self.conv1 = Conv2d(C_in, C_out // 2, 1, stride=2, bias=False)
         self.conv2 = Conv2d(C_in, C_out // 2, 1, stride=2, bias=False)
         self.norm = Norm(C_out)
+        self.concat = Concatenate()
 
     def call(self, x):
         x = self.act(x)
-        x = tf.concat([self.conv1(x), self.conv2(x[:, 1:, 1:, :])], axis=-1)
+        x = self.concat([self.conv1(x), self.conv2(self.slice(x))])
         x = self.norm(x)
         return x
