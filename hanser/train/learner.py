@@ -129,8 +129,8 @@ class Learner(metaclass=ABCMeta):
 
     def _make_ckpt(self):
         optimizers = self.optimizers
-        if len(optimizers) == 1 and hasattr(self, "original_optimizer"):
-            optimizers = [self.original_optimizer]
+        # if len(optimizers) == 1 and hasattr(self, "original_optimizer"):
+        #     optimizers = [self.original_optimizer]
         ckpt = tf.train.Checkpoint(
             model=self.model, optimizers=optimizers,
             epoch=self._state['train']['epoch']

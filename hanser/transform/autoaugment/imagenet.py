@@ -134,7 +134,7 @@ def _solarize(img, level):
 
 
 def _solarize_add(img, level):
-    return solarize_add(img, _solarize_level_to_arg(level))
+    return solarize_add(img, _solarize_add_level_to_arg(level))
 
 
 def _contrast(img, level):
@@ -257,26 +257,23 @@ def imagenet_policy_v0():
     return policies
 
 
-def autoaugment(image, augmentation_name):
+def autoaugment(image):
     CONSTS['cutout_const'] = 100
     CONSTS['translate_const'] = 250
 
-    available_policies = {'ImageNet': imagenet_policy_v0}
-    if augmentation_name not in available_policies:
-        raise ValueError('Invalid augmentation_name: {}'.format(augmentation_name))
-    policies = available_policies[augmentation_name]()
+    policies = imagenet_policy_v0()
     image = select_and_apply_random_policy(policies, image)
     return image
 
 
-def rand_augment(image, num_layers, magnitude):
+def rand_augment(image, num_layers=2, magnitude=10):
     CONSTS['cutout_const'] = 40
     CONSTS['translate_const'] = 100
 
     available_ops = [
-        'autocontrast', 'equalize', 'invert', 'solarize_add', 'posterize',
-        'solarize', 'color', 'contrast', 'brightness', 'sharpness', 'cutout',
-        'shearX', 'shearY', 'translateX', 'translateY', 'rotate',
+        'autocontrast', 'equalize', 'invert', 'rotate', 'posterize',
+        'solarize', 'color', 'contrast', 'brightness', 'sharpness',
+        'shearX', 'shearY', 'translateX', 'translateY', 'cutout', 'solarize_add',
     ]
 
     for layer_num in range(num_layers):

@@ -205,17 +205,14 @@ class EvalLogger(Callback):
 
 class EMA(Callback):
 
-    def __init__(self, decay=None):
-        super().__init__()
-        self.decay = decay
-
     def init(self):
-        if self.decay is not None:
-            self.original_optimizer = self.learner.optimizers[0]
-            self.learner.optimizers[0] = MovingAverage(
-                self.original_optimizer, average_decay=self.decay)
-        else:
-            assert isinstance(self.learner.optimizers[0], MovingAverage)
+        assert isinstance(self.learner.optimizers[0], MovingAverage)
+        # if self.decay is not None:
+        #     self.original_optimizer = self.learner.optimizers[0]
+        #     self.learner.optimizers[0] = MovingAverage(
+        #         self.original_optimizer, average_decay=self.decay)
+        # else:
+        #     assert isinstance(self.learner.optimizers[0], MovingAverage)
 
     def begin_eval(self, state):
         opt: MovingAverage = self.learner.optimizers[0]
