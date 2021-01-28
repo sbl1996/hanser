@@ -105,7 +105,10 @@ def profile(model):
     for k in layer_table:
         layer_table[k] = 0
     assert isinstance(model, (Model, Sequential))
-    input_shape = model.layers[0].input_shape[1:]
+    input_shape = model.layers[0].input_shape
+    if isinstance(input_shape, list) and len(input_shape) == 1:
+        input_shape = input_shape[0]
+    input_shape = input_shape[1:]
     model.call(tf.keras.layers.Input(input_shape))
     n = count_mac(model)
     t = {k: v for k, v in layer_table.items() if v != 0}
