@@ -108,8 +108,9 @@ def cutmix_batch(image, label, alpha, hard=False, **gen_lam_kwargs):
 
     masks, lam = rand_mask(image, lam)
 
-    image2 = image[::-1]
-    label2 = label[::-1]
+    indices = tf.random.shuffle(tf.range(n))
+    image2 = tf.gather(image, indices)
+    label2 = tf.gather(label, indices)
 
     image = image * masks + image2 * (1. - masks)
 
