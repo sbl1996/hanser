@@ -48,5 +48,5 @@ class CNNLearner(Learner):
 
         inputs = cast(inputs, self.dtype)
         preds = model(inputs, training=False)
-        preds = cast(preds, self.dtype)
+        preds = cast(preds, tf.float32)
         return preds
