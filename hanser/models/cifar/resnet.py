@@ -1,21 +1,19 @@
-from tensorflow.keras import Sequential, Model
+from tensorflow.keras import Model
 from tensorflow.keras.layers import Layer
 
-from hanser.models.layers import Conv2d, Act, Identity, GlobalAvgPool, Linear, Norm
+from hanser.models.layers import Conv2d, Act, Identity, GlobalAvgPool, Linear, Sequential, set_defaults
 
 
 class BasicBlock(Layer):
     expansion = 1
 
-    def __init__(self, in_channels, channels, stride, erase_relu=False, zero_init_residual=True):
+    def __init__(self, in_channels, channels, stride, erase_relu):
         super().__init__()
         out_channels = channels * self.expansion
         self.conv1 = Conv2d(in_channels, out_channels, kernel_size=3, stride=stride,
                             norm='def', act='def')
-        self.conv2 = Sequential([
-            Conv2d(out_channels, out_channels, kernel_size=3),
-            Norm(out_channels, gamma_init='zeros' if zero_init_residual else 'ones'),
-        ])
+        self.conv2 = Conv2d(out_channels, out_channels, kernel_size=3,
+                            norm='def')
 
         if stride != 1 or in_channels != out_channels:
             self.shortcut = Conv2d(in_channels, out_channels, kernel_size=1, stride=stride, norm='def')
@@ -35,17 +33,15 @@ class BasicBlock(Layer):
 class Bottleneck(Layer):
     expansion = 4
 
-    def __init__(self, in_channels, channels, stride, erase_relu=False, zero_init_residual=True):
+    def __init__(self, in_channels, channels, stride, erase_relu):
         super().__init__()
         out_channels = channels * self.expansion
         self.conv1 = Conv2d(in_channels, channels, kernel_size=1,
                             norm='def', act='def')
         self.conv2 = Conv2d(channels, channels, kernel_size=3, stride=stride,
                             norm='def', act='def')
-        self.conv3 = Sequential([
-            Conv2d(channels, out_channels, kernel_size=1),
-            Norm(out_channels, gamma_init='zeros' if zero_init_residual else 'ones'),
-        ])
+        self.conv3 = Conv2d(channels, out_channels, kernel_size=1,
+                            norm='def')
         if stride != 1 or in_channels != out_channels:
             self.shortcut = Conv2d(in_channels, out_channels, kernel_size=1, stride=stride, norm='def')
         else:

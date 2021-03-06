@@ -155,7 +155,7 @@ def cutmix(data1, data2, alpha, hard=False, **gen_lam_kwargs):
     ], is_batch)
 
     n = _image_dimensions(image1, 4)[0]
-    lam_shape = (n,) if hard else ()
+    lam_shape = (n,) if hard else (1,)
     lam = _get_lam(lam_shape, alpha, **gen_lam_kwargs)
 
     masks, lam = rand_mask(image1, lam)

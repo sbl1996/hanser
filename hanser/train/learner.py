@@ -235,7 +235,7 @@ class Learner(metaclass=ABCMeta):
 
     @tf.function
     def _test_step(self, inputs):
-        strategy_run(self._strategy, self.test_batch, (inputs,))
+        return strategy_run(self._strategy, self.test_batch, (inputs,))
 
     @tf.function
     def _run_steps(self, step_fn, iterator, n_batches_per_step, n_steps, callbacks, state):

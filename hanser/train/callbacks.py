@@ -232,7 +232,7 @@ class DropPathRateSchedule(Callback):
 
     def begin_epoch(self, state):
         epoch = int(state['epoch'].numpy())
-        epochs = state['epochs'].numpy()
+        epochs = state['epochs']
         rate = (epoch - 1) / epochs * self.drop_path
         for l in self.learner.model.submodules:
             if isinstance(l, DropPath):

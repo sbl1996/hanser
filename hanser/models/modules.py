@@ -183,8 +183,10 @@ class ReZero(Layer):
         return x * self.res_weight
 
     def get_config(self):
-        base_config = super(ReZero, self).get_config()
-        return base_config
+        return {
+            **super().get_config(),
+            "init_val": self.init_val,
+        }
 
 
 class Affine(Layer):
@@ -285,7 +287,7 @@ class Affine(Layer):
                 shape=param_shape,
                 dtype=self._param_dtype,
                 initializer=self.gamma_initializer,
-                trainable=True,
+                trainable=self.trainable,
                 experimental_autocast=False)
         else:
             self.gamma = None
@@ -296,7 +298,7 @@ class Affine(Layer):
                 shape=param_shape,
                 dtype=self._param_dtype,
                 initializer=self.beta_initializer,
-                trainable=True,
+                trainable=self.trainable,
                 experimental_autocast=False)
         else:
             self.beta = None
@@ -358,7 +360,8 @@ class AntiAliasing(Layer):
         if self.kernel_size == 1:
             return inputs[:, :, ::stride, ::stride]
         else:
-            inputs = tf.pad(inputs, self.paddings, "REFLECT")
+            # inputs = tf.pad(inputs, self.paddings, "REFLECT")
+            inputs = tf.pad(inputs, self.paddings)
             strides = (1, stride, stride, 1)
             output = tf.nn.depthwise_conv2d(
                 inputs, self.kernel, strides=strides, padding='VALID')
