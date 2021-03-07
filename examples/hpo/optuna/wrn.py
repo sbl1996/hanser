@@ -10,7 +10,7 @@ from hanser.transform.autoaugment import autoaugment
 
 from hanser.train.optimizers import SGD
 from hanser.models.cifar.preactresnet import ResNet
-from hanser.train.cls import CNNLearner
+from hanser.train.cls import SuperLearner
 from hanser.train.callbacks import EMA, OptunaReportIntermediateResult
 from hanser.train.lr_schedule import CosineLR
 from hanser.losses import CrossEntropy
@@ -73,7 +73,7 @@ def objective(trial: optuna.Trial):
         'acc': CategoricalAccuracy(),
     }
 
-    learner = CNNLearner(
+    learner = SuperLearner(
         model, criterion, optimizer,
         train_metrics=train_metrics, eval_metrics=eval_metrics,
         work_dir=f"./CIFAR100-NNI", multiple_steps=True)

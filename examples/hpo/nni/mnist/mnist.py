@@ -7,7 +7,7 @@ from hanser.datasets.mnist import make_mnist_dataset
 from hanser.transform import pad, to_tensor, normalize
 from hanser.models.mnist import LeNet5
 from hanser.train.optimizers import SGD
-from hanser.train.cls import CNNLearner
+from hanser.train.cls import SuperLearner
 from hanser.train.callbacks import NNIReportIntermediateResult, EMA
 from hanser.train.lr_schedule import CosineLR
 from hanser.losses import CrossEntropy
@@ -54,7 +54,7 @@ eval_metrics = {
     'acc': CategoricalAccuracy(),
 }
 
-learner = CNNLearner(
+learner = SuperLearner(
     model, criterion, optimizer,
     train_metrics=train_metrics, eval_metrics=eval_metrics,
     work_dir=f"./MNIST", multiple_steps=True)

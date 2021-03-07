@@ -11,7 +11,7 @@ from hanser.transform.autoaugment import autoaugment
 
 from hanser.train.optimizers import SGD
 from hanser.models.cifar.preactresnet import ResNet
-from hanser.train.cls import CNNLearner
+from hanser.train.cls import SuperLearner
 from hanser.train.callbacks import EMA
 from hanser.train.lr_schedule import CosineLR
 from hanser.losses import CrossEntropy
@@ -68,7 +68,7 @@ eval_metrics = {
     'acc': CategoricalAccuracy(),
 }
 
-learner = CNNLearner(
+learner = SuperLearner(
     model, criterion, optimizer,
     train_metrics=train_metrics, eval_metrics=eval_metrics,
     work_dir=f"./drive/My Drive/models/CIFAR100-{WORKER_ID}", multiple_steps=True)

@@ -3,7 +3,7 @@ import tensorflow as tf
 from hanser.train.learner import Learner, cast
 
 
-class CNNLearner(Learner):
+class SuperLearner(Learner):
 
     def __init__(self, model, criterion, optimizer,
                  batch_transform=None, batches_transform=None,
@@ -50,3 +50,5 @@ class CNNLearner(Learner):
         preds = model(inputs, training=False)
         preds = cast(preds, tf.float32)
         return preds
+
+CNNLearner = SuperLearner
