@@ -24,13 +24,14 @@ def config_callbacks(
     callbacks=None,
     save_freq=None,
     mode='train',
+    verbose=True,
 ):
     cbks = callbacks or []
     cbks = cbks if isinstance(cbks, (list, tuple)) else [cbks]
 
     if mode == 'train':
         if not any(isinstance(k, TrainEvalLogger) for k in cbks):
-            cbks = [TrainEvalLogger()] + cbks
+            cbks = [TrainEvalLogger(verbose=verbose)] + cbks
         if not any(isinstance(k, ModelCheckpoint) for k in cbks) and save_freq:
             cbks = cbks + [ModelCheckpoint(save_freq)]
     else:
@@ -164,9 +165,9 @@ class ModelCheckpoint(Callback):
 
 class TrainEvalLogger(Callback):
 
-    def __init__(self):
+    def __init__(self, verbose=True):
         super().__init__()
-        self.verbose = True
+        self.verbose = verbose
 
     def _is_print(self):
         return self.verbose

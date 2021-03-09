@@ -59,7 +59,7 @@ class RegNetY(GenRegNet):
     def __init__(self, stem_channels, stages, layers, channels_per_group, se_reduction,
                  zero_init_residual=True, num_classes=1000):
         super().__init__(Bottleneck, stem_channels, stages, layers, channels_per_group, num_classes,
-                         se_reduction=se_reduction, zero_init_residual=zero_init_residual)
+                         reduction=se_reduction, zero_init_residual=zero_init_residual)
 
 
 def regnety_200MF(**kwargs):

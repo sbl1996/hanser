@@ -183,6 +183,7 @@ class Learner(metaclass=ABCMeta):
             self,
             callbacks,
             save_freq=save_freq,
+            verbose=self._verbose,
         )
         start_epoch = self.epoch + 1
         self.set_global_state("epochs", max_epochs)
