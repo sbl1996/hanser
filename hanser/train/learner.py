@@ -189,7 +189,8 @@ class Learner(metaclass=ABCMeta):
         self.set_global_state("epochs", max_epochs)
         self.set_global_state("step", tf.Variable(0, dtype=tf.int64))
 
-        print("%s Start training" % (time_now(),))
+        if self._verbose:
+            print("%s Start training" % (time_now(),))
 
         # May have problem when recover training from checkpoint
         if reuse_train_iterator:
