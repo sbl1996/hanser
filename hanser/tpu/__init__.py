@@ -56,6 +56,14 @@ def setup(datasets, fp16=True, device='auto', cross_device_ops=None):
         return datasets
 
 
+def distribute_datasets(datasets):
+    strategy = tf.distribute.get_strategy()
+    return [
+        (strategy.experimental_distribute_dataset(ds)
+         if not isinstance(ds, tf.distribute.DistributedDataset) else ds)
+        for ds in datasets]
+
+
 def get_colab_tpu():
     tpu_address = os.environ.get("COLAB_TPU_ADDR")
     if tpu_address:
