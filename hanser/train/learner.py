@@ -382,9 +382,9 @@ class Learner(metaclass=ABCMeta):
         print("Load learner at epoch %d from %s" % (self.epoch + 1, fp))
 
 
-def cast(xs, dtype):
+def cast(xs, dtype, whiltelist=(tf.int32, tf.int64)):
     if isinstance(xs, tf.Tensor):
-        if xs.dtype != dtype:
+        if xs.dtype != dtype and all(xs.dtype != wdtype for wdtype in whiltelist):
             xs = tf.cast(xs, dtype)
         return xs
     elif isinstance(xs, (tuple, list)):
