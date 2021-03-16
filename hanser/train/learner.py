@@ -75,7 +75,6 @@ class Learner(metaclass=ABCMeta):
                  train_metrics: Mapping[str, Metric],
                  eval_metrics: Mapping[str, Metric], work_dir,
                  grad_clip_norm=0.0, multiple_steps=True, xla_compile=False,
-                 metric_transform=default_metric_transform,
                  target_metric_transform=default_metric_transform,
                  output_metric_transform=default_metric_transform,
                  n_batches_per_step=None):
@@ -102,7 +101,6 @@ class Learner(metaclass=ABCMeta):
         self.grad_clip_norm = grad_clip_norm
         self.multiple_steps = multiple_steps
         self.xla_compile = xla_compile
-        self.metric_transform = metric_transform
         self.target_metric_transform = target_metric_transform
         self.output_metric_transform = output_metric_transform
 
