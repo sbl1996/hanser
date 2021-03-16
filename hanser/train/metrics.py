@@ -5,8 +5,8 @@ import tensorflow.keras.backend as K
 
 class MeanMetricWrapper(Mean):
 
-    def __init__(self, fn, name=None, **kwargs):
-        super(MeanMetricWrapper, self).__init__(name=name, dtype=None)
+    def __init__(self, fn, name=None, dtype=None, **kwargs):
+        super(MeanMetricWrapper, self).__init__(name=name, dtype=dtype)
         self._fn = fn
         self._compiled_fn = tf.function(fn)
         self._fn_kwargs = kwargs
