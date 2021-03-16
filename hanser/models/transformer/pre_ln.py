@@ -71,9 +71,7 @@ class TransformerEncoder(Layer):
 
         self.cls_head = Dense(n_tokens)
 
-
-    def call(self, x):
-
+    def forward_features(self, x):
         x = self.embedding(x)
         x = tf.cast(x, self.pos_embedding.dtype)
         x += self.pos_embedding[:x.shape[1]]
@@ -82,7 +80,10 @@ class TransformerEncoder(Layer):
         for i in range(self.num_layers):
             x = self.enc_layers[i](x)
         x = self.ln(x)
+        return x
 
+    def call(self, x):
+        x = self.forward_features(x)
         x = self.cls_head(x)
         return x
 
