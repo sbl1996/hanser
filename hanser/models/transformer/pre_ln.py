@@ -43,7 +43,7 @@ class TransformerEncoderLayer(Layer):
 
 class TransformerEncoder(Layer):
     def __init__(self, n_tokens, seq_len, num_layers=4, d_model=256, num_heads=8, dff=1024, drop_rate=0.1, activation='gelu',
-                 **kwargs):
+                 with_head=False, **kwargs):
         super().__init__(**kwargs)
 
         self.n_tokens = n_tokens
@@ -54,6 +54,7 @@ class TransformerEncoder(Layer):
         self.dff = dff
         self.drop_rate = drop_rate
         self.activation = activation
+        self.with_head = with_head
 
         self.embedding = Embedding(n_tokens, d_model)
         self.pos_embedding = self.add_weight(
@@ -69,7 +70,8 @@ class TransformerEncoder(Layer):
 
         self.ln = LayerNormalization(epsilon=1e-5)
 
-        self.cls_head = Dense(n_tokens)
+        if with_head:
+            self.cls_head = Dense(n_tokens)
 
     def forward_features(self, x):
         x = self.embedding(x)
@@ -84,7 +86,8 @@ class TransformerEncoder(Layer):
 
     def call(self, x):
         x = self.forward_features(x)
-        x = self.cls_head(x)
+        if self.with_head:
+            x = self.cls_head(x)
         return x
 
     def get_config(self):
@@ -98,4 +101,5 @@ class TransformerEncoder(Layer):
             "dff": self.dff,
             "drop_rate": self.drop_rate,
             "activation": self.activation,
+            "with_head": self.with_head,
         }
