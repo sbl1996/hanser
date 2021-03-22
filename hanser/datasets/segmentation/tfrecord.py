@@ -8,14 +8,19 @@ from hhutil.io import fmt_path
 import tensorflow as tf
 
 
-def read_img(fp):
+def read_image(fp):
+    fp = fmt_path(fp)
     b = fp.read_bytes()
     img = tf.image.decode_image(b)
     height, width = img.shape[:2]
-    return b, (width, height)
+    if len(img.shape) == 3:
+        channels = img.shape[2]
+    else:
+        channels = 1
+    return b, (width, height, channels)
 
 
-def read_seg(fp, format='PNG'):
+def read_label(fp, format='PNG'):
     arr = np.array(Image.open(fp))
     seg = Image.fromarray(arr)
     size = seg.size
@@ -28,71 +33,28 @@ def read_seg(fp, format='PNG'):
 def _bytes_feature(value):
     if isinstance(value, str):
         value = value.encode()
-    """Returns a bytes_list from a string / byte."""
     return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
 
 
 def _float_feature(value):
-    """Returns a float_list from a float / double."""
     return tf.train.Feature(float_list=tf.train.FloatList(value=[value]))
 
 
 def _int64_feature(value):
-    """Returns an int64_list from a bool / enum / int / uint."""
     return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
 
 
-def image_label_to_tfexample(imgae_data, filename, image_format, height, width, label_data, label_format):
-    """Converts one image/segmentation pair to tf example.
-
-    Args:
-      imgae_data: string of image data.
-      filename: image filename.
-      height: image height.
-      width: image width.
-      label_data: string of semantic segmentation data.
-
-    Returns:
-      tf example of one image/segmentation pair.
-    """
+def image_label_to_tfexample(imgae_data, filename, image_format, height, width, channels, label_data, label_format):
     return tf.train.Example(features=tf.train.Features(feature={
         'image/encoded': _bytes_feature(imgae_data),
         'image/filename': _bytes_feature(filename),
         'image/format': _bytes_feature(image_format),
         'image/height': _int64_feature(height),
         'image/width': _int64_feature(width),
-        'image/channels': _int64_feature(3),
+        'image/channels': _int64_feature(channels),
         'image/segmentation/class/encoded': _bytes_feature(label_data),
         'image/segmentation/class/format': _bytes_feature(label_format),
     }))
-
-
-def parse_voc_example(example_proto):
-    features = {
-        'image':
-            tf.io.FixedLenFeature((), tf.string),
-        'image/filename':
-            tf.io.FixedLenFeature((), tf.string),
-        'objects/bbox':
-            tf.io.FixedLenSequenceFeature((4,), tf.float32, allow_missing=True),
-        'objects/is_difficult':
-            tf.io.FixedLenSequenceFeature((), tf.int64, allow_missing=True),
-        'objects/is_truncated':
-            tf.io.FixedLenSequenceFeature((), tf.int64, allow_missing=True),
-        'objects/label':
-            tf.io.FixedLenSequenceFeature((), tf.int64, allow_missing=True),
-        'objects/pose':
-            tf.io.FixedLenSequenceFeature((), tf.int64, allow_missing=True),
-        'labels':
-            tf.io.FixedLenSequenceFeature((), tf.int64, allow_missing=True),
-        'labels_no_difficult':
-            tf.io.FixedLenSequenceFeature((), tf.int64, allow_missing=True),
-    }
-    data = tf.io.parse_single_example(example_proto, features)
-    img = tf.image.decode_image(data['image'])
-    img.set_shape([None, None, 3])
-    data['image'] = img
-    return data
 
 
 def parse_tfexample_to_img_seg(example_proto):
@@ -114,8 +76,11 @@ def parse_tfexample_to_img_seg(example_proto):
     }
     return tf.io.parse_single_example(example_proto, features)
 
-def convert_segmentation_dataset(split_f, output_dir, image_dir, label_dir, image_format='jpg', label_format='png',
-                                 num_shards=4):
+
+def convert_segmentation_dataset(
+    split_f, output_dir, image_dir, label_dir,
+    image_format='jpg', label_format='png', num_shards=4,
+    image_stem_transform=lambda x: x, label_stem_transform=lambda x: x):
     split_f = fmt_path(split_f)
     output_dir = fmt_path(output_dir)
     image_dir = fmt_path(image_dir)
@@ -137,17 +102,17 @@ def convert_segmentation_dataset(split_f, output_dir, image_dir, label_dir, imag
             for i in range(start_idx, end_idx):
                 print('\r>> Converting image %d/%d shard %d' % (i + 1, len(filenames), shard_id), end='')
 
-                image_fp = image_dir / (filenames[i] + '.' + image_format)
-                image_data, (width, height) = read_img(image_fp)
+                image_fp = image_dir / (image_stem_transform(filenames[i]) + '.' + image_format)
+                image_data, (width, height, channels) = read_image(image_fp)
 
-                label_fp = label_dir / (filenames[i] + '.' + label_format)
-                label_data, (label_width, label_height) = read_seg(label_fp, format=label_format)
+                label_fp = label_dir / (label_stem_transform(filenames[i]) + '.' + label_format)
+                label_data, (label_width, label_height) = read_label(label_fp, format=label_format)
 
                 if height != label_height or width != label_width:
                     raise RuntimeError('Shape mismatched between image and label.')
 
                 example = image_label_to_tfexample(
-                    image_data, filenames[i], image_format, height, width, label_data, label_format)
+                    image_data, filenames[i], image_format, height, width, channels, label_data, label_format)
                 writer.write(example.SerializeToString())
         print()
 
