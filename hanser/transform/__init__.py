@@ -854,3 +854,22 @@ def lighting(x, alpha_std, eig_val=_EIG_VALS, eig_vec=_EIG_VECS, vmax=255):
     rgb = rgb * tf.convert_to_tensor(vmax, x.dtype)
     x = x + rgb
     return x
+
+
+def pad_to_bounding_box(image, offset_height, offset_width, target_height,
+                        target_width, pad_value):
+    is_batch = _is_batch(image)
+    image, = wrap_batch([image], is_batch)
+
+    batch, height, width, depth = _image_dimensions(image, rank=4)
+
+    ph1, ph2 = offset_height, target_height - offset_height - height
+    pw1, pw2 = offset_width, target_width - offset_width - width
+
+    image -= pad_value
+
+    padded = tf.pad(image, [(0, 0), (ph1, ph2), (pw1, pw2), (0, 0)])
+    outputs = padded + pad_value
+
+    outputs, = unwrap_batch([outputs,], is_batch)
+    return outputs

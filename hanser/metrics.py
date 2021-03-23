@@ -1,15 +1,4 @@
 import tensorflow as tf
-from hanser.losses import cross_entropy
-from hanser.train.metrics import MeanMetricWrapper
-
-
-class CrossEntropy(MeanMetricWrapper):
-
-    def __init__(self,
-                 name='cross_entropy',
-                 dtype=None,
-                 ignore_label=None):
-        super().__init__(cross_entropy, name, dtype=dtype, ignore_label=ignore_label)
 
 
 def confusion_matrix(y_true, y_pred, num_classes):
@@ -19,6 +8,7 @@ def confusion_matrix(y_true, y_pred, num_classes):
     cm = tf.logical_and(tm[:, :, None], pm[:, None, :])
     cm = tf.reduce_sum(tf.cast(cm, tf.int32), axis=0)
     return cm
+
 
 def iou_from_cm(cm):
     intersection = tf.linalg.diag_part(cm)

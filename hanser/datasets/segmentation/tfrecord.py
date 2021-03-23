@@ -118,14 +118,6 @@ def convert_segmentation_dataset(
 
 
 def convert_numpy_dataset(X, y, split, output_dir, num_shards=4):
-    """Converts the specified dataset split to TFRecord format.
-
-    Args:
-        split: The dataset split (e.g., train, test).
-
-    Raises:
-        RuntimeError: If loaded image and label have different shape.
-    """
     assert len(X) == len(y)
 
     output_dir = fmt_path(output_dir)

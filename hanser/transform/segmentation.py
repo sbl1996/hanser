@@ -50,8 +50,7 @@ def random_scale(image, label=None, scale=1.0):
         return image, label
     image_shape = tf.shape(image)
     new_dim = tf.cast(
-        tf.cast([image_shape[0], image_shape[1]], tf.float32) * scale,
-        tf.int32)
+        tf.cast([image_shape[0], image_shape[1]], tf.float32) * scale, tf.int32)
 
     # Need squeeze and expand_dims because image interpolation takes
     # 4D tensors as input.

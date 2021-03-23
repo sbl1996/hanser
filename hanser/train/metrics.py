@@ -1,10 +1,11 @@
 import numpy as np
 
 import tensorflow as tf
+import tensorflow.keras.backend as K
 from tensorflow.keras.metrics import Mean, Metric
 from tensorflow.keras.initializers import Zeros
-import tensorflow.keras.backend as K
 
+from hanser.losses import cross_entropy
 from hanser.metrics import confusion_matrix, iou_from_cm
 
 
@@ -76,3 +77,12 @@ class MeanIoU(Metric):
             'num_classes': self.num_classes,
             **super().get_config(),
         }
+
+
+class CrossEntropy(MeanMetricWrapper):
+
+    def __init__(self,
+                 name='cross_entropy',
+                 dtype=None,
+                 ignore_label=None):
+        super().__init__(cross_entropy, name, dtype=dtype, ignore_label=ignore_label)

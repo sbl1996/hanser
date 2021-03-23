@@ -2,23 +2,29 @@ from toolz import curry
 
 import tensorflow as tf
 import tensorflow.keras.backend as K
-from tensorflow.keras.losses import CategoricalCrossentropy
+from hanser.train.losses import CrossEntropy
 
 
-class CrossEntropy:
+@curry
+def cross_entropy(y_true, y_pred, ignore_label=None):
+    batch_size = tf.shape(y_true)[0]
+    y_true = tf.cast(y_true, tf.int32)
+    y_true = tf.reshape(y_true, [batch_size, -1])
+    y_pred = tf.reshape(y_pred, [batch_size, -1])
+    if ignore_label is not None:
+        mask = tf.not_equal(y_true, ignore_label)
+        weights = tf.cast(mask, y_pred.dtype)
+        y_true = tf.where(mask, y_true, tf.zeros_like(y_true))
+        num_valid = tf.reduce_sum(weights, axis=1)
+        losses = tf.keras.losses.sparse_categorical_crossentropy(y_true, y_pred, from_logits=True)
 
-    def __init__(self, label_smoothing=0.0, reduction='none', auxiliary_weight=0.0):
-        self._criterion = CategoricalCrossentropy(from_logits=True, label_smoothing=label_smoothing,
-                                                  reduction=reduction)
-        self._auxiliary_weight = auxiliary_weight
-
-    def __call__(self, y_true, y_pred):
-        if self._auxiliary_weight:
-            y_pred, y_pred_aux = y_pred
-            loss = self._criterion(y_true, y_pred) + self._auxiliary_weight * self._criterion(y_true, y_pred_aux)
-        else:
-            loss = self._criterion(y_true, y_pred)
-        return loss
+        losses = tf.reduce_sum(losses * weights, axis=1)
+        num_valid = tf.maximum(num_valid, 1.)
+        losses = losses / num_valid
+    else:
+        losses = tf.keras.losses.sparse_categorical_crossentropy(y_true, y_pred, from_logits=True)
+        losses = tf.reduce_mean(losses, axis=1)
+    return losses
 
 
 @curry
@@ -41,30 +47,6 @@ def weighted_bce(y_true, y_pred, pos_weight, from_logits=True):
     losses = losses * weight
     return tf.reduce_mean(losses)
 
-
-@curry
-def cross_entropy(y_true, y_pred, ignore_label=None):
-    y_true = tf.cast(y_true, tf.int32)
-    if ignore_label is not None:
-        mask = tf.not_equal(y_true, ignore_label)
-        weights = tf.cast(mask, y_pred.dtype)
-        y_true = tf.where(mask, y_true, tf.zeros_like(y_true))
-        num_valid = tf.reduce_sum(weights, axis=[1, 2])
-        losses = tf.keras.losses.sparse_categorical_crossentropy(y_true, y_pred, from_logits=True)
-
-        losses = tf.reduce_sum(losses * weights, axis=[1, 2])
-        num_valid = tf.maximum(num_valid, 1.)
-        losses = losses / num_valid
-    else:
-        losses = tf.keras.losses.sparse_categorical_crossentropy(y_true, y_pred, from_logits=True)
-        losses = tf.reduce_mean(losses, axis=[1, 2])
-    return losses
-
-
-# y_true = tf.random.uniform((2,4,4), 0, 21, tf.int32)
-# y_pred = tf.random.uniform((2,4,4,21), dtype=tf.float32)
-# y_true = tf.where(tf.random.uniform(y_true.shape) < 0.2, tf.fill(y_true.shape, 255), y_true)
-# losses = cross_entropy3(y_true, y_pred, 255)
 
 @curry
 def focal_loss2(labels, logits, gamma=2, beta=1, ignore_label=None):
