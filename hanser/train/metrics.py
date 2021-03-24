@@ -47,9 +47,10 @@ class MeanMetricWrapper(Mean):
 
 class MeanIoU(Metric):
 
-    def __init__(self, num_classes, name='miou', **kwargs):
+    def __init__(self, num_classes, from_logits=True, name='miou', **kwargs):
         super().__init__(name=name, **kwargs)
         self.num_classes = num_classes
+        self.from_logits = from_logits
         self.total_cm = self.add_weight(
             'total_confusion_matrix',
             shape=(num_classes, num_classes),
@@ -58,6 +59,8 @@ class MeanIoU(Metric):
 
     def update_state(self, y_true, y_pred, sample_weight=None):
         y_true = tf.cast(y_true, tf.int32)
+        if self.from_logits:
+            y_pred = tf.argmax(y_pred, axis=-1, output_type=tf.int32)
         y_pred = tf.cast(y_pred, tf.int32)
 
         y_pred = tf.reshape(y_pred, [-1])
@@ -75,6 +78,7 @@ class MeanIoU(Metric):
     def get_config(self):
         return {
             'num_classes': self.num_classes,
+            'from_logits': self.from_logits,
             **super().get_config(),
         }
 

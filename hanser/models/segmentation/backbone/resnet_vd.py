@@ -10,7 +10,7 @@ class ResNet(Model):
                  avd=False, stages=(64, 64, 128, 256, 512),
                  output_stride=16, multi_grad=(1, 2, 4)):
         super().__init__()
-        assert output_stride in [16, 32]
+        assert output_stride in [8, 16, 32]
         self.stages = stages
 
         self.stem = ResNetvdStem(self.stages[0])
@@ -22,12 +22,17 @@ class ResNet(Model):
         self.layer2 = self._make_layer(
             block, self.stages[2], layers[1], stride=2,
             zero_init_residual=zero_init_residual, avd=avd)
-        self.layer3 = self._make_layer(
-            block, self.stages[3], layers[2], stride=2,
-            zero_init_residual=zero_init_residual, avd=avd)
 
-        stride = 1 if output_stride == 16 else 2
-        dilation = 2 if output_stride == 16 else 1
+        stride = 1 if output_stride == 8 else 2
+        dilation = 2 if stride != 2 else 1
+        self.layer3 = self._make_layer(
+            block, self.stages[3], layers[2], stride=stride,
+            zero_init_residual=zero_init_residual, avd=avd,
+            dilations=[dilation] * layers[2],
+        )
+
+        stride = 1 if output_stride <= 16 else 2
+        dilation *= 2 if stride != 2 else 1
         self.layer4 = self._make_layer(
             block, self.stages[4], layers[3], stride=stride,
             zero_init_residual=zero_init_residual, avd=avd,
