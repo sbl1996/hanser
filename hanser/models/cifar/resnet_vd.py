@@ -39,7 +39,8 @@ class BasicBlock(Layer):
 class Bottleneck(Layer):
     expansion = 4
 
-    def __init__(self, in_channels, channels, stride, erase_relu=False, zero_init_residual=True, avd=False):
+    def __init__(self, in_channels, channels, stride, erase_relu=False, zero_init_residual=True, avd=False,
+                 dilation=1):
         super().__init__()
         out_channels = channels * self.expansion
         self.conv1 = Conv2d(in_channels, channels, kernel_size=1,
@@ -48,11 +49,11 @@ class Bottleneck(Layer):
             self.conv2 = Sequential([
                 Pool2d(3, stride, type='avg'),
                 Conv2d(channels, channels, kernel_size=3, stride=1,
-                       norm='def', act='def'),
+                       norm='def', act='def', dilation=dilation),
             ])
         else:
             self.conv2 = Conv2d(channels, channels, kernel_size=3, stride=stride,
-                                norm='def', act='def')
+                                norm='def', act='def', dilation=dilation)
         self.conv3 = Conv2d(channels, out_channels, kernel_size=1)
         self.bn3 = Norm(out_channels, gamma_init='zeros' if zero_init_residual else 'ones')
 

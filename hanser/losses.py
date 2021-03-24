@@ -101,13 +101,12 @@ def focal_loss(targets, logits, alpha, gamma):
     loss: A float32 scalar representing normalized total loss.
     """
     positive_label_mask = tf.equal(targets, 1.0)
-    cross_entropy = (
-        tf.nn.sigmoid_cross_entropy_with_logits(labels=targets, logits=logits))
+    loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=targets, logits=logits)
     probs = tf.sigmoid(logits)
     probs_gt = tf.where(positive_label_mask, probs, 1.0 - probs)
     # With small gamma, the implementation could produce NaN during back prop.
     modulator = tf.pow(1.0 - probs_gt, gamma)
-    loss = modulator * cross_entropy
+    loss = modulator * loss
     weighted_loss = tf.where(positive_label_mask, alpha * loss,
                              (1.0 - alpha) * loss)
     total_loss = tf.reduce_sum(weighted_loss)
