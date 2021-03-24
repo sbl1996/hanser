@@ -7,8 +7,10 @@ __all__ = ['DeepLabV3P', 'DeepLabV3']
 
 
 def interpolate(x, shape):
-    return tf.compat.v1.image.resize(
+    dtype = x.dtype
+    x = tf.compat.v1.image.resize(
         x, shape, method=tf.compat.v1.image.ResizeMethod.BILINEAR, align_corners=False)
+    return tf.cast(x, dtype)
 
 
 class SeparableConv2d(Layer):
@@ -63,8 +65,7 @@ class ASPPModule(Layer):
         if image_pooling:
             self.image_pooling = Sequential([
                 GlobalAvgPool(keep_dim=True),
-                Conv2d(in_channels, out_channels, kernel_size=1,
-                       norm='def', act='def')
+                Conv2d(in_channels, out_channels, kernel_size=1, norm='def', act='def')
             ])
             out_size += 1
         else:
@@ -84,9 +85,9 @@ class ASPPModule(Layer):
             outputs.append(y)
 
         if self.image_pooling:
-            img_avg = self.image_pooling(x)
-            img_avg = interpolate(img_avg, interpolate_shape)
-            outputs.append(img_avg)
+            y = self.image_pooling(x)
+            y = interpolate(y, interpolate_shape)
+            outputs.append(y)
 
         x = tf.concat(outputs, axis=-1)
         x = self.conv(x)
