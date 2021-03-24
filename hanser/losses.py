@@ -8,9 +8,10 @@ from hanser.train.losses import CrossEntropy
 @curry
 def cross_entropy(y_true, y_pred, ignore_label=None):
     batch_size = tf.shape(y_true)[0]
+    num_classes = tf.shape(y_pred)[-1]
     y_true = tf.cast(y_true, tf.int32)
     y_true = tf.reshape(y_true, [batch_size, -1])
-    y_pred = tf.reshape(y_pred, [batch_size, -1])
+    y_pred = tf.reshape(y_pred, [batch_size, -1, num_classes])
     if ignore_label is not None:
         mask = tf.not_equal(y_true, ignore_label)
         weights = tf.cast(mask, y_pred.dtype)
