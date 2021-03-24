@@ -8,9 +8,13 @@ __all__ = ['DeepLabV3P', 'DeepLabV3']
 
 def interpolate(x, shape):
     dtype = x.dtype
+    if dtype != tf.float32:
+        x = tf.cast(x, tf.float32)
     x = tf.compat.v1.image.resize(
         x, shape, method=tf.compat.v1.image.ResizeMethod.BILINEAR, align_corners=False)
-    return tf.cast(x, dtype)
+    if dtype != tf.float32:
+        x = tf.cast(x, dtype)
+    return x
 
 
 class SeparableConv2d(Layer):
