@@ -13,9 +13,6 @@ class BatchNormalization(KerasBatchNormalization):
                          moving_mean_initializer, moving_variance_initializer, beta_regularizer, gamma_regularizer,
                          beta_constraint, gamma_constraint, renorm, renorm_clipping, renorm_momentum, fused, trainable,
                          virtual_batch_size, adjustment, name, **kwargs)
-        if track_running_stats: assert not eval_mode
-        if eval_mode: assert not track_running_stats
-
         self.track_running_stats = track_running_stats
         self.eval_mode = eval_mode
 
@@ -40,9 +37,6 @@ class SyncBatchNormalization(KerasSyncBatchNormalization):
                          moving_mean_initializer, moving_variance_initializer, beta_regularizer, gamma_regularizer,
                          beta_constraint, gamma_constraint, renorm, renorm_clipping, renorm_momentum, trainable,
                          adjustment, name, **kwargs)
-        if track_running_stats: assert not eval_mode
-        if eval_mode: assert not track_running_stats
-
         self.track_running_stats = track_running_stats
         self.eval_mode = eval_mode
 
