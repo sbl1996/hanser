@@ -8,10 +8,14 @@ backbone = resnet50(output_stride=8, multi_grad=(1, 2, 4))
 model = DeepLabV3(backbone, aspp_ratios=(1, 6, 12, 18), aspp_channels=256, num_classes=19)
 model.build((None, 384, 384, 3))
 
-x = tf.random.normal((2, 384, 384, 3))
-cs = model.backbone(x)
+ckpt = tf.train.Checkpoint(model=backbone)
+status = ckpt.read("/Users/hrvvi/Downloads/checkpoints/83/ckpt")
+status.assert_existing_objects_matched()
 
-
-weights = np.load("/Users/hrvvi/Downloads/resnet-50.npy", allow_pickle=True)
-weights = weights[:-2]
-model.backbone.set_weights(weights)
+# x = tf.random.normal((2, 384, 384, 3))
+# cs = model.backbone(x)
+#
+#
+# weights = np.load("/Users/hrvvi/Downloads/resnet-50.npy", allow_pickle=True)
+# weights = weights[:-2]
+# model.backbone.set_weights(weights)

@@ -42,6 +42,7 @@ DEFAULTS = {
         'track_running_stats': True,
         'fused': True,
         'sync': False,
+        'eval': False,
     },
     'gn': {
         'groups': None,
@@ -82,6 +83,7 @@ _defaults_schema = {
         'track_running_stats': {'type': 'boolean'},
         'fused': {'type': 'boolean'},
         'sync': {'type': 'boolean'},
+        'eval': {'type': 'boolean'},
     },
     'gn': {
         'eps': {'type': 'float', 'min': 0.0},
@@ -272,11 +274,13 @@ def Norm(channels, type='default', affine=None, track_running_stats=None, gamma_
         if cfg['sync']:
             bn = SyncBatchNormalization(
                 momentum=cfg['momentum'], epsilon=cfg['eps'], center=affine, scale=affine,
-                gamma_initializer=gamma_init, track_running_stats=track_running_stats)
+                gamma_initializer=gamma_init, track_running_stats=track_running_stats,
+                eval_mode=cfg['eval'])
         else:
             bn = BatchNormalization(
                 momentum=cfg['momentum'], epsilon=cfg['eps'], center=affine, scale=affine,
-                gamma_initializer=gamma_init, fused=cfg['fused'], track_running_stats=track_running_stats)
+                gamma_initializer=gamma_init, fused=cfg['fused'], track_running_stats=track_running_stats,
+                eval_mode=cfg['eval'])
         return bn
     elif type == 'gn':
         cfg = DEFAULTS['gn']
