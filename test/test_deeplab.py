@@ -18,8 +18,8 @@ model.build((None, 384, 384, 3))
 # status = ckpt.read("/Users/hrvvi/Downloads/checkpoints/83/ckpt")
 # status.assert_existing_objects_matched()
 
-# x = tf.random.normal((2, 384, 384, 3))
-# cs = model.backbone(x)
+x = tf.random.normal((2, 384, 384, 3))
+cs = model.backbone(x)
 #
 #
 # weights = np.load("/Users/hrvvi/Downloads/resnet-50.npy", allow_pickle=True)

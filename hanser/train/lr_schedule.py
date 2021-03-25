@@ -341,6 +341,64 @@ class ExponentialDecay(LearningRateSchedule):
             "warmup_steps": self.warmup_steps,
         }
 
+
+class PolynomialDecay(LearningRateSchedule):
+
+    def __init__(
+        self,
+        learning_rate,
+        steps_per_epoch,
+        epochs,
+        power,
+        warmup_epoch=0,
+        warmup_min_lr=0,
+    ):
+
+        super().__init__()
+        self.base_lr = learning_rate
+        self.steps_per_epoch = steps_per_epoch
+        self.epochs = epochs
+        self.power = power
+        self.warmup_min_lr = warmup_min_lr
+        self.warmup_epoch = warmup_epoch
+
+        self.total_steps = epochs * steps_per_epoch
+        self.warmup_steps = warmup_epoch * steps_per_epoch
+
+    def __call__(self, step):
+        base_lr = tf.convert_to_tensor(self.base_lr, name="base_lr")
+        dtype = base_lr.dtype
+        power = tf.cast(self.power, dtype)
+        total_steps = tf.cast(self.total_steps, dtype)
+        warmup_steps = tf.cast(self.warmup_steps, dtype)
+        warmup_min_lr = tf.cast(self.warmup_min_lr, dtype)
+
+        step = tf.cast(step, dtype)
+
+        def warmup(step):
+            return warmup_min_lr + (base_lr - warmup_min_lr) * step / warmup_steps
+
+        def poly_decay(step):
+            p = step / (total_steps - warmup_steps)
+            return tf.math.multiply(base_lr, tf.math.pow(p, power))
+
+        return tf.cond(
+            tf.less(step, warmup_steps),
+            lambda: warmup(step),
+            lambda: poly_decay(step - warmup_steps),
+        )
+
+    def get_config(self):
+        return {
+            "base_lr": self.base_lr,
+            "steps_per_epoch": self.steps_per_epoch,
+            "epochs": self.epochs,
+            "power": self.power,
+            "warmup_min_lr": self.warmup_min_lr,
+            "warmup_epoch": self.warmup_epoch,
+        }
+
+
 def scale_lr(lr, mul, mode='linear'):
     if mode == 'linear':
         return lr * mul
