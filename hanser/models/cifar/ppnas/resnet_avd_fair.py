@@ -17,7 +17,7 @@ def parse_genotype(genotype):
 
 class PPConv(Layer):
 
-    def __init__(self, channels, splits, genotype):
+    def __init__(self, channels, splits, genotype, dilation=1):
         super().__init__()
         self.splits = splits
         C = channels // splits
@@ -28,7 +28,11 @@ class PPConv(Layer):
         self.ops = []
         self.connections = connections
         for i in range(self.splits):
-            op = OPS[op_types[i]](C, 1)
+            op_type = op_types[i]
+            if op_type == 'nor_conv_3x3':
+                op = OPS[op_type](C, 1, dilation)
+            else:
+                op = OPS[op_type](C, 1)
             self.ops.append(op)
 
     def call(self, x):
@@ -43,7 +47,7 @@ class PPConv(Layer):
 class Bottleneck(Layer):
     expansion = 4
 
-    def __init__(self, in_channels, channels, stride, base_width, splits, zero_init_residual, genotype):
+    def __init__(self, in_channels, channels, stride, base_width, splits, zero_init_residual, genotype, dilation=1):
         super().__init__()
         self.stride = stride
 
@@ -51,14 +55,17 @@ class Bottleneck(Layer):
         width = math.floor(out_channels // self.expansion * (base_width / 64)) * splits
         self.conv1 = Conv2d(in_channels, width, kernel_size=1,
                             norm='def', act='def')
-        if stride != 1:
-            self.conv2 = Sequential([
-                Pool2d(3, stride=stride, type='avg'),
-                StartRes2Conv(width, kernel_size=3, stride=1, scale=splits,
-                              norm='def', act='def'),
-            ])
+        # start of stage
+        if stride != 1 or in_channels != out_channels:
+            layers = []
+            if stride != 1:
+                layers.append(Pool2d(3, stride=2, type='avg'))
+            layers.append(
+                StartRes2Conv(width, kernel_size=3, stride=1, dilation=dilation, scale=splits,
+                              norm='def', act='def'))
+            self.conv2 = Sequential(layers)
         else:
-            self.conv2 = PPConv(width, splits=splits, genotype=genotype)
+            self.conv2 = PPConv(width, dilation=dilation, splits=splits, genotype=genotype)
         self.conv3 = Conv2d(width, out_channels, kernel_size=1)
         self.bn3 = Norm(out_channels, gamma_init='zeros' if zero_init_residual else 'ones')
 
