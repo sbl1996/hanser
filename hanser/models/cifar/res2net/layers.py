@@ -6,13 +6,13 @@ from hanser.models.layers import Conv2d, Identity, Pool2d
 
 class StartRes2Conv(Layer):
 
-    def __init__(self, channels, kernel_size, stride=1, scale=4, groups=1, norm='def', act='def'):
+    def __init__(self, channels, kernel_size, stride=1, dilation=1, scale=4, groups=1, norm='def', act='def'):
         super().__init__()
         assert channels % scale == 0
         width = channels // scale
-        self.direct = Pool2d(3, stride, type='avg')
+        self.direct = Pool2d(3, 2, type='avg') if stride == 2 else Identity()
         self.conv = Conv2d(width * (scale - 1), width * (scale - 1),
-                           kernel_size=kernel_size, stride=stride,
+                           kernel_size=kernel_size, stride=stride, dilation=dilation,
                            groups=groups * (scale - 1), norm=norm, act=act)
         self.width = width
 
@@ -25,13 +25,14 @@ class StartRes2Conv(Layer):
 
 class MainRes2Conv(Layer):
 
-    def __init__(self, channels, kernel_size, scale=4, groups=1, norm='def', act='def'):
+    def __init__(self, channels, kernel_size, dilation=1, scale=4, groups=1, norm='def', act='def'):
         super().__init__()
         assert channels % scale == 0
         width = channels // scale
         self.scale = scale
         self.convs = [
-            Conv2d(width, width, kernel_size=kernel_size, groups=groups, norm=norm, act=act)
+            Conv2d(width, width, kernel_size=kernel_size, dilation=dilation,
+                   groups=groups, norm=norm, act=act)
             for i in range(scale - 1)
         ]
 
@@ -48,12 +49,12 @@ class MainRes2Conv(Layer):
         return x
 
 
-def Res2Conv(in_channels, out_channels, kernel_size, stride, scale, groups, norm, act, start_block):
+def Res2Conv(in_channels, out_channels, kernel_size, stride, dilation, scale, groups, norm, act, start_block):
     assert in_channels == out_channels
     if scale == 1:
         return Conv2d(in_channels, in_channels, kernel_size=kernel_size, stride=stride,
-                      groups=groups, norm=norm, act=act)
+                      dilation=dilation, groups=groups, norm=norm, act=act)
     if start_block:
-        return StartRes2Conv(in_channels, kernel_size, stride, scale, groups, norm, act)
+        return StartRes2Conv(in_channels, kernel_size, stride, dilation, scale, groups, norm, act)
     else:
-        return MainRes2Conv(in_channels, kernel_size, scale, groups, norm, act)
+        return MainRes2Conv(in_channels, kernel_size, dilation, scale, groups, norm, act)

@@ -9,7 +9,7 @@ from hanser.models.cifar.res2net.layers import Res2Conv
 class Bottle2neck(Layer):
     expansion = 4
 
-    def __init__(self, in_channels, channels, stride, base_width=26, scale=4,
+    def __init__(self, in_channels, channels, stride, dilation=1, base_width=26, scale=4,
                  zero_init_residual=True, avd=False):
         super().__init__()
         out_channels = channels * self.expansion
@@ -20,12 +20,12 @@ class Bottle2neck(Layer):
         if avd and stride != 1:
             self.conv2 = Sequential([
                 Pool2d(3, stride=stride, type='avg'),
-                Res2Conv(width, width, kernel_size=3, stride=1, scale=scale, groups=1,
-                         start_block=start_block, norm='def', act='def'),
+                Res2Conv(width, width, kernel_size=3, stride=1, dilation=dilation, scale=scale,
+                         groups=1, start_block=start_block, norm='def', act='def'),
             ])
         else:
-            self.conv2 = Res2Conv(width, width, kernel_size=3, stride=stride, scale=scale, groups=1,
-                                  start_block=start_block, norm='def', act='def')
+            self.conv2 = Res2Conv(width, width, kernel_size=3, stride=stride, dilation=dilation,
+                                  scale=scale, groups=1, start_block=start_block, norm='def', act='def')
 
         self.conv3 = Conv2d(width, out_channels, kernel_size=1)
         self.bn3 = Norm(out_channels, gamma_init='zeros' if zero_init_residual else 'ones')
