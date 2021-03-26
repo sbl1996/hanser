@@ -1,4 +1,5 @@
 import tensorflow as tf
+from hanser.transform import _is_batch, wrap_batch, _image_dimensions, unwrap_batch
 
 
 def get_random_scale(min_scale_factor, max_scale_factor, step_size):
@@ -191,28 +192,6 @@ def _crop(image, offset_height, offset_width, crop_height, crop_width):
 
 
 def flip_dim(tensor_list, prob=0.5, dim=1):
-    """Randomly flips a dimension of the given tensor.
-
-    The decision to randomly flip the `Tensors` is made together. In other words,
-    all or none of the images pass in are flipped.
-
-    Note that tf.random_flip_left_right and tf.random_flip_up_down isn't used so
-    that we can control for the probability as well as ensure the same decision
-    is applied across the images.
-
-    Args:
-        tensor_list: A list of `Tensors` with the same number of dimensions.
-        prob: The probability of a left-right flip.
-        dim: The dimension to flip, 0, 1, ..
-
-    Returns:
-        outputs: A list of the possibly flipped `Tensors` as well as an indicator
-        `Tensor` at the end whose value is `True` if the inputs were flipped and
-        `False` otherwise.
-
-    Raises:
-        ValueError: If dim is negative or greater than the dimension of a `Tensor`.
-    """
     random_value = tf.random.uniform([])
 
     def flip():
@@ -233,28 +212,7 @@ def flip_dim(tensor_list, prob=0.5, dim=1):
 
 
 def rot90(tensor_list, prob=0.5, k=1):
-    """Randomly flips a dimension of the given tensor.
 
-    The decision to randomly flip the `Tensors` is made together. In other words,
-    all or none of the images pass in are flipped.
-
-    Note that tf.random_flip_left_right and tf.random_flip_up_down isn't used so
-    that we can control for the probability as well as ensure the same decision
-    is applied across the images.
-
-    Args:
-        tensor_list: A list of `Tensors` with the same number of dimensions.
-        prob: The probability of a left-right flip.
-        k: A scalar integer. The number of times the image is rotated by 90 degrees.
-
-    Returns:
-        outputs: A list of the possibly flipped `Tensors` as well as an indicator
-        `Tensor` at the end whose value is `True` if the inputs were flipped and
-        `False` otherwise.
-
-    Raises:
-        ValueError: If dim is negative or greater than the dimension of a `Tensor`.
-    """
     random_value = tf.random.uniform([])
 
     def rotate():
@@ -270,3 +228,25 @@ def rot90(tensor_list, prob=0.5, k=1):
 
     return outputs
 
+
+def pad(image, label, size, image_pad_value, label_pad_value):
+    is_batch = _is_batch(image)
+    image, label = wrap_batch([image, label], is_batch)
+
+    batch, height, width, depth = _image_dimensions(image, rank=4)
+
+    offset_height, offset_width = 0, 0
+    target_height = tf.maximum(size[0], height)
+    target_width = tf.maximum(size[1], width)
+    ph1, ph2 = offset_height, target_height - offset_height - height
+    pw1, pw2 = offset_width, target_width - offset_width - width
+
+    image -= image_pad_value
+
+    image = tf.pad(image, [(0, 0), (ph1, ph2), (pw1, pw2), (0, 0)])
+    label = tf.pad(label, [(0, 0), (ph1, ph2), (pw1, pw2), (0, 0)],
+                   constant_values=tf.cast(label_pad_value, label.dtype))
+    image = image + image_pad_value
+
+    image, label = unwrap_batch([image, label], is_batch)
+    return image, label

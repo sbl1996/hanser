@@ -22,14 +22,14 @@ from hanser.train.lr_schedule import CosineLR
 from hanser.train.metrics import MeanIoU, CrossEntropy
 from hanser.train.cls import SuperLearner
 
-HEIGHT = WIDTH = 768
+HEIGHT = WIDTH = 512
 IGNORE_LABEL = 255
 
 @curry
 def preprocess(example, crop_h=HEIGHT, crop_w=WIDTH, ignore_label=IGNORE_LABEL, training=True):
     image, label = decode(example)
     label = tf.cast(label, tf.int32)
-    label = map_label(label)
+    # label = map_label(label)
 
     mean_rgb = tf.convert_to_tensor([123.68, 116.779, 103.939], tf.float32)
     std_rgb = tf.convert_to_tensor([58.393, 57.12, 57.375], tf.float32)
@@ -41,27 +41,26 @@ def preprocess(example, crop_h=HEIGHT, crop_w=WIDTH, ignore_label=IGNORE_LABEL, 
         scale = get_random_scale(0.5, 2.0, 0.25)
         image, label = random_scale(image, label, scale)
 
-        img_h, img_w, c = _image_dimensions(image, 3)
-        target_h = tf.maximum(img_h, crop_h)
-        target_w = tf.maximum(img_w, crop_w)
+    img_h, img_w, c = _image_dimensions(image, 3)
+    target_h = tf.maximum(img_h, crop_h)
+    target_w = tf.maximum(img_w, crop_w)
 
-        image = pad_to_bounding_box(image, 0, 0, target_h, target_w, mean_rgb)
-        label = pad_to_bounding_box(label, 0, 0, target_h, target_w, ignore_label)
+    image = pad_to_bounding_box(image, 0, 0, target_h, target_w, mean_rgb)
+    label = pad_to_bounding_box(label, 0, 0, target_h, target_w, ignore_label)
 
+    if training:
         image, label = random_crop([image, label], crop_h, crop_w)
         image, label = flip_dim([image, label], dim=1)
 
-        image.set_shape([crop_h, crop_w, 3])
-        label.set_shape([crop_h, crop_w, 1])
-    else:
-        image.set_shape([1024, 2048, 3])
-        label.set_shape([1024, 2048, 1])
+    image.set_shape([crop_h, crop_w, 3])
+    label.set_shape([crop_h, crop_w, 1])
 
     image = (image - mean_rgb) / std_rgb
     label = tf.squeeze(label, -1)
 
     image = tf.cast(image, tf.bfloat16)
     return image, label
+
 
 train_files = [
     "/Users/hrvvi/Downloads/datasets/tfrecords/Cityscapes_sub/train-%05d-of-00004.tfrecord" % i for i in range(4)]
