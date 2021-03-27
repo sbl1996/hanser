@@ -201,7 +201,7 @@ def get_resnet(depth, output_stride=32, multi_grad=(1, 1, 1), input_shape=(224, 
                 dilations[0] = 1
             else:
                 dilations = None
-            x = stack1(x, c, n, stride=s, dilation=dilations, name='conv%d' % (i + 2))
+            x = stack1(x, c, n, stride=s, dilations=dilations, name='conv%d' % (i + 2))
         return x
 
     model = ResNet(input_shape, stack_fn, False, name)

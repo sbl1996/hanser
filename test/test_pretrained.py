@@ -23,7 +23,7 @@ ps, cs = tf.math.top_k(probs, k=5)
 names = [IMAGENET_CLASSES[c] for c in cs.numpy()[0]]
 
 from hanser.models.segmentation.backbone.resnet_keras import resnet_backbone
-net2 = resnet_backbone(depth=50, output_stride=16, mul)
+net2 = resnet_backbone(depth=50, output_stride=16, multi_grad=(1, 2, 4))
 fs = net2(t)
 
 # import torch
