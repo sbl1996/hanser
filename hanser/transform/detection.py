@@ -1,6 +1,7 @@
 import tensorflow as tf
 
 from hanser.ops import to_float, to_int, choice
+from hanser.transform import pad_to_bounding_box
 
 
 def random_choice(funcs, *args):
@@ -178,7 +179,8 @@ def resize_with_pad(image, boxes, target_height, target_width, pad_value):
 
 
 def resize_and_crop_image(image, scaled_height, scaled_width, output_size, offset_x, offset_y):
-    image = tf.compat.v1.image.resize_bilinear(image[None], (scaled_height, scaled_width), align_corners=True)[0]
+    image = tf.image.resize(image[None], (scaled_height, scaled_width),
+                            method=tf.image.ResizeMethod.BILINEAR)[0]
     image = image[
             offset_y:offset_y + output_size,
             offset_x:offset_x + output_size,

@@ -10,8 +10,7 @@ def interpolate(x, shape):
     dtype = x.dtype
     if dtype != tf.float32:
         x = tf.cast(x, tf.float32)
-    x = tf.compat.v1.image.resize(
-        x, shape, method=tf.compat.v1.image.ResizeMethod.BILINEAR, align_corners=False)
+    x = tf.image.resize(x, shape, method=tf.image.ResizeMethod.BILINEAR)
     if dtype != tf.float32:
         x = tf.cast(x, dtype)
     return x
@@ -78,14 +77,13 @@ class ASPPModule(Layer):
         self.conv = Conv2d(out_channels * out_size, out_channels, kernel_size=1,
                            norm='def', act='def')
 
-        # self.dropout = Dropout(p=0.1)  # drop rate
+        self.dropout = Dropout(p=0.1)  # drop rate
 
     def call(self, x):
         outputs = []
         interpolate_shape = tf.shape(x)[1:3]
         for block in self.blocks:
             y = block(x)
-            y = interpolate(y, interpolate_shape)
             outputs.append(y)
 
         if self.image_pooling:
@@ -95,27 +93,11 @@ class ASPPModule(Layer):
 
         x = tf.concat(outputs, axis=-1)
         x = self.conv(x)
-        # x = self.dropout(x)
+        x = self.dropout(x)
         return x
 
 
 class DeepLabV3P(Model):
-    """
-    The DeepLabV3Plus implementation based on PaddlePaddle.
-
-    The original article refers to
-     Liang-Chieh Chen, et, al. "Encoder-Decoder with Atrous Separable Convolution for Semantic Image Segmentation"
-     (https://arxiv.org/abs/1802.02611)
-
-    Args:
-        backbone (Layer): Backbone network, currently support Resnet50_vd/Resnet101_vd/Xception65.
-        aspp_ratios (tuple, optional): The dilation rate using in ASSP module.
-            If output_stride=16, aspp_ratios should be set as (1, 6, 12, 18).
-            If output_stride=8, aspp_ratios is (1, 12, 24, 36).
-            Default: (1, 6, 12, 18).
-        aspp_channels (int, optional): The output channels of ASPP module. Default: 256.
-        num_classes (int): The unique number of target classes.
-    """
 
     def __init__(self,
                  backbone,
