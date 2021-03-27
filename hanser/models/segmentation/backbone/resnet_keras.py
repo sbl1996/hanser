@@ -218,6 +218,7 @@ def resnet_backbone(depth, output_stride=16, multi_grad=(1, 2, 4), **kwargs):
     c5 = model.output
     backbone = Model(inputs=model.inputs, outputs=[c2, c3, c4, c5])
     backbone.output_stride = output_stride
+    backbone.feat_channels = [256, 512, 1024, 2048]
     return backbone
 
 
