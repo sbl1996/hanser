@@ -207,11 +207,10 @@ def get_resnet(depth, output_stride=32, multi_grad=(1, 1, 1), input_shape=(224, 
     model = ResNet(input_shape, stack_fn, False, name)
     if pretrained:
         load_weights(model, name)
-
     return model
 
 
-def resnet_backbone(depth, output_stride, multi_grad, **kwargs):
+def resnet_backbone(depth, output_stride=16, multi_grad=(1, 2, 4), **kwargs):
     model = get_resnet(depth=depth, output_stride=output_stride, multi_grad=multi_grad, **kwargs)
     c2 = model.get_layer('conv3_block1_1_conv').input
     c3 = model.get_layer('conv4_block1_1_conv').input
@@ -220,3 +219,13 @@ def resnet_backbone(depth, output_stride, multi_grad, **kwargs):
     backbone = Model(inputs=model.inputs, outputs=[c2, c3, c4, c5])
     backbone.output_stride = output_stride
     return backbone
+
+
+def resnet50(**kwargs):
+    return resnet_backbone(50, **kwargs)
+
+def resnet101(**kwargs):
+    return resnet_backbone(101, **kwargs)
+
+def resnet152(**kwargs):
+    return resnet_backbone(152, **kwargs)
