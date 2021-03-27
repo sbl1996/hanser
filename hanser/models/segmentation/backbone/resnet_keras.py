@@ -211,8 +211,8 @@ def get_resnet(depth, output_stride=32, multi_grad=(1, 1, 1), input_shape=(224, 
     return model
 
 
-def resnet_backbone(depth, output_stride, **kwargs):
-    model = get_resnet(depth=depth, output_stride=output_stride, **kwargs)
+def resnet_backbone(depth, output_stride, multi_grad, **kwargs):
+    model = get_resnet(depth=depth, output_stride=output_stride, multi_grad=multi_grad, **kwargs)
     c2 = model.get_layer('conv3_block1_1_conv').input
     c3 = model.get_layer('conv4_block1_1_conv').input
     c4 = model.get_layer('conv5_block1_1_conv').input
