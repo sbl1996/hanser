@@ -77,7 +77,7 @@ class ASPPModule(Layer):
         self.conv = Conv2d(out_channels * out_size, out_channels, kernel_size=1,
                            norm='def', act='def')
 
-        self.dropout = Dropout(p=0.1)  # drop rate
+        self.dropout = Dropout(rate=0.1)  # drop rate
 
     def call(self, x):
         outputs = []
