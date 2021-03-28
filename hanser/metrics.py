@@ -6,7 +6,7 @@ def confusion_matrix(y_true, y_pred, num_classes):
     tm = tf.equal(y_true[:, None], class_indices[None, :])
     pm = tf.equal(y_pred[:, None], class_indices[None, :])
     cm = tf.logical_and(tm[:, :, None], pm[:, None, :])
-    cm = tf.reduce_sum(tf.cast(cm, tf.int64), axis=0)
+    cm = tf.reduce_sum(tf.cast(cm, tf.int32), axis=0)
     return cm
 
 
