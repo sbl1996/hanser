@@ -1,12 +1,12 @@
 import tensorflow as tf
 
 
-def confusion_matrix(y_true, y_pred, num_classes):
+def confusion_matrix(y_true, y_pred, num_classes, dtype=tf.int32):
     class_indices = tf.range(num_classes)
     tm = tf.equal(y_true[:, None], class_indices[None, :])
     pm = tf.equal(y_pred[:, None], class_indices[None, :])
     cm = tf.logical_and(tm[:, :, None], pm[:, None, :])
-    cm = tf.reduce_sum(tf.cast(cm, tf.int32), axis=0)
+    cm = tf.reduce_sum(tf.cast(cm, dtype), axis=0)
     return cm
 
 

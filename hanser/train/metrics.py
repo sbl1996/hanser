@@ -47,15 +47,15 @@ class MeanMetricWrapper(Mean):
 
 class MeanIoU(Metric):
 
-    def __init__(self, num_classes, from_logits=True, name='miou', **kwargs):
-        super().__init__(name=name, **kwargs)
+    def __init__(self, num_classes, from_logits=True, name='miou', dtype=tf.int32, **kwargs):
+        super().__init__(name=name, dtype=dtype, **kwargs)
         self.num_classes = num_classes
         self.from_logits = from_logits
         self.total_cm = self.add_weight(
             'total_confusion_matrix',
             shape=(num_classes, num_classes),
             initializer=Zeros(),
-            dtype=tf.int32)
+            dtype=self.dtype)
 
     def update_state(self, y_true, y_pred, sample_weight=None):
         y_true = tf.cast(y_true, tf.int32)
@@ -66,13 +66,11 @@ class MeanIoU(Metric):
         y_pred = tf.reshape(y_pred, [-1])
         y_true = tf.reshape(y_true, [-1])
 
-        current_cm = confusion_matrix(y_true, y_pred, self.num_classes)
+        current_cm = confusion_matrix(y_true, y_pred, self.num_classes, self.dtype)
         return self.total_cm.assign_add(current_cm)
 
     def result(self):
-        total_cm = tf.cast(self.total_cm, tf.float32)
-        total_cm = tf.cast(total_cm.numpy(), tf.int32)
-        return tf.reduce_mean(iou_from_cm(total_cm))
+        return tf.reduce_mean(iou_from_cm(self.total_cm))
 
     def reset_states(self):
         K.set_value(self.total_cm, np.zeros((self.num_classes, self.num_classes)))
