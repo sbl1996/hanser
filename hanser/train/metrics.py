@@ -55,7 +55,7 @@ class MeanIoU(Metric):
             'total_confusion_matrix',
             shape=(num_classes, num_classes),
             initializer=Zeros(),
-            dtype=tf.int32)
+            dtype=tf.int64)
 
     def update_state(self, y_true, y_pred, sample_weight=None):
         y_true = tf.cast(y_true, tf.int32)
@@ -70,7 +70,10 @@ class MeanIoU(Metric):
         return self.total_cm.assign_add(current_cm)
 
     def result(self):
-        return tf.reduce_mean(iou_from_cm(self.total_cm))
+        # total_cm = self.total_cm.numpy()
+        # total_cm = tf.convert_to_tensor(total_cm, dtype=tf.int64)
+        total_cm = self.total_cm
+        return tf.reduce_mean(iou_from_cm(total_cm))
 
     def reset_states(self):
         K.set_value(self.total_cm, np.zeros((self.num_classes, self.num_classes)))
