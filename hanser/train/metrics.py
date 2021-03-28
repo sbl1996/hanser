@@ -70,9 +70,7 @@ class MeanIoU(Metric):
         return self.total_cm.assign_add(current_cm)
 
     def result(self):
-        total_cm = self.total_cm.numpy()
-        total_cm = tf.convert_to_tensor(total_cm, dtype=tf.int64)
-        # total_cm = self.total_cm
+        total_cm = tf.cast(self.total_cm, tf.float32)
         return tf.reduce_mean(iou_from_cm(total_cm))
 
     def reset_states(self):
