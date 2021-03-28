@@ -71,6 +71,7 @@ class MeanIoU(Metric):
 
     def result(self):
         total_cm = tf.cast(self.total_cm, tf.float32)
+        total_cm = tf.cast(total_cm.numpy(), tf.int32)
         return tf.reduce_mean(iou_from_cm(total_cm))
 
     def reset_states(self):
