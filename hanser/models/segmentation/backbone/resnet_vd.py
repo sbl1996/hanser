@@ -8,13 +8,19 @@ class ResNet(Model):
 
     def __init__(self, block, layers, zero_init_residual=False,
                  avd=False, stages=(64, 64, 128, 256, 512),
-                 strides=(1, 2, 2, 2), multi_grad=(1, 1, 1)):
+                 output_stride=16, multi_grad=(1, 1, 1)):
         super().__init__()
         self.stages = stages
 
         self.stem = ResNetvdStem(self.stages[0])
         self.in_channels = self.stages[0]
 
+        strides = {
+            8: (1, 2, 1, 1),
+            16: (1, 2, 2, 1),
+            32: (1, 2, 2, 2),
+        }[output_stride]
+        
         dilation = 1
         for i, (c, n, s) in enumerate(zip(stages[1:], layers, strides)):
             prev_dilation = dilation
