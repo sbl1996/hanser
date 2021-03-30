@@ -6,7 +6,10 @@ from hanser.train.losses import CrossEntropy
 
 
 @curry
-def cross_entropy(y_true, y_pred, ignore_label=None):
+def cross_entropy(y_true, y_pred, ignore_label=None, auxiliary_weight=0.0):
+    if auxiliary_weight:
+        y_pred, y_pred_aux = y_pred
+        return cross_entropy(y_true, y_pred, ignore_label) + auxiliary_weight * cross_entropy(y_true, y_pred_aux, ignore_label)
     batch_size = tf.shape(y_true)[0]
     num_classes = tf.shape(y_pred)[-1]
     y_true = tf.cast(y_true, tf.int32)

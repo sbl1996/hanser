@@ -1,7 +1,7 @@
 import tensorflow as tf
 from tensorflow.keras import Model, Sequential
 from tensorflow.keras.layers import Layer, Dropout
-from hanser.models.layers import Conv2d, GlobalAvgPool
+from hanser.models.layers import Conv2d, GlobalAvgPool, Identity
 
 __all__ = ['DeepLabV3P', 'DeepLabV3']
 
@@ -48,7 +48,8 @@ class ASPPModule(Layer):
                  in_channels,
                  out_channels,
                  use_sep_conv=False,
-                 image_pooling=False):
+                 image_pooling=False,
+                 dropout_rate=0):
         super().__init__()
 
         self.blocks = []
@@ -77,7 +78,7 @@ class ASPPModule(Layer):
         self.conv = Conv2d(out_channels * out_size, out_channels, kernel_size=1,
                            norm='def', act='def')
 
-        self.dropout = Dropout(rate=0.1)  # drop rate
+        self.dropout = Dropout(rate=dropout_rate) if dropout_rate else None
 
     def call(self, x):
         outputs = []
@@ -93,7 +94,8 @@ class ASPPModule(Layer):
 
         x = tf.concat(outputs, axis=-1)
         x = self.conv(x)
-        x = self.dropout(x)
+        if self.dropout:
+            x = self.dropout(x)
         return x
 
 
@@ -103,6 +105,7 @@ class DeepLabV3P(Model):
                  backbone,
                  aspp_ratios=(1, 6, 12, 18),
                  aspp_channels=256,
+                 aux_head=True,
                  num_classes=21):
         super().__init__()
 
@@ -113,13 +116,21 @@ class DeepLabV3P(Model):
 
         self.head = DeepLabV3PHead(backbone_channels, aspp_ratios,
                                    aspp_channels, num_classes)
+        self.aux_head = FCNHead(backbone_channels[0], 1, 256,
+                                dropout_rate=0.1, num_classes=num_classes) if aux_head else None
 
     def call(self, x):
         img_shape = tf.shape(x)[1:3]
         feat_list = self.backbone(x)
         low_level_feat, x = feat_list[0], feat_list[3]
-        logit = self.head(low_level_feat, x)
-        return interpolate(logit, img_shape)
+        logits = self.head(low_level_feat, x)
+        logits = interpolate(logits, img_shape)
+        if self.aux_head:
+            logits_aux = self.aux_head(x)
+            logits_aux = interpolate(logits_aux, img_shape)
+            return logits, logits_aux
+        else:
+            return logits
 
 
 class DeepLabV3PHead(Layer):
@@ -127,23 +138,23 @@ class DeepLabV3PHead(Layer):
     The DeepLabV3PHead implementation based on PaddlePaddle.
 
     Args:
-        backbone_channels (tuple|list): The same length with "backbone_indices". It indicates the channels of corresponding index.
+        in_channels (tuple|list): The same length with "backbone_indices". It indicates the channels of corresponding index.
         num_classes (int): The unique number of target classes.
         aspp_ratios (tuple): The dilation rates using in ASSP module.
         aspp_channels (int): The output channels of ASPP module.
     """
 
-    def __init__(self, backbone_channels,
+    def __init__(self, in_channels,
                  aspp_ratios, aspp_channels, num_classes):
+        assert isinstance(in_channels, (tuple, list)) and len(in_channels) == 2
         super().__init__()
-
         self.aspp = ASPPModule(
             aspp_ratios,
-            backbone_channels[1],
+            in_channels[1],
             aspp_channels,
             use_sep_conv=True,
             image_pooling=True)
-        self.decoder = Decoder(backbone_channels[0], aspp_channels, num_classes)
+        self.decoder = Decoder(in_channels[0], aspp_channels, num_classes)
 
     def call(self, low_level_feat, x):
         x = self.aspp(x)
@@ -173,16 +184,6 @@ class Decoder(Layer):
 
 
 class DeepLabV3(Model):
-    """
-    The DeepLabV3 implementation based on PaddlePaddle.
-
-    The original article refers to
-     Liang-Chieh Chen, et, al. "Rethinking Atrous Convolution for Semantic Image Segmentation"
-     (https://arxiv.org/pdf/1706.05587.pdf).
-
-    Args:
-        Please Refer to DeepLabV3P above.
-    """
 
     def __init__(self,
                  backbone,
@@ -205,20 +206,17 @@ class DeepLabV3(Model):
 
 
 class DeepLabV3Head(Layer):
-    """
-    The DeepLabV3Head implementation based on PaddlePaddle.
 
-    Args:
-        Please Refer to DeepLabV3PHead above.
-    """
-
-    def __init__(self, backbone_channels,
-                 aspp_ratios, aspp_channels, num_classes):
+    def __init__(self,
+                 in_channels,
+                 aspp_ratios=(1, 6, 12, 18),
+                 aspp_channels=256,
+                 num_classes=21):
         super().__init__()
 
         self.aspp = ASPPModule(
             aspp_ratios,
-            backbone_channels,
+            in_channels,
             aspp_channels,
             image_pooling=True)
 
@@ -228,3 +226,47 @@ class DeepLabV3Head(Layer):
         x = self.aspp(x)
         logit = self.cls(x)
         return logit
+
+
+class FCNHead(Layer):
+    """Fully Convolution Networks for Semantic Segmentation.
+
+    This head is implemented of `FCNNet <https://arxiv.org/abs/1411.4038>`_.
+
+    Args:
+        num_convs (int): Number of convs in the head. Default: 2.
+        kernel_size (int): The kernel size for convs in the head. Default: 3.
+        dilation (int): The dilation rate for convs in the head. Default: 1.
+    """
+
+    def __init__(self,
+                 in_channels,
+                 num_convs=2,
+                 channels=256,
+                 kernel_size=3,
+                 dilation=1,
+                 dropout_rate=0.0,
+                 num_classes=21):
+        assert num_convs >= 0 and dilation > 0 and isinstance(dilation, int)
+        super(FCNHead, self).__init__()
+
+        if num_convs == 0:
+            self.convs = Identity()
+        else:
+            convs = []
+            for i in range(num_convs):
+                convs.append(
+                    Conv2d(in_channels, channels, kernel_size=kernel_size, dilation=dilation,
+                           norm='def', act='def'))
+                in_channels = channels
+            self.convs = Sequential(convs)
+        self.dropout = Dropout(rate=dropout_rate) if dropout_rate else None
+
+        self.cls = Conv2d(in_channels, num_classes, kernel_size=1)
+
+    def call(self, x):
+        x = self.convs(x)
+        if self.dropout:
+            x = self.dropout(x)
+        x = self.cls(x)
+        return x
