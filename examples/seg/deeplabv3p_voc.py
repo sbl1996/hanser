@@ -7,9 +7,9 @@ from tensorflow.keras.metrics import Mean
 from hanser.tpu import setup
 from hanser.datasets import prepare
 from hanser.datasets.segmentation import decode
-from hanser.datasets.segmentation.cityscapes import map_label
 
-from hanser.transform.segmentation import random_crop, flip_dim, get_random_scale, random_scale, pad
+from hanser.transform import resize_longer
+from hanser.transform.segmentation import random_crop, flip_dim, random_scale, pad
 
 from hanser.models.layers import set_defaults
 from hanser.models.segmentation.backbone.resnet_vd import resnet50
@@ -21,14 +21,13 @@ from hanser.train.lr_schedule import CosineLR
 from hanser.train.metrics import MeanIoU, CrossEntropy
 from hanser.train.cls import SuperLearner
 
-HEIGHT = WIDTH = 512
+HEIGHT = WIDTH = 256
 IGNORE_LABEL = 255
 
 @curry
 def preprocess(example, crop_h=HEIGHT, crop_w=WIDTH, ignore_label=IGNORE_LABEL, training=True):
     image, label = decode(example)
     label = tf.cast(label, tf.int32)
-    # label = map_label(label)
 
     mean_rgb = tf.convert_to_tensor([123.68, 116.779, 103.939], tf.float32)
     std_rgb = tf.convert_to_tensor([58.393, 57.12, 57.375], tf.float32)
@@ -37,15 +36,17 @@ def preprocess(example, crop_h=HEIGHT, crop_w=WIDTH, ignore_label=IGNORE_LABEL, 
     label = tf.cast(label, tf.int32)
 
     if training:
-        scale = get_random_scale(0.5, 2.0, 0.25)
-        image, label = random_scale(image, label, scale)
+        image, label = random_scale(image, label, (0.5, 2.0), 0.25)
+    else:
+        image = resize_longer(image, HEIGHT, 'bilinear')
+        label = resize_longer(label, HEIGHT, 'nearest')
 
     image, label = pad(image, label, (crop_h, crop_w),
                        image_pad_value=mean_rgb,
                        label_pad_value=ignore_label)
 
     if training:
-        image, label = random_crop([image, label], crop_h, crop_w)
+        image, label = random_crop([image, label], (crop_h, crop_w))
         image, label = flip_dim([image, label], dim=1)
 
     image.set_shape([crop_h, crop_w, 3])
@@ -83,11 +84,11 @@ set_defaults({
 
 backbone = resnet50(output_stride=16, multi_grad=(1, 2, 4))
 model = DeepLabV3P(backbone, aspp_ratios=(1, 6, 12, 18), aspp_channels=256,
-                   aux_head=True, num_classes=21)
+                   num_classes=21)
 model.build((None, HEIGHT, WIDTH, 3))
 
-criterion = cross_entropy(ignore_label=255, auxiliary_weight=0.4)
-base_lr = 1e-2
+criterion = cross_entropy(ignore_label=255)
+base_lr = 1e-3
 epochs = 60
 lr_schedule = CosineLR(base_lr * mul, steps_per_epoch, epochs, min_lr=0,
                        warmup_min_lr=base_lr, warmup_epoch=5)
@@ -98,7 +99,7 @@ train_metrics = {
 }
 eval_metrics = {
     'loss': CrossEntropy(ignore_label=255),
-    'miou': MeanIoU(num_classes=19),
+    'miou': MeanIoU(num_classes=21),
 }
 
 learner = SuperLearner(

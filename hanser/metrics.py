@@ -16,7 +16,10 @@ def iou_from_cm(cm):
     predicted_set = tf.reduce_sum(cm, axis=0)
     union = ground_truth_set + predicted_set - intersection
     IoU = intersection / union
-    return IoU
+
+    mask = ground_truth_set != 0
+    IoU = tf.where(mask, IoU, tf.zeros_like(IoU))
+    return tf.reduce_sum(IoU) / tf.reduce_sum(tf.cast(mask, IoU.dtype))
 
 
 def iou(y_true, y_pred, num_classes):
