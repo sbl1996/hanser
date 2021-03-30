@@ -20,7 +20,7 @@ class ResNet(Model):
             16: (1, 2, 2, 1),
             32: (1, 2, 2, 2),
         }[output_stride]
-        
+
         dilation = 1
         for i, (c, n, s) in enumerate(zip(stages[1:], layers, strides)):
             prev_dilation = dilation

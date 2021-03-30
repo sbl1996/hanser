@@ -12,39 +12,32 @@ class ResNet(Model):
         super().__init__()
         assert output_stride in [8, 16, 32]
         self.stages = stages
-        self.splits = splits
-        genotype = genotype.normal
 
         self.stem = ResNetvdStem(self.stages[0])
         self.in_channels = self.stages[0]
 
-        self.layer1 = self._make_layer(
-            block, self.stages[1], layers[0], stride=1,
-            base_width=base_width, splits=splits,
-            zero_init_residual=zero_init_residual, genotype=genotype[0])
-        self.layer2 = self._make_layer(
-            block, self.stages[2], layers[1], stride=2,
-            base_width=base_width, splits=splits,
-            zero_init_residual=zero_init_residual, genotype=genotype[1])
+        strides = {
+            8: (1, 2, 1, 1),
+            16: (1, 2, 2, 1),
+            32: (1, 2, 2, 2),
+        }[output_stride]
 
-        prev_dilation = 1
-        stride = 1 if output_stride == 8 else 2
-        dilation = 2 if stride != 2 else 1
-        self.layer3 = self._make_layer(
-            block, self.stages[3], layers[2], stride=stride,
-            base_width=base_width, splits=splits,
-            zero_init_residual=zero_init_residual, genotype=genotype[2],
-            dilations=[prev_dilation] + [dilation] * (layers[2] - 1),
-        )
+        genotype = genotype.normal
 
-        prev_dilation = dilation
-        stride = 1 if output_stride <= 16 else 2
-        dilation *= 2 if stride != 2 else 1
-        self.layer4 = self._make_layer(
-            block, self.stages[4], layers[3], stride=stride,
-            base_width=base_width, splits=splits,
-            zero_init_residual=zero_init_residual, genotype=genotype[3],
-            dilations=[prev_dilation * multi_grad[0]] + [m * dilation for m in multi_grad[1:]])
+        dilation = 1
+        for i, (c, n, s) in enumerate(zip(stages[1:], layers, strides)):
+            prev_dilation = dilation
+            if i > 0 and s == 1:
+                dilation *= 2
+            dilations = [prev_dilation] + [dilation] * (n - 1)
+            if i == 3:
+                dilations = [m * d for m, d in zip(multi_grad, dilations)]
+
+            layer = self._make_layer(
+                block, channels=c, blocks=n, stride=s, dilations=dilations,
+                base_width=base_width, splits=splits, genotype=genotype[i],
+                zero_init_residual=zero_init_residual)
+            setattr(self, "layer%d" % (i + 1), layer)
 
         self.feat_channels = [c * 4 for c in stages]
 
