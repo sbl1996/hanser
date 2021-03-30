@@ -13,6 +13,7 @@ from hanser.transform.segmentation import random_crop, flip_dim, random_scale, p
 
 from hanser.models.layers import set_defaults
 from hanser.models.segmentation.backbone.resnet_vd import resnet50
+# from hanser.models.segmentation.backbone.res2net_vd import resnet50
 from hanser.models.segmentation.deeplab import DeepLabV3P
 
 from hanser.losses import cross_entropy

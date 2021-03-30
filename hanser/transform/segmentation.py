@@ -28,13 +28,18 @@ def random_scale(image, label, scale_factor_range=(0.5, 2.0), step_size=0.25):
     return image, label
 
 
-def random_crop(tensor_list, size):
-    outputs = []
-    h, w = size
-    for tensor in tensor_list:
-        tensor = tf.image.random_crop(tensor, [h, w, tf.shape(tensor)[-1]])
-        outputs.append(tensor)
-    return outputs
+def random_crop(image_list, size):
+    crop_height, crop_width = size
+    height, width, c = _image_dimensions(image_list[0], 3)
+    max_offset_height = height - crop_height + 1
+    max_offset_width = width - crop_width + 1
+    offset_height = tf.random.uniform(
+        [], maxval=max_offset_height, dtype=tf.int32)
+    offset_width = tf.random.uniform(
+        [], maxval=max_offset_width, dtype=tf.int32)
+
+    return [tf.image.crop_to_bounding_box(
+        image, offset_height, offset_width, crop_height, crop_width) for image in image_list]
 
 
 def pad(image, label, size, image_pad_value, label_pad_value):
