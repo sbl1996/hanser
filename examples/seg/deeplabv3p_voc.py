@@ -9,8 +9,7 @@ from hanser.datasets import prepare
 from hanser.datasets.segmentation import decode
 from hanser.datasets.segmentation.cityscapes import map_label
 
-from hanser.transform import pad_to_bounding_box, _image_dimensions
-from hanser.transform.segmentation import random_crop, flip_dim, get_random_scale, random_scale
+from hanser.transform.segmentation import random_crop, flip_dim, get_random_scale, random_scale, pad
 
 from hanser.models.layers import set_defaults
 from hanser.models.segmentation.backbone.resnet_vd import resnet50
@@ -41,12 +40,9 @@ def preprocess(example, crop_h=HEIGHT, crop_w=WIDTH, ignore_label=IGNORE_LABEL, 
         scale = get_random_scale(0.5, 2.0, 0.25)
         image, label = random_scale(image, label, scale)
 
-    img_h, img_w, c = _image_dimensions(image, 3)
-    target_h = tf.maximum(img_h, crop_h)
-    target_w = tf.maximum(img_w, crop_w)
-
-    image = pad_to_bounding_box(image, 0, 0, target_h, target_w, mean_rgb)
-    label = pad_to_bounding_box(label, 0, 0, target_h, target_w, ignore_label)
+    image, label = pad(image, label, (crop_h, crop_w),
+                       image_pad_value=mean_rgb,
+                       label_pad_value=ignore_label)
 
     if training:
         image, label = random_crop([image, label], crop_h, crop_w)
@@ -58,24 +54,24 @@ def preprocess(example, crop_h=HEIGHT, crop_w=WIDTH, ignore_label=IGNORE_LABEL, 
     image = (image - mean_rgb) / std_rgb
     label = tf.squeeze(label, -1)
 
-    image = tf.cast(image, tf.bfloat16)
+    # image = tf.cast(image, tf.bfloat16)
     return image, label
 
 
 train_files = [
-    "/Users/hrvvi/Downloads/datasets/tfrecords/Cityscapes_sub/train-%05d-of-00004.tfrecord" % i for i in range(4)]
+    "/Users/hrvvi/Downloads/datasets/tfrecords/VOC2012_sub/trainaug-%05d-of-00002.tfrecord" % i for i in range(2)]
 val_files = [
-    "/Users/hrvvi/Downloads/datasets/tfrecords/Cityscapes_sub/val-%05d-of-00002.tfrecord" % i for i in range(2)]
+    "/Users/hrvvi/Downloads/datasets/tfrecords/VOC2012_sub/val-%05d-of-00001.tfrecord" % i for i in range(1)]
 
-mul = 8
-n_train, n_val = 2975, 500
+mul = 1
+n_train, n_val = 16, 4
 batch_size, eval_batch_size = 2 * mul, 2 * mul
 steps_per_epoch, val_steps = n_train // batch_size, n_val // eval_batch_size
 
 ds_train = prepare(tf.data.TFRecordDataset(train_files), batch_size, preprocess(training=True),
                    training=True, repeat=False)
 ds_val = prepare(tf.data.TFRecordDataset(val_files), eval_batch_size, preprocess(training=False),
-                 training=False, repeat=False)
+                 training=False, repeat=False, drop_remainder=True)
 
 # ds_train_dist, ds_val_dist = setup([ds_train, ds_val], fp16=True)
 
@@ -86,15 +82,16 @@ set_defaults({
 })
 
 backbone = resnet50(output_stride=16, multi_grad=(1, 2, 4))
-model = DeepLabV3P(backbone, aspp_ratios=(1, 6, 12, 18), aspp_channels=256, num_classes=19)
+model = DeepLabV3P(backbone, aspp_ratios=(1, 6, 12, 18), aspp_channels=256,
+                   aux_head=True, num_classes=21)
 model.build((None, HEIGHT, WIDTH, 3))
 
-criterion = cross_entropy(ignore_label=255)
-base_lr = 1e-3
-epochs = 400
+criterion = cross_entropy(ignore_label=255, auxiliary_weight=0.4)
+base_lr = 1e-2
+epochs = 60
 lr_schedule = CosineLR(base_lr * mul, steps_per_epoch, epochs, min_lr=0,
-                       warmup_min_lr=0, warmup_epoch=5)
-optimizer = SGD(lr_schedule, momentum=0.9, nesterov=True, weight_decay=4e-5)
+                       warmup_min_lr=base_lr, warmup_epoch=5)
+optimizer = SGD(lr_schedule, momentum=0.9, nesterov=True, weight_decay=1e-4)
 
 train_metrics = {
     'loss': Mean(),
@@ -110,5 +107,5 @@ learner = SuperLearner(
     work_dir=f"./models")
 
 learner.fit(
-    ds_train_dist, epochs, ds_val_dist, val_freq=1,
+    ds_train, epochs, ds_val, val_freq=1,
     steps_per_epoch=steps_per_epoch, val_steps=val_steps)

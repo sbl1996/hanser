@@ -105,7 +105,7 @@ class DeepLabV3P(Model):
                  backbone,
                  aspp_ratios=(1, 6, 12, 18),
                  aspp_channels=256,
-                 aux_head=True,
+                 aux_head=False,
                  num_classes=21):
         super().__init__()
 
