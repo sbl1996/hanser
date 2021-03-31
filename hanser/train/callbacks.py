@@ -250,6 +250,18 @@ class EvalEveryAfter(Callback):
             self.learner._val_freq = 1
 
 
+class SetEvalFreq(Callback):
+
+    def __init__(self, after_epoch, eval_freq=1):
+        super().__init__()
+        self.after_epoch = after_epoch
+        self.eval_freq = eval_freq
+
+    def begin_epoch(self, state):
+        if state['epoch'] >= self.after_epoch:
+            self.learner._val_freq = self.eval_freq
+
+
 class TerminateOnNaN(Callback):
     def after_epoch(self, state):
         if not np.isfinite(state['metrics']['loss']):
