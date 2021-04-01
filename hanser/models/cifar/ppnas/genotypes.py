@@ -179,6 +179,33 @@ PP_ResNet_ImageNet_FAIR_AVD_1 = Genotype([
     ]
 ])
 
+PP_ResNet_ImageNet_FAIR_AVD_2 = Genotype([
+    [
+        (2, 3, 'skip_connect'),
+        (1, 4, 'nor_conv_3x3'),
+        (6, 'nor_conv_3x3'),
+        (6, 7, 'nor_conv_3x3')
+    ],
+    [
+        (1, 3, 4, 'skip_connect'),
+        (1, 2, 'nor_conv_3x3'),
+        (6, 'nor_conv_3x3'),
+        (7, 'nor_conv_3x3')
+    ],
+    [
+        (1, 2, 4, 'skip_connect'),
+        (2, 3, 4, 'nor_conv_3x3'),
+        (6, 'nor_conv_3x3'),
+        (7, 'nor_conv_3x3')
+    ],
+    [
+        (1, 'skip_connect'),
+        (2, 3, 'nor_conv_3x3'),
+        (6, 'nor_conv_3x3'),
+        (4, 7, 'nor_conv_3x3')
+    ]
+])
+
 PP_ResNet_CIFAR10_FAIR_AVD_1 = Genotype([
     [
         (2, 3, 'skip_connect'),
