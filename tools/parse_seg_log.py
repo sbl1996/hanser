@@ -22,8 +22,12 @@ def parse_metric_line(s):
         raise e
 
 def parse_metric_lines(lines):
-    times, metrics = zip(*map(parse_metric_line, lines))
-    assert len(set([len(m) for m in metrics])) == 1
+    times = []
+    metrics = []
+    for l in lines:
+        l_times, l_metrics = parse_metric_line(l)
+        times.append(l_times)
+        metrics.append(l_metrics)
     metric_names = [t[0] for t in metrics[0]]
     d = {
         m: [] for m in metric_names

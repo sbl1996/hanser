@@ -1,6 +1,6 @@
 import argparse
 from hhutil.io import fmt_path
-from hanser.datasets.tfrecord import convert_segmentation_dataset
+from hanser.datasets.segmentation.tfrecord import convert_segmentation_dataset
 
 if __name__ == '__main__':
 

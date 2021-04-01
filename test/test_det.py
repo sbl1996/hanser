@@ -146,3 +146,5 @@ def test_transform():
     # # image, bboxes = resize_with_pad(image, bboxes, output_size, output_size, mean_rgb)
 
     draw_bboxes2(image.numpy().astype(np.uint8), bboxes.numpy(), classes.numpy(), VOC_CATEGORIES)
+
+import tensorflow_datasets as tfds

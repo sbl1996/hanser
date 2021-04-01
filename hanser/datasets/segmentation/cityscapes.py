@@ -1,3 +1,5 @@
+import numpy as np
+
 import tensorflow as tf
 from collections import namedtuple
 
@@ -89,7 +91,11 @@ labels = [
 ]
 
 
-LABEL_MAP = [l.trainId for l in labels[:-1]]
-
+LABEL_MAP = np.array([l.trainId for l in labels[:-1]], dtype=np.int32)
+# COLOR_MAP = [None] * 19
+COLOR_MAP = np.array([l.color for l in sorted(labels[:-1], key=lambda l: l.trainId)[:19]], dtype=np.uint8)
+# for l in labels[:-1]:
+#     if l !=
+#     COLOR_MAP[l.trainId]
 def map_label(label):
     return tf.gather(tf.convert_to_tensor(LABEL_MAP, label.dtype), label)

@@ -787,6 +787,36 @@ def to_tensor(image, label, dtype=tf.float32, vmax=255, label_offset=None):
     return image, label
 
 
+def photo_metric_distortion(image,
+                            brightness_delta=32,
+                            contrast_range=(0.5, 1.5),
+                            saturation_range=(0.5, 1.5),
+                            hue_delta=18):
+    dtype = image.dtype
+    image = tf.cast(image, tf.float32) / 255
+
+    if tf.random.uniform(()) < 0.5:
+        image = tf.clip_by_value(tf.image.random_brightness(image, brightness_delta / 255), 0, 1)
+
+    mode = tf.random.uniform((), 0, 2, dtype=tf.int32)
+
+    if mode == 0 and tf.random.uniform(()) < 0.5:
+        image = tf.clip_by_value(tf.image.random_contrast(image, contrast_range[0], contrast_range[1]), 0, 1)
+
+    if tf.random.uniform(()) < 0.5:
+        image = tf.clip_by_value(tf.image.random_saturation(image, saturation_range[0], saturation_range[1]), 0, 1)
+
+    if tf.random.uniform(()) < 0.5:
+        image = tf.clip_by_value(tf.image.random_hue(image, hue_delta / 255), 0, 1)
+
+    if mode == 1 and tf.random.uniform(()) < 0.5:
+        image = tf.clip_by_value(tf.image.random_contrast(image, contrast_range[0], contrast_range[1]), 0, 1)
+
+    image = tf.cast(image * 255, dtype)
+
+    return image
+
+
 def color_jitter(image, brightness, contrast, saturation, hue):
     dtype = image.dtype
     image = tf.cast(image, tf.float32) / 255
@@ -875,29 +905,6 @@ def pad_to_bounding_box(image, offset_height, offset_width, target_height,
     return outputs
 
 
-# def resize_shorter(img, min_size, method='bilinear'):
-#     min_size = tf.cast(min_size, tf.float32)
-#     h, w = _image_dimensions(img, 3)
-#     h = tf.cast(h, tf.float32)
-#     w = tf.cast(w, tf.float32)
-#     shorter = tf.minimum(h, w)
-#     def resize2():
-#         scale = min_size / shorter
-#         oh = tf.cast(tf.math.ceil(h * scale), tf.int32)
-#         ow = tf.cast(tf.math.ceil(w * scale), tf.int32)
-#         size = tf.stack([oh, ow])
-#         dtype = img.dtype
-#         img = tf.image.resize(img, size, method=method)
-#         if img.dtype != dtype:
-#             img = tf.cast(img, dtype)
-#         return img
-#     return tf.cond(
-#         shorter < min_size,
-#         resize2,
-#         lambda: img,
-#     )
-#
-#
 def resize_longer(img, size, method='bilinear'):
     h, w, c = _image_dimensions(img, 3)
     h = tf.cast(h, tf.float32)

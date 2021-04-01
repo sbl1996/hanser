@@ -1,5 +1,5 @@
 import tensorflow as tf
-from hanser.datasets.tfrecord import parse_tfexample_to_img_seg
+from hanser.datasets.segmentation.tfrecord import parse_tfexample_to_img_seg
 
 def decode(example_proto):
     example = parse_tfexample_to_img_seg(example_proto)
