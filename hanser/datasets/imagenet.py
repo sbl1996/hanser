@@ -70,8 +70,7 @@ def input_fn(filenames, training, transform, batch_size,
     if training and cache_decoded_image:
         dataset = dataset.map(
             parse_example_proto_and_decode,
-            num_parallel_calls=tf.data.experimental.AUTOTUNE,
-            deterministic=False)
+            num_parallel_calls=tf.data.experimental.AUTOTUNE)
     if cache_dataset:
         dataset = dataset.cache()
 
