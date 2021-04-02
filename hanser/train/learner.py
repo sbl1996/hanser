@@ -383,6 +383,11 @@ class Learner(metaclass=ABCMeta):
         print("Load learner at epoch %d from %s" % (self.epoch + 1, fp))
 
     def recover_log(self, start, from_epochs, total_epochs, train_time, eval_time):
+        """Recover log from speficic epoch.
+
+        Example:
+            >>> learner.recover_log("22:03:42", 38, 60, 68, 8)
+        """
         start = parse(start)
         for i in range(from_epochs - 1, total_epochs):
             m = self.metric_history.get_epochs(i, i)
