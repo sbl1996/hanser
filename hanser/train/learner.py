@@ -1,6 +1,9 @@
 from abc import ABCMeta
 from typing import Sequence, Mapping, Optional
 
+from dateutil.parser import parse
+from datetime import timedelta
+
 import tensorflow as tf
 import tensorflow.keras.mixed_precision.experimental as mixed_precision
 from tensorflow.keras.metrics import Metric, Mean
@@ -379,6 +382,20 @@ class Learner(metaclass=ABCMeta):
         self.set_global_state('epoch', self.epoch)
         print("Load learner at epoch %d from %s" % (self.epoch + 1, fp))
 
+    def recover_log(self, start, from_epochs, total_epochs, train_time, eval_time):
+        start = parse(start)
+        for i in range(from_epochs - 1, total_epochs):
+            m = self.metric_history.get_epochs(i, i)
+            train_end = start + timedelta(seconds=train_time)
+            eval_end = train_end + timedelta(seconds=eval_time)
+            start = eval_end
+            print("Epoch %d/%d" % (i + 1, total_epochs))
+            train_metric_logs = ", ".join(
+                f"{k}: {m['train'][k]:.4f}" for k in self.train_metrics.keys() if k in m['train'])
+            print(f"{str(train_end)[-8:]} train - {train_metric_logs}")
+            valid_metric_logs = ", ".join(
+                f"{k}: {m['eval'][k]:.4f}" for k in self.eval_metrics.keys() if k in m['eval'])
+            print(f"{str(eval_end)[-8:]} valid - {valid_metric_logs}")
 
 def cast(xs, dtype, whiltelist=(tf.int32, tf.int64)):
     if isinstance(xs, tf.Tensor):
