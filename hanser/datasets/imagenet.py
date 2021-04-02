@@ -91,24 +91,18 @@ def input_fn(filenames, training, transform, batch_size,
         parse_record_fn, training=training)
 
     dataset = dataset.map(
-        map_fn, num_parallel_calls=tf.data.experimental.AUTOTUNE,
-        deterministic=False)
+        map_fn, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
     if training and zip_transform:
         dataset = tf.data.Dataset.zip((dataset, dataset)).map(
-            zip_transform, num_parallel_calls=tf.data.experimental.AUTOTUNE,
-            deterministic=False)
+            zip_transform, num_parallel_calls=tf.data.experimental.AUTOTUNE)
     dataset = dataset.batch(batch_size, drop_remainder=training)
     if training and batch_transform:
         dataset = dataset.map(
-            batch_transform, num_parallel_calls=tf.data.experimental.AUTOTUNE,
-            deterministic=False)
+            batch_transform, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
     dataset = dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
 
-    options = tf.data.Options()
-    options.experimental_slack = True
-    dataset = dataset.with_options(options)
     return dataset
 
 
