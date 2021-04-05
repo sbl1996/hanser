@@ -2,7 +2,7 @@ import tensorflow as tf
 from tensorflow.keras import Sequential
 from tensorflow.keras.layers import Layer
 
-from hanser.models.layers import Conv2d, Act
+from hanser.models.layers import Conv2d, Act, Norm
 
 
 def interpolate(x, shape):
@@ -43,12 +43,14 @@ class FPN(Layer):
     def __init__(self,
                  in_channels,
                  out_channels,
-                 num_extra_convs=0):
+                 num_extra_convs=2,
+                 use_norm=True):
         super().__init__()
         assert isinstance(in_channels, list)
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.num_extra_convs = num_extra_convs
+        self.use_norm = use_norm
 
         self.lateral_convs = []
         self.fpn_convs = []
@@ -69,7 +71,10 @@ class FPN(Layer):
             self.extra_convs.append(extra_conv)
             in_channels = out_channels
 
-        self.feat_channels = [out_channels] * (len(self.in_channels) + num_extra_convs)
+        num_levels = len(self.in_channels) + num_extra_convs
+        self.feat_channels = [out_channels] * num_levels
+        if use_norm:
+            self.norms = [Norm(out_channels) for i in range(num_levels)]
 
     def call(self, feats):
         laterals = [
@@ -90,4 +95,7 @@ class FPN(Layer):
 
         for extra_conv in self.extra_convs:
             outs.append(extra_conv(outs[-1]))
+
+        if self.use_norm:
+            outs = [norm(x) for x, norm in zip(outs, self.norms)]
         return tuple(outs)

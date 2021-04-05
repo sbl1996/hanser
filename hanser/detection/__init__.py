@@ -84,7 +84,8 @@ def l1_loss(labels, preds):
 
 
 @curry
-def detection_loss(target, preds, loc_loss='l1', cls_loss='focal', neg_pos_ratio=None, alpha=0.25, gamma=2.0):
+def detection_loss(target, preds, loc_loss='l1', cls_loss='focal', neg_pos_ratio=None,
+                   alpha=0.25, gamma=2.0, label_smoothing=0):
     loc_t = target['loc_t']
     cls_t = target['cls_t']
     pos = target['pos']
@@ -108,7 +109,7 @@ def detection_loss(target, preds, loc_loss='l1', cls_loss='focal', neg_pos_ratio
     if cls_loss == 'focal':
         num_classes = tf.shape(cls_p)[-1]
         cls_t = tf.one_hot(cls_t, num_classes + 1)
-        cls_losses = focal_loss(cls_t[..., 1:], cls_p, alpha, gamma)
+        cls_losses = focal_loss(cls_t[..., 1:], cls_p, alpha, gamma, label_smoothing)
         weight = tf.cast(~ignore, tf.float32)[:, :, None]
         cls_loss = tf.reduce_sum(cls_losses * weight) / total_pos
     elif cls_loss == 'ce':

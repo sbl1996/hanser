@@ -74,8 +74,7 @@ def preprocess(d, target_height=HEIGHT, target_width=WIDTH, max_objects=100, tra
     bboxes = coords_to_absolute(bboxes, tf.shape(image)[:2])
 
     loc_t, cls_t, pos, ignore = match_anchors(
-        bboxes, labels, flat_anchors, pos_iou_thr=0.5, neg_iou_thr=0.4, min_pos_iou=0.,
-        bbox_std=(1., 1., 1., 1.))
+        bboxes, labels, flat_anchors, pos_iou_thr=0.5, neg_iou_thr=0.4, min_pos_iou=0.)
 
     bboxes = pad_to_fixed_size(bboxes, 0, [max_objects, 4])
     labels = pad_to_fixed_size(labels, 0, [max_objects])
@@ -115,7 +114,7 @@ model.build((None, HEIGHT, WIDTH, 3))
 # status = ckpt.read("./drive/MyDrive/models/ImageNet-83/ckpt", ckpt_options)
 # status.assert_existing_objects_matched()
 
-criterion = detection_loss(loc_loss='l1', cls_loss='focal', alpha=0.25, gamma=2.0)
+criterion = detection_loss(loc_loss='l1', cls_loss='focal', alpha=0.25, gamma=2.0, label_smoothing=0.1)
 base_lr = 1e-3
 epochs = 60
 lr_schedule = CosineLR(base_lr * mul, steps_per_epoch, epochs, min_lr=0,
