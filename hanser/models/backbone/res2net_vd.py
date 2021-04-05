@@ -9,7 +9,7 @@ class ResNet(Model):
     def __init__(self, block, layers, base_width=26, scale=4,
                  zero_init_residual=False, avd=False,
                  stages=(64, 64, 128, 256, 512),
-                 output_stride=16, multi_grad=(1, 2, 4)):
+                 output_stride=32, multi_grad=(1, 1, 1)):
         super().__init__()
         self.stages = stages
 
