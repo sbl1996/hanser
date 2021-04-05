@@ -38,7 +38,7 @@ def bbox_decode(pred, anchors, std=(1., 1., 1., 1.)):
 
 
 def match_anchors(gt_bboxes, gt_labels, anchors, pos_iou_thr=0.5, neg_iou_thr=0.5, min_pos_iou=.0,
-                  bbox_std=(0.1, 0.1, 0.2, 0.2)):
+                  bbox_std=(1., 1., 1., 1.)):
     assigned_gt_inds = max_iou_assign(anchors, gt_bboxes, pos_iou_thr, neg_iou_thr, min_pos_iou,
                                       match_low_quality=True, gt_max_assign_all=False)
     num_anchors = tf.shape(assigned_gt_inds)[0]
