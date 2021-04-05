@@ -81,3 +81,11 @@ def misc_concat(values):
         return {k: misc_concat(v) for k, v in values.items()}
     else:
         return values
+
+
+def get_shape(tensor, axis):
+    shape = tensor.shape[axis]
+    if shape is None:
+        return tf.shape(tensor)[axis]
+    else:
+        return shape

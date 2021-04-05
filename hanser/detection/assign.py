@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 from hanser.detection.iou import bbox_iou
-from hanser.ops import index_put
+from hanser.ops import index_put, get_shape
 
 def max_iou_assign(bboxes, gt_bboxes, pos_iou_thr, neg_iou_thr,
                    min_pos_iou=.0, match_low_quality=True, gt_max_assign_all=False):
@@ -41,8 +41,8 @@ def max_iou_assign(bboxes, gt_bboxes, pos_iou_thr, neg_iou_thr,
     """
     ious = bbox_iou(gt_bboxes, bboxes)
 
-    shape = tf.shape(ious)
-    num_gts, num_bboxes = shape[0], shape[1]
+    num_gts = get_shape(ious, 0)
+    num_bboxes = get_shape(bboxes, 0)
 
     # 1. assign -1 by default
     assigned_gt_inds = tf.fill((num_bboxes,), tf.constant(-1, dtype=tf.int32))

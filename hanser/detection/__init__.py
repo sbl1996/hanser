@@ -7,7 +7,8 @@ from toolz import curry
 import numpy as np
 import tensorflow as tf
 from hanser.losses import focal_loss
-from hanser.ops import index_put, to_float
+from hanser.ops import index_put, to_float, get_shape
+
 
 def coords_to_absolute(bboxes, size):
     height, width = size[0], size[1]
@@ -45,7 +46,8 @@ def match_anchors(gt_bboxes, gt_labels, anchors, pos_iou_thr=0.5, neg_iou_thr=0.
                   bbox_std=(1., 1., 1., 1.)):
     assigned_gt_inds = max_iou_assign(anchors, gt_bboxes, pos_iou_thr, neg_iou_thr, min_pos_iou,
                                       match_low_quality=True, gt_max_assign_all=False)
-    num_anchors = tf.shape(assigned_gt_inds)[0]
+
+    num_anchors = get_shape(anchors, 0)
 
     pos = assigned_gt_inds > 0
     ignore = assigned_gt_inds == -1

@@ -901,6 +901,8 @@ def pad_to_bounding_box(image, offset_height, offset_width, target_height,
     padded = tf.pad(image, [(0, 0), (ph1, ph2), (pw1, pw2), (0, 0)])
     outputs = padded + pad_value
 
+    if isinstance(target_height, int):
+        outputs.set_shape([outputs.shape[0], target_height, target_width, outputs.shape[-1]])
     outputs, = unwrap_batch([outputs,], is_batch)
     return outputs
 
