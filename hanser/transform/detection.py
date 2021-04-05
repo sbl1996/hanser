@@ -63,7 +63,7 @@ def scale_bbox(bboxes, scales):
     return tf.reshape(tf.reshape(bboxes, [-1, 2, 2]) * scales, [-1, 4])
 
 
-def expand(image, bboxes, max_scale, mean):
+def random_expand(image, bboxes, max_scale, pad_value):
     shape = tf.shape(image)
     h = shape[0]
     w = shape[1]
@@ -72,11 +72,9 @@ def expand(image, bboxes, max_scale, mean):
     new_w = to_int(to_float(w) * scale)
 
     offset_y = tf.random.uniform((), 0, new_h - h + 1, dtype=tf.int32)
-    # offset_y = new_h - h
     offset_x = tf.random.uniform((), 0, new_w - w + 1, dtype=tf.int32)
-    # offset_x = new_w - w
 
-    image = pad_to_bounding_box(image, offset_y, offset_x, new_h, new_w, mean)
+    image = pad_to_bounding_box(image, offset_y, offset_x, new_h, new_w, pad_value)
     bboxes = tf.reshape(bboxes, [-1, 2, 2])
     bboxes = bboxes / scale + tf.cast([offset_y, offset_x], tf.float32) / tf.cast([new_h, new_w], tf.float32)
     bboxes = tf.reshape(bboxes, [-1, 4])
@@ -93,6 +91,7 @@ def resize_and_pad(image, bboxes, target_height, target_width, pad_value):
     scaled_height = to_int(to_float(height) * img_scale)
     scaled_width = to_int(to_float(width) * img_scale)
     image = tf.image.resize(image, (scaled_height, scaled_width))
+
     image = pad_to_bounding_box(image, 0, 0, target_height, target_width, pad_value)
     bboxes = scale_bbox(bboxes, to_float([scaled_height, scaled_width]) / to_float([target_height, target_width]))
     return image, bboxes
