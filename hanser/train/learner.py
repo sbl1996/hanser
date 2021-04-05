@@ -241,7 +241,7 @@ class Learner(metaclass=ABCMeta):
         for k, m in metrics.items():
             metric_results[k] = m.result().numpy()
             m.reset_states()
-        log_metrics('Eeval', metric_results, self.epoch, verbose=self._verbose)
+        log_metrics('extra', metric_results, self.epoch, verbose=self._verbose)
 
     @tf.function
     def _xla_train_step(self, batch):
