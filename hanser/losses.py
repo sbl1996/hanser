@@ -99,31 +99,31 @@ def focal_loss2(labels, logits, gamma=2, beta=1, ignore_label=None):
     return loss
 
 
-def focal_loss(labels, logits, alpha, gamma):
-    """Compute the focal loss between `logits` and the golden `target` values.
-
-    Focal loss = -(1-pt)^gamma * log(pt)
-    where pt is the probability of being classified to the true class.
-
-    Args:
-    logits: A float32 tensor of size [batch, height_in, width_in,
-      num_predictions].
-    labels: A float32 tensor of size [batch, height_in, width_in,
-      num_predictions].
-    alpha: A float32 scalar multiplying alpha to the loss from positive examples
-      and (1-alpha) to the loss from negative examples.
-    gamma: A float32 scalar modulating loss from hard and easy examples.
-
-    Returns:
-    loss: A float32 scalar representing normalized total loss.
+def focal_loss(y_true, y_pred, alpha, gamma, label_smoothing=0.0, eps=1e-6):
     """
-    pos = tf.equal(labels, 1.0)
-    losses = tf.nn.sigmoid_cross_entropy_with_logits(labels, logits)
-    probs = tf.sigmoid(logits)
-    probs_gt = tf.where(pos, probs, 1.0 - probs)
-    # With small gamma, the implementation could produce NaN during back prop.
-    modulator = tf.pow(1.0 - probs_gt, gamma)
-    losses = modulator * losses
-    loss = tf.where(pos, alpha * losses,
-                             (1.0 - alpha) * losses)
+    Loss used in RetinaNet for dense detection: https://arxiv.org/abs/1708.02002.
+    Args:
+        y_true: A float tensor with the same shape as inputs. Stores the binary
+                 classification label for each element in inputs
+                (0 for the negative class and 1 for the positive class).
+        y_pred: A float tensor of arbitrary shape.
+                The predictions for each example.
+        alpha: (optional) Weighting factor in range (0,1) to balance
+                positive vs negative examples. Default = -1 (no weighting).
+        gamma: Exponent of the modulating factor (1 - p_t) to
+               balance easy vs hard examples.
+    Returns:
+        Loss tensor with the reduction option applied.
+    """
+    p = tf.sigmoid(y_pred)
+    p_t = p * y_true + (1 - p) * (1 - y_true)
+    weight = (1 - p_t) ** gamma
+    if alpha:
+        weight = weight * (alpha * y_true + (1 - alpha) * (1 - y_true))
+    if label_smoothing:
+        num_classes = tf.cast(tf.shape(y_true)[-1], y_pred.dtype)
+        y_pred_ls = (1. - label_smoothing) * y_pred + label_smoothing / num_classes
+        y_pred = tf.clip_by_value(y_pred_ls, eps, 1. - eps)
+    ce_loss = tf.nn.sigmoid_cross_entropy_with_logits(y_true, y_pred)
+    loss = ce_loss * weight
     return loss
