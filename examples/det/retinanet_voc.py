@@ -14,7 +14,7 @@ from hanser.transform import resize, photo_metric_distortion
 from hanser.transform.detection import pad_to_fixed_size, random_hflip, random_sample_crop, random_expand, resize_and_pad
 
 from hanser.models.layers import set_defaults
-from hanser.models.segmentation.backbone.resnet_vd import resnet50
+from hanser.models.backbone.resnet_vd import resnet50
 from hanser.models.detection.retinanet import RetinaNet
 
 from hanser.train.optimizers import SGD
@@ -106,7 +106,7 @@ set_defaults({
         'sync': False,
     }
 })
-backbone = resnet50(output_stride=32)
+backbone = resnet50()
 model = RetinaNet(backbone, 128, anchor_gen.num_base_anchors[0], num_classes=20)
 model.build((None, HEIGHT, WIDTH, 3))
 
