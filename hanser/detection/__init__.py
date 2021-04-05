@@ -82,7 +82,6 @@ def detection_loss(target, preds, loc_loss='l1', cls_loss='focal', neg_pos_ratio
     cls_t = target['cls_t']
     pos = target['pos']
     ignore = target['ignore']
-    neg = tf.cast((~pos) & (~ignore), tf.float32)
     pos = tf.cast(pos, tf.float32)
     n_pos = tf.reduce_sum(pos, axis=1)
 
@@ -103,12 +102,14 @@ def detection_loss(target, preds, loc_loss='l1', cls_loss='focal', neg_pos_ratio
         num_classes = tf.shape(cls_p)[-1]
         cls_t = tf.one_hot(cls_t, num_classes + 1)
         cls_losses = focal_loss(cls_t[..., 1:], cls_p, alpha, gamma)
-        cls_loss = tf.reduce_sum(cls_losses) / total_pos
+        weight = tf.cast(~ignore, tf.float32)[:, :, None]
+        cls_loss = tf.reduce_sum(cls_losses * weight) / total_pos
     elif cls_loss == 'ce':
         cls_losses = tf.nn.sparse_softmax_cross_entropy_with_logits(cls_t, cls_p)
         if not neg_pos_ratio:
             cls_loss = tf.reduce_sum(cls_losses) / total_pos
         else:
+            neg = tf.cast((~pos) & (~ignore), tf.float32)
             cls_loss_pos = tf.reduce_sum(cls_losses * pos)
             cls_loss_neg = hard_negative_mining(cls_losses * neg, n_pos, neg_pos_ratio)
             cls_loss = (cls_loss_pos + cls_loss_neg) / total_pos
