@@ -58,7 +58,7 @@ def preprocess(d, target_height=HEIGHT, target_width=WIDTH, max_objects=100, tra
 
     if training:
     #     image = photo_metric_distortion(image)
-        image, bboxes = random_expand(image, bboxes, 4.0, mean_rgb)
+    #     image, bboxes = random_expand(image, bboxes, 4.0, mean_rgb)
     #     image, bboxes, labels, is_difficults = random_sample_crop(
     #         image, bboxes, labels, is_difficults,
     #         min_ious=(0.1, 0.3, 0.5, 0.7, 0.9),
@@ -137,8 +137,7 @@ learner = SuperLearner(
 def output_transform(output):
     loc_p, cls_p = get(['loc_p', 'cls_p'], output)
     return batched_detect(loc_p, cls_p, flat_anchors, iou_threshold=0.5,
-                          conf_threshold=0.05, conf_strategy='sigmoid',
-                          bbox_std=(1., 1., 1., 1.))
+                          conf_threshold=0.05, conf_strategy='sigmoid')
 
 learner.fit(
     ds_train, epochs, ds_val, val_freq=1,

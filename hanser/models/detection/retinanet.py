@@ -77,7 +77,7 @@ class RetinaHead(Layer):
         b = tf.shape(feats[0])[0]
         bbox_preds = []
         cls_scores = []
-        for x in enumerate(feats):
+        for x in feats:
             bbox_pred, cls_score = self.call_single(x)
             bbox_preds.append(tf.reshape(bbox_pred, [b, -1, 4]))
             cls_scores.append(tf.reshape(cls_score, [b, -1, self.num_classes]))
