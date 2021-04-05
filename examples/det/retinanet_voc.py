@@ -58,7 +58,7 @@ def preprocess(d, target_height=HEIGHT, target_width=WIDTH, max_objects=100, tra
 
     if training:
     #     image = photo_metric_distortion(image)
-    #     image, bboxes = random_expand(image, bboxes, 4.0, mean_rgb)
+        image, bboxes = random_expand(image, bboxes, 4.0, mean_rgb)
     #     image, bboxes, labels, is_difficults = random_sample_crop(
     #         image, bboxes, labels, is_difficults,
     #         min_ious=(0.1, 0.3, 0.5, 0.7, 0.9),

@@ -103,6 +103,7 @@ def pad_to_bounding_box(image, bboxes, offset_height, offset_width, target_heigh
     bboxes = tf.reshape(bboxes, [-1, 2, 2])
     bboxes = bboxes / scale + offset
     bboxes = tf.reshape(bboxes, [-1, 4])
+    bboxes = tf.clip_by_value(bboxes, 0., 1.)
     return image, bboxes
 
 
