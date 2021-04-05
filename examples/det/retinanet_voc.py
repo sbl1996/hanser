@@ -140,3 +140,16 @@ learner.fit(
     extra_output_transform=output_transform,
     extra_eval_freq=1,
 )
+
+m = MeanAveragePrecision()
+m.reset_states()
+for x, y in iter(ds_val):
+    loc_p, cls_p = get(["loc_t", "cls_t"], y)
+    cls_p = tf.one_hot(cls_p, 21, on_value=10.0, off_value=-10.0)[..., 1:]
+    pred = output_transform({"loc_p": loc_p, "cls_p": cls_p})
+    m.update_state(y, pred)
+m.result()
+
+it = iter(ds_val)
+x, y = next(it)
+x, y = next(it)

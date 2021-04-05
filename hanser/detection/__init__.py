@@ -10,7 +10,7 @@ from hanser.losses import focal_loss
 from hanser.ops import index_put, to_float
 
 
-def bbox_encode(bboxes, anchors, std=(0.1, 0.1, 0.2, 0.2)):
+def bbox_encode(bboxes, anchors, std=(1., 1., 1., 1.)):
     boxes_yx = (bboxes[:, :2] + bboxes[:, 2:]) / 2
     boxes_hw = bboxes[:, 2:] - bboxes[:, :2]
     anchors_yx = (anchors[:, :2] + anchors[:, 2:]) / 2
@@ -22,7 +22,7 @@ def bbox_encode(bboxes, anchors, std=(0.1, 0.1, 0.2, 0.2)):
     return loc_t / std
 
 
-def bbox_decode(pred, anchors, std=(0.1, 0.1, 0.2, 0.2)):
+def bbox_decode(pred, anchors, std=(1., 1., 1., 1.)):
 
     anchors_yx = (anchors[:, :2] + anchors[:, 2:]) / 2
     anchors_hw = anchors[:, 2:] - anchors[:, :2]
@@ -157,7 +157,7 @@ def detect(loc_p, cls_p, anchors, iou_threshold=0.5, conf_threshold=0.1, topk=10
 
 def batched_detect(loc_p, cls_p, anchors, iou_threshold=0.5,
                    conf_threshold=0.05, topk=200, conf_strategy='softmax',
-                   bbox_std=(0.1, 0.1, 0.2, 0.2)):
+                   bbox_std=(1., 1., 1., 1.)):
     if conf_strategy == 'sigmoid':
         scores = tf.sigmoid(cls_p)
     else:
