@@ -7,10 +7,10 @@ import tensorflow_datasets as tfds
 
 from hanser.tpu import setup
 from hanser.datasets import prepare
-from hanser.detection import match_anchors, detection_loss, batched_detect
+from hanser.detection import match_anchors, detection_loss, batched_detect, coords_to_absolute
 from hanser.detection.anchor import AnchorGenerator
 
-from hanser.transform import resize
+from hanser.transform import resize, photo_metric_distortion
 from hanser.transform.detection import pad_to_fixed_size, random_hflip, random_sample_crop, random_expand
 
 from hanser.models.layers import set_defaults
@@ -57,10 +57,12 @@ def preprocess(d, target_height=HEIGHT, target_width=WIDTH, max_objects=100, tra
     labels = tf.cast(labels, tf.int32)
 
     if training:
+        image = photo_metric_distortion(image)
         image, bboxes = random_expand(image, bboxes, 4.0, mean_rgb)
-        image, bboxes = random_sample_crop(image, bboxes, labels, is_difficults,
-                                           min_ious=(0.1, 0.3, 0.5, 0.7, 0.9),
-                                           aspect_ratio_range=(0.5, 2.0))
+        image, bboxes, labels, is_difficults = random_sample_crop(
+            image, bboxes, labels, is_difficults,
+            min_ious=(0.1, 0.3, 0.5, 0.7, 0.9),
+            aspect_ratio_range=(0.5, 2.0))
         image = resize(image, (target_height, target_width))
         image, bboxes = random_hflip(image, bboxes, 0.5)
     else:
@@ -70,9 +72,7 @@ def preprocess(d, target_height=HEIGHT, target_width=WIDTH, max_objects=100, tra
     image.set_shape([target_height, target_width, 3])
     image = (image - mean_rgb) / std_rgb
 
-    shape = tf.shape(image)
-    height, width = shape[0], shape[1]
-    bboxes = bboxes * tf.cast(tf.stack([height, width, height, width]), bboxes.dtype)[None, :]
+    bboxes = coords_to_absolute(bboxes, tf.shape(image)[:2])
 
     loc_t, cls_t, pos, ignore = match_anchors(
         bboxes, labels, flat_anchors, pos_iou_thr=0.5, neg_iou_thr=0.4, min_pos_iou=0.,

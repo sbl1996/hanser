@@ -9,6 +9,10 @@ import tensorflow as tf
 from hanser.losses import focal_loss
 from hanser.ops import index_put, to_float
 
+def coords_to_absolute(bboxes, size):
+    height, width = size[0], size[1]
+    bboxes = bboxes * tf.cast(tf.stack([height, width, height, width]), bboxes.dtype)[None, :]
+    return bboxes
 
 def bbox_encode(bboxes, anchors, std=(1., 1., 1., 1.)):
     boxes_yx = (bboxes[:, :2] + bboxes[:, 2:]) / 2
