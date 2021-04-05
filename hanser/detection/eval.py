@@ -5,8 +5,26 @@ import numpy as np
 from toolz.curried import groupby
 
 # noinspection PyUnresolvedReferences
-from hanser._numpy import iou_mn
+# from hanser._numpy import iou_mn
 from hanser.detection import BBox
+
+
+def iou_mn(boxes1, boxes2):
+    boxes2 = boxes2.T
+    y_min1, x_min1, y_max1, x_max1 = np.split(boxes1, 4, axis=1)
+    y_min2, x_min2, y_max2, x_max2 = np.split(boxes2, 4, axis=0)
+    y_min = np.maximum(y_min1, y_min2)
+    x_min = np.maximum(x_min1, x_min2)
+    y_max = np.minimum(y_max1, y_max2)
+    x_max = np.minimum(x_max1, x_max2)
+    inter_h = np.maximum(0.0, y_max - y_min)
+    inter_w = np.maximum(0.0, x_max - x_min)
+    inter_area = inter_h * inter_w
+    areas1 = (y_max1 - y_min1) * (x_max1 - x_min1)
+    areas2 = (y_max2 - y_min2) * (x_max2 - x_min2)
+    union_area = areas1 + areas2 - inter_area
+    return np.where(inter_area == 0, 0.0, inter_area / union_area)
+
 
 
 def average_precision(detections: List[BBox], ground_truths: List[BBox], iou_threshold=.5, use_07_metric=True, ignore_difficult=True):

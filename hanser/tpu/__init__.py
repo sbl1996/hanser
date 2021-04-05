@@ -2,6 +2,7 @@ import os
 import multiprocessing
 
 import tensorflow as tf
+from hanser.ops import misc_concat
 from tensorflow.python.distribute.values import PerReplica
 import tensorflow.keras.mixed_precision.experimental as mixed_precision
 
@@ -99,7 +100,8 @@ def auth():
 
 def local_results(strategy, values):
     if isinstance(values, PerReplica):
-        return strategy.experimental_local_results(values)
+        results = strategy.experimental_local_results(values)
+        return misc_concat(results)
     elif isinstance(values, (list, tuple)):
         return values.__class__(local_results(strategy, v) for v in values)
     elif isinstance(values, dict):

@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-def bbox_overlaps(bboxes1, bboxes2, mode='iou', is_aligned=False, eps=1e-6):
+def bbox_iou(bboxes1, bboxes2, mode='iou', is_aligned=False, eps=1e-6):
     """Calculate overlap between two set of bboxes.
 
     If ``is_aligned `` is ``False``, then calculate the overlaps between each
@@ -34,17 +34,17 @@ def bbox_overlaps(bboxes1, bboxes2, mode='iou', is_aligned=False, eps=1e-6):
         >>>     [0, 10, 10, 19],
         >>>     [10, 10, 20, 20],
         >>> ], dtype=tf.float32)
-        >>> overlaps = bbox_overlaps(bboxes1, bboxes2)
+        >>> overlaps = bbox_iou(bboxes1, bboxes2)
         >>> assert overlaps.shape.as_list() == [3, 3]
-        >>> overlaps = bbox_overlaps(bboxes1, bboxes2, is_aligned=True)
+        >>> overlaps = bbox_iou(bboxes1, bboxes2, is_aligned=True)
         >>> assert overlaps.shape.as_list() == [3]
 
     Example:
         >>> empty = tf.zeros((0, 4))
         >>> nonempty = tf.constant([[0, 0, 10, 9]], dtype=tf.float32)
-        >>> assert tuple(bbox_overlaps(empty, nonempty).shape) == (0, 1)
-        >>> assert tuple(bbox_overlaps(nonempty, empty).shape) == (1, 0)
-        >>> assert tuple(bbox_overlaps(empty, empty).shape) == (0, 0)
+        >>> assert tuple(bbox_iou(empty, nonempty).shape) == (0, 1)
+        >>> assert tuple(bbox_iou(nonempty, empty).shape) == (1, 0)
+        >>> assert tuple(bbox_iou(empty, empty).shape) == (0, 0)
     """
 
     assert mode in ['iou', 'iof', 'giou'], f'Unsupported mode {mode}'

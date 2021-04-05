@@ -6,7 +6,7 @@ from hanser.models.modules import DropPath
 
 
 @curry
-def log_metrics(stage, metrics, epoch, writer, metric_history, stage_name=None, verbose=True):
+def log_metrics(stage, metrics, epoch, writer=None, metric_history=None, stage_name=None, verbose=True):
     stage_name = stage_name or stage
     log_str = "%s %s - " % (time_now(), stage_name)
     metric_logs = []
@@ -14,7 +14,8 @@ def log_metrics(stage, metrics, epoch, writer, metric_history, stage_name=None, 
         metric_logs.append("%s: %.4f" % (k, v))
         if writer:
             writer.add_scalar("%s/%s" % (k, stage), v, epoch)
-        metric_history.record(stage, epoch, k, v)
+        if metric_history:
+            metric_history.record(stage, epoch, k, v)
     log_str += ", ".join(metric_logs)
     if verbose:
         print(log_str)

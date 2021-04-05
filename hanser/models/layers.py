@@ -6,7 +6,7 @@ from cerberus import Validator
 
 import tensorflow as tf
 from tensorflow.keras import Sequential
-from tensorflow.keras.initializers import VarianceScaling, RandomUniform
+from tensorflow.keras.initializers import VarianceScaling, RandomUniform, Initializer
 from tensorflow.keras.layers import Dense, Activation, Layer, Conv2D, ZeroPadding2D, LeakyReLU, \
     DepthwiseConv2D, MaxPooling2D as KerasMaxPool2D, AveragePooling2D as KerasAvgPool2D
 import tensorflow_addons as tfa
@@ -161,7 +161,9 @@ def Conv2d(in_channels: int,
            dilation: int = 1,
            bias: Optional[bool] = None,
            norm: Optional[str] = None,
-           act: Optional[str] = None):
+           act: Optional[str] = None,
+           kernel_init: Optional[Initializer] = None,
+           bias_init: Optional[Initializer] = None):
     if isinstance(kernel_size, int):
         kernel_size = (kernel_size, kernel_size)
     if isinstance(stride, int):
@@ -190,7 +192,9 @@ def Conv2d(in_channels: int,
         padding = calc_same_padding(kernel_size, dilation)
 
     # Init
-    if init_cfg['type'] == 'msra':
+    if kernel_init:
+        kernel_initializer = kernel_init
+    elif init_cfg['type'] == 'msra':
         mode = init_cfg['mode']
         distribution = init_cfg['distribution']
         if in_channels == groups and not conv_cfg['depthwise']['use_group'] and init_cfg['fix']:
@@ -202,8 +206,11 @@ def Conv2d(in_channels: int,
     else:
         raise ValueError("Unsupported init type: %s" % init_cfg['type'])
 
-    bound = math.sqrt(1 / (kernel_size[0] * kernel_size[1] * (in_channels // groups)))
-    bias_initializer = RandomUniform(-bound, bound)
+    if bias_init:
+        bias_initializer = bias_init
+    else:
+        bound = math.sqrt(1 / (kernel_size[0] * kernel_size[1] * (in_channels // groups)))
+        bias_initializer = RandomUniform(-bound, bound)
 
     if bias is None:
         use_bias = norm is None

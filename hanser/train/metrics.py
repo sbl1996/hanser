@@ -1,3 +1,7 @@
+from hanser.detection import BBox
+from hanser.detection.eval import average_precision
+from toolz import get
+
 import numpy as np
 
 import tensorflow as tf
@@ -95,3 +99,68 @@ class CrossEntropy(MeanMetricWrapper):
         super().__init__(cross_entropy, name, dtype=dtype,
                          ignore_label=ignore_label, auxiliary_weight=auxiliary_weight,
                          label_smoothing=label_smoothing)
+
+
+class MeanAveragePrecision:
+
+    def __init__(self, iou_threshold=0.5, interpolation='11point', ignore_difficult=True, class_names=None):
+
+        self.iou_threshold = iou_threshold
+        self.interpolation = interpolation
+        self.ignore_difficult = ignore_difficult
+        self.class_names = class_names
+
+        self.gts = []
+        self.dts = []
+
+    def update_state(self, y_true, y_pred, sample_weight=None):
+
+        all_dt_bboxes, all_dt_classes, all_dt_scores, all_dt_n_valids = [
+            t.numpy() for t in get(['bbox', 'label', 'score', 'n_valid'], y_pred)
+        ]
+
+        all_gt_bboxes, all_gt_labels, all_is_difficults, image_ids = [
+            t.numpy() for t in get(['bbox', 'label', 'is_difficult', 'image_id'], y_true)
+        ]
+
+        all_gt_n_valids = np.sum(all_gt_labels != 0, axis=1)
+        all_gt_labels -= 1
+        batch_size, num_dets = all_dt_bboxes.shape[:2]
+        for i in range(batch_size):
+            image_id = image_ids[i]
+            for j in range(all_dt_n_valids[i]):
+                self.dts.append({
+                    'image_id': image_id,
+                    'bbox': all_dt_bboxes[i, j],
+                    'category_id': all_dt_classes[i, j],
+                    'score': all_dt_scores[i, j],
+                })
+
+            for j in range(all_gt_n_valids[i]):
+                self.gts.append({
+                    'image_id': image_id,
+                    'bbox': all_gt_bboxes[i, j],
+                    'category_id': all_gt_labels[i, j],
+                    'is_difficult': all_is_difficults[i, j]
+                })
+
+    def result(self):
+        dts = [BBox(**ann) for ann in self.dts]
+        gts = [BBox(**ann) for ann in self.gts]
+
+        aps = average_precision(dts, gts, self.iou_threshold, self.interpolation == '11point', self.ignore_difficult)
+        mAP = np.mean(list(aps.values()))
+        if self.class_names:
+            num_classes = len(self.class_names)
+            d = {}
+            for i in range(num_classes):
+                d[self.class_names[i]] = aps.get(i, 0) * 100
+            d['ALL'] = mAP * 100
+            # d = pd.DataFrame({'mAP': d}).transpose()
+            # pd.set_option('precision', 1)
+            print(d)
+        return tf.convert_to_tensor(mAP)
+
+    def reset_states(self):
+        self.gts = []
+        self.dts = []

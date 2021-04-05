@@ -6,12 +6,13 @@ from datetime import timedelta
 
 import tensorflow as tf
 import tensorflow.keras.mixed_precision.experimental as mixed_precision
+from hanser.tpu import local_results
 from tensorflow.keras.metrics import Metric, Mean
 
 from hhutil.io import fmt_path, eglob, rm, time_now
 
 from hanser.train.metric_history import MetricHistory
-from hanser.train.callbacks import config_callbacks
+from hanser.train.callbacks import config_callbacks, log_metrics
 
 
 def find_most_recent(work_dir, pattern):
@@ -169,7 +170,9 @@ class Learner(metaclass=ABCMeta):
 
     def fit(self, ds_train, max_epochs, ds_val=None, val_freq=1,
             steps_per_epoch=None, val_steps=None, save_freq=None, callbacks=None,
-            reuse_train_iterator=False):
+            reuse_train_iterator=False, extra_metrics=None, extra_eval_freq=None,
+            extra_output_transform=default_metric_transform,
+            extra_target_transform=default_metric_transform):
 
         steps_per_epoch = steps_per_epoch or len(ds_train)
         steps_per_epoch = tf.convert_to_tensor(steps_per_epoch, dtype=tf.int32)
@@ -215,10 +218,30 @@ class Learner(metaclass=ABCMeta):
                 self._run_epoch(iter(ds_val), val_steps, cbks, 'eval')
                 cbks.after_eval(state)
 
+            if extra_metrics and (epoch + 1) % extra_eval_freq == 0:
+                self.evaluate_extra(ds_val, val_steps, extra_metrics,
+                              extra_output_transform, extra_target_transform)
+
             if self._terminated:
                 print("Terminated at epoch %d" % (epoch + 1))
                 break
         cbks.after_train(self._state['train'])
+
+    def evaluate_extra(self, iterator, steps, metrics,
+                       output_transform=default_metric_transform,
+                       target_transform=default_metric_transform):
+        it = iter(iterator)
+        for step in range(steps):
+            target, output = self._predict_step(it)
+            output = output_transform(output)
+            target = target_transform(target)
+            for m in metrics.values():
+                m.update_state(target, output, None)
+        metric_results = {}
+        for k, m in metrics.items():
+            metric_results[k] = m.result().numpy()
+            m.reset_states()
+        log_metrics('Eeval', metric_results, self.epoch, verbose=self._verbose)
 
     @tf.function
     def _xla_train_step(self, batch):
@@ -239,6 +262,22 @@ class Learner(metaclass=ABCMeta):
     @tf.function
     def _test_step(self, inputs):
         return strategy_run(self._strategy, self.test_batch, (inputs,))
+
+    @tf.function
+    def _predict_step(self, iterator):
+
+        def step_fn(batch):
+            inputs, target = batch
+            inputs = cast(inputs, self.dtype)
+            preds = self.model(inputs, training=False)
+            preds = cast(preds, tf.float32)
+            return target, preds
+
+        if self._strategy:
+            return local_results(
+                self._strategy, strategy_run(self._strategy, step_fn, (next(iterator),)))
+        else:
+            return step_fn(next(iterator))
 
     @tf.function
     def _run_steps(self, step_fn, iterator, n_batches_per_step, n_steps, callbacks, state):
@@ -325,9 +364,6 @@ class Learner(metaclass=ABCMeta):
         cbks.begin_eval(state)
         self._run_epoch(iter(ds_val), val_steps, cbks, 'eval')
         cbks.after_eval(state)
-
-    def predict(self, test_loader):
-        pass
 
     def reduce_loss(self, per_example_loss):
         loss = tf.reduce_mean(per_example_loss)

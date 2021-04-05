@@ -31,7 +31,6 @@ REQUIRED = [
     "toolz",
     "pybind11",
     "cerberus",
-    # "tensorflow_addons",
     "tensorflow_probability",
     "hhutil",
 ]
