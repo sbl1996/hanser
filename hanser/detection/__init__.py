@@ -37,7 +37,8 @@ def bbox_decode(pred, anchors, std=(0.1, 0.1, 0.2, 0.2)):
     return bboxes
 
 
-def match_anchors(gt_bboxes, gt_labels, anchors, pos_iou_thr=0.5, neg_iou_thr=0.5, min_pos_iou=.0):
+def match_anchors(gt_bboxes, gt_labels, anchors, pos_iou_thr=0.5, neg_iou_thr=0.5, min_pos_iou=.0,
+                  bbox_std=(0.1, 0.1, 0.2, 0.2)):
     assigned_gt_inds = max_iou_assign(anchors, gt_bboxes, pos_iou_thr, neg_iou_thr, min_pos_iou,
                                       match_low_quality=True, gt_max_assign_all=False)
     num_anchors = tf.shape(assigned_gt_inds)[0]
@@ -52,7 +53,7 @@ def match_anchors(gt_bboxes, gt_labels, anchors, pos_iou_thr=0.5, neg_iou_thr=0.
     assigned_gt_labels = tf.gather(gt_labels, assigned_gt_inds)
     assigned_anchors = tf.gather(anchors, indices)
 
-    loc_t = bbox_encode(assigned_gt_bboxes, assigned_anchors)
+    loc_t = bbox_encode(assigned_gt_bboxes, assigned_anchors, bbox_std)
     loc_t = index_put(
         tf.zeros([num_anchors, 4], dtype=tf.float32), indices, loc_t)
     cls_t = index_put(
@@ -141,14 +142,14 @@ def detect(loc_p, cls_p, anchors, iou_threshold=0.5, conf_threshold=0.1, topk=10
     classes = classes[mask]
     anchors = anchors[mask]
 
-    boxes = bbox_decode(loc_p, anchors)
-    indices = tf.image.non_max_suppression(boxes, scores, topk, iou_threshold, conf_threshold)
+    bboxes = bbox_decode(loc_p, anchors)
+    indices = tf.image.non_max_suppression(bboxes, scores, topk, iou_threshold, conf_threshold)
     dets = []
     for i in indices:
         dets.append({
             'image_id': -1,
             'category_id': classes[i].numpy(),
-            'bbox': boxes[i].numpy(),
+            'bbox': bboxes[i].numpy(),
             'score': scores[i].numpy()
         })
     return dets
@@ -164,7 +165,7 @@ def batched_detect(loc_p, cls_p, anchors, iou_threshold=0.5,
     bboxes = bbox_decode(loc_p, anchors, bbox_std)
     bboxes = tf.expand_dims(bboxes, 2)
     bboxes, scores, labels, n_valids = tf.image.combined_non_max_suppression(
-        bboxes, scores, 100, topk, iou_threshold, conf_threshold)
+        bboxes, scores, 100, topk, iou_threshold, conf_threshold, clip_boxes=False)
     return {
         'bbox': bboxes,
         'score': scores,

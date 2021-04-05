@@ -7,7 +7,7 @@ import tensorflow_datasets as tfds
 
 from hanser.tpu import setup
 from hanser.datasets import prepare
-from hanser.detection import match_anchors, detection_loss, batched_detect
+from hanser.detection import match_anchors, detection_loss, batched_detect, bbox_decode
 from hanser.detection.anchor import AnchorGenerator
 from hanser.transform.detection import resize_and_pad, pad_to_fixed_size, random_hflip
 
@@ -58,6 +58,7 @@ def preprocess(d, target_height=HEIGHT, target_width=WIDTH, max_objects=100, tra
         image, bboxes = random_hflip(image, bboxes, 0.5)
 
     image, bboxes = resize_and_pad(image, bboxes, target_height, target_width, mean_rgb)
+    image.set_shape([target_height, target_width, 3])
     image = (image - mean_rgb) / std_rgb
 
     shape = tf.shape(image)
@@ -65,7 +66,8 @@ def preprocess(d, target_height=HEIGHT, target_width=WIDTH, max_objects=100, tra
     bboxes = bboxes * tf.cast(tf.stack([height, width, height, width]), bboxes.dtype)[None, :]
 
     loc_t, cls_t, pos, ignore = match_anchors(
-        bboxes, labels, flat_anchors, pos_iou_thr=0.5, neg_iou_thr=0.4, min_pos_iou=0.)
+        bboxes, labels, flat_anchors, pos_iou_thr=0.5, neg_iou_thr=0.4, min_pos_iou=0.,
+        bbox_std=(1., 1., 1., 1.))
 
     bboxes = pad_to_fixed_size(bboxes, 0, [max_objects, 4])
     labels = pad_to_fixed_size(labels, 0, [max_objects])
@@ -128,7 +130,8 @@ learner = SuperLearner(
 def output_transform(output):
     loc_p, cls_p = get(['loc_p', 'cls_p'], output)
     return batched_detect(loc_p, cls_p, flat_anchors, iou_threshold=0.5,
-                          conf_threshold=0.05, conf_strategy='sigmoid')
+                          conf_threshold=0.05, conf_strategy='sigmoid',
+                          bbox_std=(1., 1., 1., 1.))
 
 learner.fit(
     ds_train, epochs, ds_val, val_freq=1,
