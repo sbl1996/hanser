@@ -122,8 +122,8 @@ def focal_loss(y_true, y_pred, alpha, gamma, label_smoothing=0.0, eps=1e-6):
         weight = weight * (alpha * y_true + (1 - alpha) * (1 - y_true))
     if label_smoothing:
         num_classes = tf.cast(tf.shape(y_true)[-1], y_pred.dtype)
-        y_pred_ls = (1. - label_smoothing) * y_pred + label_smoothing / num_classes
-        y_pred = tf.clip_by_value(y_pred_ls, eps, 1. - eps)
+        y_true_ls = (1. - label_smoothing) * y_true + label_smoothing / num_classes
+        y_true = tf.clip_by_value(y_true_ls, eps, 1. - eps)
     ce_loss = tf.nn.sigmoid_cross_entropy_with_logits(y_true, y_pred)
     loss = ce_loss * weight
     return loss
