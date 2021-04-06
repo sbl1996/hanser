@@ -1,7 +1,7 @@
 import math
 
 import tensorflow as tf
-from tensorflow.keras import Sequential
+from tensorflow.keras import Sequential, Model
 from tensorflow.keras.layers import Layer
 from tensorflow.keras.initializers import RandomNormal, Constant, Zeros
 
@@ -9,7 +9,7 @@ from hanser.models.layers import Conv2d, Norm, Act
 from hanser.models.detection.fpn import FPN
 
 
-class RetinaNet(Layer):
+class RetinaNet(Model):
 
     def __init__(self, backbone, feat_channels, num_anchors, num_classes, use_norm=False):
         super().__init__()
