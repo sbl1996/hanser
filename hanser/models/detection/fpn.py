@@ -45,7 +45,7 @@ class FPN(Layer):
                  in_channels,
                  out_channels,
                  num_extra_convs=2,
-                 use_norm=True):
+                 use_norm=False):
         super().__init__()
         assert isinstance(in_channels, list)
         self.in_channels = in_channels
