@@ -230,6 +230,8 @@ class Learner(metaclass=ABCMeta):
     def evaluate_extra(self, iterator, steps, metrics,
                        output_transform=default_metric_transform,
                        target_transform=default_metric_transform):
+        for m in metrics.values():
+            m.reset_states()
         it = iter(iterator)
         for step in range(steps):
             target, output = self._predict_step(it)
@@ -240,7 +242,6 @@ class Learner(metaclass=ABCMeta):
         metric_results = {}
         for k, m in metrics.items():
             metric_results[k] = m.result().numpy()
-            m.reset_states()
         log_metrics('extra', metric_results, self.epoch, verbose=self._verbose)
 
     @tf.function

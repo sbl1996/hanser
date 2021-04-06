@@ -112,8 +112,82 @@ for x, y in iter(ds_val):
     m.update_state(y, pred)
 m.result()
 
+from hanser.detection import random_colors
+from PIL import Image
 ds_val = tfds.load("voc/2012", split=f"train[2:3]",
                shuffle_files=False, read_config=tfds.ReadConfig(try_autocache=False, skip_prefetch=True))
 d = next(iter(ds_val))
 
-tfds.features.BBoxFeature
+target_height = HEIGHT
+target_width = WIDTH
+max_objects = 100
+training = False
+
+mean_rgb = tf.convert_to_tensor([123.68, 116.779, 103.939], tf.float32)
+std_rgb = tf.convert_to_tensor([58.393, 57.12, 57.375], tf.float32)
+
+image_id = d['image/filename']
+str_len = tf.strings.length(image_id)
+image_id = tf.strings.to_number(
+    tf.strings.substr(image_id, str_len - 10, 6),
+    out_type=tf.int32
+)
+image_id = tf.where(str_len == 10, image_id + 10000, image_id)
+
+image = tf.cast(d['image'], tf.float32)
+bboxes, labels, is_difficults = d['objects']['bbox'], d['objects']['label'] + 1, d['objects']['is_difficult']
+labels = tf.cast(labels, tf.int32)
+
+image, bboxes = resize_and_pad(image, bboxes, target_height, target_width, mean_rgb)
+# im_b = tf.image.draw_bounding_boxes(image[None], bboxes[None], np.array(random_colors(bboxes.shape[0])) * 255)[0]
+# Image.fromarray(im_b.numpy().astype(np.uint8)).show()
+image = (image - mean_rgb) / std_rgb
+
+bboxes = coords_to_absolute(bboxes, tf.shape(image)[:2])
+
+# loc_t, cls_t, pos, ignore = match_anchors(
+#     bboxes, labels, flat_anchors, pos_iou_thr=0.5, neg_iou_thr=0.4, min_pos_iou=0.)
+from hanser.detection import max_iou_assign, get_shape, bbox_encode, index_put, bbox_decode
+
+gt_bboxes = bboxes
+gt_labels = labels
+anchors = flat_anchors
+pos_iou_thr = 0.4
+neg_iou_thr = 0.5
+min_pos_iou = .0
+bbox_std = (1., 1., 1., 1.)
+
+assigned_gt_inds = max_iou_assign(anchors, gt_bboxes, pos_iou_thr, neg_iou_thr, min_pos_iou,
+                                  match_low_quality=True, gt_max_assign_all=False)
+
+num_anchors = get_shape(anchors, 0)
+
+pos = assigned_gt_inds > 0
+ignore = assigned_gt_inds == -1
+indices = tf.range(num_anchors, dtype=tf.int32)[pos]
+
+assigned_gt_inds = tf.gather(assigned_gt_inds, indices) - 1
+
+assigned_gt_bboxes = tf.gather(gt_bboxes, assigned_gt_inds)
+assigned_gt_labels = tf.gather(gt_labels, assigned_gt_inds)
+assigned_anchors = tf.gather(anchors, indices)
+
+loc_t = bbox_encode(assigned_gt_bboxes, assigned_anchors, bbox_std)
+loc_t = index_put(
+    tf.zeros([num_anchors, 4], dtype=tf.float32), indices, loc_t)
+cls_t = index_put(
+    tf.zeros([num_anchors, ], dtype=tf.int32), indices, assigned_gt_labels)
+
+def output_transform(output):
+    loc_p, cls_p = get(['loc_p', 'cls_p'], output)
+    return batched_detect(loc_p, cls_p, flat_anchors, iou_threshold=0.6,
+                          conf_threshold=0.05, conf_strategy='sigmoid')
+
+
+m = MeanAveragePrecision()
+m.reset_states()
+loc_p, cls_p = loc_t[None], cls_t[None]
+cls_p = tf.one_hot(cls_p, 21, on_value=10.0, off_value=-10.0)[..., 1:]
+pred = output_transform({"loc_p": loc_p, "cls_p": cls_p})
+m.update_state(y, pred)
+m.result()

@@ -97,7 +97,6 @@ ds_train = prepare(ds_train, batch_size, preprocess(training=True),
                    training=True, repeat=False)
 ds_val = prepare(ds_val, eval_batch_size, preprocess(training=False),
                  training=False, repeat=False, drop_remainder=True)
-# x, y = next(iter(ds_train))
 # ds_train_dist, ds_val_dist = setup([ds_train, ds_val], fp16=True)
 
 set_defaults({

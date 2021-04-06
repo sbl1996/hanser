@@ -9,7 +9,8 @@ def interpolate(x, shape):
     dtype = x.dtype
     if dtype != tf.float32:
         x = tf.cast(x, tf.float32)
-    x = tf.image.resize(x, shape, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+    # x = tf.image.resize(x, shape, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+    x = tf.image.resize(x, shape, method=tf.image.ResizeMethod.BILINEAR)
     if dtype != tf.float32:
         x = tf.cast(x, dtype)
     return x
@@ -52,17 +53,7 @@ class FPN(Layer):
         self.num_extra_convs = num_extra_convs
         self.use_norm = use_norm
 
-        self.lateral_convs = []
-        self.fpn_convs = []
         self.extra_convs = []
-
-        for in_channels in self.in_channels:
-            l_conv = Conv2d(in_channels, out_channels, 1)
-            fpn_conv = Conv2d(out_channels, out_channels, 3)
-
-            self.lateral_convs.append(l_conv)
-            self.fpn_convs.append(fpn_conv)
-
         in_channels = self.in_channels[-1]
         for i in range(num_extra_convs):
             extra_conv = Conv2d(in_channels, out_channels, 3, stride=2)
@@ -70,6 +61,14 @@ class FPN(Layer):
                 extra_conv = Sequential([Act(), extra_conv])
             self.extra_convs.append(extra_conv)
             in_channels = out_channels
+
+        self.lateral_convs = []
+        self.fpn_convs = []
+        for in_channels in self.in_channels:
+            self.lateral_convs.append(
+                Conv2d(in_channels, out_channels, 1))
+            self.fpn_convs.append(
+                Conv2d(out_channels, out_channels, 3))
 
         num_levels = len(self.in_channels) + num_extra_convs
         self.feat_channels = [out_channels] * num_levels
