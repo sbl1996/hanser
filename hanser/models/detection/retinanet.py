@@ -16,7 +16,7 @@ class RetinaNet(Model):
         self.backbone = backbone
         self.fpn = FPN(backbone.feat_channels[-3:], feat_channels, 2, use_norm)
         if use_norm:
-            self.head = RetinaHead2(feat_channels, feat_channels, 4, 5, num_anchors, num_classes)
+            self.head = RetinaSepBNHead(feat_channels, feat_channels, 4, 5, num_anchors, num_classes)
         else:
             self.head = RetinaHead(feat_channels, feat_channels, 4, num_anchors, num_classes)
 
@@ -89,7 +89,7 @@ class RetinaHead(Layer):
         return {'loc_p': loc_p, 'cls_p': cls_p}
 
 
-class RetinaHead2(Layer):
+class RetinaSepBNHead(Layer):
 
     def __init__(self, in_channels, feat_channels, stacked_convs, num_levels, num_anchors, num_classes):
         super().__init__()
