@@ -8,7 +8,7 @@ from hanser.tpu import setup, distribute_datasets
 
 from hanser.detection import match_anchors
 from hanser.detection.anchor import SSDAnchorGenerator
-from hanser.transform.detection import expand, random_sample_crop, pad_to_fixed_size, random_hflip
+from hanser.transform.detection import random_expand, random_sample_crop, pad_to_fixed_size, random_hflip
 
 from hanser.models.layers import set_defaults
 

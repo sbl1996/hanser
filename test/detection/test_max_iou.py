@@ -23,7 +23,7 @@ from hanser.train.metrics import MeanMetricWrapper, MeanAveragePrecision
 from hanser.train.cls import SuperLearner
 
 
-HEIGHT = WIDTH = 256
+HEIGHT = WIDTH = 512
 
 anchor_gen = AnchorGenerator(
     strides=[8, 16, 32, 64, 128],
@@ -97,62 +97,11 @@ ds_train = prepare(ds_train, batch_size, preprocess(training=True),
                    training=True, repeat=False)
 ds_val = prepare(ds_val, eval_batch_size, preprocess(training=False),
                  training=False, repeat=False, drop_remainder=True)
-# x, y = next(iter(ds_train))
-# ds_train_dist, ds_val_dist = setup([ds_train, ds_val], fp16=True)
-
-set_defaults({
-    'bn': {
-        # 'sync': True,
-        'eval': True,
-    }
-})
-backbone = resnet50()
-set_defaults({
-    'bn': {
-        'sync': True,
-        'eval': False,
-    }
-})
-model = RetinaNet(backbone, 128, anchor_gen.num_base_anchors[0], num_classes=20, use_norm=True)
-model.build((None, HEIGHT, WIDTH, 3))
-
-# ckpt = tf.train.Checkpoint(model=backbone)
-# ckpt_options = tf.train.CheckpointOptions(experimental_io_device="/job:localhost")
-# status = ckpt.read("./drive/MyDrive/models/ImageNet-83/ckpt", ckpt_options)
-# status.assert_existing_objects_matched()
-
-criterion = detection_loss(loc_loss='l1', cls_loss='focal', alpha=0.25, gamma=2.0, label_smoothing=0.1)
-base_lr = 1e-3
-epochs = 60
-lr_schedule = CosineLR(base_lr * mul, steps_per_epoch, epochs, min_lr=0,
-                       warmup_min_lr=base_lr, warmup_epoch=5)
-optimizer = SGD(lr_schedule, momentum=0.9, nesterov=True, weight_decay=1e-4)
-
-train_metrics = {
-    'loss': Mean(),
-}
-eval_metrics = {
-    'loss': MeanMetricWrapper(detection_loss),
-}
-
-
-learner = SuperLearner(
-    model, criterion, optimizer,
-    train_metrics=train_metrics, eval_metrics=eval_metrics,
-    work_dir=f"./models")
 
 def output_transform(output):
     loc_p, cls_p = get(['loc_p', 'cls_p'], output)
     return batched_detect(loc_p, cls_p, flat_anchors, iou_threshold=0.5,
                           conf_threshold=0.05, conf_strategy='sigmoid')
-
-learner.fit(
-    ds_train, epochs, ds_val, val_freq=1,
-    steps_per_epoch=steps_per_epoch, val_steps=val_steps,
-    extra_metrics={'mAP': MeanAveragePrecision()},
-    extra_output_transform=output_transform,
-    extra_eval_freq=1,
-)
 
 m = MeanAveragePrecision()
 m.reset_states()
@@ -163,6 +112,8 @@ for x, y in iter(ds_val):
     m.update_state(y, pred)
 m.result()
 
-it = iter(ds_val)
-x, y = next(it)
-x, y = next(it)
+ds_val = tfds.load("voc/2012", split=f"train[2:3]",
+               shuffle_files=False, read_config=tfds.ReadConfig(try_autocache=False, skip_prefetch=True))
+d = next(iter(ds_val))
+
+tfds.features.BBoxFeature

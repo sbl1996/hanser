@@ -139,28 +139,26 @@ class AnchorGenerator(object):
         Returns:
             torch.Tensor: Anchors in a single-level feature maps.
         """
-        w = h = base_size
+        h = w = base_size
         if center is None:
-            x_center = self.center_offset * w
             y_center = self.center_offset * h
+            x_center = self.center_offset * w
         else:
-            x_center, y_center = center
+            y_center, x_center = center
 
         h_ratios = np.sqrt(ratios)
         w_ratios = 1 / h_ratios
         if self.scale_major:
-            ws = (w * w_ratios[:, None] * scales[None, :]).reshape(-1)
             hs = (h * h_ratios[:, None] * scales[None, :]).reshape(-1)
+            ws = (w * w_ratios[:, None] * scales[None, :]).reshape(-1)
         else:
-            ws = (w * scales[:, None] * w_ratios[None, :]).reshape(-1)
             hs = (h * scales[:, None] * h_ratios[None, :]).reshape(-1)
+            ws = (w * scales[:, None] * w_ratios[None, :]).reshape(-1)
 
         # use float anchor and the anchor's center is aligned with the
         # pixel center
         base_anchors = [
-            x_center - 0.5 * ws, y_center - 0.5 * hs, x_center + 0.5 * ws,
-            y_center + 0.5 * hs
-        ]
+            y_center - 0.5 * hs, x_center - 0.5 * ws, y_center + 0.5 * hs, x_center + 0.5 * ws]
         base_anchors = np.stack(base_anchors, axis=-1)
         return base_anchors
 
@@ -209,16 +207,16 @@ class AnchorGenerator(object):
         """
         # keep as Tensor, so that we can covert to ONNX correctly
         feat_h, feat_w = featmap_size[0], featmap_size[1]
-        shift_x = tf.range(0, feat_w) * stride[0]
-        shift_y = tf.range(0, feat_h) * stride[1]
+        shift_y = tf.range(0, feat_h) * stride[0]
+        shift_x = tf.range(0, feat_w) * stride[1]
 
-        shift_xx, shift_yy = self._meshgrid(shift_x, shift_y)
-        shifts = tf.stack([shift_xx, shift_yy, shift_xx, shift_yy], axis=-1)
+        shift_yy, shift_xx = self._meshgrid(shift_y, shift_x)
+        shifts = tf.stack([shift_yy, shift_xx, shift_yy, shift_xx], axis=-1)
         shifts = tf.cast(shifts, base_anchors.dtype)
         # first feat_w elements correspond to the first row of shifts
         # add A anchors (1, A, 4) to K shifts (K, 1, 4) to get
         # shifted anchors (K, A, 4), reshape to (K*A, 4)
-
+        print(shifts)
         all_anchors = base_anchors[None, :, :] + shifts[:, None, :]
         all_anchors = tf.reshape(all_anchors, [-1, 4])
         # first A rows correspond to A anchors of (0, 0) in feature map,
