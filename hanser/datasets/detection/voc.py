@@ -1,29 +1,16 @@
 import tensorflow as tf
 
-from hanser.datasets.tfrecord import _bytes_feature, _int64_feature, _float_list_feature
+def decode(example):
+    image_id = example['image/filename']
+    str_len = tf.strings.length(image_id)
+    image_id = tf.strings.to_number(
+        tf.strings.substr(image_id, str_len - 10, 6),
+        out_type=tf.int32
+    )
+    image_id = tf.where(str_len == 10, image_id + 10000, image_id)
 
-
-def to_tfexample(image, filename, image_format, height, width, label_data, label_format):
-    """Converts one image/segmentation pair to tf example.
-
-    Args:
-      image: string of image data.
-      filename: image filename.
-      height: image height.
-      width: image width.
-      label_data: string of semantic segmentation data.
-
-    Returns:
-      tf example of one image/segmentation pair.
-    """
-    return tf.train.Example(features=tf.train.Features(feature={
-        'image': _bytes_feature(image),
-        'image/filename': _bytes_feature(filename),
-        'objects/bbox':
-            tf.io.FixedLenSequenceFeature((4,), tf.float32, allow_missing=True),
-        'image/height': _int64_feature(height),
-        'image/width': _int64_feature(width),
-        'image/channels': _int64_feature(3),
-        'image/segmentation/class/encoded': _bytes_feature(label_data),
-        'image/segmentation/class/format': _bytes_feature(label_format),
-    }))
+    image = tf.cast(example['image'], tf.float32)
+    objects = example['objects']
+    bboxes, labels, is_difficults = objects['bbox'], objects['label'] + 1, objects['is_difficult']
+    labels = tf.cast(labels, tf.int32)
+    return image, bboxes, labels, is_difficults, image_id
