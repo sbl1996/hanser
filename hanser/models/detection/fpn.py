@@ -9,8 +9,8 @@ def interpolate(x, shape):
     dtype = x.dtype
     if dtype != tf.float32:
         x = tf.cast(x, tf.float32)
-    # x = tf.image.resize(x, shape, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
-    x = tf.image.resize(x, shape, method=tf.image.ResizeMethod.BILINEAR)
+    x = tf.compat.v1.image.resize_nearest_neighbor(x, shape)
+    # x = tf.image.resize(x, shape, method=tf.image.ResizeMethod.BILINEAR)
     if dtype != tf.float32:
         x = tf.cast(x, dtype)
     return x
