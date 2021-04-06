@@ -10,6 +10,8 @@ from hanser.datasets import prepare
 from hanser.detection import match_anchors, detection_loss, batched_detect, coords_to_absolute
 from hanser.detection.anchor import AnchorGenerator
 
+from hanser.datasets.detection.voc import decode
+
 from hanser.transform import resize, photo_metric_distortion
 from hanser.transform.detection import pad_to_fixed_size, random_hflip, random_sample_crop, random_expand, resize_and_pad
 
@@ -40,21 +42,11 @@ anchors = anchor_gen.grid_anchors(featmap_sizes)
 flat_anchors = tf.concat(anchors, axis=0)
 
 @curry
-def preprocess(d, target_height=HEIGHT, target_width=WIDTH, max_objects=100, training=True):
+def preprocess(example, target_height=HEIGHT, target_width=WIDTH, max_objects=100, training=True):
+    image, bboxes, labels, is_difficults, image_id = decode(example)
+
     mean_rgb = tf.convert_to_tensor([123.68, 116.779, 103.939], tf.float32)
     std_rgb = tf.convert_to_tensor([58.393, 57.12, 57.375], tf.float32)
-
-    image_id = d['image/filename']
-    str_len = tf.strings.length(image_id)
-    image_id = tf.strings.to_number(
-        tf.strings.substr(image_id, str_len - 10, 6),
-        out_type=tf.int32
-    )
-    image_id = tf.where(str_len == 10, image_id + 10000, image_id)
-
-    image = tf.cast(d['image'], tf.float32)
-    bboxes, labels, is_difficults = d['objects']['bbox'], d['objects']['label'] + 1, d['objects']['is_difficult']
-    labels = tf.cast(labels, tf.int32)
 
     if training:
     #     image = photo_metric_distortion(image)

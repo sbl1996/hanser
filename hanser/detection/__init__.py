@@ -85,7 +85,7 @@ def l1_loss(labels, preds):
 
 @curry
 def detection_loss(target, preds, loc_loss='l1', cls_loss='focal', neg_pos_ratio=None,
-                   alpha=0.25, gamma=2.0, label_smoothing=0):
+                   alpha=0.25, gamma=2.0, label_smoothing=0, loc_loss_weight=1.):
     loc_t = target['loc_t']
     cls_t = target['cls_t']
     pos = target['pos']
@@ -124,7 +124,7 @@ def detection_loss(target, preds, loc_loss='l1', cls_loss='focal', neg_pos_ratio
     else:
         raise ValueError("Not supported classification loss: %s" % cls_loss)
 
-    return loc_loss + cls_loss
+    return loc_loss * loc_loss_weight + cls_loss
 
 
 def hard_negative_mining(losses, n_pos, neg_pos_ratio, max_pos=1000):
