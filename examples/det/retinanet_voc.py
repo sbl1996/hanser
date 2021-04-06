@@ -102,17 +102,10 @@ ds_val = prepare(ds_val, eval_batch_size, preprocess(training=False),
 
 set_defaults({
     'bn': {
-        # 'sync': True,
-        'eval': True,
+        'sync': True,
     }
 })
 backbone = resnet50()
-set_defaults({
-    'bn': {
-        'sync': True,
-        'eval': False,
-    }
-})
 model = RetinaNet(backbone, 128, anchor_gen.num_base_anchors[0], num_classes=20, use_norm=True)
 model.build((None, HEIGHT, WIDTH, 3))
 

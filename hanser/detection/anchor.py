@@ -216,7 +216,6 @@ class AnchorGenerator(object):
         # first feat_w elements correspond to the first row of shifts
         # add A anchors (1, A, 4) to K shifts (K, 1, 4) to get
         # shifted anchors (K, A, 4), reshape to (K*A, 4)
-        print(shifts)
         all_anchors = base_anchors[None, :, :] + shifts[:, None, :]
         all_anchors = tf.reshape(all_anchors, [-1, 4])
         # first A rows correspond to A anchors of (0, 0) in feature map,
