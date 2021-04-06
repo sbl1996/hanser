@@ -77,24 +77,26 @@ class FPN(Layer):
             self.norms = [Norm(out_channels) for i in range(num_levels)]
 
     def call(self, feats):
+        outs = []
+        if self.extra_convs:
+            x = feats[-1]
+            for extra_conv in self.extra_convs:
+                outs.append(extra_conv(x))
+                x = outs[-1]
+
         laterals = [
             lateral_conv(feats[i])
             for i, lateral_conv in enumerate(self.lateral_convs)
         ]
 
-        outs = []
         for i, fpn_conv in enumerate(reversed(self.fpn_convs)):
             x = laterals[-i-1]
-            if i == 0:
-                prev_x = x
-            else:
+            if i != 0:
                 top_down_x = interpolate(prev_x, tf.shape(x)[1:3])
-                prev_x = top_down_x + x
+                x = top_down_x + x
             x = fpn_conv(x)
+            prev_x = x
             outs.insert(0, x)
-
-        for extra_conv in self.extra_convs:
-            outs.append(extra_conv(outs[-1]))
 
         if self.use_norm:
             outs = [norm(x) for x, norm in zip(outs, self.norms)]

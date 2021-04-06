@@ -3,7 +3,7 @@ import math
 import tensorflow as tf
 from tensorflow.keras import Sequential
 from tensorflow.keras.layers import Layer
-from tensorflow.keras.initializers import RandomNormal, Constant
+from tensorflow.keras.initializers import RandomNormal, Constant, Zeros
 
 from hanser.models.layers import Conv2d, Norm, Act
 from hanser.models.detection.fpn import FPN
@@ -42,23 +42,26 @@ class RetinaHead(Layer):
         for i in range(stacked_convs):
             reg_convs.append(
                 Conv2d(in_channels, feat_channels, 3, act='def',
-                       kernel_init=RandomNormal(stddev=0.01)))
+                       kernel_init=RandomNormal(stddev=0.01), bias_init=Zeros()))
 
             cls_convs.append(
                 Conv2d(in_channels, feat_channels, 3, act='def',
-                       kernel_init=RandomNormal(stddev=0.01)))
+                       kernel_init=RandomNormal(stddev=0.01), bias_init=Zeros()))
+
+            in_channels = feat_channels
 
         self.reg_convs = reg_convs
         self.cls_convs = cls_convs
 
         self.bbox_pred = Conv2d(
-            feat_channels, num_anchors * 4, 3, kernel_init=RandomNormal(stddev=1e-5))
+            feat_channels, num_anchors * 4, 3,
+            kernel_init=RandomNormal(stddev=0.01), bias_init=Zeros())
 
         prior_prob = 0.01
         bias_value = -(math.log((1 - prior_prob) / prior_prob))
         self.cls_score = Conv2d(
             feat_channels, num_anchors * self.num_classes, 3,
-            kernel_init=RandomNormal(stddev=1e-5), bias_init=Constant(bias_value))
+            kernel_init=RandomNormal(stddev=0.01), bias_init=Constant(bias_value))
 
 
     def call_single(self, x):
@@ -102,12 +105,14 @@ class RetinaHead2(Layer):
         cls_norm_acts = [[] for l in range(num_levels)]
         for i in range(stacked_convs):
             reg_convs.append(
-                Conv2d(in_channels, feat_channels, 3, kernel_init=RandomNormal(stddev=0.01)))
+                Conv2d(in_channels, feat_channels, 3,
+                       kernel_init=RandomNormal(stddev=0.01), bias_init=Zeros()))
             for l in range(num_levels):
                 reg_norm_acts[l].append(Sequential([Norm(feat_channels), Act()]))
 
             cls_convs.append(
-                Conv2d(in_channels, feat_channels, 3, kernel_init=RandomNormal(stddev=0.01)))
+                Conv2d(in_channels, feat_channels, 3,
+                       kernel_init=RandomNormal(stddev=0.01), bias_init=Zeros()))
             for l in range(num_levels):
                 cls_norm_acts[l].append(Sequential([Norm(feat_channels), Act()]))
 
@@ -117,14 +122,14 @@ class RetinaHead2(Layer):
         self.cls_norm_acts = cls_norm_acts
 
         self.bbox_pred = Conv2d(
-            feat_channels, num_anchors * 4, 3, kernel_init=RandomNormal(stddev=1e-5))
+            feat_channels, num_anchors * 4, 3,
+            kernel_init=RandomNormal(stddev=0.01), bias_init=Zeros())
 
         prior_prob = 0.01
         bias_value = -(math.log((1 - prior_prob) / prior_prob))
         self.cls_score = Conv2d(
             feat_channels, num_anchors * self.num_classes, 3,
-            kernel_init=RandomNormal(stddev=1e-5), bias_init=Constant(bias_value))
-
+            kernel_init=RandomNormal(stddev=0.01), bias_init=Constant(bias_value))
 
     def call_single(self, x, i):
         reg_feat = x
