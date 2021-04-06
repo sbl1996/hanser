@@ -96,7 +96,7 @@ def detection_loss(target, preds, loc_loss='l1', cls_loss='focal', neg_pos_ratio
     loc_p = preds['loc_p']
     cls_p = preds['cls_p']
 
-    total_pos = tf.reduce_sum(n_pos)
+    total_pos = tf.reduce_sum(n_pos) + 1
 
     if loc_loss == 'l1':
         loc_losses = l1_loss(loc_t, loc_p)

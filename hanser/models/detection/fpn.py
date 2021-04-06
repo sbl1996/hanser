@@ -93,8 +93,8 @@ class FPN(Layer):
             if i != 0:
                 top_down_x = interpolate(prev_x, tf.shape(x)[1:3])
                 x = top_down_x + x
-            x = fpn_conv(x)
             prev_x = x
+            x = fpn_conv(x)
             outs.insert(0, x)
 
         if self.use_norm:
