@@ -32,7 +32,7 @@ anchor_gen = SSDAnchorGenerator(
     strides=[8, 16, 32, 64, 128, 256],
     ratios=[[2], [2, 3], [2, 3], [2, 3], [2], [2]],
     basesize_ratio_range=(0.15, 0.9),
-    extra_min_ratio=0.1,
+    extra_min_ratio=0.07,
     input_size=HEIGHT,
 )
 featmap_sizes = [

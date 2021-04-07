@@ -6,7 +6,7 @@ from toolz import curry
 
 import numpy as np
 import tensorflow as tf
-from hanser.losses import focal_loss, l1_loss, reduce_loss
+from hanser.losses import focal_loss, l1_loss
 from hanser.ops import index_put, to_float, get_shape
 
 

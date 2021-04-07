@@ -26,17 +26,17 @@ from hanser.train.lr_schedule import CosineLR
 from hanser.train.metrics import MeanMetricWrapper, MeanAveragePrecision
 from hanser.train.cls import SuperLearner
 
-HEIGHT = WIDTH = 256
+HEIGHT = WIDTH = 512
 
 anchor_gen = AnchorGenerator(
-    strides=[8, 16, 32, 64, 128],
+    strides=[8, 16, 32, 64, 128, 256, 512],
     ratios=[0.5, 1.0, 2.0],
     octave_base_scale=4,
     scales_per_octave=1,
 )
 featmap_sizes = [
-    [32, 32], [16, 16], [8, 8], [4, 4], [2, 2],
-    # [64, 64], [32, 32], [16, 16], [8, 8], [4, 4],
+    # [32, 32], [16, 16], [8, 8], [4, 4], [2, 2],
+    [64, 64], [32, 32], [16, 16], [8, 8], [4, 4], [2, 2], [1, 1]
 ]
 
 anchors = anchor_gen.grid_anchors(featmap_sizes)

@@ -98,7 +98,7 @@ class AnchorGenerator(object):
         """int: number of feature levels that the generator will be applied"""
         return len(self.strides)
 
-    def _meshgrid(self, x, y, row_major=True):
+    def _meshgrid(self, x, y, row_major=False):
         xx, yy = tf.meshgrid(x, y, indexing='xy' if row_major else 'ij')
         xx, yy = tf.reshape(xx, -1), tf.reshape(yy, -1)
         return xx, yy
@@ -210,7 +210,7 @@ class AnchorGenerator(object):
         shift_y = tf.range(0, feat_h) * stride[0]
         shift_x = tf.range(0, feat_w) * stride[1]
 
-        shift_yy, shift_xx = self._meshgrid(shift_y, shift_x)
+        shift_yy, shift_xx = self._meshgrid(shift_y, shift_x, row_major=False)
         shifts = tf.stack([shift_yy, shift_xx, shift_yy, shift_xx], axis=-1)
         shifts = tf.cast(shifts, base_anchors.dtype)
         # first feat_w elements correspond to the first row of shifts
