@@ -48,9 +48,10 @@ def match_anchors(gt_bboxes, gt_labels, anchors, pos_iou_thr=0.5, neg_iou_thr=0.
     num_anchors = get_shape(anchors, 0)
     loc_t = tf.zeros([num_anchors, 4], dtype=tf.float32)
     cls_t = tf.zeros([num_anchors,], dtype=tf.int32)
-    ignore = tf.fill([num_anchors,], False)
     if num_gts == 0:
-        return loc_t, cls_t, ignore
+        pos = tf.fill([num_anchors,], False)
+        ignore = tf.fill([num_anchors,], False)
+        return loc_t, cls_t, pos, ignore
     assigned_gt_inds = max_iou_assign(anchors, gt_bboxes, pos_iou_thr, neg_iou_thr, min_pos_iou,
                                       match_low_quality=True, gt_max_assign_all=False)
 
