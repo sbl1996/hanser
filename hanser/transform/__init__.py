@@ -772,8 +772,6 @@ def translate_y(image, pixels, replace):
 def normalize(x, mean, std):
     mean = tf.convert_to_tensor(mean, x.dtype)
     std = tf.convert_to_tensor(std, x.dtype)
-    mean = tf.broadcast_to(mean, tf.shape(x))
-    std = tf.broadcast_to(std, tf.shape(x))
     x = (x - mean) / std
     return x
 

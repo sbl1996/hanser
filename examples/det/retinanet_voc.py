@@ -12,8 +12,8 @@ from hanser.detection.anchor import AnchorGenerator
 
 from hanser.datasets.detection.voc import decode
 
-from hanser.transform import resize, photo_metric_distortion
-from hanser.transform.detection import pad_to_fixed_size, random_hflip, random_sample_crop, random_expand, resize_and_pad
+from hanser.transform import normalize
+from hanser.transform.detection import pad_to_fixed_size, random_hflip, random_resize, resize, pad_to, random_crop
 
 from hanser.models.layers import set_defaults
 from hanser.models.backbone.resnet_vd import resnet50
@@ -42,26 +42,18 @@ anchors = anchor_gen.grid_anchors(featmap_sizes)
 flat_anchors = tf.concat(anchors, axis=0)
 
 @curry
-def preprocess(example, target_height=HEIGHT, target_width=WIDTH, max_objects=100, training=True):
+def preprocess(example, output_size=(HEIGHT, WIDTH), max_objects=100, training=True):
     image, bboxes, labels, is_difficults, image_id = decode(example)
 
-    mean_rgb = tf.convert_to_tensor([123.68, 116.779, 103.939], tf.float32)
-    std_rgb = tf.convert_to_tensor([58.393, 57.12, 57.375], tf.float32)
-
     if training:
-    #     image = photo_metric_distortion(image)
-    #     image, bboxes = random_expand(image, bboxes, 4.0, mean_rgb)
-    #     image, bboxes, labels, is_difficults = random_sample_crop(
-    #         image, bboxes, labels, is_difficults,
-    #         min_ious=(0.1, 0.3, 0.5, 0.7, 0.9),
-    #         aspect_ratio_range=(0.5, 2.0))
-    #     image = resize(image, (target_height, target_width))
+        image = random_resize(image, output_size, ratio_range=(0.8, 1.2))
+        image, bboxes = random_crop(image, bboxes, labels, is_difficults, output_size)
         image, bboxes = random_hflip(image, bboxes, 0.5)
-    # else:
-    #     image = resize(image, (target_height, target_width))
+    else:
+        image = resize(image, output_size)
 
-    image, bboxes = resize_and_pad(image, bboxes, target_height, target_width, mean_rgb)
-    image = (image - mean_rgb) / std_rgb
+    image = normalize(image, [123.68, 116.779, 103.939], [58.393, 57.12, 57.375])
+    image = pad_to(image, bboxes, output_size)
 
     bboxes = coords_to_absolute(bboxes, tf.shape(image)[:2])
 
