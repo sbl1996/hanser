@@ -11,10 +11,13 @@ from hanser.models.detection.fpn import FPN
 
 class RetinaNet(Model):
 
-    def __init__(self, backbone, num_anchors, num_classes, feat_channels=256, stacked_convs=4, use_norm=False):
+    def __init__(self, backbone, num_anchors, num_classes, feat_channels=256, stacked_convs=4, use_norm=False,
+                 backbone_indices=(1, 2, 3)):
         super().__init__()
         self.backbone = backbone
-        self.fpn = FPN(backbone.feat_channels[-3:], feat_channels, 2, use_norm)
+        self.backbone_indices = backbone_indices
+        backbone_channels = [ backbone.feat_channels[i] for i in backbone_indices ]
+        self.fpn = FPN(backbone_channels, feat_channels, 2, use_norm)
         if use_norm:
             self.head = RetinaSepBNHead(feat_channels, feat_channels, stacked_convs, 5, num_anchors, num_classes)
         else:
@@ -22,7 +25,8 @@ class RetinaNet(Model):
 
     def call(self, x):
         xs = self.backbone(x)
-        xs = self.fpn(xs[-3:])
+        xs = [xs[i] for i in range(self.backbone_indices)]
+        xs = self.fpn(xs)
         preds = self.head(xs)
         return preds
 

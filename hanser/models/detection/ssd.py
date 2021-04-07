@@ -8,11 +8,12 @@ from hanser.models.cifar.resnet_vd import Bottleneck
 
 class SSD(Model):
 
-    def __init__(self, backbone, num_anchors, num_classes, extra_block_channels=(512,)):
+    def __init__(self, backbone, num_anchors, num_classes, extra_block_channels=(512,), backbone_indices=(1, 2, 3)):
         super().__init__()
         self.backbone = backbone
+        self.backbone_indices = backbone_indices
 
-        backbone_channels = backbone.feat_channels[-3:]
+        backbone_channels = [ backbone.feat_channels[i] for i in backbone_indices ]
         self.extra_blocks = []
         in_channels = backbone_channels[-1]
         for c in extra_block_channels:
@@ -23,7 +24,7 @@ class SSD(Model):
 
     def call(self, x):
         xs = self.backbone(x)
-        xs = list(xs[-3:])
+        xs = [xs[i] for i in self.backbone_indices]
         for block in self.extra_blocks:
             xs.append(block(xs[-1]))
         preds = self.head(xs)

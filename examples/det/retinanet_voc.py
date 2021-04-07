@@ -109,7 +109,7 @@ train_metrics = {
     'loss': Mean(),
 }
 eval_metrics = {
-    'loss': MeanMetricWrapper(detection_loss),
+    'loss': MeanMetricWrapper(criterion),
 }
 
 

@@ -26,7 +26,7 @@ from hanser.train.lr_schedule import CosineLR
 from hanser.train.metrics import MeanMetricWrapper, MeanAveragePrecision
 from hanser.train.cls import SuperLearner
 
-output_size = 256
+HEIGHT = WIDTH = 256
 
 anchor_gen = AnchorGenerator(
     strides=[8, 16, 32, 64, 128],
@@ -43,7 +43,7 @@ anchors = anchor_gen.grid_anchors(featmap_sizes)
 flat_anchors = tf.concat(anchors, axis=0)
 
 @curry
-def preprocess(example, output_size=(output_size, output_size), max_objects=100, training=True):
+def preprocess(example, output_size=(HEIGHT, WIDTH), max_objects=100, training=True):
     image, bboxes, labels, is_difficults, image_id = decode(example)
     mean_rgb = tf.convert_to_tensor([123.68, 116.779, 103.939], tf.float32)
     std_rgb = tf.convert_to_tensor([58.393, 57.12, 57.375], tf.float32)
@@ -98,7 +98,7 @@ set_defaults({
 backbone = resnet18()
 model = SSD(backbone, anchor_gen.num_base_anchors, 21,
             extra_block_channels=(256, 128))
-model.build((None, output_size, output_size, 3))
+model.build((None, HEIGHT, WIDTH, 3))
 
 # load_checkpoint()
 
