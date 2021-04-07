@@ -6,7 +6,7 @@ from toolz import curry
 
 import numpy as np
 import tensorflow as tf
-from hanser.losses import focal_loss
+from hanser.losses import focal_loss, l1_loss, reduce_loss
 from hanser.ops import index_put, to_float, get_shape
 
 
@@ -22,9 +22,9 @@ def bbox_encode(bboxes, anchors, std=(1., 1., 1., 1.)):
     anchors_hw = anchors[:, 2:] - anchors[:, :2]
     tytx = (boxes_yx - anchors_yx) / anchors_hw
     thtw = tf.math.log(boxes_hw / anchors_hw)
-    loc_t = tf.concat([tytx, thtw], axis=1)
-    std = tf.constant(std, dtype=loc_t.dtype)
-    return loc_t / std
+    box_t = tf.concat([tytx, thtw], axis=1)
+    std = tf.constant(std, dtype=box_t.dtype)
+    return box_t / std
 
 
 def bbox_decode(pred, anchors, std=(1., 1., 1., 1.)):
@@ -46,13 +46,12 @@ def match_anchors(gt_bboxes, gt_labels, anchors, pos_iou_thr=0.5, neg_iou_thr=0.
                   bbox_std=(1., 1., 1., 1.)):
     num_gts = tf.shape(gt_bboxes)[0]
     num_anchors = get_shape(anchors, 0)
-    loc_t = tf.zeros([num_anchors, 4], dtype=tf.float32)
+    box_t = tf.zeros([num_anchors, 4], dtype=tf.float32)
     cls_t = tf.zeros([num_anchors,], dtype=tf.int32)
 
     if num_gts == 0:
-        pos = tf.fill([num_anchors,], False)
         ignore = tf.fill([num_anchors,], False)
-        return loc_t, cls_t, pos, ignore
+        return box_t, cls_t, ignore
 
     assigned_gt_inds = max_iou_assign(anchors, gt_bboxes, pos_iou_thr, neg_iou_thr, min_pos_iou,
                                       match_low_quality=True, gt_max_assign_all=False)
@@ -68,94 +67,48 @@ def match_anchors(gt_bboxes, gt_labels, anchors, pos_iou_thr=0.5, neg_iou_thr=0.
     assigned_anchors = tf.gather(anchors, indices)
 
     assigned_bboxes = bbox_encode(assigned_gt_bboxes, assigned_anchors, bbox_std)
-    loc_t = index_put(loc_t, indices, assigned_bboxes)
+    box_t = index_put(box_t, indices, assigned_bboxes)
     cls_t = index_put(cls_t, indices, assigned_gt_labels)
 
-    return loc_t, cls_t, pos, ignore
-
-
-def smooth_l1_loss(labels, preds, beta=1.0):
-    abs_error = tf.math.abs(preds - labels)
-    losses = tf.where(
-        abs_error < beta,
-        0.5 * abs_error * abs_error / beta,
-        abs_error - 0.5 * beta
-    )
-    return losses
-
-
-def l1_loss(labels, preds):
-    losses = tf.math.abs(preds - labels)
-    return losses
+    return box_t, cls_t, ignore
 
 
 @curry
-def detection_loss(target, preds, loc_loss='l1', cls_loss='focal', neg_pos_ratio=None,
-                   alpha=0.25, gamma=2.0, label_smoothing=0, loc_loss_weight=1.):
-    loc_t = target['loc_t']
-    cls_t = target['cls_t']
-    pos = target['pos']
-    ignore = target['ignore']
-    pos = tf.cast(pos, tf.float32)
-    n_pos = tf.reduce_sum(pos, axis=1)
+def detection_loss(target, preds, box_loss=None, cls_loss=None, box_loss_weight=1.):
+    box_loss = box_loss or l1_loss
+    cls_loss = cls_loss or focal_loss
 
-    loc_p = preds['loc_p']
+    box_t = target['box_t']
+    cls_t = target['cls_t']
+    non_ignore = to_float(~target['ignore'])
+
+    pos = to_float(cls_t != 0)
+    total_pos = tf.reduce_sum(pos) + 1
+
+    box_p = preds['box_p']
     cls_p = preds['cls_p']
 
-    total_pos = tf.reduce_sum(n_pos) + 1
+    box_losses = box_loss(box_t, box_p, weight=pos[..., None], reduction='sum')
+    box_loss = box_losses / total_pos
 
-    if loc_loss == 'l1':
-        loc_losses = l1_loss(loc_t, loc_p)
-    elif loc_loss == 'smooth_l1':
-        loc_losses = smooth_l1_loss(loc_t, loc_p, beta=1.0)
-    else:
-        raise ValueError("Not supported regression loss: %s" % loc_loss)
-    loc_loss = tf.reduce_sum(loc_losses * pos[:, :, None]) / total_pos
+    cls_losses = cls_loss(cls_t, cls_p, weight=non_ignore, reduction='sum')
+    cls_loss = cls_losses / total_pos
 
-    if cls_loss == 'focal':
-        num_classes = tf.shape(cls_p)[-1]
-        cls_t = tf.one_hot(cls_t, num_classes + 1)
-        cls_losses = focal_loss(cls_t[..., 1:], cls_p, alpha, gamma, label_smoothing)
-        weight = tf.cast(~ignore, tf.float32)[:, :, None]
-        cls_loss = tf.reduce_sum(cls_losses * weight) / total_pos
-    elif cls_loss == 'ce':
-        cls_losses = tf.nn.sparse_softmax_cross_entropy_with_logits(cls_t, cls_p)
-        if not neg_pos_ratio:
-            cls_loss = tf.reduce_sum(cls_losses) / total_pos
-        else:
-            neg = tf.cast((~pos) & (~ignore), tf.float32)
-            cls_loss_pos = tf.reduce_sum(cls_losses * pos)
-            cls_loss_neg = hard_negative_mining(cls_losses * neg, n_pos, neg_pos_ratio)
-            cls_loss = (cls_loss_pos + cls_loss_neg) / total_pos
-    else:
-        raise ValueError("Not supported classification loss: %s" % cls_loss)
-
-    return loc_loss * loc_loss_weight + cls_loss
+    return box_loss * box_loss_weight + cls_loss
 
 
-def hard_negative_mining(losses, n_pos, neg_pos_ratio, max_pos=1000):
-    # shape = tf.shape(losses)
-    # batch_size = shape[0]
-    # ind = tf.tile(tf.range(max_pos, dtype=tf.int32)[None], [batch_size, 1])
-    ind = tf.range(max_pos, dtype=tf.int32)[None, :]
-    weights = tf.cast(ind < n_pos[:, None] * neg_pos_ratio, tf.float32)
-    losses = tf.math.top_k(losses, k=max_pos, sorted=True)[0]
-    return tf.reduce_sum(weights * losses)
-
-
-
-def detect(loc_p, cls_p, anchors, iou_threshold=0.5, conf_threshold=0.1, topk=100):
+def detect(box_p, cls_p, anchors, iou_threshold=0.5, conf_threshold=0.1, topk=100):
     logits = cls_p[:, 1:]
     scores = tf.sigmoid(tf.reduce_max(logits, axis=1))
     classes = tf.argmax(logits, axis=1, output_type=tf.int32) + 1
 
     mask = scores > conf_threshold
-    loc_p = loc_p[mask]
+    box_p = box_p[mask]
     scores = scores[mask]
     classes = classes[mask]
     anchors = anchors[mask]
 
-    bboxes = bbox_decode(loc_p, anchors)
+    bboxes = bbox_decode(box_p, anchors)
     indices = tf.image.non_max_suppression(bboxes, scores, topk, iou_threshold, conf_threshold)
     dets = []
     for i in indices:
@@ -168,14 +121,14 @@ def detect(loc_p, cls_p, anchors, iou_threshold=0.5, conf_threshold=0.1, topk=10
     return dets
 
 
-def batched_detect(loc_p, cls_p, anchors, iou_threshold=0.5,
+def batched_detect(box_p, cls_p, anchors, iou_threshold=0.5,
                    conf_threshold=0.05, topk=200, conf_strategy='softmax',
                    bbox_std=(1., 1., 1., 1.)):
     if conf_strategy == 'sigmoid':
         scores = tf.sigmoid(cls_p)
     else:
         scores = tf.math.softmax(cls_p, -1)
-    bboxes = bbox_decode(loc_p, anchors, bbox_std)
+    bboxes = bbox_decode(box_p, anchors, bbox_std)
     bboxes = tf.expand_dims(bboxes, 2)
     bboxes, scores, labels, n_valids = tf.image.combined_non_max_suppression(
         bboxes, scores, 100, topk, iou_threshold, conf_threshold, clip_boxes=False)

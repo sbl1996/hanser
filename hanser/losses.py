@@ -1,3 +1,4 @@
+from hanser.ops import to_float
 from toolz import curry
 
 import tensorflow as tf
@@ -99,31 +100,71 @@ def focal_loss2(labels, logits, gamma=2, beta=1, ignore_label=None):
     return loss
 
 
-def focal_loss(y_true, y_pred, alpha, gamma, label_smoothing=0.0, eps=1e-6):
-    """
-    Loss used in RetinaNet for dense detection: https://arxiv.org/abs/1708.02002.
-    Args:
-        y_true: A float tensor with the same shape as inputs. Stores the binary
-                 classification label for each element in inputs
-                (0 for the negative class and 1 for the positive class).
-        y_pred: A float tensor of arbitrary shape.
-                The predictions for each example.
-        alpha: (optional) Weighting factor in range (0,1) to balance
-                positive vs negative examples. Default = -1 (no weighting).
-        gamma: Exponent of the modulating factor (1 - p_t) to
-               balance easy vs hard examples.
-    Returns:
-        Loss tensor with the reduction option applied.
-    """
+@curry
+def focal_loss(y_true, y_pred, weight=None, alpha=0.25, gamma=2.0, label_smoothing=0.0, eps=1e-6, label_offset=1, reduction='sum'):
+    if y_pred.shape.ndims - y_true.shape.ndims == 1:
+        num_classes = tf.shape(y_pred)[-1]
+        y_true = tf.one_hot(y_true, num_classes + label_offset, dtype=tf.float32)[..., 1:]
     p = tf.sigmoid(y_pred)
     p_t = p * y_true + (1 - p) * (1 - y_true)
-    weight = (1 - p_t) ** gamma
+    focal_weight = (1 - p_t) ** gamma
     if alpha:
-        weight = weight * (alpha * y_true + (1 - alpha) * (1 - y_true))
+        focal_weight = focal_weight * (alpha * y_true + (1 - alpha) * (1 - y_true))
     if label_smoothing:
         num_classes = tf.cast(tf.shape(y_true)[-1], y_pred.dtype)
         y_true_ls = (1. - label_smoothing) * y_true + label_smoothing / num_classes
         y_true = tf.clip_by_value(y_true_ls, eps, 1. - eps)
-    ce_loss = tf.nn.sigmoid_cross_entropy_with_logits(y_true, y_pred)
-    loss = ce_loss * weight
-    return loss
+    losses = tf.nn.sigmoid_cross_entropy_with_logits(y_true, y_pred)
+    losses = losses * focal_weight
+    if losses.shape.ndims - weight.shape.ndims == 1:
+        weight = tf.expand_dims(weight, -1)
+    return reduce_loss(losses, weight, reduction)
+
+
+def reduce_loss(losses, weight=None, reduction='sum'):
+    if weight is not None:
+        losses = losses * weight
+    if reduction == 'sum':
+        return tf.reduce_sum(losses)
+    else:
+        return ValueError("Not supported reduction: %s" % reduction)
+
+
+@curry
+def smooth_l1_loss(y_true, y_pred, weight=None, beta=1.0, reduction='sum'):
+    diff = tf.math.abs(y_pred - y_true)
+    losses = tf.where(
+        diff < beta,
+        0.5 * diff * diff / beta,
+        diff - 0.5 * beta
+    )
+    return reduce_loss(losses, weight, reduction)
+
+
+@curry
+def l1_loss(y_true, y_pred, weight=None, reduction='sum'):
+    losses = tf.math.abs(y_pred - y_true)
+    return reduce_loss(losses, weight, reduction)
+
+@curry
+def cross_entropy_ohnm(y_true, y_pred, weight=None, neg_pos_ratio=None, reduction='sum'):
+    losses = tf.nn.sparse_softmax_cross_entropy_with_logits(y_true, y_pred)
+    if neg_pos_ratio is None:
+        return reduce_loss(losses, weight, reduction)
+
+    assert reduction == 'sum'
+
+    # weight is pos, and ignore not allowed
+    pos = tf.cast(y_true != 0, y_pred.dtype)
+    loss_pos = reduce_loss(losses, pos, reduction)
+    n_pos = tf.reduce_sum(weight, axis=1)
+    neg = 1. - weight
+    loss_neg = hard_negative_mining(losses * neg, n_pos, neg_pos_ratio)
+    return loss_pos + loss_neg
+
+
+def hard_negative_mining(losses, n_pos, neg_pos_ratio, max_pos=1000):
+    ind = tf.range(max_pos, dtype=tf.int32)[None, :]
+    weights = tf.cast(ind < n_pos[:, None] * neg_pos_ratio, tf.float32)
+    losses = tf.math.top_k(losses, k=max_pos, sorted=True)[0]
+    return tf.reduce_sum(weights * losses)

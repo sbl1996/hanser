@@ -73,14 +73,14 @@ def preprocess(d, target_height=HEIGHT, target_width=WIDTH, max_objects=100, tra
 
     bboxes = coords_to_absolute(bboxes, tf.shape(image)[:2])
 
-    loc_t, cls_t, pos, ignore = match_anchors(
+    box_t, cls_t, pos, ignore = match_anchors(
         bboxes, labels, flat_anchors, pos_iou_thr=0.5, neg_iou_thr=0.4, min_pos_iou=0.)
 
     bboxes = pad_to_fixed_size(bboxes, 0, [max_objects, 4])
     labels = pad_to_fixed_size(labels, 0, [max_objects])
     is_difficults = pad_to_fixed_size(is_difficults, 0, [max_objects])
 
-    return image, {'loc_t': loc_t, 'cls_t': cls_t, 'pos': pos, 'ignore': ignore,
+    return image, {'box_t': box_t, 'cls_t': cls_t, 'pos': pos, 'ignore': ignore,
                    'bbox': bboxes, 'label': labels, 'image_id': image_id, 'is_difficult': is_difficults}
 
 
@@ -99,16 +99,16 @@ ds_val = prepare(ds_val, eval_batch_size, preprocess(training=False),
                  training=False, repeat=False, drop_remainder=True)
 
 def output_transform(output):
-    loc_p, cls_p = get(['loc_p', 'cls_p'], output)
-    return batched_detect(loc_p, cls_p, flat_anchors, iou_threshold=0.5,
+    box_p, cls_p = get(['box_p', 'cls_p'], output)
+    return batched_detect(box_p, cls_p, flat_anchors, iou_threshold=0.5,
                           conf_threshold=0.05, conf_strategy='sigmoid')
 
 m = MeanAveragePrecision()
 m.reset_states()
 for x, y in iter(ds_val):
-    loc_p, cls_p = get(["loc_t", "cls_t"], y)
+    box_p, cls_p = get(["box_t", "cls_t"], y)
     cls_p = tf.one_hot(cls_p, 21, on_value=10.0, off_value=-10.0)[..., 1:]
-    pred = output_transform({"loc_p": loc_p, "cls_p": cls_p})
+    pred = output_transform({"box_p": box_p, "cls_p": cls_p})
     m.update_state(y, pred)
 m.result()
 
@@ -145,7 +145,7 @@ image = (image - mean_rgb) / std_rgb
 
 bboxes = coords_to_absolute(bboxes, tf.shape(image)[:2])
 
-# loc_t, cls_t, pos, ignore = match_anchors(
+# box_t, cls_t, pos, ignore = match_anchors(
 #     bboxes, labels, flat_anchors, pos_iou_thr=0.5, neg_iou_thr=0.4, min_pos_iou=0.)
 from hanser.detection import max_iou_assign, get_shape, bbox_encode, index_put, bbox_decode
 
@@ -172,22 +172,22 @@ assigned_gt_bboxes = tf.gather(gt_bboxes, assigned_gt_inds)
 assigned_gt_labels = tf.gather(gt_labels, assigned_gt_inds)
 assigned_anchors = tf.gather(anchors, indices)
 
-loc_t = bbox_encode(assigned_gt_bboxes, assigned_anchors, bbox_std)
-loc_t = index_put(
-    tf.zeros([num_anchors, 4], dtype=tf.float32), indices, loc_t)
+box_t = bbox_encode(assigned_gt_bboxes, assigned_anchors, bbox_std)
+box_t = index_put(
+    tf.zeros([num_anchors, 4], dtype=tf.float32), indices, box_t)
 cls_t = index_put(
     tf.zeros([num_anchors, ], dtype=tf.int32), indices, assigned_gt_labels)
 
 def output_transform(output):
-    loc_p, cls_p = get(['loc_p', 'cls_p'], output)
-    return batched_detect(loc_p, cls_p, flat_anchors, iou_threshold=0.6,
+    box_p, cls_p = get(['box_p', 'cls_p'], output)
+    return batched_detect(box_p, cls_p, flat_anchors, iou_threshold=0.6,
                           conf_threshold=0.05, conf_strategy='sigmoid')
 
 
 m = MeanAveragePrecision()
 m.reset_states()
-loc_p, cls_p = loc_t[None], cls_t[None]
+box_p, cls_p = box_t[None], cls_t[None]
 cls_p = tf.one_hot(cls_p, 21, on_value=10.0, off_value=-10.0)[..., 1:]
-pred = output_transform({"loc_p": loc_p, "cls_p": cls_p})
+pred = output_transform({"box_p": box_p, "cls_p": cls_p})
 m.update_state(y, pred)
 m.result()

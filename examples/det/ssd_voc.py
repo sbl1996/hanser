@@ -1,16 +1,30 @@
-from hanser.datasets import prepare
-from hanser.transform import color_jitter
-from toolz import curry
+from toolz import curry, get
 
 import tensorflow as tf
-import tensorflow_datasets as tfds
-from hanser.tpu import setup, distribute_datasets
+from tensorflow.keras.metrics import Mean
 
-from hanser.detection import match_anchors
+import tensorflow_datasets as tfds
+
+from hanser.tpu import setup
+from hanser.datasets import prepare
+from hanser.losses import smooth_l1_loss, cross_entropy_ohnm
+from hanser.detection import match_anchors, detection_loss, batched_detect, coords_to_absolute
 from hanser.detection.anchor import SSDAnchorGenerator
-from hanser.transform.detection import random_expand, random_sample_crop, pad_to_fixed_size, random_hflip
+
+from hanser.datasets.detection.voc import decode
+
+from hanser.transform import normalize, photo_metric_distortion
+from hanser.transform.detection import pad_to_fixed_size, random_hflip, resize, random_expand, random_sample_crop
 
 from hanser.models.layers import set_defaults
+from hanser.models.backbone.resnet_vd import resnet18
+from hanser.models.detection.retinanet import RetinaNet
+from hanser.models.utils import load_checkpoint
+
+from hanser.train.optimizers import SGD
+from hanser.train.lr_schedule import CosineLR
+from hanser.train.metrics import MeanMetricWrapper, MeanAveragePrecision
+from hanser.train.cls import SuperLearner
 
 output_size = 300
 
@@ -18,62 +32,45 @@ anchor_gen = SSDAnchorGenerator(
     strides=[8, 16, 32, 64, 100, 300],
     ratios=[[2], [2, 3], [2, 3], [2, 3], [2], [2]],
     basesize_ratio_range=(0.2, 0.9),
-    input_size=300,
+    input_size=output_size,
 )
 featmap_sizes = [
     [38, 38], [19, 19], [10, 10], [5, 5], [3, 3], [1, 1],
     # [64, 64], [32, 32], [16, 16], [8, 8], [4, 4], [2, 2], [1, 1],
 ]
+
 anchors = anchor_gen.grid_anchors(featmap_sizes)
+flat_anchors = tf.concat(anchors, axis=0)
 
 @curry
-def preprocess(d, output_size=output_size, max_objects=100, training=True):
+def preprocess(example, output_size=(output_size, output_size), max_objects=100, training=True):
+    image, bboxes, labels, is_difficults, image_id = decode(example)
     mean_rgb = tf.convert_to_tensor([123.68, 116.779, 103.939], tf.float32)
     std_rgb = tf.convert_to_tensor([58.393, 57.12, 57.375], tf.float32)
 
-    image_id = d['image/filename']
-    str_len = tf.strings.length(image_id)
-    image_id = tf.strings.to_number(
-        tf.strings.substr(image_id, str_len - 10, 6),
-        out_type=tf.int32
-    )
-    image_id = tf.where(str_len == 10, image_id + 10000, image_id)
+    if training:
+        image = photo_metric_distortion(image)
+        image, bboxes = random_expand(image, bboxes, 4.0, mean_rgb)
+        image, bboxes, labels, is_difficults = random_sample_crop(
+            image, bboxes, labels, is_difficults)
 
-    image = tf.cast(d['image'], tf.float32)
-    bboxes, labels, is_difficults = d['objects']['bbox'], d['objects']['label'] + 1, d['objects']['is_difficult']
-    labels = tf.cast(labels, tf.int32)
-
-    shape = tf.shape(image)
-    height, width = shape[0], shape[1]
-    bboxes = bboxes * tf.cast(tf.stack([height, width, height, width]), bboxes.dtype)[:, None]
+    image = resize(image, output_size, keep_ratio=False)
+    image = normalize(image, mean_rgb, std_rgb)
 
     if training:
-        image = color_jitter(image,
-                             brightness=0.5,
-                             contrast=0.5,
-                             saturation=0.5,
-                             hue=0.33)
-        if tf.random.normal(()) < 0.5:
-            image, bboxes = expand(image, bboxes, 4.0, mean_rgb)
-        if tf.random.normal(()) < 0.5:
-            image, bboxes, classes, is_difficults = random_sample_crop(
-                image, bboxes, labels, is_difficults)
         image, bboxes = random_hflip(image, bboxes, 0.5)
 
-    image = tf.image.resize(image, (output_size, output_size))
-
-    loc_t, cls_t, n_pos, ignore = match_anchors(
+    bboxes = coords_to_absolute(bboxes, tf.shape(image)[:2])
+    box_t, cls_t, ignore = match_anchors(
         bboxes, labels, anchors, pos_iou_thr=0.5, neg_iou_thr=0.5)
-
-    image = (image - mean_rgb) / std_rgb
 
     bboxes = pad_to_fixed_size(bboxes, 0, [max_objects, 4])
     labels = pad_to_fixed_size(labels, 0, [max_objects])
     is_difficults = pad_to_fixed_size(is_difficults, 0, [max_objects])
 
-    return image, {'loc_t': loc_t, 'cls_t': cls_t, 'n_pos': n_pos,
-                   'bbox': bboxes, 'label': labels, 'ignore': ignore,
-                   'image_id': image_id, 'is_difficult': is_difficults}
+    return image, {'box_t': box_t, 'cls_t': cls_t, 'ignore': ignore,
+                   'bbox': bboxes, 'label': labels, 'is_difficult': is_difficults,
+                   'image_id': image_id, }
 
 
 mul = 1
@@ -97,3 +94,42 @@ set_defaults({
     }
 })
 
+backbone = resnet18()
+model = RetinaNet(backbone, anchor_gen.num_base_anchors[0], num_classes=20,
+                  feat_channels=64, stacked_convs=2, use_norm=True)
+model.build((None, output_size, output_size, 3))
+
+# load_checkpoint()
+
+criterion = detection_loss(box_loss=smooth_l1_loss, cls_loss=cross_entropy_ohnm(neg_pos_ratio=3.0))
+base_lr = 1e-3
+epochs = 60
+lr_schedule = CosineLR(base_lr * mul, steps_per_epoch, epochs, min_lr=0,
+                       warmup_min_lr=base_lr, warmup_epoch=5)
+optimizer = SGD(lr_schedule, momentum=0.9, nesterov=True, weight_decay=1e-4)
+
+train_metrics = {
+    'loss': Mean(),
+}
+eval_metrics = {
+    'loss': MeanMetricWrapper(detection_loss),
+}
+
+
+learner = SuperLearner(
+    model, criterion, optimizer,
+    train_metrics=train_metrics, eval_metrics=eval_metrics,
+    work_dir=f"./models")
+
+def output_transform(output):
+    box_p, cls_p = get(['box_p', 'cls_p'], output)
+    return batched_detect(box_p, cls_p, flat_anchors, iou_threshold=0.45,
+                          conf_threshold=0.02, conf_strategy='softmax')
+
+learner.fit(
+    ds_train, epochs, ds_val, val_freq=1,
+    steps_per_epoch=steps_per_epoch, val_steps=val_steps,
+    extra_metrics={'mAP': MeanAveragePrecision()},
+    extra_output_transform=output_transform,
+    extra_eval_freq=1,
+)

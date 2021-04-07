@@ -84,9 +84,9 @@ class RetinaHead(Layer):
             bbox_pred, cls_score = self.call_single(x)
             bbox_preds.append(tf.reshape(bbox_pred, [b, -1, 4]))
             cls_scores.append(tf.reshape(cls_score, [b, -1, self.num_classes]))
-        loc_p = tf.concat(bbox_preds, axis=1)
+        box_p = tf.concat(bbox_preds, axis=1)
         cls_p = tf.concat(cls_scores, axis=1)
-        return {'loc_p': loc_p, 'cls_p': cls_p}
+        return {'box_p': box_p, 'cls_p': cls_p}
 
 
 class RetinaSepBNHead(Layer):
@@ -154,6 +154,6 @@ class RetinaSepBNHead(Layer):
             bbox_pred, cls_score = self.call_single(x, i)
             bbox_preds.append(tf.reshape(bbox_pred, [b, -1, 4]))
             cls_scores.append(tf.reshape(cls_score, [b, -1, self.num_classes]))
-        loc_p = tf.concat(bbox_preds, axis=1)
+        box_p = tf.concat(bbox_preds, axis=1)
         cls_p = tf.concat(cls_scores, axis=1)
-        return {'loc_p': loc_p, 'cls_p': cls_p}
+        return {'box_p': box_p, 'cls_p': cls_p}

@@ -177,6 +177,6 @@ class SSDHead(Layer):
             b, h, w = shape[0], shape[1], shape[2]
             bbox_preds.append(tf.reshape(reg_conv(feat), [b, h * w, -1]))
             cls_scores.append(tf.reshape(cls_conv(feat), [b, h * w, -1]))
-        loc_p = tf.concat(bbox_preds, axis=1)
+        box_p = tf.concat(bbox_preds, axis=1)
         cls_p = tf.concat(cls_scores, axis=1)
-        return {'loc_p': loc_p, 'cls_p': cls_p}
+        return {'box_p': box_p, 'cls_p': cls_p}

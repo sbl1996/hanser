@@ -7,6 +7,7 @@ import tensorflow_datasets as tfds
 
 from hanser.tpu import setup
 from hanser.datasets import prepare
+from hanser.losses import l1_loss, focal_loss
 from hanser.detection import match_anchors, detection_loss, batched_detect, coords_to_absolute
 from hanser.detection.anchor import AnchorGenerator
 
@@ -58,7 +59,7 @@ def preprocess(example, output_size=(HEIGHT, WIDTH), max_objects=100, training=T
 
     bboxes = coords_to_absolute(bboxes, tf.shape(image)[:2])
 
-    loc_t, cls_t, pos, ignore = match_anchors(
+    box_t, cls_t, ignore = match_anchors(
         bboxes, labels, flat_anchors, pos_iou_thr=0.5, neg_iou_thr=0.4, min_pos_iou=0.)
 
     bboxes = pad_to_fixed_size(bboxes, 0, [max_objects, 4])
@@ -66,8 +67,9 @@ def preprocess(example, output_size=(HEIGHT, WIDTH), max_objects=100, training=T
     is_difficults = pad_to_fixed_size(is_difficults, 0, [max_objects])
 
     image = tf.cast(image, tf.bfloat16)
-    return image, {'loc_t': loc_t, 'cls_t': cls_t, 'pos': pos, 'ignore': ignore,
-                   'bbox': bboxes, 'label': labels, 'image_id': image_id, 'is_difficult': is_difficults}
+    return image, {'box_t': box_t, 'cls_t': cls_t, 'ignore': ignore,
+                   'bbox': bboxes, 'label': labels, 'is_difficult': is_difficults,
+                   'image_id': image_id}
 
 mul = 1
 n_train, n_val = 6, 4
@@ -84,11 +86,11 @@ ds_val = prepare(ds_val, eval_batch_size, preprocess(training=False),
                  training=False, repeat=False, drop_remainder=True)
 # ds_train_dist, ds_val_dist = setup([ds_train, ds_val], fp16=True)
 
-set_defaults({
-    'bn': {
-        'sync': True,
-    }
-})
+# set_defaults({
+#     'bn': {
+#         'sync': True,
+#     }
+# })
 backbone = resnet18()
 model = RetinaNet(backbone, anchor_gen.num_base_anchors[0], num_classes=20,
                   feat_channels=64, stacked_convs=2, use_norm=True)
@@ -96,7 +98,7 @@ model.build((None, HEIGHT, WIDTH, 3))
 
 # load_checkpoint()
 
-criterion = detection_loss(loc_loss='l1', cls_loss='focal', alpha=0.25, gamma=2.0)
+criterion = detection_loss(box_loss=l1_loss, cls_loss=focal_loss(alpha=0.25, gamma=2.0))
 base_lr = 1e-3
 epochs = 60
 lr_schedule = CosineLR(base_lr * mul, steps_per_epoch, epochs, min_lr=0,
@@ -117,8 +119,8 @@ learner = SuperLearner(
     work_dir=f"./models")
 
 def output_transform(output):
-    loc_p, cls_p = get(['loc_p', 'cls_p'], output)
-    return batched_detect(loc_p, cls_p, flat_anchors, iou_threshold=0.5,
+    box_p, cls_p = get(['box_p', 'cls_p'], output)
+    return batched_detect(box_p, cls_p, flat_anchors, iou_threshold=0.5,
                           conf_threshold=0.05, conf_strategy='sigmoid')
 
 learner.fit(

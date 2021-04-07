@@ -30,10 +30,13 @@ def random_resize(image, size, ratio_range=(0.8, 1,2)):
     return resize(image, scaled_size)
 
 
-def resize(image, size):
-    im_size = to_float(tf.shape(image)[:2])
-    scale = tf.reduce_min(to_float(size) / im_size)
-    scaled_size = to_int(im_size * scale)
+def resize(image, size, keep_ratio=True):
+    if keep_ratio:
+        im_size = to_float(tf.shape(image)[:2])
+        scale = tf.reduce_min(to_float(size) / im_size)
+        scaled_size = to_int(im_size * scale)
+    else:
+        scaled_size = size
     image = tf.image.resize(image, scaled_size)
     return image
 
@@ -94,7 +97,9 @@ def scale_bbox(bboxes, scales):
     return tf.reshape(tf.reshape(bboxes, [-1, 2, 2]) * scales, [-1, 4])
 
 
-def random_expand(image, bboxes, max_scale, pad_value):
+def random_expand(image, bboxes, max_scale, pad_value, prob=0.5):
+    if tf.random.normal(()) < prob:
+        return image, bboxes
     shape = tf.shape(image)
     h = shape[0]
     w = shape[1]
