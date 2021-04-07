@@ -7,7 +7,8 @@ from hanser.models.layers import Conv2d, Act, Identity, GlobalAvgPool, Linear, P
 class BasicBlock(Layer):
     expansion = 1
 
-    def __init__(self, in_channels, channels, stride, erase_relu=False, zero_init_residual=False):
+    def __init__(self, in_channels, channels, stride, erase_relu=False, zero_init_residual=False,
+                 dilation=None, avd=None):
         super().__init__()
         out_channels = channels * self.expansion
         self.conv1 = Conv2d(in_channels, out_channels, kernel_size=3, stride=stride,
