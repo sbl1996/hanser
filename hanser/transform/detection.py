@@ -25,8 +25,6 @@ def random_hflip(image, bboxes, p=0.5):
 
 
 def random_resize(image, size, ratio_range=(0.8, 1,2)):
-    if not isinstance(size, (tuple, list)):
-        size = (size, size)
     scale = tf.random.uniform((), minval=ratio_range[0], maxval=ratio_range[1], dtype=tf.float32)
     scaled_size = size * scale
     return resize(image, scaled_size)

@@ -18,6 +18,7 @@ from hanser.transform.detection import pad_to_fixed_size, random_hflip, random_r
 from hanser.models.layers import set_defaults
 from hanser.models.backbone.resnet_vd import resnet50
 from hanser.models.detection.retinanet import RetinaNet
+from hanser.models.utils import load_checkpoint
 
 from hanser.train.optimizers import SGD
 from hanser.train.lr_schedule import CosineLR
@@ -53,7 +54,7 @@ def preprocess(example, output_size=(HEIGHT, WIDTH), max_objects=100, training=T
         image = resize(image, output_size)
 
     image = normalize(image, [123.68, 116.779, 103.939], [58.393, 57.12, 57.375])
-    image = pad_to(image, bboxes, output_size)
+    image, bboxes = pad_to(image, bboxes, output_size)
 
     bboxes = coords_to_absolute(bboxes, tf.shape(image)[:2])
 
@@ -64,9 +65,9 @@ def preprocess(example, output_size=(HEIGHT, WIDTH), max_objects=100, training=T
     labels = pad_to_fixed_size(labels, 0, [max_objects])
     is_difficults = pad_to_fixed_size(is_difficults, 0, [max_objects])
 
+    image = tf.cast(image, tf.bfloat16)
     return image, {'loc_t': loc_t, 'cls_t': cls_t, 'pos': pos, 'ignore': ignore,
                    'bbox': bboxes, 'label': labels, 'image_id': image_id, 'is_difficult': is_difficults}
-
 
 mul = 1
 n_train, n_val = 6, 4
@@ -92,12 +93,9 @@ backbone = resnet50()
 model = RetinaNet(backbone, 128, anchor_gen.num_base_anchors[0], num_classes=20, use_norm=True)
 model.build((None, HEIGHT, WIDTH, 3))
 
-# ckpt = tf.train.Checkpoint(model=backbone)
-# ckpt_options = tf.train.CheckpointOptions(experimental_io_device="/job:localhost")
-# status = ckpt.read("./drive/MyDrive/models/ImageNet-83/ckpt", ckpt_options)
-# status.assert_existing_objects_matched()
+# load_checkpoint()
 
-criterion = detection_loss(loc_loss='l1', cls_loss='focal', alpha=0.25, gamma=2.0, label_smoothing=0.1)
+criterion = detection_loss(loc_loss='l1', cls_loss='focal', alpha=0.25, gamma=2.0)
 base_lr = 1e-3
 epochs = 60
 lr_schedule = CosineLR(base_lr * mul, steps_per_epoch, epochs, min_lr=0,
@@ -129,16 +127,3 @@ learner.fit(
     extra_output_transform=output_transform,
     extra_eval_freq=1,
 )
-
-m = MeanAveragePrecision()
-m.reset_states()
-for x, y in iter(ds_val):
-    loc_p, cls_p = get(["loc_t", "cls_t"], y)
-    cls_p = tf.one_hot(cls_p, 21, on_value=10.0, off_value=-10.0)[..., 1:]
-    pred = output_transform({"loc_p": loc_p, "cls_p": cls_p})
-    m.update_state(y, pred)
-m.result()
-
-it = iter(ds_val)
-x, y = next(it)
-x, y = next(it)
