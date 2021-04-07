@@ -1,87 +1,67 @@
 from toolz import curry, get
 
 import tensorflow as tf
-from tensorflow.keras.metrics import Mean
 
 import tensorflow_datasets as tfds
 
 from hanser.tpu import setup
 from hanser.datasets import prepare
+from hanser.datasets.detection.voc import decode
 from hanser.detection import match_anchors, detection_loss, batched_detect, coords_to_absolute
-from hanser.detection.anchor import AnchorGenerator
+from hanser.detection.anchor import SSDAnchorGenerator
 
-from hanser.transform import resize, photo_metric_distortion
-from hanser.transform.detection import pad_to_fixed_size, random_hflip, random_sample_crop, random_expand, resize_and_pad
+from hanser.transform import resize, photo_metric_distortion, normalize
+from hanser.transform.detection import pad_to_fixed_size, random_hflip, random_sample_crop, random_expand, resize
 
-from hanser.models.layers import set_defaults
-from hanser.models.backbone.resnet_vd import resnet50
-from hanser.models.detection.retinanet import RetinaNet
-
-from hanser.train.optimizers import SGD
-from hanser.train.lr_schedule import CosineLR
-from hanser.train.metrics import MeanMetricWrapper, MeanAveragePrecision
-from hanser.train.cls import SuperLearner
+from hanser.train.metrics import MeanAveragePrecision
 
 
-HEIGHT = WIDTH = 512
+output_size = 512
 
-anchor_gen = AnchorGenerator(
+anchor_gen = SSDAnchorGenerator(
     strides=[8, 16, 32, 64, 128],
-    ratios=[0.5, 1.0, 2.0],
-    octave_base_scale=4,
-    scales_per_octave=3,
+    ratios=[[2], [2, 3], [2, 3], [2, 3], [2]],
+    basesize_ratio_range=(0.15, 0.9),
+    extra_min_ratio=0.1,
+    input_size=output_size,
 )
 featmap_sizes = [
-    # [80, 80], [40, 40], [20, 20], [10, 10], [5, 5],
-    [32, 32], [16, 16], [8, 8], [4, 4], [2, 2],
+    [64, 64], [32, 32], [16, 16], [8, 8], [4, 4],
 ]
 
 anchors = anchor_gen.grid_anchors(featmap_sizes)
 flat_anchors = tf.concat(anchors, axis=0)
 
 @curry
-def preprocess(d, target_height=HEIGHT, target_width=WIDTH, max_objects=100, training=True):
+def preprocess(example, output_size=(output_size, output_size), max_objects=100, training=True):
+    image, bboxes, labels, is_difficults, image_id = decode(example)
     mean_rgb = tf.convert_to_tensor([123.68, 116.779, 103.939], tf.float32)
     std_rgb = tf.convert_to_tensor([58.393, 57.12, 57.375], tf.float32)
 
-    image_id = d['image/filename']
-    str_len = tf.strings.length(image_id)
-    image_id = tf.strings.to_number(
-        tf.strings.substr(image_id, str_len - 10, 6),
-        out_type=tf.int32
-    )
-    image_id = tf.where(str_len == 10, image_id + 10000, image_id)
+    if training:
+        image = photo_metric_distortion(image)
+        image, bboxes = random_expand(image, bboxes, 4.0, mean_rgb)
+        image, bboxes, labels, is_difficults = random_sample_crop(
+            image, bboxes, labels, is_difficults)
 
-    image = tf.cast(d['image'], tf.float32)
-    bboxes, labels, is_difficults = d['objects']['bbox'], d['objects']['label'] + 1, d['objects']['is_difficult']
-    labels = tf.cast(labels, tf.int32)
+    image = resize(image, output_size, keep_ratio=False)
+    image = normalize(image, mean_rgb, std_rgb)
 
     if training:
-    #     image = photo_metric_distortion(image)
-    #     image, bboxes = random_expand(image, bboxes, 4.0, mean_rgb)
-    #     image, bboxes, labels, is_difficults = random_sample_crop(
-    #         image, bboxes, labels, is_difficults,
-    #         min_ious=(0.1, 0.3, 0.5, 0.7, 0.9),
-    #         aspect_ratio_range=(0.5, 2.0))
-    #     image = resize(image, (target_height, target_width))
         image, bboxes = random_hflip(image, bboxes, 0.5)
-    # else:
-    #     image = resize(image, (target_height, target_width))
-
-    image, bboxes = resize_and_pad(image, bboxes, target_height, target_width, mean_rgb)
-    image = (image - mean_rgb) / std_rgb
 
     bboxes = coords_to_absolute(bboxes, tf.shape(image)[:2])
-
-    box_t, cls_t, pos, ignore = match_anchors(
-        bboxes, labels, flat_anchors, pos_iou_thr=0.5, neg_iou_thr=0.4, min_pos_iou=0.)
+    box_t, cls_t, ignore = match_anchors(
+        bboxes, labels, flat_anchors, pos_iou_thr=0.5, neg_iou_thr=0.5,
+        bbox_std=(0.1, 0.1, 0.2, 0.2))
 
     bboxes = pad_to_fixed_size(bboxes, 0, [max_objects, 4])
     labels = pad_to_fixed_size(labels, 0, [max_objects])
     is_difficults = pad_to_fixed_size(is_difficults, 0, [max_objects])
 
-    return image, {'box_t': box_t, 'cls_t': cls_t, 'pos': pos, 'ignore': ignore,
-                   'bbox': bboxes, 'label': labels, 'image_id': image_id, 'is_difficult': is_difficults}
+    return image, {'box_t': box_t, 'cls_t': cls_t, 'ignore': ignore,
+                   'bbox': bboxes, 'label': labels, 'is_difficult': is_difficults,
+                   'image_id': image_id, }
 
 
 mul = 1
@@ -100,17 +80,19 @@ ds_val = prepare(ds_val, eval_batch_size, preprocess(training=False),
 
 def output_transform(output):
     box_p, cls_p = get(['box_p', 'cls_p'], output)
-    return batched_detect(box_p, cls_p, flat_anchors, iou_threshold=0.5,
-                          conf_threshold=0.05, conf_strategy='sigmoid')
+    return batched_detect(box_p, cls_p, flat_anchors, iou_threshold=0.45,
+                          conf_threshold=0.01, conf_strategy='softmax',
+                          bbox_std=(0.1, 0.1, 0.2, 0.2), label_offset=1)
 
 m = MeanAveragePrecision()
 m.reset_states()
 for x, y in iter(ds_val):
     box_p, cls_p = get(["box_t", "cls_t"], y)
-    cls_p = tf.one_hot(cls_p, 21, on_value=10.0, off_value=-10.0)[..., 1:]
+    cls_p = tf.one_hot(cls_p, 21, on_value=10.0, off_value=-10.0)
     pred = output_transform({"box_p": box_p, "cls_p": cls_p})
     m.update_state(y, pred)
 m.result()
+
 
 from hanser.detection import random_colors
 from PIL import Image

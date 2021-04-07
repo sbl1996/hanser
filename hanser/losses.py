@@ -1,4 +1,4 @@
-from hanser.ops import to_float
+from hanser.ops import to_float, to_int
 from toolz import curry
 
 import tensorflow as tf
@@ -165,6 +165,7 @@ def cross_entropy_ohnm(y_true, y_pred, weight=None, neg_pos_ratio=None, reductio
 
 def hard_negative_mining(losses, n_pos, neg_pos_ratio, max_pos=1000):
     ind = tf.range(max_pos, dtype=tf.int32)[None, :]
-    weights = tf.cast(ind < n_pos[:, None] * neg_pos_ratio, tf.float32)
+    n_neg = to_int(n_pos * neg_pos_ratio)
+    weights = tf.cast(ind < n_neg[:, None], tf.float32)
     losses = tf.math.top_k(losses, k=max_pos, sorted=True)[0]
     return tf.reduce_sum(weights * losses)

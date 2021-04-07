@@ -312,6 +312,7 @@ class SSDAnchorGenerator(AnchorGenerator):
                  strides,
                  ratios,
                  basesize_ratio_range,
+                 extra_min_ratio=0.07,
                  input_size=300,
                  scale_major=False):
         assert len(strides) == len(ratios)
@@ -330,28 +331,7 @@ class SSDAnchorGenerator(AnchorGenerator):
         sizes = []
         for ratio in range(min_ratio, max_ratio + step + 1, step):
             sizes.append(int(self.input_size * ratio / 100))
-        if self.input_size == 300:
-            if basesize_ratio_range[0] == 0.15:  # SSD300 COCO
-                sizes.insert(0, int(self.input_size * 7 / 100))
-            elif basesize_ratio_range[0] == 0.2:  # SSD300 VOC
-                sizes.insert(0, int(self.input_size * 10 / 100))
-            else:
-                raise ValueError(
-                    'basesize_ratio_range[0] should be either 0.15'
-                    'or 0.2 when input_size is 300, got '
-                    f'{basesize_ratio_range[0]}.')
-        elif self.input_size == 512:
-            if basesize_ratio_range[0] == 0.1:  # SSD512 COCO
-                sizes.insert(0, int(self.input_size * 4 / 100))
-            elif basesize_ratio_range[0] == 0.15:  # SSD512 VOC
-                sizes.insert(0, int(self.input_size * 7 / 100))
-            else:
-                raise ValueError('basesize_ratio_range[0] should be either 0.1'
-                                 'or 0.15 when input_size is 512, got'
-                                 f' {basesize_ratio_range[0]}.')
-        else:
-            raise ValueError('Only support 300 or 512 in SSDAnchorGenerator'
-                             f', got {self.input_size}.')
+        sizes.insert(0, int(self.input_size * extra_min_ratio))
         min_sizes, max_sizes = sizes[:-1], sizes[1:]
 
         anchor_ratios = []

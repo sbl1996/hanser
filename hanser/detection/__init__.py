@@ -93,7 +93,6 @@ def detection_loss(target, preds, box_loss=None, cls_loss=None, box_loss_weight=
 
     cls_losses = cls_loss(cls_t, cls_p, weight=non_ignore, reduction='sum')
     cls_loss = cls_losses / total_pos
-
     return box_loss * box_loss_weight + cls_loss
 
 
@@ -123,11 +122,13 @@ def detect(box_p, cls_p, anchors, iou_threshold=0.5, conf_threshold=0.1, topk=10
 
 def batched_detect(box_p, cls_p, anchors, iou_threshold=0.5,
                    conf_threshold=0.05, topk=200, conf_strategy='softmax',
-                   bbox_std=(1., 1., 1., 1.)):
+                   bbox_std=(1., 1., 1., 1.), label_offset=0):
     if conf_strategy == 'sigmoid':
         scores = tf.sigmoid(cls_p)
     else:
         scores = tf.math.softmax(cls_p, -1)
+    if label_offset:
+        scores = scores[..., label_offset:]
     bboxes = bbox_decode(box_p, anchors, bbox_std)
     bboxes = tf.expand_dims(bboxes, 2)
     bboxes, scores, labels, n_valids = tf.image.combined_non_max_suppression(

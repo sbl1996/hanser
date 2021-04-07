@@ -9,7 +9,7 @@ from hanser.tpu import setup
 from hanser.datasets import prepare
 from hanser.losses import smooth_l1_loss, cross_entropy_ohnm
 from hanser.detection import match_anchors, detection_loss, batched_detect, coords_to_absolute
-from hanser.detection.anchor import SSDAnchorGenerator
+from hanser.detection.anchor import AnchorGenerator
 
 from hanser.datasets.detection.voc import decode
 
@@ -26,17 +26,17 @@ from hanser.train.lr_schedule import CosineLR
 from hanser.train.metrics import MeanMetricWrapper, MeanAveragePrecision
 from hanser.train.cls import SuperLearner
 
-output_size = 512
+output_size = 256
 
-anchor_gen = SSDAnchorGenerator(
+anchor_gen = AnchorGenerator(
     strides=[8, 16, 32, 64, 128],
-    ratios=[[2], [2, 3], [2, 3], [2, 3], [2]],
-    basesize_ratio_range=(0.15, 0.9),
-    extra_min_ratio=0.1,
-    input_size=output_size,
+    ratios=[0.5, 1.0, 2.0],
+    octave_base_scale=4,
+    scales_per_octave=1,
 )
 featmap_sizes = [
-    [64, 64], [32, 32], [16, 16], [8, 8], [4, 4],
+    [32, 32], [16, 16], [8, 8], [4, 4], [2, 2],
+    # [64, 64], [32, 32], [16, 16], [8, 8], [4, 4],
 ]
 
 anchors = anchor_gen.grid_anchors(featmap_sizes)
@@ -48,17 +48,17 @@ def preprocess(example, output_size=(output_size, output_size), max_objects=100,
     mean_rgb = tf.convert_to_tensor([123.68, 116.779, 103.939], tf.float32)
     std_rgb = tf.convert_to_tensor([58.393, 57.12, 57.375], tf.float32)
 
-    if training:
-        image = photo_metric_distortion(image)
-        image, bboxes = random_expand(image, bboxes, 4.0, mean_rgb)
-        image, bboxes, labels, is_difficults = random_sample_crop(
-            image, bboxes, labels, is_difficults)
+    # if training:
+    #     image = photo_metric_distortion(image)
+    #     image, bboxes = random_expand(image, bboxes, 4.0, mean_rgb)
+    #     image, bboxes, labels, is_difficults = random_sample_crop(
+    #         image, bboxes, labels, is_difficults)
 
     image = resize(image, output_size, keep_ratio=False)
     image = normalize(image, mean_rgb, std_rgb)
 
-    if training:
-        image, bboxes = random_hflip(image, bboxes, 0.5)
+    # if training:
+    #     image, bboxes = random_hflip(image, bboxes, 0.5)
 
     bboxes = coords_to_absolute(bboxes, tf.shape(image)[:2])
     box_t, cls_t, ignore = match_anchors(
@@ -75,8 +75,8 @@ def preprocess(example, output_size=(output_size, output_size), max_objects=100,
 
 
 mul = 1
-n_train, n_val = 6, 4
-batch_size, eval_batch_size = 2 * mul, 2
+n_train, n_val = 16, 16
+batch_size, eval_batch_size = 4 * mul, 8
 steps_per_epoch, val_steps = n_train // batch_size, n_val // eval_batch_size
 
 ds_train = tfds.load("voc/2012", split=f"train[:{n_train}]",
@@ -107,7 +107,7 @@ base_lr = 1e-4
 epochs = 60
 lr_schedule = CosineLR(base_lr * mul, steps_per_epoch, epochs, min_lr=0,
                        warmup_min_lr=base_lr, warmup_epoch=5)
-optimizer = SGD(lr_schedule, momentum=0.9, nesterov=True, weight_decay=1e-4)
+optimizer = SGD(lr_schedule, momentum=0.9, nesterov=True, weight_decay=5e-4)
 
 train_metrics = {
     'loss': Mean(),
