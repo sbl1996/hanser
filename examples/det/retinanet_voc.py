@@ -16,7 +16,7 @@ from hanser.transform import normalize
 from hanser.transform.detection import pad_to_fixed_size, random_hflip, random_resize, resize, pad_to, random_crop
 
 from hanser.models.layers import set_defaults
-from hanser.models.backbone.resnet_vd import resnet50
+from hanser.models.backbone.resnet_vd import resnet18
 from hanser.models.detection.retinanet import RetinaNet
 from hanser.models.utils import load_checkpoint
 
@@ -89,8 +89,9 @@ set_defaults({
         'sync': True,
     }
 })
-backbone = resnet50()
-model = RetinaNet(backbone, 128, anchor_gen.num_base_anchors[0], num_classes=20, use_norm=True)
+backbone = resnet18()
+model = RetinaNet(backbone, anchor_gen.num_base_anchors[0], num_classes=20,
+                  feat_channels=64, stacked_convs=2, use_norm=True)
 model.build((None, HEIGHT, WIDTH, 3))
 
 # load_checkpoint()

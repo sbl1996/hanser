@@ -44,10 +44,15 @@ def bbox_decode(pred, anchors, std=(1., 1., 1., 1.)):
 
 def match_anchors(gt_bboxes, gt_labels, anchors, pos_iou_thr=0.5, neg_iou_thr=0.5, min_pos_iou=.0,
                   bbox_std=(1., 1., 1., 1.)):
+    num_gts = tf.shape(gt_bboxes)[0]
+    num_anchors = get_shape(anchors, 0)
+    loc_t = tf.zeros([num_anchors, 4], dtype=tf.float32)
+    cls_t = tf.zeros([num_anchors,], dtype=tf.int32)
+    ignore = tf.fill([num_anchors,], False)
+    if num_gts == 0:
+        return loc_t, cls_t, ignore
     assigned_gt_inds = max_iou_assign(anchors, gt_bboxes, pos_iou_thr, neg_iou_thr, min_pos_iou,
                                       match_low_quality=True, gt_max_assign_all=False)
-
-    num_anchors = get_shape(anchors, 0)
 
     pos = assigned_gt_inds > 0
     ignore = assigned_gt_inds == -1
@@ -59,11 +64,9 @@ def match_anchors(gt_bboxes, gt_labels, anchors, pos_iou_thr=0.5, neg_iou_thr=0.
     assigned_gt_labels = tf.gather(gt_labels, assigned_gt_inds)
     assigned_anchors = tf.gather(anchors, indices)
 
-    loc_t = bbox_encode(assigned_gt_bboxes, assigned_anchors, bbox_std)
-    loc_t = index_put(
-        tf.zeros([num_anchors, 4], dtype=tf.float32), indices, loc_t)
-    cls_t = index_put(
-        tf.zeros([num_anchors,], dtype=tf.int32), indices, assigned_gt_labels)
+    assigned_bboxes = bbox_encode(assigned_gt_bboxes, assigned_anchors, bbox_std)
+    loc_t = index_put(loc_t, indices, assigned_bboxes)
+    cls_t = index_put(cls_t, indices, assigned_gt_labels)
 
     return loc_t, cls_t, pos, ignore
 

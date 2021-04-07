@@ -39,7 +39,7 @@ class ResNet(Model):
                 zero_init_residual=zero_init_residual)
             setattr(self, "layer%d" % (i + 1), layer)
 
-        self.feat_channels = [c * 4 for c in stages]
+        self.feat_channels = [c * block.expansion for c in stages]
 
     def _make_layer(self, block, channels, blocks, stride, dilations=None, **kwargs):
         dilations = dilations or [1] * blocks

@@ -11,14 +11,14 @@ from hanser.models.detection.fpn import FPN
 
 class RetinaNet(Model):
 
-    def __init__(self, backbone, feat_channels, num_anchors, num_classes, use_norm=False):
+    def __init__(self, backbone, num_anchors, num_classes, feat_channels=256, stacked_convs=4, use_norm=False):
         super().__init__()
         self.backbone = backbone
         self.fpn = FPN(backbone.feat_channels[-3:], feat_channels, 2, use_norm)
         if use_norm:
-            self.head = RetinaSepBNHead(feat_channels, feat_channels, 4, 5, num_anchors, num_classes)
+            self.head = RetinaSepBNHead(feat_channels, feat_channels, stacked_convs, 5, num_anchors, num_classes)
         else:
-            self.head = RetinaHead(feat_channels, feat_channels, 4, num_anchors, num_classes)
+            self.head = RetinaHead(feat_channels, feat_channels, stacked_convs, num_anchors, num_classes)
 
     def call(self, x):
         xs = self.backbone(x)

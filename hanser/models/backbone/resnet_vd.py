@@ -1,6 +1,6 @@
 from tensorflow.keras import Sequential, Model
 
-from hanser.models.cifar.resnet_vd import Bottleneck
+from hanser.models.cifar.resnet_vd import BasicBlock, Bottleneck
 from hanser.models.imagenet.stem import ResNetvdStem
 
 
@@ -35,7 +35,7 @@ class ResNet(Model):
                 zero_init_residual=zero_init_residual, avd=avd)
             setattr(self, "layer%d" % (i + 1), layer)
 
-        self.feat_channels = [c * 4 for c in stages]
+        self.feat_channels = [c * block.expansion for c in stages]
 
     def _make_layer(self, block, channels, blocks, stride=1, dilations=None, **kwargs):
         dilations = dilations or [1] * blocks
@@ -56,6 +56,11 @@ class ResNet(Model):
         c5 = self.layer4(c4)
         return c2, c3, c4, c5
 
+def resnet18(**kwargs):
+    return ResNet(BasicBlock, [2, 2, 2, 2], **kwargs)
+
+def resnet34(**kwargs):
+    return ResNet(BasicBlock, [3, 4, 6, 3], **kwargs)
 
 def resnet50(**kwargs):
     return ResNet(Bottleneck, [3, 4, 6, 3], **kwargs)
