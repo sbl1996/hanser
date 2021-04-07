@@ -26,17 +26,17 @@ from hanser.train.lr_schedule import CosineLR
 from hanser.train.metrics import MeanMetricWrapper, MeanAveragePrecision
 from hanser.train.cls import SuperLearner
 
-HEIGHT = WIDTH = 512
+HEIGHT = WIDTH = 256
 
 anchor_gen = AnchorGenerator(
-    strides=[8, 16, 32, 64, 128, 256, 512],
+    strides=[8, 16, 32, 64, 128],
     ratios=[0.5, 1.0, 2.0],
     octave_base_scale=4,
     scales_per_octave=1,
 )
 featmap_sizes = [
-    # [32, 32], [16, 16], [8, 8], [4, 4], [2, 2],
-    [64, 64], [32, 32], [16, 16], [8, 8], [4, 4], [2, 2], [1, 1]
+    [32, 32], [16, 16], [8, 8], [4, 4], [2, 2],
+    # [64, 64], [32, 32], [16, 16], [8, 8], [4, 4], [2, 2], [1, 1]
 ]
 
 anchors = anchor_gen.grid_anchors(featmap_sizes)
@@ -96,8 +96,7 @@ set_defaults({
 })
 
 backbone = resnet18()
-model = SSD(backbone, anchor_gen.num_base_anchors, 21,
-            extra_block_channels=(256, 128))
+model = SSD(backbone, anchor_gen.num_base_anchors, 21, extra_block_channels=(256, 128))
 model.build((None, HEIGHT, WIDTH, 3))
 
 # load_checkpoint()

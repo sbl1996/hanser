@@ -26,10 +26,10 @@ from hanser.train.lr_schedule import CosineLR
 from hanser.train.metrics import MeanMetricWrapper, MeanAveragePrecision
 from hanser.train.cls import SuperLearner
 
-HEIGHT = WIDTH = 512
+HEIGHT = WIDTH = 256
 
 anchor_gen = SSDAnchorGenerator(
-    strides=[8, 16, 32, 64, 128, 256],
+    strides=[8, 16, 32, 64, 128],
     ratios=[[2], [2, 3], [2, 3], [2, 3], [2], [2]],
     basesize_ratio_range=(0.15, 0.9),
     extra_min_ratio=0.07,

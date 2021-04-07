@@ -96,7 +96,7 @@ model = RetinaNet(backbone, anchor_gen.num_base_anchors[0], num_classes=20,
                   feat_channels=64, stacked_convs=2, use_norm=True)
 model.build((None, HEIGHT, WIDTH, 3))
 
-# load_checkpoint()
+# load_checkpoint("./drive/MyDrive/models/ImageNet-86/ckpt", model=backbone)
 
 criterion = detection_loss(box_loss=l1_loss, cls_loss=focal_loss(alpha=0.25, gamma=2.0))
 base_lr = 1e-3

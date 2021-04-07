@@ -25,7 +25,7 @@ class RetinaNet(Model):
 
     def call(self, x):
         xs = self.backbone(x)
-        xs = [xs[i] for i in range(self.backbone_indices)]
+        xs = [xs[i] for i in self.backbone_indices]
         xs = self.fpn(xs)
         preds = self.head(xs)
         return preds
