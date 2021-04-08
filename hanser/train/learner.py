@@ -125,6 +125,9 @@ class Learner(metaclass=ABCMeta):
     def eval_batch(self, batch):
         pass
 
+    def simple_eval_batch(self, batch):
+        pass
+
     def test_batch(self, batch):
         pass
 
@@ -209,7 +212,7 @@ class Learner(metaclass=ABCMeta):
             m.reset_states()
         it = iter(iterator)
         for step in range(steps):
-            target, output = self._predict_step(it)
+            target, output = self._simple_eval_step(next(it))
             output = output_transform(output)
             target = target_transform(target)
             for m in metrics.values():
@@ -236,24 +239,14 @@ class Learner(metaclass=ABCMeta):
         strategy_run(self._strategy, self.eval_batch, (batch,))
 
     @tf.function
-    def _test_step(self, inputs):
-        return strategy_run(self._strategy, self.test_batch, (inputs,))
+    def _simple_eval_step(self, batch):
+        return local_results(
+            strategy_run(self._strategy, self.simple_eval_batch, (batch,)),
+            self._strategy)
 
     @tf.function
-    def _predict_step(self, iterator):
-
-        def step_fn(batch):
-            inputs, target = batch
-            inputs = cast(inputs, self.dtype)
-            preds = self.model(inputs, training=False)
-            preds = cast(preds, tf.float32)
-            return target, preds
-
-        if self._strategy:
-            return local_results(
-                self._strategy, strategy_run(self._strategy, step_fn, (next(iterator),)))
-        else:
-            return step_fn(next(iterator))
+    def _test_step(self, inputs):
+        return strategy_run(self._strategy, self.test_batch, (inputs,))
 
     @tf.function
     def _run_steps(self, step_fn, iterator, n_batches_per_step, n_steps, callbacks, state):

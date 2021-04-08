@@ -43,6 +43,16 @@ class SuperLearner(Learner):
         preds = cast(preds, tf.float32)
         self.update_metrics(self.eval_metrics, target, preds)
 
+    def simple_eval_batch(self, batch):
+        print(batch)
+        model = self.model
+
+        inputs, target = batch
+        inputs = cast(inputs, self.dtype)
+        preds = model(inputs, training=False)
+        preds = cast(preds, tf.float32)
+        return target, preds
+
     def test_batch(self, inputs):
         model = self.model
 
