@@ -5,8 +5,7 @@ from tensorflow.keras import Sequential
 from tensorflow.keras.layers import InputSpec, Softmax, Dropout, Layer
 
 from hanser.models.layers import Conv2d, Norm, Act, GlobalAvgPool
-from tensorflow.python.layers.utils import smart_cond
-
+from hanser.models.smart_module import smart_cond
 
 class PadChannel(Layer):
 

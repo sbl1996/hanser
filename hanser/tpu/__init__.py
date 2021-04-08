@@ -1,9 +1,8 @@
 import os
 import multiprocessing
+from typing import Optional
 
 import tensorflow as tf
-from hanser.ops import misc_concat
-from tensorflow.python.distribute.values import PerReplica
 import tensorflow.keras.mixed_precision.experimental as mixed_precision
 
 
@@ -78,6 +77,7 @@ def get_colab_tpu():
 
 
 def get_colab_runtime_version():
+    # noinspection PyUnresolvedReferences
     from cloud_tpu_client import Client
     tpu_address = os.environ.get("COLAB_TPU_ADDR")
     client = Client(tpu="grpc://" + tpu_address)
@@ -85,10 +85,11 @@ def get_colab_runtime_version():
 
 
 def set_colab_runtime_version(version=tf.__version__):
+    # noinspection PyUnresolvedReferences
     from cloud_tpu_client import Client
     tpu_address = os.environ.get("COLAB_TPU_ADDR")
     client = Client(tpu="grpc://" + tpu_address)
-    client.configure_tpu_version(tf.__version__, restart_type='ifNeeded')
+    client.configure_tpu_version(version, restart_type='ifNeeded')
     client.wait_for_healthy()
 
 
@@ -98,16 +99,48 @@ def auth():
     auth.authenticate_user()
 
 
-def local_results(strategy, values):
-    if isinstance(values, PerReplica):
-        results = strategy.experimental_local_results(values)
-        return misc_concat(results)
-    elif isinstance(values, (list, tuple)):
-        return values.__class__(local_results(strategy, v) for v in values)
-    elif isinstance(values, dict):
-        return {k: local_results(strategy, v) for k, v in values.items()}
+def strategy_run(strategy, fn, args):
+    if strategy is not None:
+        return strategy.run(fn, args=args)
     else:
-        return values
+        return fn(*args)
+
+
+def is_tpu_strategy(strategy):
+    if strategy is None:
+        return False
+    return "TPUStrategy" in type(strategy).__name__
+
+
+def is_mirrored_strategy(strategy):
+    if strategy is None:
+        return False
+    return "MirroredStrategy" in type(strategy).__name__
+
+
+def is_distribute_strategy(strategy):
+    return is_tpu_strategy(strategy) or is_mirrored_strategy(strategy)
+
+
+def parse_strategy(strategy='auto') -> Optional[tf.distribute.Strategy]:
+    if strategy is not None:
+        if strategy == 'auto':
+            strategy = tf.distribute.get_strategy()
+        if not is_distribute_strategy(strategy):
+            strategy = None
+    return strategy
+
+
+def local_results(values, strategy='auto'):
+    if strategy == 'auto':
+        strategy = tf.distribute.get_strategy()
+    def func(x):
+        if "PerReplica" in type(x).__name__:
+            assert is_tpu_strategy(strategy)
+            x = strategy.experimental_local_results(x)
+            return tf.concat(x, axis=0)
+        return x
+    return tf.nest.map_structure(func, values)
 
 
 def set_gpu_thread_mode_and_count(num_gpus, gpu_thread_mode='gpu_private', per_gpu_thread_count=None):

@@ -5,7 +5,7 @@ import pickle
 import numpy as np
 
 import tensorflow as tf
-from tensorflow.python.keras.utils.data_utils import get_file
+from tensorflow.keras.utils import get_file
 
 from hanser.datasets.utils import prepare
 

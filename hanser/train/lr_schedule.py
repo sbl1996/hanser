@@ -3,7 +3,6 @@ import math
 import tensorflow as tf
 
 from tensorflow.keras.optimizers.schedules import LearningRateSchedule
-from tensorflow.python.framework import ops
 
 
 class CosineAnnealingLR(LearningRateSchedule):
@@ -234,8 +233,8 @@ class MultiStepLR(LearningRateSchedule):
 
     def __call__(self, step):
         base_lr = tf.convert_to_tensor(self.base_lr, name="base_lr")
-        boundaries = ops.convert_n_to_tensor(self.boundaries)
-        values = ops.convert_n_to_tensor(self.values)
+        boundaries = [ tf.convert_to_tensor(b) for b in self.boundaries ]
+        values = [ tf.convert_to_tensor(v) for v in self.values ]
 
         dtype = base_lr.dtype
         warmup_min_lr = tf.cast(self.warmup_min_lr, dtype)

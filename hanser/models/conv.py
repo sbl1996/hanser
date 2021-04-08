@@ -1,13 +1,33 @@
-from tensorflow.python.keras.engine.input_spec import InputSpec
-from tensorflow.python.framework import tensor_shape
-from tensorflow.python.keras import backend
-from tensorflow.python.keras import constraints
-from tensorflow.python.keras import initializers
-from tensorflow.python.keras import regularizers
-from tensorflow.python.keras.utils import tf_utils
-from tensorflow.python.keras.utils import conv_utils
-
+import tensorflow as tf
+from tensorflow.keras import InputSpec
+from tensorflow.keras import initializers, regularizers, constraints, backend
 from tensorflow.keras.layers import Conv2D
+
+
+def conv_output_length(input_length, filter_size, padding, stride, dilation=1):
+  """Determines output length of a convolution given input length.
+
+  Arguments:
+      input_length: integer.
+      filter_size: integer.
+      padding: one of "same", "valid", "full", "causal"
+      stride: integer.
+      dilation: dilation rate, integer.
+
+  Returns:
+      The output length (integer).
+  """
+  if input_length is None:
+    return None
+  assert padding in {'same', 'valid', 'full', 'causal'}
+  dilated_filter_size = filter_size + (filter_size - 1) * (dilation - 1)
+  if padding in ['same', 'causal']:
+    output_length = input_length
+  elif padding == 'valid':
+    output_length = input_length - dilated_filter_size + 1
+  elif padding == 'full':
+    output_length = input_length + dilated_filter_size - 1
+  return (output_length + stride - 1) // stride
 
 
 def calc_same_padding(kernel_size, dilation):
@@ -77,7 +97,7 @@ class DepthwiseConv2D(Conv2D):
         if len(input_shape) < 4:
             raise ValueError('Inputs to `DepthwiseConv2D` should have rank 4. '
                              'Received input shape:', str(input_shape))
-        input_shape = tensor_shape.TensorShape(input_shape)
+        input_shape = tf.TensorShape(input_shape)
         channel_axis = self._get_channel_axis()
         if input_shape.dims[channel_axis].value is None:
             raise ValueError('The channel dimension of the inputs to '
@@ -138,7 +158,6 @@ class DepthwiseConv2D(Conv2D):
 
         return outputs
 
-    @tf_utils.shape_type_conversion
     def compute_output_shape(self, input_shape):
         if self.data_format == 'channels_first':
             rows = input_shape[2]
@@ -149,11 +168,11 @@ class DepthwiseConv2D(Conv2D):
             cols = input_shape[2]
             out_filters = input_shape[3] * self.depth_multiplier
 
-        rows = conv_utils.conv_output_length(rows, self.kernel_size[0],
+        rows = conv_output_length(rows, self.kernel_size[0],
                                              self.padding,
                                              self.strides[0],
                                              self.dilation_rate[0])
-        cols = conv_utils.conv_output_length(cols, self.kernel_size[1],
+        cols = conv_output_length(cols, self.kernel_size[1],
                                              self.padding,
                                              self.strides[1],
                                              self.dilation_rate[1])

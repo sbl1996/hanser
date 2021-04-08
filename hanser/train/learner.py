@@ -6,11 +6,11 @@ from datetime import timedelta
 
 import tensorflow as tf
 import tensorflow.keras.mixed_precision.experimental as mixed_precision
-from hanser.tpu import local_results
 from tensorflow.keras.metrics import Metric, Mean
 
 from hhutil.io import fmt_path, eglob, rm, time_now
 
+from hanser.tpu import local_results, parse_strategy, strategy_run, is_distribute_strategy
 from hanser.train.metric_history import MetricHistory
 from hanser.train.callbacks import config_callbacks, log_metrics
 
@@ -32,45 +32,20 @@ def default_metric_transform(x):
         return x[0]
     return x
 
-
-def strategy_run(strategy, fn, args):
-    if strategy is not None:
-        return strategy.run(fn, args=args)
-    else:
-        return fn(*args)
-
-
-def is_tpu_strategy(strategy):
-    if strategy is None:
-        return False
-    return "TPUStrategy" in type(strategy).__name__
-
-
-def is_mirrored_strategy(strategy):
-    if strategy is None:
-        return False
-    return "MirroredStrategy" in type(strategy).__name__
-
-
-def is_distribute_strategy(strategy):
-    return is_tpu_strategy(strategy) or is_mirrored_strategy(strategy)
-
-
-def parse_strategy(strategy='auto') -> Optional[tf.distribute.Strategy]:
-    if strategy is not None:
-        if strategy == 'auto':
-            strategy = tf.distribute.get_strategy()
-        if not is_distribute_strategy(strategy):
-            strategy = None
-    return strategy
-
-
 def is_global_bfloat16():
     return mixed_precision.global_policy().compute_dtype == 'bfloat16'
 
 
 def is_global_float16():
     return mixed_precision.global_policy().compute_dtype == 'float16'
+
+
+def cast(xs, dtype, whiltelist=(tf.int32, tf.int64, tf.bool)):
+    def func(x):
+        if x.dtype != dtype and all(x.dtype != wdtype for wdtype in whiltelist):
+            x = tf.cast(x, dtype)
+        return x
+    return tf.nest.map_structure(func, xs)
 
 
 class Learner(metaclass=ABCMeta):
@@ -443,15 +418,3 @@ class Learner(metaclass=ABCMeta):
                 eval_end = train_end + timedelta(seconds=eval_time)
                 print(f"{str(eval_end)[-8:]} valid - {valid_metric_logs}")
                 start = eval_end
-
-def cast(xs, dtype, whiltelist=(tf.int32, tf.int64)):
-    if isinstance(xs, tf.Tensor):
-        if xs.dtype != dtype and all(xs.dtype != wdtype for wdtype in whiltelist):
-            xs = tf.cast(xs, dtype)
-        return xs
-    elif isinstance(xs, (tuple, list)):
-        return xs.__class__(cast(x, dtype) for x in xs)
-    elif isinstance(xs, dict):
-        return {k: cast(v, dtype) for k, v in xs.items()}
-    else:
-        return xs
