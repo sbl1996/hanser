@@ -44,7 +44,6 @@ class SuperLearner(Learner):
         self.update_metrics(self.eval_metrics, target, preds)
 
     def simple_eval_batch(self, batch):
-        print(batch)
         model = self.model
 
         inputs, target = batch
