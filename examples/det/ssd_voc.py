@@ -29,14 +29,14 @@ from hanser.train.cls import SuperLearner
 HEIGHT = WIDTH = 256
 
 anchor_gen = SSDAnchorGenerator(
-    strides=[8, 16, 32, 64, 128],
+    strides=[8, 16, 32, 64, 128, 256],
     ratios=[[2], [2, 3], [2, 3], [2, 3], [2], [2]],
     basesize_ratio_range=(0.15, 0.9),
     extra_min_ratio=0.07,
     input_size=HEIGHT,
 )
 featmap_sizes = [
-    [64, 64], [32, 32], [16, 16], [8, 8], [4, 4], [2, 2]
+    [32, 32], [16, 16], [8, 8], [4, 4], [2, 2], [1, 1]
 ]
 
 anchors = anchor_gen.grid_anchors(featmap_sizes)
