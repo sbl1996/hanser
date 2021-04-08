@@ -101,7 +101,7 @@ def focal_loss2(labels, logits, gamma=2, beta=1, ignore_label=None):
 
 
 @curry
-def focal_loss(y_true, y_pred, weight=None, alpha=0.25, gamma=2.0, label_smoothing=0.0, eps=1e-6, label_offset=1, reduction='sum'):
+def focal_loss(y_true, y_pred, weight=None, alpha=0.25, gamma=2.0, label_smoothing=0.0, label_offset=1, reduction='sum'):
     if y_pred.shape.ndims - y_true.shape.ndims == 1:
         num_classes = tf.shape(y_pred)[-1]
         y_true = tf.one_hot(y_true, num_classes + label_offset, dtype=tf.float32)[..., 1:]
@@ -112,8 +112,7 @@ def focal_loss(y_true, y_pred, weight=None, alpha=0.25, gamma=2.0, label_smoothi
         focal_weight = focal_weight * (alpha * y_true + (1 - alpha) * (1 - y_true))
     if label_smoothing:
         num_classes = tf.cast(tf.shape(y_true)[-1], y_pred.dtype)
-        y_true_ls = (1. - label_smoothing) * y_true + label_smoothing / num_classes
-        y_true = tf.clip_by_value(y_true_ls, eps, 1. - eps)
+        y_true = (1. - label_smoothing) * y_true + label_smoothing / num_classes
     losses = tf.nn.sigmoid_cross_entropy_with_logits(y_true, y_pred)
     losses = losses * focal_weight
     if losses.shape.ndims - weight.shape.ndims == 1:
@@ -169,3 +168,32 @@ def hard_negative_mining(losses, n_pos, neg_pos_ratio, max_pos=1000):
     weights = tf.cast(ind < n_neg[:, None], tf.float32)
     losses = tf.math.top_k(losses, k=max_pos, sorted=True)[0]
     return tf.reduce_sum(weights * losses)
+
+
+import keras.backend as K
+import tensorflow as tf
+
+
+def categorical_focal_loss_with_label_smoothing(gamma=2.0, alpha=0.25, ls=0.1, classes=4.0):
+
+    def focal_loss(y_true, y_pred):
+        # Define epsilon so that the backpropagation will not result in NaN
+        # for 0 divisor case
+        epsilon = K.epsilon()
+        # Add the epsilon to prediction value
+        # y_pred = y_pred + epsilon
+        # label smoothing
+        y_pred_ls = (1 - ls) * y_pred + ls / classes
+        # Clip the prediction value
+        y_pred_ls = K.clip(y_pred_ls, epsilon, 1.0 - epsilon)
+        # Calculate cross entropy
+        cross_entropy = -y_true * K.log(y_pred_ls)
+        # Calculate weight that consists of  modulating factor and weighting factor
+        weight = alpha * y_true * K.pow((1 - y_pred_ls), gamma)
+        # Calculate focal loss
+        loss = weight * cross_entropy
+        # Sum the losses in mini_batch
+        loss = K.sum(loss, axis=1)
+        return loss
+
+    return focal_loss
