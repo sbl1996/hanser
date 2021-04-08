@@ -7,7 +7,7 @@ import tensorflow_datasets as tfds
 
 from hanser.tpu import setup
 from hanser.datasets import prepare
-from hanser.losses import smooth_l1_loss, cross_entropy_ohnm
+from hanser.losses import smooth_l1_loss, cross_entropy_det
 from hanser.detection import match_anchors, detection_loss, batched_detect, coords_to_absolute
 from hanser.detection.anchor import SSDAnchorGenerator
 
@@ -101,7 +101,7 @@ model.build((None, HEIGHT, WIDTH, 3))
 
 # load_checkpoint()
 
-criterion = detection_loss(box_loss=smooth_l1_loss, cls_loss=cross_entropy_ohnm(neg_pos_ratio=3.0))
+criterion = detection_loss(box_loss=smooth_l1_loss, cls_loss=cross_entropy_det(neg_pos_ratio=3.0))
 base_lr = 1e-4
 epochs = 60
 lr_schedule = CosineLR(base_lr * mul, steps_per_epoch, epochs, min_lr=0,

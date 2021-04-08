@@ -146,7 +146,7 @@ def l1_loss(y_true, y_pred, weight=None, reduction='sum'):
     return reduce_loss(losses, weight, reduction)
 
 @curry
-def cross_entropy_ohnm(y_true, y_pred, weight=None, neg_pos_ratio=None, reduction='sum'):
+def cross_entropy_det(y_true, y_pred, weight=None, neg_pos_ratio=None, reduction='sum'):
     losses = tf.nn.sparse_softmax_cross_entropy_with_logits(y_true, y_pred)
     if neg_pos_ratio is None:
         return reduce_loss(losses, weight, reduction)
