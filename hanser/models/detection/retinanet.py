@@ -11,7 +11,7 @@ from hanser.models.detection.fpn import FPN
 
 class RetinaNet(Model):
 
-    def __init__(self, backbone, num_anchors, num_classes, feat_channels=256, stacked_convs=4, use_norm=False,
+    def __init__(self, backbone, num_anchors, num_classes, feat_channels=256, stacked_convs=4, use_norm=True,
                  backbone_indices=(1, 2, 3)):
         super().__init__()
         self.backbone = backbone

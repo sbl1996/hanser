@@ -22,22 +22,41 @@ output_size = (HEIGHT, WIDTH)
 
 mean_rgb = tf.convert_to_tensor([123.68, 116.779, 103.939], tf.float32)
 
-ds1 = ds[:3]
+ds1 = ds[:10]
 
 d = random.choice(ds1)
-image, bboxes, labels, is_difficults, image_id = decode(d)
-image = photo_metric_distortion(image)
-image, bboxes = random_expand(image, bboxes, 4.0, mean_rgb)
-image, bboxes, labels, is_difficults = random_sample_crop(
-    image, bboxes, labels, is_difficults)
-image = resize(image, output_size, keep_ratio=False)
+
+# d = ds1[9]
+
+# br = False
+# i = 0
+# while not br:
+#     print(i)
+image, objects, image_id = decode(d)
+objects1 = objects
+# image = photo_metric_distortion(image)
+# image, objects = random_expand(image, objects, 4.0, mean_rgb)
+image, objects = random_sample_crop(image, objects)
+objects2 = objects
+# image = resize(image, output_size, keep_ratio=False)
+image, objects = random_hflip(image, objects)
 
 # image = random_resize(image, output_size, (0.8, 1.2))
-# image, bboxes = random_crop(image, bboxes, labels, is_difficults, output_size)
-# image, bboxes = random_hflip(image, bboxes)
+# image, objects = random_crop(image, objects, output_size)
 # image = normalize(image, [123.68, 116.779, 103.939], [58.393, 57.12, 57.375])
-# image, bboxes = pad_to(image, bboxes, output_size)
-im_b = tf.image.draw_bounding_boxes(image[None], bboxes[None], np.array(random_colors(bboxes.shape[0])) * 255)[0]
+image, objects = pad_to(image, objects, output_size)
+bboxes = objects['bbox']
+im_b = tf.image.draw_bounding_boxes(image[None], bboxes[None], np.array(random_colors(bboxes.shape[0])) * 255)[
+    0]
 im = Image.fromarray(im_b.numpy().astype(np.uint8))
 im.show()
-
+    # bboxes = objects['bbox']
+    # for b in objects['bbox']:
+    #     if tf.reduce_all(b == [0., 1., 0, 1]).numpy():
+    #         br = True
+    #         im_b = tf.image.draw_bounding_boxes(image[None], bboxes[None], np.array(random_colors(bboxes.shape[0])) * 255)[
+    #             0]
+    #         im = Image.fromarray(im_b.numpy().astype(np.uint8))
+    #         im.show()
+    #         break
+    # i += 1

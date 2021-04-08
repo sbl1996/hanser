@@ -10,7 +10,9 @@ def decode(example):
     image_id = tf.where(str_len == 10, image_id + 10000, image_id)
 
     image = tf.cast(example['image'], tf.float32)
-    objects = example['objects']
-    bboxes, labels, is_difficults = objects['bbox'], objects['label'] + 1, objects['is_difficult']
-    labels = tf.cast(labels, tf.int32)
-    return image, bboxes, labels, is_difficults, image_id
+    objects = {
+        "bbox": example['objects']['bbox'],
+        'label': tf.cast(example['objects']['label'] + 1, tf.int32),
+        'is_difficult': example['objects']['is_difficult']
+    }
+    return image, objects, image_id

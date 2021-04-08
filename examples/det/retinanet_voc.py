@@ -45,28 +45,28 @@ flat_anchors = tf.concat(anchors, axis=0)
 
 @curry
 def preprocess(example, output_size=(HEIGHT, WIDTH), max_objects=100, training=True):
-    image, bboxes, labels, is_difficults, image_id = decode(example)
+    image, objects, image_id = decode(example)
 
     if training:
         image = random_resize(image, output_size, ratio_range=(0.8, 1.2))
-        image, bboxes = random_crop(image, bboxes, labels, is_difficults, output_size)
-        image, bboxes = random_hflip(image, bboxes, 0.5)
+        image, objects = random_crop(image, objects, output_size)
+        image, objects = random_hflip(image, objects, 0.5)
     else:
         image = resize(image, output_size)
 
     image = normalize(image, [123.68, 116.779, 103.939], [58.393, 57.12, 57.375])
-    image, bboxes = pad_to(image, bboxes, output_size)
+    image, objects = pad_to(image, objects, output_size)
 
+    bboxes, labels, is_difficults = get(['bbox', 'label', 'is_difficult'], objects)
     bboxes = coords_to_absolute(bboxes, tf.shape(image)[:2])
-
     box_t, cls_t, ignore = match_anchors(
         bboxes, labels, flat_anchors, pos_iou_thr=0.5, neg_iou_thr=0.4, min_pos_iou=0.)
 
-    bboxes = pad_to_fixed_size(bboxes, 0, [max_objects, 4])
-    labels = pad_to_fixed_size(labels, 0, [max_objects])
-    is_difficults = pad_to_fixed_size(is_difficults, 0, [max_objects])
+    bboxes = pad_to_fixed_size(bboxes, max_objects)
+    labels = pad_to_fixed_size(labels, max_objects)
+    is_difficults = pad_to_fixed_size(is_difficults, max_objects)
 
-    image = tf.cast(image, tf.bfloat16)
+    # image = tf.cast(image, tf.bfloat16)
     return image, {'box_t': box_t, 'cls_t': cls_t, 'ignore': ignore,
                    'bbox': bboxes, 'label': labels, 'is_difficult': is_difficults,
                    'image_id': image_id}

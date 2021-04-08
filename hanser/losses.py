@@ -156,6 +156,7 @@ def cross_entropy_ohnm(y_true, y_pred, weight=None, neg_pos_ratio=None, reductio
 
     pos = tf.cast(y_true != 0, y_pred.dtype)
     loss_pos = reduce_loss(losses, pos, reduction)
+
     n_pos = tf.reduce_sum(pos, axis=1)
     neg = 1. - pos
     loss_neg = hard_negative_mining(losses * neg, n_pos, neg_pos_ratio)
