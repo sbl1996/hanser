@@ -141,9 +141,11 @@ def smooth_l1_loss(y_true, y_pred, weight=None, beta=1.0, reduction='sum'):
 
 
 @curry
-def l1_loss(y_true, y_pred, weight=None, reduction='sum'):
+def l1_loss(y_true, y_pred, weight=None, clip_value=10, reduction='sum'):
     losses = tf.math.abs(y_pred - y_true)
+    losses = tf.clip_by_value(losses, 0, clip_value)
     return reduce_loss(losses, weight, reduction)
+
 
 @curry
 def cross_entropy_det(y_true, y_pred, weight=None, neg_pos_ratio=None, reduction='sum'):
