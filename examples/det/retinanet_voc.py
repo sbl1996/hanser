@@ -112,21 +112,26 @@ eval_metrics = {
     'loss': MeanMetricWrapper(criterion),
 }
 
+def output_transform(output):
+    box_p, cls_p = get(['box_p', 'cls_p'], output)
+    return batched_detect(box_p, cls_p, flat_anchors, iou_threshold=0.5,
+                          conf_threshold=0.05, conf_strategy='sigmoid')
+
+local_eval_metrics = {
+    'loss': MeanMetricWrapper(criterion),
+    'mAP': MeanAveragePrecision(output_transform=output_transform),
+}
+
 
 learner = SuperLearner(
     model, criterion, optimizer,
     train_metrics=train_metrics, eval_metrics=eval_metrics,
     work_dir=f"./models")
 
-def output_transform(output):
-    box_p, cls_p = get(['box_p', 'cls_p'], output)
-    return batched_detect(box_p, cls_p, flat_anchors, iou_threshold=0.5,
-                          conf_threshold=0.05, conf_strategy='sigmoid')
 
 learner.fit(
-    ds_train, epochs, ds_val, val_freq=1,
+    ds_train, 15, ds_val, val_freq=1,
     steps_per_epoch=steps_per_epoch, val_steps=val_steps,
-    extra_metrics={'mAP': MeanAveragePrecision()},
-    extra_output_transform=output_transform,
-    extra_eval_freq=1,
+    local_eval_metrics=local_eval_metrics,
+    local_eval_freq=[(0, 3), (6, 6), (12, 1)],
 )

@@ -1,4 +1,5 @@
 from abc import ABCMeta
+from bisect import bisect_right
 from typing import Sequence, Mapping, Optional
 
 from dateutil.parser import parse
@@ -13,6 +14,31 @@ from hhutil.io import fmt_path, eglob, rm, time_now
 from hanser.tpu import local_results, parse_strategy, strategy_run, is_distribute_strategy
 from hanser.train.metric_history import MetricHistory
 from hanser.train.callbacks import config_callbacks, log_metrics
+
+
+def validate_freq(freqs):
+    if isinstance(freqs, list):
+        assert all([isinstance(f, tuple) and len(f) == 2 for f in freqs])
+        start_epochs = [f[0] for f in freqs]
+        assert start_epochs[0] == 0
+        for i in range(1, len(start_epochs)):
+            assert start_epochs[i - 1] < start_epochs[i]
+
+
+def parse_freq(epoch, freqs):
+    # epochs is 0-based
+    if freqs is None:
+        return False
+    if isinstance(freqs, int):
+        return (epoch + 1) % freqs == 0
+    if isinstance(freqs, list):
+        start_epochs, freqs = zip(*freqs)
+        i = bisect_right(start_epochs, epoch) - 1
+        freq = freqs[i]
+        if i != 0:
+            epoch -= start_epochs[i-1]
+        return (epoch + 1) % freq == 0
+    return True
 
 
 def find_most_recent(work_dir, pattern):
@@ -54,8 +80,7 @@ class Learner(metaclass=ABCMeta):
                  train_metrics: Mapping[str, Metric],
                  eval_metrics: Mapping[str, Metric], work_dir,
                  grad_clip_norm=0.0, multiple_steps=True, xla_compile=False,
-                 target_metric_transform=default_metric_transform,
-                 output_metric_transform=default_metric_transform,
+                 output_transform=default_metric_transform,
                  n_batches_per_step=None):
         if not isinstance(optimizers, Sequence):
             optimizers = [optimizers]
@@ -80,8 +105,7 @@ class Learner(metaclass=ABCMeta):
         self.grad_clip_norm = grad_clip_norm
         self.multiple_steps = multiple_steps
         self.xla_compile = xla_compile
-        self.target_metric_transform = target_metric_transform
-        self.output_metric_transform = output_metric_transform
+        self.output_transform = output_transform
 
         self._log_dir = self.work_dir / "runs"
         self._writer = None
@@ -146,18 +170,15 @@ class Learner(metaclass=ABCMeta):
         for m in modes:
             self.set_state(k, v, m)
 
+
     def fit(self, ds_train, max_epochs, ds_val=None, val_freq=1,
             steps_per_epoch=None, val_steps=None, save_freq=None, callbacks=None,
-            reuse_train_iterator=False, extra_metrics=None, extra_eval_freq=None,
-            extra_output_transform=default_metric_transform,
-            extra_target_transform=default_metric_transform):
+            reuse_train_iterator=False, local_eval_metrics=None, local_eval_freq=None):
 
         steps_per_epoch = steps_per_epoch or len(ds_train)
         steps_per_epoch = tf.convert_to_tensor(steps_per_epoch, dtype=tf.int32)
 
-        do_eval = ds_val is not None
-        if do_eval:
-            self._val_freq = val_freq
+        if ds_val is not None:
             val_steps = val_steps or len(ds_val)
             val_steps = tf.convert_to_tensor(val_steps, dtype=tf.int32)
 
@@ -189,38 +210,37 @@ class Learner(metaclass=ABCMeta):
             self._run_epoch(self._train_it, steps_per_epoch, cbks, 'train')
             cbks.after_epoch(state)
 
-            if do_eval and (epoch + 1) % self._val_freq == 0:
+            do_local_eval = local_eval_metrics and parse_freq(epoch, local_eval_freq)
+            do_eval = ds_val is not None and (not do_local_eval) and parse_freq(epoch, val_freq)
+
+            if do_eval:
                 state = self._state['eval']
                 state['metrics'] = {}
                 cbks.begin_eval(state)
                 self._run_epoch(iter(ds_val), val_steps, cbks, 'eval')
                 cbks.after_eval(state)
 
-            if extra_metrics and (epoch + 1) % extra_eval_freq == 0:
-                self.evaluate_extra(ds_val, val_steps, extra_metrics,
-                              extra_output_transform, extra_target_transform)
+            if do_local_eval:
+                self.evaluate_local(ds_val, val_steps, local_eval_metrics)
 
             if self._terminated:
                 print("Terminated at epoch %d" % (epoch + 1))
                 break
         cbks.after_train(self._state['train'])
 
-    def evaluate_extra(self, iterator, steps, metrics,
-                       output_transform=default_metric_transform,
-                       target_transform=default_metric_transform):
+    def evaluate_local(self, iterator, steps, metrics):
         for m in metrics.values():
             m.reset_states()
         it = iter(iterator)
         for step in range(steps):
-            target, output = self._simple_eval_step(next(it))
-            output = output_transform(output)
-            target = target_transform(target)
+            y_true, y_pred = self._simple_eval_step(next(it))
             for m in metrics.values():
-                m.update_state(target, output, None)
+                m.update_state(y_true, y_pred, None)
         metric_results = {}
         for k, m in metrics.items():
             metric_results[k] = m.result().numpy()
-        log_metrics('extra', metric_results, self.epoch, verbose=self._verbose)
+        log_metrics('eval', metric_results, self.epoch, stage_name='valid',
+                    metric_history=self.metric_history, verbose=self._verbose)
 
     @tf.function
     def _xla_train_step(self, batch):
@@ -271,8 +291,7 @@ class Learner(metaclass=ABCMeta):
             callbacks.after_batch(state)
 
     def update_metrics(self, metrics, y_true, y_pred, per_example_loss=None):
-        y_true = self.target_metric_transform(y_true)
-        y_pred = self.output_metric_transform(y_pred)
+        y_pred = self.output_transform(y_pred)
         for name, metric in metrics.items():
             if 'loss' in name and type(metric) == Mean:
                 metric.update_state(per_example_loss)
@@ -360,14 +379,18 @@ class Learner(metaclass=ABCMeta):
             else:
                 optimizer.apply_gradients(zip(grads, trainable_variables))
 
-    def save(self):
-        files = list(eglob(self.work_dir, "ckpt.*"))
+    def save(self, save_dir=None):
+        if save_dir is None:
+            save_dir = self.work_dir
+        else:
+            save_dir = fmt_path(save_dir)
+        files = list(eglob(save_dir, "ckpt.*"))
         if len(files) != 0:
             for f in files:
                 f.write_bytes(b'')
                 rm(f)
 
-        save_path = str(self.work_dir / "ckpt")
+        save_path = str(save_dir / "ckpt")
         ckpt, ckpt_options = self._make_ckpt()
         path = ckpt.write(save_path, ckpt_options)
         print('Save learner to %s' % path)

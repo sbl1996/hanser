@@ -103,17 +103,20 @@ class CrossEntropy(MeanMetricWrapper):
 
 class MeanAveragePrecision:
 
-    def __init__(self, iou_threshold=0.5, interpolation='11point', ignore_difficult=True, class_names=None):
+    def __init__(self, iou_threshold=0.5, interpolation='11point', ignore_difficult=True, class_names=None, output_transform=None):
 
         self.iou_threshold = iou_threshold
         self.interpolation = interpolation
         self.ignore_difficult = ignore_difficult
         self.class_names = class_names
+        self.output_transform = output_transform
 
         self.gts = []
         self.dts = []
 
     def update_state(self, y_true, y_pred, sample_weight=None):
+        if self.output_transform is not None:
+            y_pred = self.output_transform(y_pred)
 
         all_dt_bboxes, all_dt_classes, all_dt_scores, all_dt_n_valids = [
             t.numpy() for t in get(['bbox', 'label', 'score', 'n_valid'], y_pred)
