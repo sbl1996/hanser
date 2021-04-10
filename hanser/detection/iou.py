@@ -107,7 +107,7 @@ def bbox_iou(bboxes1, bboxes2, mode='iou', is_aligned=False, eps=1e-6):
     if mode == 'iou':
         return ious
     # calculate gious
-    enclose_wh = (enclosed_rb - enclosed_lt).clamp(min=0)
+    enclose_wh = tf.maximum(enclosed_rb - enclosed_lt, 0)
     enclose_area = enclose_wh[..., 0] * enclose_wh[..., 1]
     enclose_area = tf.maximum(enclose_area, eps)
     gious = ious - (enclose_area - union) / enclose_area

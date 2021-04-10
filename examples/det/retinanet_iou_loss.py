@@ -8,7 +8,7 @@ import tensorflow_datasets as tfds
 from hanser.tpu import setup
 from hanser.datasets import prepare
 from hanser.losses import l1_loss, focal_loss, iou_loss
-from hanser.detection import match_anchors, detection_loss, postprocess, coords_to_absolute, bbox_decode
+from hanser.detection import match_anchors, detection_loss, postprocess, coords_to_absolute
 from hanser.detection.anchor import AnchorGenerator
 
 from hanser.datasets.detection.voc import decode
@@ -98,7 +98,7 @@ model.build((None, HEIGHT, WIDTH, 3))
 
 # load_checkpoint("./drive/MyDrive/models/ImageNet-86/ckpt", model=backbone)
 
-criterion = detection_loss(box_loss=iou_loss, cls_loss=focal_loss(alpha=0.25, gamma=2.0),
+criterion = detection_loss(box_loss=iou_loss(mode='giou'), cls_loss=focal_loss(alpha=0.25, gamma=2.0),
                            encode_bbox=False, decode_bbox=True, gt_bbox_as_target=True)
 base_lr = 0.025
 epochs = 60
