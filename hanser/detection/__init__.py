@@ -73,13 +73,13 @@ def match_anchors(gt_bboxes, gt_labels, anchors, pos_iou_thr=0.5, neg_iou_thr=0.
 class DetectionLoss():
 
     def __init__(self, box_loss_fn, cls_loss_fn, box_loss_weight=1.,
-                 encode_bbox=True, decode_bbox=False, bbox_std=(1., 1., 1., 1.),
+                 encode_target=True, decode_pred=False, bbox_std=(1., 1., 1., 1.),
                  anchors=None):
         self.box_loss_fn = box_loss_fn
         self.cls_loss_fn = cls_loss_fn
         self.box_loss_weight = box_loss_weight
-        self.encode_bbox = encode_bbox
-        self.decode_bbox = decode_bbox
+        self.encode_target = encode_target
+        self.decode_pred = decode_pred
         self.bbox_std = bbox_std
         self.anchors = anchors
 
@@ -99,10 +99,10 @@ class DetectionLoss():
         if anchors is not None:
             anchors = tf.convert_to_tensor(anchors, box_p.dtype)
 
-        if self.encode_bbox:
+        if self.encode_target:
             box_t = bbox_encode(box_t, anchors, self.bbox_std)
 
-        if self.decode_bbox:
+        if self.decode_pred:
             box_p = bbox_decode(box_p, anchors, self.bbox_std)
 
         box_loss = self.box_loss_fn(box_t, box_p, weight=pos_weight, reduction='sum') / total_pos
@@ -113,7 +113,7 @@ class DetectionLoss():
 
 @curry
 def detection_loss(target, preds, box_loss, cls_loss, box_loss_weight=1.,
-                   encode_bbox=True, decode_bbox=False, bbox_std=(1., 1., 1., 1.)):
+                   encode_target=True, decode_pred=False, bbox_std=(1., 1., 1., 1.)):
 
     box_t = target['box_t']
     cls_t = target['cls_t']
@@ -127,10 +127,10 @@ def detection_loss(target, preds, box_loss, cls_loss, box_loss_weight=1.,
     pos_weight = to_float(pos)
     total_pos = tf.reduce_sum(pos_weight) + 1
 
-    if encode_bbox:
+    if encode_target:
         box_t = bbox_encode(box_t, anchors, bbox_std)
 
-    if decode_bbox:
+    if decode_pred:
         box_p = bbox_decode(box_p, anchors, bbox_std)
 
     box_loss = box_loss(box_t, box_p, weight=pos_weight, reduction='sum') / total_pos
