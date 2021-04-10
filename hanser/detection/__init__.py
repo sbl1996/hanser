@@ -70,9 +70,48 @@ def match_anchors(gt_bboxes, gt_labels, anchors, pos_iou_thr=0.5, neg_iou_thr=0.
     return box_t, cls_t, ignore
 
 
+class DetectionLoss():
+
+    def __init__(self, box_loss_fn, cls_loss_fn, box_loss_weight=1.,
+                 encode_bbox=True, decode_bbox=False, bbox_std=(1., 1., 1., 1.),
+                 anchors=None):
+        self.box_loss_fn = box_loss_fn
+        self.cls_loss_fn = cls_loss_fn
+        self.box_loss_weight = box_loss_weight
+        self.encode_bbox = encode_bbox
+        self.decode_bbox = decode_bbox
+        self.bbox_std = bbox_std
+        self.anchors = anchors
+
+    def __call__(self, target, preds):
+        box_t = target['box_t']
+        cls_t = target['cls_t']
+        non_ignore = to_float(~target['ignore'])
+
+        box_p = preds['box_p']
+        cls_p = preds['cls_p']
+
+        pos = cls_t != 0
+        pos_weight = to_float(pos)
+        total_pos = tf.reduce_sum(pos_weight) + 1
+
+        anchors = tf.convert_to_tensor(self.anchors, box_p.dtype)
+
+        if self.encode_bbox:
+            box_t = bbox_encode(box_t, anchors, self.bbox_std)
+
+        if self.decode_bbox:
+            box_p = bbox_decode(box_p, anchors, self.bbox_std)
+
+        box_loss = self.box_loss_fn(box_t, box_p, weight=pos_weight, reduction='sum') / total_pos
+
+        cls_loss = self.cls_loss_fn(cls_t, cls_p, weight=non_ignore, reduction='sum') / total_pos
+        return box_loss * self.box_loss_weight + cls_loss
+
+
 @curry
 def detection_loss(target, preds, box_loss, cls_loss, box_loss_weight=1.,
-                   encode_bbox=True, decode_bbox=False, bbox_std=(1., 1., 1., 1.), gt_bbox_as_target=False):
+                   encode_bbox=True, decode_bbox=False, bbox_std=(1., 1., 1., 1.)):
 
     box_t = target['box_t']
     cls_t = target['cls_t']
@@ -86,20 +125,13 @@ def detection_loss(target, preds, box_loss, cls_loss, box_loss_weight=1.,
     pos_weight = to_float(pos)
     total_pos = tf.reduce_sum(pos_weight) + 1
 
-    box_losses_weight = pos_weight
-
     if encode_bbox:
         box_t = bbox_encode(box_t, anchors, bbox_std)
 
     if decode_bbox:
         box_p = bbox_decode(box_p, anchors, bbox_std)
 
-    if gt_bbox_as_target:
-        box_t = target['bbox']      # (batch_size, n_gts, 4)
-        labels = target['label']    # (batch_size, n_gts)
-        box_losses_weight = to_float((labels != 0)[:, :, None] & pos[:, None, :])
-
-    box_loss = box_loss(box_t, box_p, weight=box_losses_weight, reduction='sum') / total_pos
+    box_loss = box_loss(box_t, box_p, weight=pos_weight, reduction='sum') / total_pos
 
     cls_loss = cls_loss(cls_t, cls_p, weight=non_ignore, reduction='sum') / total_pos
     return box_loss * box_loss_weight + cls_loss

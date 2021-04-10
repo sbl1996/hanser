@@ -8,7 +8,7 @@ import tensorflow_datasets as tfds
 from hanser.tpu import setup
 from hanser.datasets import prepare
 from hanser.losses import l1_loss, focal_loss, iou_loss
-from hanser.detection import match_anchors, detection_loss, postprocess, coords_to_absolute
+from hanser.detection import match_anchors, DetectionLoss, postprocess, coords_to_absolute
 from hanser.detection.anchor import AnchorGenerator
 
 from hanser.datasets.detection.voc import decode
@@ -67,7 +67,7 @@ def preprocess(example, output_size=(HEIGHT, WIDTH), max_objects=100, training=T
     is_difficults = pad_to_fixed_size(is_difficults, max_objects)
 
     # image = tf.cast(image, tf.bfloat16)
-    return image, {'box_t': box_t, 'cls_t': cls_t, 'ignore': ignore, 'anchor': flat_anchors,
+    return image, {'box_t': box_t, 'cls_t': cls_t, 'ignore': ignore,
                    'bbox': bboxes, 'label': labels, 'is_difficult': is_difficults,
                    'image_id': image_id}
 
@@ -98,8 +98,12 @@ model.build((None, HEIGHT, WIDTH, 3))
 
 # load_checkpoint("./drive/MyDrive/models/ImageNet-86/ckpt", model=backbone)
 
-criterion = detection_loss(box_loss=iou_loss(mode='giou'), cls_loss=focal_loss(alpha=0.25, gamma=2.0),
-                           encode_bbox=False, decode_bbox=True, gt_bbox_as_target=True)
+
+criterion = DetectionLoss(
+    box_loss_fn=iou_loss, cls_loss_fn=focal_loss(alpha=0.25, gamma=2.0),
+    encode_bbox=False, decode_bbox=True, anchors=flat_anchors.numpy(), bbox_std=(0.1, 0.1, 0.2, 0.2),
+)
+
 base_lr = 0.0025
 epochs = 60
 lr_schedule = CosineLR(base_lr * mul, steps_per_epoch, epochs, min_lr=0,
@@ -116,7 +120,7 @@ eval_metrics = {
 def output_transform(output):
     box_p, cls_p = get(['box_p', 'cls_p'], output)
     return postprocess(box_p, cls_p, flat_anchors, iou_threshold=0.5,
-                       score_threshold=0.05, use_sigmoid=True)
+                       score_threshold=0.05, use_sigmoid=True, bbox_std=(0.1, 0.1, 0.2, 0.2))
 
 local_eval_metrics = {
     'loss': MeanMetricWrapper(criterion),
