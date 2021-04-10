@@ -100,7 +100,7 @@ model.build((None, HEIGHT, WIDTH, 3))
 
 
 criterion = DetectionLoss(
-    box_loss_fn=iou_loss, cls_loss_fn=focal_loss(alpha=0.25, gamma=2.0),
+    box_loss_fn=iou_loss(mode='ciou'), cls_loss_fn=focal_loss(alpha=0.25, gamma=2.0),
     encode_bbox=False, decode_bbox=True, anchors=flat_anchors.numpy(), bbox_std=(0.1, 0.1, 0.2, 0.2),
 )
 

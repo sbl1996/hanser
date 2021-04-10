@@ -1,3 +1,4 @@
+import math
 import tensorflow as tf
 
 
@@ -9,8 +10,8 @@ def bbox_iou(bboxes1, bboxes2, mode='iou', is_aligned=False, eps=1e-6):
     pair of bboxes1 and bboxes2.
 
     Args:
-        bboxes1 (Tensor): shape (B, m, 4) in <x1, y1, x2, y2> format or empty.
-        bboxes2 (Tensor): shape (B, n, 4) in <x1, y1, x2, y2> format or empty.
+        bboxes1 (Tensor): shape (B, m, 4) in <y1, x1, y2, x2> format or empty.
+        bboxes2 (Tensor): shape (B, n, 4) in <y1, x1, y2, x2> format or empty.
             B indicates the batch dim, in shape (B1, B2, ..., Bn).
             If ``is_aligned `` is ``True``, then m and n must be equal.
         mode (str): "iou" (intersection over union), "iof" (intersection over
@@ -48,10 +49,13 @@ def bbox_iou(bboxes1, bboxes2, mode='iou', is_aligned=False, eps=1e-6):
         >>> assert tuple(bbox_iou(empty, empty).shape) == (0, 0)
     """
 
-    assert mode in ['iou', 'giou'], f'Unsupported mode {mode}'
+    assert mode in ['iou', 'giou', 'diou', 'ciou'], f'Unsupported mode {mode}'
     # Either the boxes are empty or the length of boxes' last dimension is 4
     assert (bboxes1.shape[-1] == 4 or bboxes1.shape[0] == 0)
     assert (bboxes2.shape[-1] == 4 or bboxes2.shape[0] == 0)
+
+    use_enclosed = mode in ['giou', 'diou', 'ciou']
+    use_diou = mode in ['diou', 'ciou']
 
     # Batch dim must be the same
     # Batch dim: (B1, B2, ... Bn)
@@ -69,36 +73,47 @@ def bbox_iou(bboxes1, bboxes2, mode='iou', is_aligned=False, eps=1e-6):
         else:
             return tf.zeros(tf.concat([batch_shape, (rows, cols)], axis=0), dtype=bboxes1.dtype)
 
-    area1 = (bboxes1[..., 2] - bboxes1[..., 0]) * (
-        bboxes1[..., 3] - bboxes1[..., 1])
-    area2 = (bboxes2[..., 2] - bboxes2[..., 0]) * (
-        bboxes2[..., 3] - bboxes2[..., 1])
+    hw1 = bboxes1[..., 2:] - bboxes1[..., :2]
+    hw2 = bboxes2[..., 2:] - bboxes2[..., :2]
+
+    if use_diou:
+        yx1 = (bboxes1[..., :2] + bboxes1[..., 2:]) / 2
+        yx2 = (bboxes2[..., :2] + bboxes2[..., 2:]) / 2
+
+    area1 = hw1[..., 0] * hw1[..., 1]
+    area2 = hw2[..., 0] * hw2[..., 1]
 
     if is_aligned:
-        lt = tf.maximum(bboxes1[..., :2], bboxes2[..., :2])  # [B, rows, 2]
-        rb = tf.minimum(bboxes1[..., 2:], bboxes2[..., 2:])  # [B, rows, 2]
+        tl = tf.maximum(bboxes1[..., :2], bboxes2[..., :2])  # [B, rows, 2]
+        br = tf.minimum(bboxes1[..., 2:], bboxes2[..., 2:])  # [B, rows, 2]
 
-        wh = tf.maximum(rb - lt, 0)  # [B, rows, 2]
-        overlap = wh[..., 0] * wh[..., 1]
+        hw = tf.maximum(br - tl, 0)  # [B, rows, 2]
+        overlap = hw[..., 0] * hw[..., 1]
+
+        if use_diou:
+            diag = l2_norm(yx1 - yx2)
 
         union = area1 + area2 - overlap
-        if mode == 'giou':
-            enclosed_lt = tf.minimum(bboxes1[..., :2], bboxes2[..., :2])
-            enclosed_rb = tf.maximum(bboxes1[..., 2:], bboxes2[..., 2:])
+        if use_enclosed:
+            enclosed_tl = tf.minimum(bboxes1[..., :2], bboxes2[..., :2])
+            enclosed_br = tf.maximum(bboxes1[..., 2:], bboxes2[..., 2:])
     else:
-        lt = tf.maximum(bboxes1[..., :, None, :2],
+        tl = tf.maximum(bboxes1[..., :, None, :2],
                         bboxes2[..., None, :, :2])  # [B, rows, cols, 2]
-        rb = tf.minimum(bboxes1[..., :, None, 2:],
+        br = tf.minimum(bboxes1[..., :, None, 2:],
                         bboxes2[..., None, :, 2:])  # [B, rows, cols, 2]
 
-        wh = tf.maximum(rb - lt, 0)  # [B, rows, cols, 2]
-        overlap = wh[..., 0] * wh[..., 1]
+        hw = tf.maximum(br - tl, 0)  # [B, rows, cols, 2]
+        overlap = hw[..., 0] * hw[..., 1]
+
+        if use_diou:
+            diag = l2_norm(yx1[..., :, None, :] - yx2[..., None, :, :])
 
         union = area1[..., None] + area2[..., None, :] - overlap
-        if mode == 'giou':
-            enclosed_lt = tf.minimum(bboxes1[..., :, None, :2],
+        if use_enclosed:
+            enclosed_tl = tf.minimum(bboxes1[..., :, None, :2],
                                      bboxes2[..., None, :, :2])
-            enclosed_rb = tf.maximum(bboxes1[..., :, None, 2:],
+            enclosed_br = tf.maximum(bboxes1[..., :, None, 2:],
                                      bboxes2[..., None, :, 2:])
 
     eps = tf.constant([eps], dtype=union.dtype)
@@ -107,8 +122,32 @@ def bbox_iou(bboxes1, bboxes2, mode='iou', is_aligned=False, eps=1e-6):
     if mode == 'iou':
         return ious
     # calculate gious
-    enclose_wh = tf.maximum(enclosed_rb - enclosed_lt, 0)
-    enclose_area = enclose_wh[..., 0] * enclose_wh[..., 1]
+    enclose_hw = tf.maximum(enclosed_br - enclosed_tl, 0)
+    if use_diou:
+        enclosed_diag = l2_norm(enclose_hw)
+        enclosed_diag = tf.maximum(enclosed_diag, eps)
+        dious = ious - diag / enclosed_diag
+        if mode == 'diou':
+            dious = tf.clip_by_value(dious, -1.0, 1.0)
+            return dious
+
+        h1, w1 = hw1[..., 0] + eps, hw1[..., 1]
+        h2, w2 = hw2[..., 0] + eps, hw2[..., 1]
+
+        factor = tf.convert_to_tensor(4 / math.pi ** 2, bboxes1.dtype)
+        if is_aligned:
+            v = factor * tf.square(tf.atan(w1 / h1) - tf.atan(w2 / h2))
+        else:
+            v = factor * tf.square(
+                tf.atan(w1 / h1)[..., :, None] - tf.atan(w2 / h2)[..., None, :])
+        cious = dious - v**2 / (1 - ious + v)
+        cious = tf.clip_by_value(cious, -1.0, 1.0)
+        return cious
+    enclose_area = enclose_hw[..., 0] * enclose_hw[..., 1]
     enclose_area = tf.maximum(enclose_area, eps)
     gious = ious - (enclose_area - union) / enclose_area
     return gious
+
+
+def l2_norm(x):
+    return tf.reduce_sum(tf.square(x), axis=-1)
