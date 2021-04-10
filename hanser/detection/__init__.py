@@ -99,11 +99,9 @@ def detection_loss(target, preds, box_loss, cls_loss, box_loss_weight=1.,
         labels = target['label']    # (batch_size, n_gts)
         box_losses_weight = to_float((labels != 0)[:, :, None] & pos[:, None, :])
 
-    box_losses = box_loss(box_t, box_p, weight=box_losses_weight, reduction='sum')
-    box_loss = box_losses / total_pos
+    box_loss = box_loss(box_t, box_p, weight=box_losses_weight, reduction='sum') / total_pos
 
-    cls_losses = cls_loss(cls_t, cls_p, weight=non_ignore, reduction='sum')
-    cls_loss = cls_losses / total_pos
+    cls_loss = cls_loss(cls_t, cls_p, weight=non_ignore, reduction='sum') / total_pos
     return box_loss * box_loss_weight + cls_loss
 
 

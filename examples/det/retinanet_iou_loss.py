@@ -47,12 +47,12 @@ flat_anchors = tf.concat(anchors, axis=0)
 def preprocess(example, output_size=(HEIGHT, WIDTH), max_objects=100, training=True):
     image, objects, image_id = decode(example)
 
-    if training:
-        image = random_resize(image, output_size, ratio_range=(0.8, 1.2))
-        image, objects = random_crop(image, objects, output_size)
-        image, objects = random_hflip(image, objects, 0.5)
-    else:
-        image = resize(image, output_size)
+    # if training:
+        # image = random_resize(image, output_size, ratio_range=(0.8, 1.2))
+        # image, objects = random_crop(image, objects, output_size)
+        # image, objects = random_hflip(image, objects, 0.5)
+    # else:
+    image = resize(image, output_size)
 
     image = normalize(image, [123.68, 116.779, 103.939], [58.393, 57.12, 57.375])
     image, objects = pad_to(image, objects, output_size)
@@ -100,7 +100,7 @@ model.build((None, HEIGHT, WIDTH, 3))
 
 criterion = detection_loss(box_loss=iou_loss(mode='giou'), cls_loss=focal_loss(alpha=0.25, gamma=2.0),
                            encode_bbox=False, decode_bbox=True, gt_bbox_as_target=True)
-base_lr = 0.025
+base_lr = 0.0025
 epochs = 60
 lr_schedule = CosineLR(base_lr * mul, steps_per_epoch, epochs, min_lr=0,
                        warmup_min_lr=base_lr, warmup_epoch=5)
