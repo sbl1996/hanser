@@ -2,12 +2,13 @@ import colorsys
 import random
 
 from hanser.detection.assign import max_iou_assign
+from hanser.detection.iou import bbox_iou
 from toolz import curry
 
 import numpy as np
 import tensorflow as tf
 from hanser.losses import focal_loss, l1_loss
-from hanser.ops import index_put, to_float, get_shape
+from hanser.ops import index_put, to_float, get_shape, batch_map_fn
 
 
 def coords_to_absolute(bboxes, size):
@@ -29,8 +30,8 @@ def bbox_encode(bboxes, anchors, std=(1., 1., 1., 1.)):
 
 def bbox_decode(pred, anchors, std=(1., 1., 1., 1.)):
 
-    anchors_yx = (anchors[:, :2] + anchors[:, 2:]) / 2
-    anchors_hw = anchors[:, 2:] - anchors[:, :2]
+    anchors_yx = (anchors[..., :2] + anchors[..., 2:]) / 2
+    anchors_hw = anchors[..., 2:] - anchors[..., :2]
 
     std = tf.constant(std, dtype=pred.dtype)
     pred = pred * std
@@ -120,19 +121,36 @@ def detect(box_p, cls_p, anchors, iou_threshold=0.5, conf_threshold=0.1, topk=10
     return dets
 
 
-def batched_detect(box_p, cls_p, anchors, iou_threshold=0.5,
-                   conf_threshold=0.05, topk=200, conf_strategy='softmax',
-                   bbox_std=(1., 1., 1., 1.), label_offset=0):
-    if conf_strategy == 'sigmoid':
-        scores = tf.sigmoid(cls_p)
+@tf.function
+def batched_detect(bbox_preds, cls_scores, anchors, nms_pre=5000, iou_threshold=0.5,
+                    score_threshold=0.05, topk=200, soft_nms_sigma=0., use_sigmoid=False,
+                    bbox_std=(1., 1., 1., 1.), label_offset=0):
+    if use_sigmoid:
+        scores = tf.sigmoid(cls_scores)
     else:
-        scores = tf.math.softmax(cls_p, -1)
-    if label_offset:
-        scores = scores[..., label_offset:]
-    bboxes = bbox_decode(box_p, anchors, bbox_std)
+        scores = tf.math.softmax(cls_scores, -1)
+    scores = scores[..., label_offset:]
+
+    if nms_pre < anchors.shape[0]:
+        max_scores = tf.reduce_max(scores, axis=-1)
+        idx = tf.math.top_k(max_scores, nms_pre)[1]  # (batch_size, nms_pre)
+        bbox_preds = tf.gather(bbox_preds, idx, axis=1, batch_dims=1)
+        scores = tf.gather(scores, idx, axis=1, batch_dims=1)
+        anchors = tf.gather(anchors, idx, axis=0, batch_dims=0)
+
+    bboxes = bbox_decode(bbox_preds, anchors, bbox_std)
+
     bboxes = tf.expand_dims(bboxes, 2)
+
     bboxes, scores, labels, n_valids = tf.image.combined_non_max_suppression(
-        bboxes, scores, 100, topk, iou_threshold, conf_threshold, clip_boxes=False)
+        bboxes, scores, 100, topk, iou_threshold, score_threshold, clip_boxes=False)
+
+    # def single_batch_fn(x):
+    #     bboxes, scores = x[0], x[1]
+    #     return nms(bboxes, scores, iou_threshold, score_threshold=score_threshold,
+    #                soft_nms_sigma=soft_nms_sigma, max_per_class=200, top_k=topk)
+    # bboxes, scores, labels, n_valids = batch_map_fn(single_batch_fn, [bboxes, scores])
+
     return {
         'bbox': bboxes,
         'score': scores,
@@ -234,3 +252,12 @@ def random_colors(N, bright=True):
     colors = list(map(lambda c: colorsys.hsv_to_rgb(*c), hsv))
     random.shuffle(colors)
     return colors
+
+
+def random_bboxes(shape):
+    yx = tf.random.uniform(tuple(shape) + (2,))
+    hw_half = tf.random.uniform(tuple(shape) + (2,), 0, 0.5)
+    bboxes = tf.stack([yx - hw_half, yx + hw_half], axis=-2)
+    bboxes = tf.reshape(bboxes, tuple(shape) + (4,))
+    bboxes = tf.clip_by_value(bboxes, 0, 1)
+    return bboxes

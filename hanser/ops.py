@@ -89,3 +89,25 @@ def get_shape(tensor, axis):
         return tf.shape(tensor)[axis]
     else:
         return shape
+
+def triu(x, diag=True):
+    y = tf.linalg.band_part(x, 0, -1)
+    if not diag:
+        y = y - tf.linalg.band_part(x, 0, 0)
+    return y
+
+
+def batch_map_fn(map_fn, inputs, *args):
+    """Apply map_fn at batch dimension."""
+    if isinstance(inputs[0], (list, tuple)):
+        batch_size = len(inputs[0])
+    else:
+        batch_size = inputs[0].shape.as_list()[0]
+
+    if not batch_size:
+        # handle dynamic batch size: tf.vectorized_map is faster than tf.map_fn.
+        return tf.vectorized_map(map_fn, inputs, *args)
+    outputs = []
+    for i in range(batch_size):
+        outputs.append(map_fn([x[i] for x in inputs]))
+    return [tf.stack(y) for y in zip(*outputs)]
