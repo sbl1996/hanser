@@ -95,7 +95,9 @@ class DetectionLoss():
         pos_weight = to_float(pos)
         total_pos = tf.reduce_sum(pos_weight) + 1
 
-        anchors = tf.convert_to_tensor(self.anchors, box_p.dtype)
+        anchors = self.anchors
+        if anchors is not None:
+            anchors = tf.convert_to_tensor(anchors, box_p.dtype)
 
         if self.encode_bbox:
             box_t = bbox_encode(box_t, anchors, self.bbox_std)
