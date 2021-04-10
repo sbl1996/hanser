@@ -8,7 +8,7 @@ import tensorflow_datasets as tfds
 from hanser.tpu import setup
 from hanser.datasets import prepare
 from hanser.losses import smooth_l1_loss, cross_entropy_det
-from hanser.detection import match_anchors, detection_loss, batched_detect, coords_to_absolute
+from hanser.detection import match_anchors, detection_loss, postprocess, coords_to_absolute
 from hanser.detection.anchor import SSDAnchorGenerator
 
 from hanser.datasets.detection.voc import decode
@@ -123,9 +123,9 @@ learner = SuperLearner(
 
 def output_transform(output):
     box_p, cls_p = get(['box_p', 'cls_p'], output)
-    return batched_detect(box_p, cls_p, flat_anchors, iou_threshold=0.45,
-                          conf_threshold=0.02, conf_strategy='softmax',
-                          bbox_std=(0.1, 0.1, 0.2, 0.2), label_offset=1)
+    return postprocess(box_p, cls_p, flat_anchors, iou_threshold=0.45,
+                       score_threshold=0.02, use_sigmoid=False,
+                       bbox_std=(0.1, 0.1, 0.2, 0.2), label_offset=1)
 
 learner.fit(
     ds_train, epochs, ds_val, val_freq=1,

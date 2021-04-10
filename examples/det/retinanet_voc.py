@@ -8,7 +8,7 @@ import tensorflow_datasets as tfds
 from hanser.tpu import setup
 from hanser.datasets import prepare
 from hanser.losses import l1_loss, focal_loss
-from hanser.detection import match_anchors, detection_loss, batched_detect, coords_to_absolute
+from hanser.detection import match_anchors, detection_loss, postprocess, coords_to_absolute
 from hanser.detection.anchor import AnchorGenerator
 
 from hanser.datasets.detection.voc import decode
@@ -114,8 +114,8 @@ eval_metrics = {
 
 def output_transform(output):
     box_p, cls_p = get(['box_p', 'cls_p'], output)
-    return batched_detect(box_p, cls_p, flat_anchors, iou_threshold=0.5,
-                          conf_threshold=0.05, conf_strategy='sigmoid')
+    return postprocess(box_p, cls_p, flat_anchors, iou_threshold=0.5,
+                       score_threshold=0.05, use_sigmoid=True)
 
 local_eval_metrics = {
     'loss': MeanMetricWrapper(criterion),

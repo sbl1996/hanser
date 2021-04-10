@@ -7,7 +7,7 @@ import tensorflow_datasets as tfds
 from hanser.tpu import setup
 from hanser.datasets import prepare
 from hanser.datasets.detection.voc import decode
-from hanser.detection import match_anchors, detection_loss, batched_detect, coords_to_absolute
+from hanser.detection import match_anchors, detection_loss, postprocess, coords_to_absolute
 from hanser.detection.anchor import SSDAnchorGenerator
 
 from hanser.transform import resize, photo_metric_distortion, normalize
@@ -80,9 +80,9 @@ ds_val = prepare(ds_val, eval_batch_size, preprocess(training=False),
 
 def output_transform(output):
     box_p, cls_p = get(['box_p', 'cls_p'], output)
-    return batched_detect(box_p, cls_p, flat_anchors, iou_threshold=0.45,
-                          conf_threshold=0.01, conf_strategy='softmax',
-                          bbox_std=(0.1, 0.1, 0.2, 0.2), label_offset=1)
+    return postprocess(box_p, cls_p, flat_anchors, iou_threshold=0.45,
+                       score_threshold=0.01, use_sigmoid=False,
+                       bbox_std=(0.1, 0.1, 0.2, 0.2), label_offset=1)
 
 m = MeanAveragePrecision()
 m.reset_states()
@@ -162,8 +162,8 @@ cls_t = index_put(
 
 def output_transform(output):
     box_p, cls_p = get(['box_p', 'cls_p'], output)
-    return batched_detect(box_p, cls_p, flat_anchors, iou_threshold=0.6,
-                          conf_threshold=0.05, conf_strategy='sigmoid')
+    return postprocess(box_p, cls_p, flat_anchors, iou_threshold=0.6,
+                       score_threshold=0.05, use_sigmoid=True)
 
 
 m = MeanAveragePrecision()

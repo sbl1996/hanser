@@ -3,12 +3,13 @@ import random
 
 from hanser.detection.assign import max_iou_assign
 from hanser.detection.iou import bbox_iou
+from hanser.detection.nms import batched_nms
 from toolz import curry
 
 import numpy as np
 import tensorflow as tf
 from hanser.losses import focal_loss, l1_loss
-from hanser.ops import index_put, to_float, get_shape, batch_map_fn
+from hanser.ops import index_put, to_float, get_shape
 
 
 def coords_to_absolute(bboxes, size):
@@ -121,10 +122,9 @@ def detect(box_p, cls_p, anchors, iou_threshold=0.5, conf_threshold=0.1, topk=10
     return dets
 
 
-@tf.function
-def batched_detect(bbox_preds, cls_scores, anchors, nms_pre=5000, iou_threshold=0.5,
-                    score_threshold=0.05, topk=200, soft_nms_sigma=0., use_sigmoid=False,
-                    bbox_std=(1., 1., 1., 1.), label_offset=0):
+def postprocess(bbox_preds, cls_scores, anchors, nms_pre=5000, iou_threshold=0.5,
+                score_threshold=0.05, topk=200, soft_nms_sigma=0., use_sigmoid=False,
+                bbox_std=(1., 1., 1., 1.), label_offset=0):
     if use_sigmoid:
         scores = tf.sigmoid(cls_scores)
     else:
@@ -133,7 +133,7 @@ def batched_detect(bbox_preds, cls_scores, anchors, nms_pre=5000, iou_threshold=
 
     if nms_pre < anchors.shape[0]:
         max_scores = tf.reduce_max(scores, axis=-1)
-        idx = tf.math.top_k(max_scores, nms_pre)[1]  # (batch_size, nms_pre)
+        idx = tf.math.top_k(max_scores, nms_pre, sorted=False)[1]
         bbox_preds = tf.gather(bbox_preds, idx, axis=1, batch_dims=1)
         scores = tf.gather(scores, idx, axis=1, batch_dims=1)
         anchors = tf.gather(anchors, idx, axis=0, batch_dims=0)
@@ -142,14 +142,9 @@ def batched_detect(bbox_preds, cls_scores, anchors, nms_pre=5000, iou_threshold=
 
     bboxes = tf.expand_dims(bboxes, 2)
 
-    bboxes, scores, labels, n_valids = tf.image.combined_non_max_suppression(
-        bboxes, scores, 100, topk, iou_threshold, score_threshold, clip_boxes=False)
-
-    # def single_batch_fn(x):
-    #     bboxes, scores = x[0], x[1]
-    #     return nms(bboxes, scores, iou_threshold, score_threshold=score_threshold,
-    #                soft_nms_sigma=soft_nms_sigma, max_per_class=200, top_k=topk)
-    # bboxes, scores, labels, n_valids = batch_map_fn(single_batch_fn, [bboxes, scores])
+    bboxes, scores, labels, n_valids = batched_nms(
+        bboxes, scores, iou_threshold, score_threshold,
+        soft_nms_sigma=soft_nms_sigma, max_per_class=100, topk=topk)
 
     return {
         'bbox': bboxes,
