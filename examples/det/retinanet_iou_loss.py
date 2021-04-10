@@ -7,8 +7,8 @@ import tensorflow_datasets as tfds
 
 from hanser.tpu import setup
 from hanser.datasets import prepare
-from hanser.losses import l1_loss, focal_loss
-from hanser.detection import match_anchors, detection_loss, postprocess, coords_to_absolute
+from hanser.losses import l1_loss, focal_loss, iou_loss
+from hanser.detection import match_anchors, detection_loss, postprocess, coords_to_absolute, bbox_decode
 from hanser.detection.anchor import AnchorGenerator
 
 from hanser.datasets.detection.voc import decode
@@ -72,8 +72,8 @@ def preprocess(example, output_size=(HEIGHT, WIDTH), max_objects=100, training=T
                    'image_id': image_id}
 
 mul = 1
-n_train, n_val = 6, 4
-batch_size, eval_batch_size = 2 * mul, 2
+n_train, n_val = 16, 4
+batch_size, eval_batch_size = 4 * mul, 4
 steps_per_epoch, val_steps = n_train // batch_size, n_val // eval_batch_size
 
 ds_train = tfds.load("voc/2012", split=f"train[:{n_train}]",
@@ -98,8 +98,9 @@ model.build((None, HEIGHT, WIDTH, 3))
 
 # load_checkpoint("./drive/MyDrive/models/ImageNet-86/ckpt", model=backbone)
 
-criterion = detection_loss(box_loss=l1_loss, cls_loss=focal_loss(alpha=0.25, gamma=2.0, label_smoothing=0.1))
-base_lr = 1e-3
+criterion = detection_loss(box_loss=iou_loss, cls_loss=focal_loss(alpha=0.25, gamma=2.0),
+                           encode_bbox=False, decode_bbox=True, gt_bbox_as_target=True)
+base_lr = 0.025
 epochs = 60
 lr_schedule = CosineLR(base_lr * mul, steps_per_epoch, epochs, min_lr=0,
                        warmup_min_lr=base_lr, warmup_epoch=5)
@@ -130,8 +131,8 @@ learner = SuperLearner(
 
 
 learner.fit(
-    ds_train, 15, ds_val, val_freq=1,
+    ds_train, epochs, ds_val, val_freq=1,
     steps_per_epoch=steps_per_epoch, val_steps=val_steps,
     local_eval_metrics=local_eval_metrics,
-    local_eval_freq=[(0, 3), (6, 6), (12, 1)],
+    local_eval_freq=[(0, 3), (30, 6), (45, 1)],
 )

@@ -1,5 +1,6 @@
 import tensorflow as tf
 
+
 def bbox_iou(bboxes1, bboxes2, mode='iou', is_aligned=False, eps=1e-6):
     """Calculate overlap between two set of bboxes.
 
@@ -47,7 +48,7 @@ def bbox_iou(bboxes1, bboxes2, mode='iou', is_aligned=False, eps=1e-6):
         >>> assert tuple(bbox_iou(empty, empty).shape) == (0, 0)
     """
 
-    assert mode in ['iou', 'iof', 'giou'], f'Unsupported mode {mode}'
+    assert mode in ['iou', 'giou'], f'Unsupported mode {mode}'
     # Either the boxes are empty or the length of boxes' last dimension is 4
     assert (bboxes1.shape[-1] == 4 or bboxes1.shape[0] == 0)
     assert (bboxes2.shape[-1] == 4 or bboxes2.shape[0] == 0)
@@ -80,10 +81,7 @@ def bbox_iou(bboxes1, bboxes2, mode='iou', is_aligned=False, eps=1e-6):
         wh = tf.maximum(rb - lt, 0)  # [B, rows, 2]
         overlap = wh[..., 0] * wh[..., 1]
 
-        if mode in ['iou', 'giou']:
-            union = area1 + area2 - overlap
-        else:
-            union = area1
+        union = area1 + area2 - overlap
         if mode == 'giou':
             enclosed_lt = tf.minimum(bboxes1[..., :2], bboxes2[..., :2])
             enclosed_rb = tf.maximum(bboxes1[..., 2:], bboxes2[..., 2:])
@@ -96,10 +94,7 @@ def bbox_iou(bboxes1, bboxes2, mode='iou', is_aligned=False, eps=1e-6):
         wh = tf.maximum(rb - lt, 0)  # [B, rows, cols, 2]
         overlap = wh[..., 0] * wh[..., 1]
 
-        if mode in ['iou', 'giou']:
-            union = area1[..., None] + area2[..., None, :] - overlap
-        else:
-            union = area1[..., None]
+        union = area1[..., None] + area2[..., None, :] - overlap
         if mode == 'giou':
             enclosed_lt = tf.minimum(bboxes1[..., :, None, :2],
                                      bboxes2[..., None, :, :2])
@@ -109,7 +104,7 @@ def bbox_iou(bboxes1, bboxes2, mode='iou', is_aligned=False, eps=1e-6):
     eps = tf.constant([eps], dtype=union.dtype)
     union = tf.maximum(union, eps)
     ious = overlap / union
-    if mode in ['iou', 'iof']:
+    if mode == 'iou':
         return ious
     # calculate gious
     enclose_wh = (enclosed_rb - enclosed_lt).clamp(min=0)

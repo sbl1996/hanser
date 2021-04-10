@@ -1,5 +1,5 @@
 import tensorflow as tf
-from hanser.detection import bbox_iou
+from hanser.detection.iou import bbox_iou
 from hanser.ops import triu
 
 def nms(bboxes, scores,
@@ -40,8 +40,6 @@ def nms(bboxes, scores,
     bboxes = tf.transpose(bboxes, (1, 0, 2))
 
     scores = tf.transpose(scores)  # [#class, n]
-    # scores, idx = tf.math.top_k(scores, max_per_class, sorted=False)
-    # bboxes = tf.gather(bboxes, idx, axis=1, batch_dims=1)
 
     labels = tf.range(num_classes, dtype=tf.int32)
     labels = tf.tile(labels[:, None], (1, num_bboxes))

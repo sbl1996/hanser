@@ -56,6 +56,9 @@ class ResNet(Model):
         c5 = self.layer4(c4)
         return c2, c3, c4, c5
 
+def resnet10(**kwargs):
+    return ResNet(BasicBlock, [1, 1, 1, 1], **kwargs)
+
 def resnet18(**kwargs):
     return ResNet(BasicBlock, [2, 2, 2, 2], **kwargs)
 

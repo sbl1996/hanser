@@ -126,11 +126,3 @@ class IRes2Net(GenIResNet):
         layers = [(depth - 2) // 9] * 3
         super().__init__(Bottle2neck, layers, num_classes, stages,
                          base_width=base_width, scale=scale)
-
-
-class IRes2Net(GenIResNet):
-
-    def __init__(self, depth, base_width=26, scale=4, num_classes=10, stages=(64, 64, 128, 256)):
-        layers = [(depth - 2) // 9] * 3
-        super().__init__(Bottle2neck, layers, num_classes, stages,
-                         base_width=base_width, scale=scale)

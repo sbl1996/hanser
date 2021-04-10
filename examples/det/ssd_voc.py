@@ -62,14 +62,13 @@ def preprocess(example, output_size=(HEIGHT, WIDTH), max_objects=100, training=T
     bboxes, labels, is_difficults = get(['bbox', 'label', 'is_difficult'], objects)
     bboxes = coords_to_absolute(bboxes, tf.shape(image)[:2])
     box_t, cls_t, ignore = match_anchors(
-        bboxes, labels, flat_anchors, pos_iou_thr=0.5, neg_iou_thr=0.5,
-        bbox_std=(0.1, 0.1, 0.2, 0.2))
+        bboxes, labels, flat_anchors, pos_iou_thr=0.5, neg_iou_thr=0.5)
 
     bboxes = pad_to_fixed_size(bboxes, max_objects)
     labels = pad_to_fixed_size(labels, max_objects)
     is_difficults = pad_to_fixed_size(is_difficults, max_objects)
 
-    return image, {'box_t': box_t, 'cls_t': cls_t, 'ignore': ignore,
+    return image, {'box_t': box_t, 'cls_t': cls_t, 'ignore': ignore, 'anchor': flat_anchors,
                    'bbox': bboxes, 'label': labels, 'is_difficult': is_difficults,
                    'image_id': image_id, }
 
@@ -101,7 +100,8 @@ model.build((None, HEIGHT, WIDTH, 3))
 
 # load_checkpoint()
 
-criterion = detection_loss(box_loss=smooth_l1_loss, cls_loss=cross_entropy_det(neg_pos_ratio=3.0))
+criterion = detection_loss(box_loss=smooth_l1_loss, cls_loss=cross_entropy_det(neg_pos_ratio=3.0),
+                           bbox_std=(0.1, 0.1, 0.2, 0.2))
 base_lr = 1e-4
 epochs = 60
 lr_schedule = CosineLR(base_lr * mul, steps_per_epoch, epochs, min_lr=0,

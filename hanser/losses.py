@@ -1,9 +1,10 @@
-from hanser.ops import to_float, to_int
 from toolz import curry
 
 import tensorflow as tf
 import tensorflow.keras.backend as K
 from hanser.train.losses import CrossEntropy
+from hanser.ops import to_float, to_int
+from hanser.detection.iou import bbox_iou
 
 
 @curry
@@ -122,6 +123,8 @@ def focal_loss(y_true, y_pred, weight=None, alpha=0.25, gamma=2.0, label_smoothi
 
 def reduce_loss(losses, weight=None, reduction='sum'):
     if weight is not None:
+        if losses.shape.ndims - weight.shape.ndims == 1:
+            weight = weight[..., None]
         losses = losses * weight
     if reduction == 'sum':
         return tf.reduce_sum(losses)
@@ -144,6 +147,15 @@ def smooth_l1_loss(y_true, y_pred, weight=None, beta=1.0, reduction='sum'):
 def l1_loss(y_true, y_pred, weight=None, clip_value=10, reduction='sum'):
     losses = tf.math.abs(y_pred - y_true)
     losses = tf.clip_by_value(losses, 0, clip_value)
+    return reduce_loss(losses, weight, reduction)
+
+
+@curry
+def iou_loss(y_true, y_pred, weight=None, mode='iou', reduction='sum'):
+    # y_true: (batch_size, n_gts, 4)
+    # y_pred: (batch_size, n_dts, 4)
+    # weight: (batch_size, n_gts, n_dts)
+    losses = 1.0 - bbox_iou(y_true, y_pred, mode=mode)
     return reduce_loss(losses, weight, reduction)
 
 

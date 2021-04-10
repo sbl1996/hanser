@@ -2,13 +2,11 @@ import colorsys
 import random
 
 from hanser.detection.assign import max_iou_assign
-from hanser.detection.iou import bbox_iou
 from hanser.detection.nms import batched_nms
 from toolz import curry
 
 import numpy as np
 import tensorflow as tf
-from hanser.losses import focal_loss, l1_loss
 from hanser.ops import index_put, to_float, get_shape
 
 
@@ -28,9 +26,9 @@ def bbox_encode(bboxes, anchors, std=(1., 1., 1., 1.)):
     std = tf.constant(std, dtype=box_t.dtype)
     return box_t / std
 
-
+@curry
 def bbox_decode(pred, anchors, std=(1., 1., 1., 1.)):
-
+    anchors = tf.convert_to_tensor(anchors, pred.dtype)
     anchors_yx = (anchors[..., :2] + anchors[..., 2:]) / 2
     anchors_hw = anchors[..., 2:] - anchors[..., :2]
 
@@ -44,8 +42,7 @@ def bbox_decode(pred, anchors, std=(1., 1., 1., 1.)):
     return bboxes
 
 
-def match_anchors(gt_bboxes, gt_labels, anchors, pos_iou_thr=0.5, neg_iou_thr=0.5, min_pos_iou=.0,
-                  bbox_std=(1., 1., 1., 1.)):
+def match_anchors(gt_bboxes, gt_labels, anchors, pos_iou_thr=0.5, neg_iou_thr=0.5, min_pos_iou=.0):
     num_gts = tf.shape(gt_bboxes)[0]
     num_anchors = get_shape(anchors, 0)
     box_t = tf.zeros([num_anchors, 4], dtype=tf.float32)
@@ -66,60 +63,48 @@ def match_anchors(gt_bboxes, gt_labels, anchors, pos_iou_thr=0.5, neg_iou_thr=0.
 
     assigned_gt_bboxes = tf.gather(gt_bboxes, assigned_gt_inds)
     assigned_gt_labels = tf.gather(gt_labels, assigned_gt_inds)
-    assigned_anchors = tf.gather(anchors, indices)
 
-    assigned_bboxes = bbox_encode(assigned_gt_bboxes, assigned_anchors, bbox_std)
-    box_t = index_put(box_t, indices, assigned_bboxes)
+    box_t = index_put(box_t, indices, assigned_gt_bboxes)
     cls_t = index_put(cls_t, indices, assigned_gt_labels)
 
     return box_t, cls_t, ignore
 
 
 @curry
-def detection_loss(target, preds, box_loss=None, cls_loss=None, box_loss_weight=1.):
-    box_loss = box_loss or l1_loss
-    cls_loss = cls_loss or focal_loss
+def detection_loss(target, preds, box_loss, cls_loss, box_loss_weight=1.,
+                   encode_bbox=True, decode_bbox=False, bbox_std=(1., 1., 1., 1.), gt_bbox_as_target=False):
 
     box_t = target['box_t']
     cls_t = target['cls_t']
+    anchors = target['anchor']
     non_ignore = to_float(~target['ignore'])
-
-    pos = to_float(cls_t != 0)
-    total_pos = tf.reduce_sum(pos) + 1
 
     box_p = preds['box_p']
     cls_p = preds['cls_p']
 
-    box_losses = box_loss(box_t, box_p, weight=pos[..., None], reduction='sum')
+    pos = cls_t != 0    # (batch_size, n_dts)
+    pos_weight = to_float(pos)
+    total_pos = tf.reduce_sum(pos_weight) + 1
+
+    box_losses_weight = pos_weight
+
+    if encode_bbox:
+        box_t = bbox_encode(box_t, anchors, bbox_std)
+
+    if decode_bbox:
+        box_p = bbox_decode(box_p, anchors, bbox_std)
+
+    if gt_bbox_as_target:
+        box_t = target['bbox']      # (batch_size, n_gts, 4)
+        labels = target['label']    # (batch_size, n_gts)
+        box_losses_weight = to_float((labels != 0)[:, :, None] & pos[:, None, :])
+
+    box_losses = box_loss(box_t, box_p, weight=box_losses_weight, reduction='sum')
     box_loss = box_losses / total_pos
 
     cls_losses = cls_loss(cls_t, cls_p, weight=non_ignore, reduction='sum')
     cls_loss = cls_losses / total_pos
     return box_loss * box_loss_weight + cls_loss
-
-
-def detect(box_p, cls_p, anchors, iou_threshold=0.5, conf_threshold=0.1, topk=100):
-    logits = cls_p[:, 1:]
-    scores = tf.sigmoid(tf.reduce_max(logits, axis=1))
-    classes = tf.argmax(logits, axis=1, output_type=tf.int32) + 1
-
-    mask = scores > conf_threshold
-    box_p = box_p[mask]
-    scores = scores[mask]
-    classes = classes[mask]
-    anchors = anchors[mask]
-
-    bboxes = bbox_decode(box_p, anchors)
-    indices = tf.image.non_max_suppression(bboxes, scores, topk, iou_threshold, conf_threshold)
-    dets = []
-    for i in indices:
-        dets.append({
-            'image_id': -1,
-            'category_id': classes[i].numpy(),
-            'bbox': bboxes[i].numpy(),
-            'score': scores[i].numpy()
-        })
-    return dets
 
 
 def postprocess(bbox_preds, cls_scores, anchors, nms_pre=5000, iou_threshold=0.5,
