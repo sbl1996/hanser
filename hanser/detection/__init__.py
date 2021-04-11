@@ -22,7 +22,7 @@ def bbox_encode(bboxes, anchors, std=(1., 1., 1., 1.)):
     anchors_hw = anchors[:, 2:] - anchors[:, :2]
     tytx = (boxes_yx - anchors_yx) / anchors_hw
     thtw = tf.math.log(boxes_hw / anchors_hw)
-    box_t = tf.concat([tytx, thtw], axis=1)
+    box_t = tf.concat([tytx, thtw], axis=-1)
     std = tf.constant(std, dtype=box_t.dtype)
     return box_t / std
 
