@@ -16,8 +16,8 @@ def coords_to_absolute(bboxes, size):
     return bboxes
 
 def bbox_encode(bboxes, anchors, std=(1., 1., 1., 1.)):
-    boxes_yx = (bboxes[:, :2] + bboxes[:, 2:]) / 2
-    boxes_hw = bboxes[:, 2:] - bboxes[:, :2]
+    boxes_yx = (bboxes[..., :2] + bboxes[..., 2:]) / 2
+    boxes_hw = bboxes[..., 2:] - bboxes[..., :2]
     anchors_yx = (anchors[:, :2] + anchors[:, 2:]) / 2
     anchors_hw = anchors[:, 2:] - anchors[:, :2]
     tytx = (boxes_yx - anchors_yx) / anchors_hw
@@ -106,7 +106,6 @@ class DetectionLoss():
             box_p = bbox_decode(box_p, anchors, self.bbox_std)
 
         box_loss = self.box_loss_fn(box_t, box_p, weight=pos_weight, reduction='sum') / total_pos
-
         cls_loss = self.cls_loss_fn(cls_t, cls_p, weight=non_ignore, reduction='sum') / total_pos
         return box_loss * self.box_loss_weight + cls_loss
 

@@ -1,6 +1,6 @@
 import math
 import tensorflow as tf
-
+from hanser.ops import l2_norm
 
 def bbox_iou(bboxes1, bboxes2, mode='iou', is_aligned=False, eps=1e-6):
     """Calculate overlap between two set of bboxes.
@@ -147,7 +147,3 @@ def bbox_iou(bboxes1, bboxes2, mode='iou', is_aligned=False, eps=1e-6):
     enclose_area = tf.maximum(enclose_area, eps)
     gious = ious - (enclose_area - union) / enclose_area
     return gious
-
-
-def l2_norm(x):
-    return tf.reduce_sum(tf.square(x), axis=-1)

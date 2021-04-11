@@ -95,3 +95,9 @@ def triu(x, diag=True):
     if not diag:
         y = y - tf.linalg.band_part(x, 0, 0)
     return y
+
+
+def l2_norm(x, sqrt=False):
+    if sqrt:
+        return tf.norm(x, axis=-1)
+    return tf.reduce_sum(tf.square(x), axis=-1)
