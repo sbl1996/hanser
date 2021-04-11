@@ -70,6 +70,21 @@ def match_anchors(gt_bboxes, gt_labels, anchors, pos_iou_thr=0.5, neg_iou_thr=0.
     return box_t, cls_t, ignore
 
 
+def centerness_target(self, bboxes, anchors):
+    # only calculate pos centerness targets, otherwise there may be nan
+    anchors_cy = (anchors[:, 2] + anchors[:, 0]) / 2
+    anchors_cx = (anchors[:, 3] + anchors[:, 1]) / 2
+    t_ = anchors_cy - bboxes[..., 0]
+    l_ = anchors_cx - bboxes[..., 1]
+    b_ = bboxes[..., 2] - anchors_cx
+    r_ = bboxes[..., 3] - anchors_cy
+
+    centerness = tf.sqrt(
+        (tf.minimum(l_, r_) / tf.maximum(l_, r_)) *
+        (tf.minimum(t_, b_) / tf.maximum(t_, b_)))
+    return centerness
+
+
 def match_anchors2(gt_bboxes, gt_labels, assigned_gt_inds):
     num_gts = tf.shape(gt_bboxes)[0]
     num_anchors = get_shape(assigned_gt_inds, 0)
@@ -88,23 +103,29 @@ def match_anchors2(gt_bboxes, gt_labels, assigned_gt_inds):
 
     assigned_gt_bboxes = tf.gather(gt_bboxes, assigned_gt_inds)
     assigned_gt_labels = tf.gather(gt_labels, assigned_gt_inds)
+    # assigned_anchors = tf.gather(anchors, indices)
+    # assigned_bboxes = bbox_encode(assigned_gt_bboxes, assigned_anchors, bbox_std)
 
     box_t = index_put(box_t, indices, assigned_gt_bboxes)
     cls_t = index_put(cls_t, indices, assigned_gt_labels)
 
     return box_t, cls_t, ignore
 
-class DetectionLoss():
+class DetectionLoss:
 
     def __init__(self, box_loss_fn, cls_loss_fn, box_loss_weight=1.,
                  encode_target=True, decode_pred=False, bbox_std=(1., 1., 1., 1.),
                  anchors=None):
+        if encode_target or decode_pred:
+            assert anchors is not None
         self.box_loss_fn = box_loss_fn
         self.cls_loss_fn = cls_loss_fn
         self.box_loss_weight = box_loss_weight
         self.encode_target = encode_target
         self.decode_pred = decode_pred
         self.bbox_std = bbox_std
+        if anchors is not None:
+            anchors = tf.constant(anchors, tf.float32)
         self.anchors = anchors
 
     def __call__(self, target, preds):
@@ -119,15 +140,11 @@ class DetectionLoss():
         pos_weight = to_float(pos)
         total_pos = tf.reduce_sum(pos_weight) + 1
 
-        anchors = self.anchors
-        if anchors is not None:
-            anchors = tf.convert_to_tensor(anchors, box_p.dtype)
-
         if self.encode_target:
-            box_t = bbox_encode(box_t, anchors, self.bbox_std)
+            box_t = bbox_encode(box_t, self.anchors, self.bbox_std)
 
         if self.decode_pred:
-            box_p = bbox_decode(box_p, anchors, self.bbox_std)
+            box_p = bbox_decode(box_p, self.anchors, self.bbox_std)
 
         box_loss = self.box_loss_fn(box_t, box_p, weight=pos_weight, reduction='sum') / total_pos
         cls_loss = self.cls_loss_fn(cls_t, cls_p, weight=non_ignore, reduction='sum') / total_pos

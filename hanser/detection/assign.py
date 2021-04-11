@@ -132,14 +132,14 @@ def atss_assign(bboxes, num_level_bboxes, gt_bboxes, topk=9):
 
     # limit the positive sample's center in gt
     # (num_gts, num_levels * topk, 2)
-    ep_bboxes_cxcy = tf.gather(bboxes_points, candidate_idxs, axis=0, batch_dims=1)
+    ep_bboxes_cycx = tf.gather(bboxes_points, candidate_idxs, axis=0, batch_dims=1)
     # calculate the left, top, right, bottom distance between positive
     # bbox center and gt side
-    l_ = ep_bboxes_cxcy[..., 0] - gt_bboxes[:, None, 0]
-    t_ = ep_bboxes_cxcy[..., 1] - gt_bboxes[:, None, 1]
-    r_ = gt_bboxes[:, None, 2] - ep_bboxes_cxcy[..., 0]
-    b_ = gt_bboxes[:, None, 3] - ep_bboxes_cxcy[..., 1]
-    is_in_gts = tf.reduce_min([l_, t_, r_, b_], axis=0) > 0.01
+    t_ = ep_bboxes_cycx[..., 0] - gt_bboxes[:, None, 0]
+    l_ = ep_bboxes_cycx[..., 1] - gt_bboxes[:, None, 1]
+    b_ = gt_bboxes[:, None, 2] - ep_bboxes_cycx[..., 0]
+    r_ = gt_bboxes[:, None, 3] - ep_bboxes_cycx[..., 1]
+    is_in_gts = tf.reduce_min([t_, l_, b_, r_], axis=0) > 0.01
     is_pos = is_pos & is_in_gts
 
     # limit the positive sample's center in gt
