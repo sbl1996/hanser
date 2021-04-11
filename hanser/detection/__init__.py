@@ -15,16 +15,19 @@ def coords_to_absolute(bboxes, size):
     bboxes = bboxes * tf.cast(tf.stack([height, width, height, width]), bboxes.dtype)[None, :]
     return bboxes
 
+
 def bbox_encode(bboxes, anchors, std=(1., 1., 1., 1.)):
     boxes_yx = (bboxes[..., :2] + bboxes[..., 2:]) / 2
     boxes_hw = bboxes[..., 2:] - bboxes[..., :2]
     anchors_yx = (anchors[:, :2] + anchors[:, 2:]) / 2
     anchors_hw = anchors[:, 2:] - anchors[:, :2]
     tytx = (boxes_yx - anchors_yx) / anchors_hw
+    boxes_hw = tf.maximum(boxes_hw, 1e-6)
     thtw = tf.math.log(boxes_hw / anchors_hw)
     box_t = tf.concat([tytx, thtw], axis=-1)
     std = tf.constant(std, dtype=box_t.dtype)
     return box_t / std
+
 
 @curry
 def bbox_decode(pred, anchors, std=(1., 1., 1., 1.)):
@@ -43,7 +46,7 @@ def bbox_decode(pred, anchors, std=(1., 1., 1., 1.)):
 
 
 def match_anchors(gt_bboxes, gt_labels, anchors, pos_iou_thr=0.5, neg_iou_thr=0.5, min_pos_iou=.0):
-    num_gts = tf.shape(gt_bboxes)[0]
+    num_gts = get_shape(gt_bboxes, 0)
     num_anchors = get_shape(anchors, 0)
     box_t = tf.zeros([num_anchors, 4], dtype=tf.float32)
     cls_t = tf.zeros([num_anchors,], dtype=tf.int32)
@@ -86,7 +89,7 @@ def centerness_target(self, bboxes, anchors):
 
 
 def match_anchors2(gt_bboxes, gt_labels, assigned_gt_inds):
-    num_gts = tf.shape(gt_bboxes)[0]
+    num_gts = get_shape(gt_bboxes, 0)
     num_anchors = get_shape(assigned_gt_inds, 0)
     box_t = tf.zeros([num_anchors, 4], dtype=tf.float32)
     cls_t = tf.zeros([num_anchors,], dtype=tf.int32)
@@ -110,6 +113,7 @@ def match_anchors2(gt_bboxes, gt_labels, assigned_gt_inds):
     cls_t = index_put(cls_t, indices, assigned_gt_labels)
 
     return box_t, cls_t, ignore
+
 
 class DetectionLoss:
 

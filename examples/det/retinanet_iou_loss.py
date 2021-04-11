@@ -34,10 +34,9 @@ anchor_gen = AnchorGenerator(
     strides=[8, 16, 32, 64, 128],
     ratios=[0.5, 1.0, 2.0],
     octave_base_scale=4,
-    scales_per_octave=3,
+    scales_per_octave=1,
 )
 featmap_sizes = [
-    # [80, 80], [40, 40], [20, 20], [10, 10], [5, 5],
     [32, 32], [16, 16], [8, 8], [4, 4], [2, 2],
 ]
 
@@ -48,12 +47,12 @@ flat_anchors = tf.concat(anchors, axis=0)
 def preprocess(example, output_size=(HEIGHT, WIDTH), max_objects=100, training=True):
     image, objects, image_id = decode(example)
 
-    # if training:
-        # image = random_resize(image, output_size, ratio_range=(0.8, 1.2))
-        # image, objects = random_crop(image, objects, output_size)
-        # image, objects = random_hflip(image, objects, 0.5)
-    # else:
-    image = resize(image, output_size)
+    if training:
+        image = random_resize(image, output_size, ratio_range=(0.8, 1.2))
+        image, objects = random_crop(image, objects, output_size)
+        image, objects = random_hflip(image, objects, 0.5)
+    else:
+        image = resize(image, output_size)
 
     image = normalize(image, [123.68, 116.779, 103.939], [58.393, 57.12, 57.375])
     image, objects = pad_to(image, objects, output_size)
@@ -89,22 +88,15 @@ ds_val = prepare(ds_val, eval_batch_size, preprocess(training=False),
                  training=False, repeat=False, drop_remainder=True)
 # ds_train_dist, ds_val_dist = setup([ds_train, ds_val], fp16=True)
 
-# set_defaults({
-#     'bn': {
-#         'sync': True,
-#     }
-# })
 backbone = resnet10()
 model = RetinaNet(backbone, anchor_gen.num_base_anchors[0], num_classes=20,
                   feat_channels=64, stacked_convs=2, use_norm=True)
 model.build((None, HEIGHT, WIDTH, 3))
 
-# load_checkpoint("./drive/MyDrive/models/ImageNet-86/ckpt", model=backbone)
-
 
 criterion = DetectionLoss(
     box_loss_fn=iou_loss(mode='ciou'), cls_loss_fn=focal_loss(alpha=0.25, gamma=2.0),
-    encode_target=False, decode_pred=True, anchors=flat_anchors.numpy(), bbox_std=(0.1, 0.1, 0.2, 0.2),
+    encode_target=False, decode_pred=True, anchors=flat_anchors.numpy(),
 )
 
 base_lr = 0.0025
@@ -123,7 +115,7 @@ eval_metrics = {
 def output_transform(output):
     box_p, cls_p = get(['box_p', 'cls_p'], output)
     return postprocess(box_p, cls_p, flat_anchors, iou_threshold=0.5,
-                       score_threshold=0.05, use_sigmoid=True, bbox_std=(0.1, 0.1, 0.2, 0.2))
+                       score_threshold=0.05, use_sigmoid=True)
 
 local_eval_metrics = {
     'loss': MeanMetricWrapper(criterion),
