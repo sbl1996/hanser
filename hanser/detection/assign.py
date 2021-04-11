@@ -39,10 +39,14 @@ def max_iou_assign(bboxes, gt_bboxes, pos_iou_thr, neg_iou_thr,
         gt_max_assign_all (bool): Whether to assign all bboxes with the same
             highest overlap with some gt to that gt.
     """
-    ious = bbox_iou(gt_bboxes, bboxes)
-
-    num_gts = get_shape(ious, 0)
+    num_gts = get_shape(gt_bboxes, 0)
     num_bboxes = get_shape(bboxes, 0)
+
+    if num_gts == 0:
+        # No truth, assign everything to background
+        return tf.fill((num_bboxes,), tf.constant(0, dtype=tf.int32))
+
+    ious = bbox_iou(gt_bboxes, bboxes)
 
     # 1. assign -1 by default
     assigned_gt_inds = tf.fill((num_bboxes,), tf.constant(-1, dtype=tf.int32))
@@ -81,15 +85,18 @@ def max_iou_assign(bboxes, gt_bboxes, pos_iou_thr, neg_iou_thr,
 
 
 def atss_assign(bboxes, num_level_bboxes, gt_bboxes, topk=9):
-    INF = 100000000
-    num_gts = get_shape(ious, 0)
+
+    NINF = tf.constant(-100000000, dtype=tf.float32)
+    num_gts = get_shape(gt_bboxes, 0)
     num_bboxes = get_shape(bboxes, 0)
 
-    # 1. assign 0 by default
-    assigned_gt_inds = tf.fill((num_bboxes,), tf.constant(0, dtype=tf.int32))
+    if num_gts == 0:
+        # No truth, assign everything to background
+        return tf.fill((num_bboxes,), tf.constant(0, dtype=tf.int32))
 
     # compute iou between all bbox and gt
-    ious = bbox_iou(bboxes, gt_bboxes)
+    # (num_gts, num_bboxes)
+    ious = bbox_iou(gt_bboxes, bboxes)
 
     # compute center distance between all bbox and gt
     gt_points = (gt_bboxes[:, :2] + gt_bboxes[:, 2:]) / 2.0
@@ -109,46 +116,44 @@ def atss_assign(bboxes, num_level_bboxes, gt_bboxes, topk=9):
         topk_idxs_per_level = tf.math.top_k(-distances_per_level, selectable_k, sorted=False)[1]
         candidate_idxs.append(topk_idxs_per_level + start_idx)
         start_idx = end_idx
-    candidate_idxs = tf.concat(candidate_idxs, axis=0)
+
+    # (num_gts, num_levels * topk)
+    candidate_idxs = tf.concat(candidate_idxs, axis=1)
 
     # get corresponding iou for the these candidates, and compute the
     # mean and std, set mean + std as the iou threshold
-    candidate_ious = tf.gather(ious, candidate_idxs, axis=0)
-    ious_mean_per_gt = tf.reduce_mean(candidate_ious, axis=0)
-    ious_std_per_gt = tf.math.reduce_std(candidate_ious, axis=0)
+    # (num_gts, num_levels * topk)
+    candidate_ious = tf.gather(ious, candidate_idxs, axis=1, batch_dims=1)
+    ious_mean_per_gt = tf.reduce_mean(candidate_ious, axis=1)
+    ious_std_per_gt = tf.math.reduce_std(candidate_ious, axis=1)
     ious_thr_per_gt = ious_mean_per_gt + ious_std_per_gt
 
-    pos = candidate_ious >= ious_thr_per_gt[None, :]
+    is_pos = candidate_ious >= ious_thr_per_gt[:, None]
 
     # limit the positive sample's center in gt
-    for gt_idx in range(num_gts):
-        candidate_idxs[:, gt_idx] += gt_idx * num_bboxes
-    ep_bboxes_cx = bboxes_cx.view(1, -1).expand(
-        num_gt, num_bboxes).contiguous().view(-1)
-    ep_bboxes_cy = bboxes_cy.view(1, -1).expand(
-        num_gt, num_bboxes).contiguous().view(-1)
-    candidate_idxs = candidate_idxs.view(-1)
-
+    # (num_gts, num_levels * topk, 2)
+    ep_bboxes_cxcy = tf.gather(bboxes_points, candidate_idxs, axis=0, batch_dims=1)
     # calculate the left, top, right, bottom distance between positive
     # bbox center and gt side
-    l_ = ep_bboxes_cx[candidate_idxs].view(-1, num_gt) - gt_bboxes[:, 0]
-    t_ = ep_bboxes_cy[candidate_idxs].view(-1, num_gt) - gt_bboxes[:, 1]
-    r_ = gt_bboxes[:, 2] - ep_bboxes_cx[candidate_idxs].view(-1, num_gt)
-    b_ = gt_bboxes[:, 3] - ep_bboxes_cy[candidate_idxs].view(-1, num_gt)
-    is_in_gts = torch.stack([l_, t_, r_, b_], dim=1).min(dim=1)[0] > 0.01
+    l_ = ep_bboxes_cxcy[..., 0] - gt_bboxes[:, None, 0]
+    t_ = ep_bboxes_cxcy[..., 1] - gt_bboxes[:, None, 1]
+    r_ = gt_bboxes[:, None, 2] - ep_bboxes_cxcy[..., 0]
+    b_ = gt_bboxes[:, None, 3] - ep_bboxes_cxcy[..., 1]
+    is_in_gts = tf.reduce_min([l_, t_, r_, b_], axis=0) > 0.01
     is_pos = is_pos & is_in_gts
+
+    # limit the positive sample's center in gt
+    candidate_idxs = candidate_idxs + tf.range(num_gts)[:, None] * num_bboxes
 
     # if an anchor box is assigned to multiple gts,
     # the one with the highest IoU will be selected.
-    overlaps_inf = torch.full_like(overlaps,
-                                   -INF).t().contiguous().view(-1)
-    index = candidate_idxs.view(-1)[is_pos.view(-1)]
-    overlaps_inf[index] = overlaps.t().contiguous().view(-1)[index]
-    overlaps_inf = overlaps_inf.view(num_gt, -1).t()
+    ious_inf = tf.fill((num_gts * num_bboxes,), NINF)
+    index = candidate_idxs[is_pos]
+    ious_inf = index_put(ious_inf, index, tf.gather(tf.reshape(ious, (-1,)), index))
+    ious_inf = tf.transpose(tf.reshape(ious_inf, (num_gts, num_bboxes)))
 
-    max_overlaps, argmax_overlaps = overlaps_inf.max(dim=1)
-    assigned_gt_inds[
-        max_overlaps != -INF] = argmax_overlaps[max_overlaps != -INF] + 1
+    argmax_ious = tf.argmax(ious_inf, axis=1, output_type=tf.int32)
+    max_ious = tf.gather(ious_inf, argmax_ious, axis=1, batch_dims=1)
 
-    return AssignResult(
-        num_gt, assigned_gt_inds, max_overlaps, labels=assigned_labels)
+    assigned_gt_inds = tf.where(max_ious != NINF, argmax_ious + 1, 0)
+    return assigned_gt_inds

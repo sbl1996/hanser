@@ -1,7 +1,7 @@
 import colorsys
 import random
 
-from hanser.detection.assign import max_iou_assign
+from hanser.detection.assign import max_iou_assign, atss_assign
 from hanser.detection.nms import batched_nms
 from toolz import curry
 
@@ -69,6 +69,30 @@ def match_anchors(gt_bboxes, gt_labels, anchors, pos_iou_thr=0.5, neg_iou_thr=0.
 
     return box_t, cls_t, ignore
 
+
+def match_anchors2(gt_bboxes, gt_labels, assigned_gt_inds):
+    num_gts = tf.shape(gt_bboxes)[0]
+    num_anchors = get_shape(assigned_gt_inds, 0)
+    box_t = tf.zeros([num_anchors, 4], dtype=tf.float32)
+    cls_t = tf.zeros([num_anchors,], dtype=tf.int32)
+
+    if num_gts == 0:
+        ignore = tf.fill([num_anchors,], False)
+        return box_t, cls_t, ignore
+
+    pos = assigned_gt_inds > 0
+    ignore = assigned_gt_inds == -1
+    indices = tf.range(num_anchors, dtype=tf.int32)[pos]
+
+    assigned_gt_inds = tf.gather(assigned_gt_inds, indices) - 1
+
+    assigned_gt_bboxes = tf.gather(gt_bboxes, assigned_gt_inds)
+    assigned_gt_labels = tf.gather(gt_labels, assigned_gt_inds)
+
+    box_t = index_put(box_t, indices, assigned_gt_bboxes)
+    cls_t = index_put(cls_t, indices, assigned_gt_labels)
+
+    return box_t, cls_t, ignore
 
 class DetectionLoss():
 

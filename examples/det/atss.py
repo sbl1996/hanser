@@ -9,7 +9,7 @@ from hanser.tpu import setup
 from hanser.datasets import prepare
 from hanser.losses import l1_loss, focal_loss, iou_loss
 from hanser.detection import match_anchors2, DetectionLoss, postprocess, coords_to_absolute
-from hanser.detection.assign import max_iou_assign
+from hanser.detection.assign import atss_assign
 from hanser.detection.anchor import AnchorGenerator
 
 from hanser.datasets.detection.voc import decode
@@ -32,9 +32,9 @@ HEIGHT = WIDTH = 256
 
 anchor_gen = AnchorGenerator(
     strides=[8, 16, 32, 64, 128],
-    ratios=[0.5, 1.0, 2.0],
-    octave_base_scale=4,
-    scales_per_octave=3,
+    ratios=[1.0],
+    octave_base_scale=8,
+    scales_per_octave=1,
 )
 featmap_sizes = [
     # [80, 80], [40, 40], [20, 20], [10, 10], [5, 5],
@@ -42,6 +42,7 @@ featmap_sizes = [
 ]
 
 anchors = anchor_gen.grid_anchors(featmap_sizes)
+num_level_bboxes = [a.shape[0] for a in anchors]
 flat_anchors = tf.concat(anchors, axis=0)
 
 @curry
@@ -61,8 +62,7 @@ def preprocess(example, output_size=(HEIGHT, WIDTH), max_objects=100, training=T
     bboxes, labels, is_difficults = get(['bbox', 'label', 'is_difficult'], objects)
     bboxes = coords_to_absolute(bboxes, tf.shape(image)[:2])
 
-    assigned_gt_inds = max_iou_assign(
-        flat_anchors, bboxes, pos_iou_thr=0.5, neg_iou_thr=0.4, min_pos_iou=0.)
+    assigned_gt_inds = atss_assign(flat_anchors, num_level_bboxes, bboxes, topk=9)
     box_t, cls_t, ignore = match_anchors2(bboxes, labels, assigned_gt_inds)
 
     bboxes = pad_to_fixed_size(bboxes, max_objects)
@@ -104,7 +104,7 @@ model.build((None, HEIGHT, WIDTH, 3))
 
 criterion = DetectionLoss(
     box_loss_fn=iou_loss(mode='ciou'), cls_loss_fn=focal_loss(alpha=0.25, gamma=2.0),
-    encode_target=False, decode_pred=True, anchors=flat_anchors.numpy(), bbox_std=(0.1, 0.1, 0.2, 0.2),
+    encode_target=False, decode_pred=True, anchors=flat_anchors.numpy(),
 )
 
 base_lr = 0.0025
@@ -123,7 +123,7 @@ eval_metrics = {
 def output_transform(output):
     box_p, cls_p = get(['box_p', 'cls_p'], output)
     return postprocess(box_p, cls_p, flat_anchors, iou_threshold=0.5,
-                       score_threshold=0.05, use_sigmoid=True, bbox_std=(0.1, 0.1, 0.2, 0.2))
+                       score_threshold=0.05, use_sigmoid=True)
 
 local_eval_metrics = {
     'loss': MeanMetricWrapper(criterion),
