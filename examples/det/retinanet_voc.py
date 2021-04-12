@@ -3,15 +3,12 @@ from toolz import curry, get
 import tensorflow as tf
 from tensorflow.keras.metrics import Mean
 
-import tensorflow_datasets as tfds
-
-from hanser.tpu import setup
-from hanser.datasets import prepare
+from hanser.datasets.detection.voc import decode, make_voc_dataset_sub
 from hanser.losses import l1_loss, focal_loss
-from hanser.detection import match_anchors, detection_loss, postprocess, coords_to_absolute
+from hanser.detection import encode_target, postprocess, coords_to_absolute, DetectionLoss
+from hanser.detection.assign import max_iou_assign
 from hanser.detection.anchor import AnchorGenerator
 
-from hanser.datasets.detection.voc import decode
 
 from hanser.transform import normalize
 from hanser.transform.detection import pad_to_fixed_size, random_hflip, random_resize, resize, pad_to, random_crop
@@ -36,7 +33,6 @@ anchor_gen = AnchorGenerator(
     scales_per_octave=3,
 )
 featmap_sizes = [
-    # [80, 80], [40, 40], [20, 20], [10, 10], [5, 5],
     [32, 32], [16, 16], [8, 8], [4, 4], [2, 2],
 ]
 
@@ -57,48 +53,36 @@ def preprocess(example, output_size=(HEIGHT, WIDTH), max_objects=100, training=T
     image = normalize(image, [123.68, 116.779, 103.939], [58.393, 57.12, 57.375])
     image, objects = pad_to(image, objects, output_size)
 
-    bboxes, labels, is_difficults = get(['bbox', 'label', 'is_difficult'], objects)
-    bboxes = coords_to_absolute(bboxes, tf.shape(image)[:2])
-    box_t, cls_t, ignore = match_anchors(
-        bboxes, labels, flat_anchors, pos_iou_thr=0.5, neg_iou_thr=0.4, min_pos_iou=0.)
+    gt_bboxes, gt_labels, is_difficults = get(['bbox', 'label', 'is_difficult'], objects)
+    gt_bboxes = coords_to_absolute(gt_bboxes, tf.shape(image)[:2])
 
-    bboxes = pad_to_fixed_size(bboxes, max_objects)
-    labels = pad_to_fixed_size(labels, max_objects)
+    assigned_gt_inds = max_iou_assign(
+        flat_anchors, gt_bboxes, pos_iou_thr=0.5, neg_iou_thr=0.4, min_pos_iou=0.)
+    bbox_targets, labels, ignore = encode_target(
+        gt_bboxes, gt_labels, assigned_gt_inds, flat_anchors)
+
+    gt_bboxes = pad_to_fixed_size(gt_bboxes, max_objects)
+    gt_labels = pad_to_fixed_size(gt_labels, max_objects)
     is_difficults = pad_to_fixed_size(is_difficults, max_objects)
 
-    # image = tf.cast(image, tf.bfloat16)
-    return image, {'box_t': box_t, 'cls_t': cls_t, 'ignore': ignore, 'anchor': flat_anchors,
-                   'bbox': bboxes, 'label': labels, 'is_difficult': is_difficults,
+    return image, {'bbox_target': bbox_targets, 'label': labels, 'ignore': ignore,
+                   'gt_bbox': gt_bboxes, 'gt_label': gt_labels, 'is_difficult': is_difficults,
                    'image_id': image_id}
 
 mul = 1
-n_train, n_val = 6, 4
-batch_size, eval_batch_size = 2 * mul, 2
-steps_per_epoch, val_steps = n_train // batch_size, n_val // eval_batch_size
+n_train, n_val = 16, 4
+batch_size, eval_batch_size = 4 * mul, 4
+ds_train, ds_val, steps_per_epoch, val_steps = make_voc_dataset_sub(
+    n_train, n_val, batch_size, eval_batch_size, preprocess)
 
-ds_train = tfds.load("voc/2012", split=f"train[:{n_train}]",
-               shuffle_files=True, read_config=tfds.ReadConfig(try_autocache=False, skip_prefetch=True))
-ds_val = tfds.load("voc/2012", split=f"train[:{n_val}]",
-               shuffle_files=False, read_config=tfds.ReadConfig(try_autocache=False, skip_prefetch=True))
-ds_train = prepare(ds_train, batch_size, preprocess(training=True),
-                   training=True, repeat=False)
-ds_val = prepare(ds_val, eval_batch_size, preprocess(training=False),
-                 training=False, repeat=False, drop_remainder=True)
-# ds_train_dist, ds_val_dist = setup([ds_train, ds_val], fp16=True)
-
-# set_defaults({
-#     'bn': {
-#         'sync': True,
-#     }
-# })
 backbone = resnet10()
-model = RetinaNet(backbone, anchor_gen.num_base_anchors[0], num_classes=20,
-                  feat_channels=64, stacked_convs=2, use_norm=True)
+model = RetinaNet(backbone, anchor_gen.num_base_anchors[0], 20,
+                  feat_channels=64, stacked_convs=2)
 model.build((None, HEIGHT, WIDTH, 3))
 
 # load_checkpoint("./drive/MyDrive/models/ImageNet-86/ckpt", model=backbone)
 
-criterion = detection_loss(box_loss=l1_loss, cls_loss=focal_loss(alpha=0.25, gamma=2.0, label_smoothing=0.1))
+criterion = DetectionLoss(box_loss_fn=l1_loss, cls_loss_fn=focal_loss(alpha=0.25, gamma=2.0))
 base_lr = 1e-3
 epochs = 60
 lr_schedule = CosineLR(base_lr * mul, steps_per_epoch, epochs, min_lr=0,
@@ -113,8 +97,8 @@ eval_metrics = {
 }
 
 def output_transform(output):
-    box_p, cls_p = get(['box_p', 'cls_p'], output)
-    return postprocess(box_p, cls_p, flat_anchors, iou_threshold=0.5,
+    bbox_preds, cls_scores = get(['bbox_pred', 'cls_score'], output)
+    return postprocess(bbox_preds, cls_scores, flat_anchors, iou_threshold=0.5,
                        score_threshold=0.05, use_sigmoid=True)
 
 local_eval_metrics = {
@@ -130,8 +114,8 @@ learner = SuperLearner(
 
 
 learner.fit(
-    ds_train, 15, ds_val, val_freq=1,
+    ds_train, epochs, ds_val, val_freq=1,
     steps_per_epoch=steps_per_epoch, val_steps=val_steps,
     local_eval_metrics=local_eval_metrics,
-    local_eval_freq=[(0, 3), (6, 6), (12, 1)],
+    local_eval_freq=[(0, 5), (45, 1)],
 )

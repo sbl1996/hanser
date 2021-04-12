@@ -43,14 +43,17 @@ class FPN(Layer):
 
     def __init__(self,
                  in_channels,
-                 out_channels,
+                 out_channels=256,
                  num_extra_convs=2,
-                 use_norm=False):
+                 extra_convs_on='input',
+                 use_norm=True):
         super().__init__()
         assert isinstance(in_channels, list)
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.num_extra_convs = num_extra_convs
+        assert extra_convs_on in ['input', 'output']
+        self.extra_convs_on = extra_convs_on
         self.use_norm = use_norm
         norm = 'def' if self.use_norm else None
 
@@ -76,11 +79,6 @@ class FPN(Layer):
 
     def call(self, feats):
         outs = []
-        if self.extra_convs:
-            x = feats[-1]
-            for extra_conv in self.extra_convs:
-                outs.append(extra_conv(x))
-                x = outs[-1]
 
         laterals = [
             lateral_conv(feats[i])
@@ -95,5 +93,14 @@ class FPN(Layer):
             prev_x = x
             x = fpn_conv(x)
             outs.insert(0, x)
+
+        if self.extra_convs:
+            if self.extra_convs_on == 'input':
+                x = feats[-1]
+            else:
+                x = outs[-1]
+            for extra_conv in self.extra_convs:
+                outs.append(extra_conv(x))
+                x = outs[-1]
 
         return tuple(outs)

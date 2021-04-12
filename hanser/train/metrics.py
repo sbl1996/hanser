@@ -123,7 +123,7 @@ class MeanAveragePrecision:
         ]
 
         all_gt_bboxes, all_gt_labels, all_is_difficults, image_ids = [
-            t.numpy() for t in get(['bbox', 'label', 'is_difficult', 'image_id'], y_true)
+            t.numpy() for t in get(['gt_bbox', 'gt_label', 'is_difficult', 'image_id'], y_true)
         ]
 
         all_gt_n_valids = np.sum(all_gt_labels != 0, axis=1)

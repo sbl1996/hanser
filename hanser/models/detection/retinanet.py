@@ -5,41 +5,46 @@ from tensorflow.keras import Sequential, Model
 from tensorflow.keras.layers import Layer
 from tensorflow.keras.initializers import RandomNormal, Constant, Zeros
 
-from hanser.models.layers import Conv2d, Norm, Act
 from hanser.models.detection.fpn import FPN
+from hanser.models.layers import Conv2d, Norm, Act
 
 
 class RetinaNet(Model):
 
-    def __init__(self, backbone, num_anchors, num_classes, feat_channels=256, stacked_convs=4, use_norm=True,
-                 backbone_indices=(1, 2, 3)):
+    def __init__(self, backbone, num_anchors, num_classes, backbone_indices=(1, 2, 3),
+                 feat_channels=256, extra_convs_on='input',
+                 stacked_convs=4, use_norm=True, centerness=False):
         super().__init__()
         self.backbone = backbone
         self.backbone_indices = backbone_indices
-        backbone_channels = [ backbone.feat_channels[i] for i in backbone_indices ]
-        self.fpn = FPN(backbone_channels, feat_channels, 2, use_norm)
+        backbone_channels = [backbone.feat_channels[i] for i in backbone_indices]
+        self.neck = FPN(backbone_channels, feat_channels, 2, extra_convs_on, use_norm)
         if use_norm:
-            self.head = RetinaSepBNHead(feat_channels, feat_channels, stacked_convs, 5, num_anchors, num_classes)
+            self.head = RetinaSepBNHead(num_anchors, num_classes, feat_channels, feat_channels,
+                                        stacked_convs, num_levels=5, centerness=centerness)
         else:
-            self.head = RetinaHead(feat_channels, feat_channels, stacked_convs, num_anchors, num_classes)
+            self.head = RetinaHead(num_anchors, num_classes, feat_channels, feat_channels, stacked_convs,
+                                   centerness=centerness)
 
     def call(self, x):
         xs = self.backbone(x)
         xs = [xs[i] for i in self.backbone_indices]
-        xs = self.fpn(xs)
+        xs = self.neck(xs)
         preds = self.head(xs)
         return preds
 
 
 class RetinaHead(Layer):
 
-    def __init__(self, in_channels, feat_channels, stacked_convs, num_anchors, num_classes):
+    def __init__(self, num_anchors, num_classes, in_channels, feat_channels, stacked_convs=4,
+                 centerness=False):
         super().__init__()
         self.in_channels = in_channels
         self.feat_channels = feat_channels
         self.stacked_convs = stacked_convs
         self.num_anchors = num_anchors
         self.num_classes = num_classes
+        self.centerness = centerness
 
         reg_convs = []
         cls_convs = []
@@ -57,8 +62,12 @@ class RetinaHead(Layer):
         self.reg_convs = reg_convs
         self.cls_convs = cls_convs
 
+        bbox_out_channels = num_anchors * 4
+        if self.centerness:
+            bbox_out_channels += num_anchors * 1
+        self.bbox_out_channels = bbox_out_channels
         self.bbox_pred = Conv2d(
-            feat_channels, num_anchors * 4, 3,
+            feat_channels, bbox_out_channels, 3,
             kernel_init=RandomNormal(stddev=0.01), bias_init=Zeros())
 
         prior_prob = 0.01
@@ -66,7 +75,6 @@ class RetinaHead(Layer):
         self.cls_score = Conv2d(
             feat_channels, num_anchors * self.num_classes, 3,
             kernel_init=RandomNormal(stddev=0.01), bias_init=Constant(bias_value))
-
 
     def call_single(self, x):
         reg_feat = x
@@ -79,29 +87,35 @@ class RetinaHead(Layer):
         cls_score = self.cls_score(cls_feat)
         return bbox_pred, cls_score
 
-
     def call(self, feats):
         b = tf.shape(feats[0])[0]
         bbox_preds = []
         cls_scores = []
         for x in feats:
             bbox_pred, cls_score = self.call_single(x)
-            bbox_preds.append(tf.reshape(bbox_pred, [b, -1, 4]))
+            bbox_preds.append(tf.reshape(bbox_pred, [b, -1, self.bbox_out_channels]))
             cls_scores.append(tf.reshape(cls_score, [b, -1, self.num_classes]))
-        box_p = tf.concat(bbox_preds, axis=1)
-        cls_p = tf.concat(cls_scores, axis=1)
-        return {'box_p': box_p, 'cls_p': cls_p}
+        bbox_preds = tf.concat(bbox_preds, axis=1)
+        cls_scores = tf.concat(cls_scores, axis=1)
+        if self.centerness:
+            bbox_preds = bbox_preds[..., :-1]
+            centerness = bbox_preds[..., -1]
+            return {'bbox_pred': bbox_preds, 'cls_score': cls_scores, 'centerness': centerness}
+        else:
+            return {'bbox_pred': bbox_preds, 'cls_score': cls_scores}
 
 
 class RetinaSepBNHead(Layer):
 
-    def __init__(self, in_channels, feat_channels, stacked_convs, num_levels, num_anchors, num_classes):
+    def __init__(self, num_anchors, num_classes, in_channels, feat_channels=256, stacked_convs=4,
+                 num_levels=5, centerness=False):
         super().__init__()
         self.in_channels = in_channels
         self.feat_channels = feat_channels
         self.stacked_convs = stacked_convs
         self.num_anchors = num_anchors
         self.num_classes = num_classes
+        self.centerness = centerness
 
         reg_convs = []
         reg_norm_acts = [[] for l in range(num_levels)]
@@ -125,8 +139,12 @@ class RetinaSepBNHead(Layer):
         self.cls_convs = cls_convs
         self.cls_norm_acts = cls_norm_acts
 
+        bbox_out_channels = 4
+        if self.centerness:
+            bbox_out_channels += 1
+        self.bbox_out_channels = bbox_out_channels
         self.bbox_pred = Conv2d(
-            feat_channels, num_anchors * 4, 3,
+            feat_channels, num_anchors * bbox_out_channels, 3,
             kernel_init=RandomNormal(stddev=0.01), bias_init=Zeros())
 
         prior_prob = 0.01
@@ -150,14 +168,18 @@ class RetinaSepBNHead(Layer):
 
 
     def call(self, feats):
-
         b = tf.shape(feats[0])[0]
         bbox_preds = []
         cls_scores = []
         for i, x in enumerate(feats):
             bbox_pred, cls_score = self.call_single(x, i)
-            bbox_preds.append(tf.reshape(bbox_pred, [b, -1, 4]))
+            bbox_preds.append(tf.reshape(bbox_pred, [b, -1, self.bbox_out_channels]))
             cls_scores.append(tf.reshape(cls_score, [b, -1, self.num_classes]))
-        box_p = tf.concat(bbox_preds, axis=1)
-        cls_p = tf.concat(cls_scores, axis=1)
-        return {'box_p': box_p, 'cls_p': cls_p}
+        bbox_preds = tf.concat(bbox_preds, axis=1)
+        cls_scores = tf.concat(cls_scores, axis=1)
+        if self.centerness:
+            bbox_preds = bbox_preds[..., :-1]
+            centerness = bbox_preds[..., -1]
+            return {'bbox_pred': bbox_preds, 'cls_score': cls_scores, 'centerness': centerness}
+        else:
+            return {'bbox_pred': bbox_preds, 'cls_score': cls_scores}

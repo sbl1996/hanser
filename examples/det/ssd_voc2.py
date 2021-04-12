@@ -122,8 +122,8 @@ learner = SuperLearner(
     work_dir=f"./models")
 
 def output_transform(output):
-    box_p, cls_p = get(['box_p', 'cls_p'], output)
-    return postprocess(box_p, cls_p, flat_anchors, iou_threshold=0.45,
+    bbox_preds, cls_scores = get(['bbox_pred', 'cls_score'], output)
+    return postprocess(bbox_preds, cls_scores, flat_anchors, iou_threshold=0.45,
                        score_threshold=0.02, use_sigmoid=False,
                        bbox_std=(0.1, 0.1, 0.2, 0.2), label_offset=1)
 
