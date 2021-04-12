@@ -1,5 +1,3 @@
-from hanser.detection import BBox
-from hanser.detection.eval import average_precision
 from toolz import get
 
 import numpy as np
@@ -11,6 +9,8 @@ from tensorflow.keras.initializers import Zeros
 
 from hanser.losses import cross_entropy
 from hanser.metrics import confusion_matrix, iou_from_cm
+from hanser.detection.bbox import BBox
+from hanser.detection.eval import average_precision
 
 
 class MeanMetricWrapper(Mean):

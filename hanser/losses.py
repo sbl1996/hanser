@@ -147,29 +147,3 @@ def l1_loss(y_true, y_pred, weight=None, clip_value=10, reduction='sum'):
     losses = tf.math.abs(y_pred - y_true)
     losses = tf.clip_by_value(losses, 0, clip_value)
     return reduce_loss(losses, weight, reduction)
-
-
-@curry
-def cross_entropy_det(y_true, y_pred, weight=None, neg_pos_ratio=None, reduction='sum'):
-    losses = tf.nn.sparse_softmax_cross_entropy_with_logits(y_true, y_pred)
-    if neg_pos_ratio is None:
-        return reduce_loss(losses, weight, reduction)
-
-    assert reduction == 'sum'
-    losses = losses * weight
-
-    pos = tf.cast(y_true != 0, y_pred.dtype)
-    loss_pos = reduce_loss(losses, pos, reduction)
-
-    n_pos = tf.reduce_sum(pos, axis=1)
-    neg = 1. - pos
-    loss_neg = hard_negative_mining(losses * neg, n_pos, neg_pos_ratio)
-    return loss_pos + loss_neg
-
-
-def hard_negative_mining(losses, n_pos, neg_pos_ratio, max_pos=1000):
-    ind = tf.range(max_pos, dtype=tf.int32)[None, :]
-    n_neg = to_int(n_pos * neg_pos_ratio)
-    weights = tf.cast(ind < n_neg[:, None], tf.float32)
-    losses = tf.math.top_k(losses, k=max_pos, sorted=True)[0]
-    return tf.reduce_sum(weights * losses)

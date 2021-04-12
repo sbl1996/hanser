@@ -3,6 +3,7 @@ import tensorflow as tf
 from hanser.detection.iou import bbox_iou
 from hanser.ops import index_put, get_shape, l2_norm
 
+
 def max_iou_assign(bboxes, gt_bboxes, pos_iou_thr, neg_iou_thr,
                    min_pos_iou=.0, match_low_quality=True, gt_max_assign_all=False):
     """Assign a corresponding gt bbox or background to each bbox.

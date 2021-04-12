@@ -4,9 +4,7 @@ from typing import List
 import numpy as np
 from toolz.curried import groupby
 
-# noinspection PyUnresolvedReferences
-# from hanser._numpy import iou_mn
-from hanser.detection import BBox
+from hanser.detection.bbox import BBox
 
 
 def iou_mn(boxes1, boxes2):
