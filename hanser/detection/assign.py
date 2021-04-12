@@ -90,9 +90,9 @@ def atss_assign(bboxes, num_level_bboxes, gt_bboxes, topk=9):
     num_gts = get_shape(gt_bboxes, 0)
     num_bboxes = get_shape(bboxes, 0)
 
-    if num_gts == 0:
+    # if num_gts == 0:
         # No truth, assign everything to background
-        return tf.fill((num_bboxes,), tf.constant(0, dtype=tf.int32))
+        # return tf.fill((num_bboxes,), tf.constant(0, dtype=tf.int32))
 
     # compute iou between all bbox and gt
     # (num_gts, num_bboxes)
@@ -127,7 +127,7 @@ def atss_assign(bboxes, num_level_bboxes, gt_bboxes, topk=9):
     ious_mean_per_gt = tf.reduce_mean(candidate_ious, axis=1)
     ious_std_per_gt = tf.math.reduce_std(candidate_ious, axis=1)
     ious_thr_per_gt = ious_mean_per_gt + ious_std_per_gt
-
+    # tf.print(ious_thr_per_gt, summarize=-1)
     is_pos = candidate_ious >= ious_thr_per_gt[:, None]
 
     # limit the positive sample's center in gt
@@ -142,13 +142,13 @@ def atss_assign(bboxes, num_level_bboxes, gt_bboxes, topk=9):
     is_in_gts = tf.reduce_min([t_, l_, b_, r_], axis=0) > 0.01
     is_pos = is_pos & is_in_gts
 
-    # limit the positive sample's center in gt
     candidate_idxs = candidate_idxs + tf.range(num_gts)[:, None] * num_bboxes
 
     # if an anchor box is assigned to multiple gts,
     # the one with the highest IoU will be selected.
     ious_inf = tf.fill((num_gts * num_bboxes,), NINF)
     index = candidate_idxs[is_pos]
+    # tf.print("final", tf.gather(tf.reshape(ious, (-1,)), index), summarize=-1)
     ious_inf = index_put(ious_inf, index, tf.gather(tf.reshape(ious, (-1,)), index))
     ious_inf = tf.transpose(tf.reshape(ious_inf, (num_gts, num_bboxes)))
 
@@ -156,4 +156,7 @@ def atss_assign(bboxes, num_level_bboxes, gt_bboxes, topk=9):
     max_ious = tf.gather(ious_inf, argmax_ious, axis=1, batch_dims=1)
 
     assigned_gt_inds = tf.where(max_ious != NINF, argmax_ious + 1, 0)
+
+    # pos = assigned_gt_inds != 0
+    # pos_ious = tf.gather(ious_inf[pos], assigned_gt_inds[pos] - 1, axis=1, batch_dims=1)
     return assigned_gt_inds

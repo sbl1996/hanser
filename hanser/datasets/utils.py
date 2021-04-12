@@ -2,7 +2,7 @@ import tensorflow as tf
 
 
 def prepare(ds, batch_size, transform=None, training=True, buffer_size=1024,
-            drop_remainder=None, cache=True, repeat=True,
+            drop_remainder=None, cache=True, repeat=True, prefetch=True,
             zip_transform=None, batch_transform=None, datasets_num_private_threads=None):
     if datasets_num_private_threads:
         options = tf.data.Options()
@@ -32,5 +32,6 @@ def prepare(ds, batch_size, transform=None, training=True, buffer_size=1024,
             ds = ds.map(batch_transform, num_parallel_calls=tf.data.experimental.AUTOTUNE)
         if repeat:
             ds = ds.repeat()
-    ds = ds.prefetch(tf.data.experimental.AUTOTUNE)
+    if prefetch:
+        ds = ds.prefetch(tf.data.experimental.AUTOTUNE)
     return ds

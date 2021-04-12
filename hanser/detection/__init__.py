@@ -13,6 +13,28 @@ from hanser.losses import reduce_loss
 from hanser.detection.iou import bbox_iou
 
 
+class BBoxCoder:
+
+    def __init__(self, anchors, bbox_std=(1., 1., 1., 1.)):
+        self.anchors = tf.constant(anchors, tf.float32)
+        self.bbox_std = tf.constant(bbox_std, tf.float32)
+
+    def encode(self, bboxes, anchors=None):
+        if anchors is None:
+            anchors = self.anchors
+        return bbox_encode(bboxes, anchors, self.bbox_std)
+
+    def decode(self, bboxes, anchors=None):
+        if anchors is None:
+            anchors = self.anchors
+        return bbox_decode(bboxes, anchors, self.bbox_std)
+
+    def centerness(self, bboxes, anchors=None):
+        if anchors is None:
+            anchors = self.anchors
+        return centerness_target(bboxes, anchors)
+
+
 def coords_to_absolute(bboxes, size):
     height, width = size[0], size[1]
     bboxes = bboxes * tf.cast(tf.stack([height, width, height, width]), bboxes.dtype)[None, :]
@@ -91,14 +113,21 @@ def centerness_target(bboxes, anchors):
     return centerness
 
 
-def encode_target(gt_bboxes, gt_labels, assigned_gt_inds, anchors, bbox_std=(1., 1., 1., 1.)):
+def encode_target(gt_bboxes, gt_labels, assigned_gt_inds,
+                  bbox_coder: BBoxCoder = None, encode_bbox=True,
+                  centerness=False):
+    if bbox_coder is not None:
+        assert encode_bbox or centerness
     num_gts = get_shape(gt_bboxes, 0)
     num_anchors = get_shape(assigned_gt_inds, 0)
     bbox_targets = tf.zeros([num_anchors, 4], dtype=tf.float32)
     labels = tf.zeros([num_anchors,], dtype=tf.int32)
+    centerness_t = tf.zeros([num_anchors,], dtype=tf.float32)
 
     if num_gts == 0:
         ignore = tf.fill([num_anchors,], False)
+        if centerness:
+            return bbox_targets, labels, centerness_t, ignore
         return bbox_targets, labels, ignore
 
     pos = assigned_gt_inds > 0
@@ -109,37 +138,37 @@ def encode_target(gt_bboxes, gt_labels, assigned_gt_inds, anchors, bbox_std=(1.,
 
     assigned_gt_bboxes = tf.gather(gt_bboxes, assigned_gt_inds)
     assigned_gt_labels = tf.gather(gt_labels, assigned_gt_inds)
-    assigned_anchors = tf.gather(anchors, indices)
 
-    assigned_gt_bboxes = bbox_encode(assigned_gt_bboxes, assigned_anchors, bbox_std)
+    if bbox_coder:
+        assigned_anchors = tf.gather(bbox_coder.anchors, indices)
+        if centerness:
+            assigned_centerness = bbox_coder.centerness(assigned_gt_bboxes, assigned_anchors)
+            centerness_t = index_put(centerness_t, indices, assigned_centerness)
+        if encode_bbox:
+            assigned_gt_bboxes = bbox_coder.encode(assigned_gt_bboxes, assigned_anchors)
+
     bbox_targets = index_put(bbox_targets, indices, assigned_gt_bboxes)
     labels = index_put(labels, indices, assigned_gt_labels)
 
+    if centerness:
+        return bbox_targets, labels, centerness_t, ignore
     return bbox_targets, labels, ignore
 
 
 class DetectionLoss:
 
     def __init__(self, box_loss_fn, cls_loss_fn, box_loss_weight=1.,
-                 decode_target=False, decode_pred=False, bbox_std=(1., 1., 1., 1.),
-                 anchors=None, centerness=False):
-        if decode_target or decode_pred:
-            assert anchors is not None
-        if centerness:
-            assert decode_target
+                 bbox_coder: BBoxCoder = None, decode_pred=False, centerness=False):
+        if decode_pred or centerness:
+            assert bbox_coder is not None
         self.box_loss_fn = box_loss_fn
         self.cls_loss_fn = cls_loss_fn
         self.box_loss_weight = box_loss_weight
-        self.decode_target = decode_target
+        self.bbox_coder = bbox_coder
         self.decode_pred = decode_pred
-        self.bbox_std = bbox_std
-        if anchors is not None:
-            anchors = tf.constant(anchors, tf.float32)
-        self.anchors = anchors
         self.centerness = centerness
 
     def __call__(self, y_true, y_pred):
-        anchors, bbox_std = self.anchors, self.bbox_std
 
         bbox_targets = y_true['bbox_target']
         labels = y_true['label']
@@ -152,12 +181,8 @@ class DetectionLoss:
         pos_weight = to_float(pos)
         total_pos = tf.reduce_sum(pos_weight) + 1
 
-        if self.decode_target:
-            dec_bbox_targets = bbox_decode(bbox_targets, anchors, bbox_std)
-            bbox_targets = dec_bbox_targets
-
         if self.decode_pred:
-            dec_bbox_preds = bbox_decode(bbox_preds, anchors, bbox_std)
+            dec_bbox_preds = self.bbox_coder.decode(bbox_preds)
             bbox_preds = dec_bbox_preds
 
         loss_box = self.box_loss_fn(bbox_targets, bbox_preds, weight=pos_weight, reduction='sum') / total_pos
@@ -165,19 +190,19 @@ class DetectionLoss:
 
         loss = loss_box * self.box_loss_weight + loss_cls
         if self.centerness:
-            centerness = y_pred.get("centerness")
-            centerness_targets = centerness_target(dec_bbox_targets, anchors)
+            centerness = y_pred['centerness']
+            centerness_t = y_true['centerness']
             loss_centerness = tf.nn.sigmoid_cross_entropy_with_logits(
-                centerness_targets, centerness)
+                centerness_t, centerness)
             loss_centerness = reduce_loss(loss_centerness, pos_weight, reduction='sum') / total_pos
             loss = loss + loss_centerness
+            print(loss_box, loss_cls, loss_centerness)
         return loss
 
 
-def postprocess(bbox_preds, cls_scores, anchors, centerness=None,
+def postprocess(bbox_preds, cls_scores, bbox_coder, centerness=None,
                 nms_pre=5000, iou_threshold=0.5, score_threshold=0.05,
-                topk=200, soft_nms_sigma=0., use_sigmoid=False,
-                bbox_std=(1., 1., 1., 1.), label_offset=0):
+                topk=200, soft_nms_sigma=0., use_sigmoid=False, label_offset=0):
     if centerness is not None:
         cls_scores = cls_scores * tf.sigmoid(centerness)[..., None]
     if use_sigmoid:
@@ -186,6 +211,7 @@ def postprocess(bbox_preds, cls_scores, anchors, centerness=None,
         scores = tf.math.softmax(cls_scores, -1)
     scores = scores[..., label_offset:]
 
+    anchors = bbox_coder.anchors
     if nms_pre < anchors.shape[0]:
         max_scores = tf.reduce_max(scores, axis=-1)
         idx = tf.math.top_k(max_scores, nms_pre, sorted=False)[1]
@@ -193,10 +219,9 @@ def postprocess(bbox_preds, cls_scores, anchors, centerness=None,
         scores = tf.gather(scores, idx, axis=1, batch_dims=1)
         anchors = tf.gather(anchors, idx, axis=0, batch_dims=0)
 
-    bboxes = bbox_decode(bbox_preds, anchors, bbox_std)
+    bboxes = bbox_coder.decode(bbox_preds, anchors)
 
     bboxes = tf.expand_dims(bboxes, 2)
-
     bboxes, scores, labels, n_valids = batched_nms(
         bboxes, scores, iou_threshold, score_threshold,
         soft_nms_sigma=soft_nms_sigma, max_per_class=100, topk=topk)

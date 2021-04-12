@@ -4,8 +4,8 @@ import tensorflow as tf
 from tensorflow.keras.metrics import Mean
 
 from hanser.tpu import setup
-from hanser.losses import focal_loss, iou_loss
-from hanser.detection import encode_target, DetectionLoss, postprocess, coords_to_absolute
+from hanser.losses import focal_loss
+from hanser.detection import encode_target, DetectionLoss, postprocess, coords_to_absolute, BBoxCoder, iou_loss
 from hanser.detection.assign import atss_assign
 from hanser.detection.anchor import AnchorGenerator
 
@@ -30,17 +30,18 @@ HEIGHT = WIDTH = 256
 anchor_gen = AnchorGenerator(
     strides=[8, 16, 32, 64, 128],
     ratios=[1.0],
-    octave_base_scale=6,
+    octave_base_scale=2,
     scales_per_octave=1,
 )
 featmap_sizes = [
     [32, 32], [16, 16], [8, 8], [4, 4], [2, 2],
 ]
-bbox_std = (0.1, 0.1, 0.2, 0.2)
 
-anchors = anchor_gen.grid_anchors(featmap_sizes)
-num_level_bboxes = [a.shape[0] for a in anchors]
-flat_anchors = tf.concat(anchors, axis=0)
+mlvl_anchors = anchor_gen.grid_anchors(featmap_sizes)
+num_level_bboxes = [a.shape[0] for a in mlvl_anchors]
+anchors = tf.concat(mlvl_anchors, axis=0)
+
+bbox_coder = BBoxCoder(anchors, (0.1, 0.1, 0.2, 0.2))
 
 @curry
 def preprocess(example, output_size=(HEIGHT, WIDTH), max_objects=50, training=True):
@@ -59,9 +60,10 @@ def preprocess(example, output_size=(HEIGHT, WIDTH), max_objects=50, training=Tr
     gt_bboxes, gt_labels, is_difficults = get(['bbox', 'label', 'is_difficult'], objects)
     gt_bboxes = coords_to_absolute(gt_bboxes, tf.shape(image)[:2])
 
-    assigned_gt_inds = atss_assign(flat_anchors, num_level_bboxes, gt_bboxes, topk=9)
-    bbox_targets, labels, ignore = encode_target(
-        gt_bboxes, gt_labels, assigned_gt_inds, flat_anchors, bbox_std)
+    assigned_gt_inds = atss_assign(anchors, num_level_bboxes, gt_bboxes, topk=5)
+    bbox_targets, labels, centerness, ignore = encode_target(
+        gt_bboxes, gt_labels, assigned_gt_inds, bbox_coder,
+        encode_bbox=False, centerness=True)
 
     gt_bboxes = pad_to_fixed_size(gt_bboxes, max_objects)
     gt_labels = pad_to_fixed_size(gt_labels, max_objects)
@@ -69,11 +71,11 @@ def preprocess(example, output_size=(HEIGHT, WIDTH), max_objects=50, training=Tr
 
     # image = tf.cast(image, tf.bfloat16)
     return image, {'bbox_target': bbox_targets, 'label': labels, 'ignore': ignore,
-                   'gt_bbox': gt_bboxes, 'gt_label': gt_labels, 'is_difficult': is_difficults,
-                   'image_id': image_id}
+                   'centerness': centerness, 'gt_bbox': gt_bboxes, 'gt_label': gt_labels,
+                   'is_difficult': is_difficults, 'image_id': image_id}
 
 mul = 1
-n_train, n_val = 16, 4
+n_train, n_val = 128, 8
 batch_size, eval_batch_size = 4 * mul, 4
 ds_train, ds_val, steps_per_epoch, val_steps = make_voc_dataset_sub(
     n_train, n_val, batch_size, eval_batch_size, preprocess)
@@ -82,15 +84,15 @@ ds_train, ds_val, steps_per_epoch, val_steps = make_voc_dataset_sub(
 
 backbone = resnet10()
 model = RetinaNet(backbone, anchor_gen.num_base_anchors[0], 20,
-                  feat_channels=64, stacked_convs=2, centerness=True)
+                  feat_channels=64, stacked_convs=2, centerness=True,
+                  extra_convs_on='output')
 model.build((None, HEIGHT, WIDTH, 3))
 
 # load_checkpoint("./drive/MyDrive/models/ImageNet-86/ckpt", model=backbone)
 
 criterion = DetectionLoss(
     box_loss_fn=iou_loss(mode='ciou'), cls_loss_fn=focal_loss(alpha=0.25, gamma=2.0),
-    decode_target=True, decode_pred=True, anchors=flat_anchors.numpy(), bbox_std=bbox_std,
-    centerness=True,
+    bbox_coder=bbox_coder, decode_pred=True, centerness=True,
 )
 
 base_lr = 0.0025
@@ -109,9 +111,8 @@ eval_metrics = {
 def output_transform(output):
     bbox_preds, cls_scores, centerness = get(
         ['bbox_pred', 'cls_score', 'centerness'], output, default=None)
-    return postprocess(bbox_preds, cls_scores, flat_anchors, centerness,
-                       iou_threshold=0.6, score_threshold=0.05, use_sigmoid=True,
-                       bbox_std=bbox_std)
+    return postprocess(bbox_preds, cls_scores, bbox_coder, centerness,
+                       iou_threshold=0.5, score_threshold=0.05, use_sigmoid=True)
 
 local_eval_metrics = {
     'loss': MeanMetricWrapper(criterion),
@@ -129,5 +130,24 @@ learner.fit(
     ds_train, epochs, ds_val, val_freq=1,
     steps_per_epoch=steps_per_epoch, val_steps=val_steps,
     local_eval_metrics=local_eval_metrics,
-    local_eval_freq=[(0, 3), (30, 6), (45, 1)],
+    local_eval_freq=[(0, 5), (45, 1)],
 )
+
+
+it = iter(ds_val)
+m = MeanAveragePrecision(output_transform=output_transform)
+m.reset_states()
+for i in range(val_steps):
+    x, y = next(it)
+    p = model(x)
+    bbox_preds = p['bbox_pred']
+    cls_scores = p['cls_score']
+    # cls_scores = tf.one_hot(y['label'], 21)[..., 1:]
+    centerness = p['centerness']
+    p = {
+        'bbox_pred': bbox_preds,
+        'cls_score': cls_scores,
+        # 'centerness': centerness,
+    }
+    m.update_state(y, p)
+m.result()

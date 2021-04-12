@@ -205,7 +205,6 @@ class AnchorGenerator(object):
         Returns:
             tf.Tensor: Anchors in the overall feature maps.
         """
-        # keep as Tensor, so that we can covert to ONNX correctly
         feat_h, feat_w = featmap_size[0], featmap_size[1]
         shift_y = tf.range(0, feat_h) * stride[0]
         shift_x = tf.range(0, feat_w) * stride[1]
@@ -221,59 +220,6 @@ class AnchorGenerator(object):
         # first A rows correspond to A anchors of (0, 0) in feature map,
         # then (0, 1), (0, 2), ...
         return all_anchors
-
-    # def valid_flags(self, featmap_sizes, pad_shape):
-    #     """Generate valid flags of anchors in multiple feature levels.
-    #
-    #     Args:
-    #         featmap_sizes (list(tuple)): List of feature map sizes in
-    #             multiple feature levels.
-    #         pad_shape (tuple): The padded shape of the image.
-    #
-    #     Return:
-    #         list(torch.Tensor): Valid flags of anchors in multiple levels.
-    #     """
-    #     assert self.num_levels == len(featmap_sizes)
-    #     multi_level_flags = []
-    #     for i in range(self.num_levels):
-    #         stride = self.strides[i]
-    #         feat_h, feat_w = featmap_sizes[i]
-    #         h, w = pad_shape[:2]
-    #         valid_feat_h = min(int(np.ceil(h / stride)), feat_h)
-    #         valid_feat_w = min(int(np.ceil(w / stride)), feat_w)
-    #         flags = self.single_level_valid_flags((feat_h, feat_w),
-    #                                               (valid_feat_h, valid_feat_w),
-    #                                               self.num_base_anchors[i])
-    #         multi_level_flags.append(flags)
-    #     return multi_level_flags
-    #
-    # def single_level_valid_flags(self,
-    #                              featmap_size,
-    #                              valid_size,
-    #                              num_base_anchors):
-    #     """Generate the valid flags of anchor in a single feature map.
-    #
-    #     Args:
-    #         featmap_size (tuple[int]): The size of feature maps.
-    #         valid_size (tuple[int]): The valid size of the feature maps.
-    #         num_base_anchors (int): The number of base anchors.
-    #
-    #     Returns:
-    #         torch.Tensor: The valid flags of each anchor in a single level \
-    #             feature map.
-    #     """
-    #     feat_h, feat_w = featmap_size
-    #     valid_h, valid_w = valid_size
-    #     assert valid_h <= feat_h and valid_w <= feat_w
-    #     valid_x = tf.zeros(feat_w, dtype=tf.bool)
-    #     valid_y = tf.zeros(feat_h, dtype=tf.bool)
-    #     valid_x[:valid_w] = 1
-    #     valid_y[:valid_h] = 1
-    #     valid_xx, valid_yy = self._meshgrid(valid_x, valid_y)
-    #     valid = valid_xx & valid_yy
-    #     valid = valid[:, None].expand(valid.size(0),
-    #                                   num_base_anchors).contiguous().view(-1)
-    #     return valid
 
     def __repr__(self):
         """str: a string that describes the module"""
