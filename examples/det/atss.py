@@ -75,7 +75,7 @@ def preprocess(example, output_size=(HEIGHT, WIDTH), max_objects=50, training=Tr
                    'is_difficult': is_difficults, 'image_id': image_id}
 
 mul = 1
-n_train, n_val = 128, 8
+n_train, n_val = 16, 8
 batch_size, eval_batch_size = 4 * mul, 4
 ds_train, ds_val, steps_per_epoch, val_steps = make_voc_dataset_sub(
     n_train, n_val, batch_size, eval_batch_size, preprocess)
@@ -132,22 +132,3 @@ learner.fit(
     local_eval_metrics=local_eval_metrics,
     local_eval_freq=[(0, 5), (45, 1)],
 )
-
-
-it = iter(ds_val)
-m = MeanAveragePrecision(output_transform=output_transform)
-m.reset_states()
-for i in range(val_steps):
-    x, y = next(it)
-    p = model(x)
-    bbox_preds = p['bbox_pred']
-    cls_scores = p['cls_score']
-    # cls_scores = tf.one_hot(y['label'], 21)[..., 1:]
-    centerness = p['centerness']
-    p = {
-        'bbox_pred': bbox_preds,
-        'cls_score': cls_scores,
-        # 'centerness': centerness,
-    }
-    m.update_state(y, p)
-m.result()

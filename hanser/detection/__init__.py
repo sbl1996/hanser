@@ -99,9 +99,8 @@ def match_anchors(gt_bboxes, gt_labels, anchors, pos_iou_thr=0.5, neg_iou_thr=0.
 
 
 def centerness_target(bboxes, anchors):
-    # only calculate pos centerness targets, otherwise there may be nan
-    anchors_cy = (anchors[:, 2] + anchors[:, 0]) / 2
-    anchors_cx = (anchors[:, 3] + anchors[:, 1]) / 2
+    anchors_cy = (anchors[:, 0] + anchors[:, 2]) / 2
+    anchors_cx = (anchors[:, 1] + anchors[:, 3]) / 2
     t_ = anchors_cy - bboxes[..., 0]
     l_ = anchors_cx - bboxes[..., 1]
     b_ = bboxes[..., 2] - anchors_cy
@@ -196,20 +195,19 @@ class DetectionLoss:
                 centerness_t, centerness)
             loss_centerness = reduce_loss(loss_centerness, pos_weight, reduction='sum') / total_pos
             loss = loss + loss_centerness
-            print(loss_box, loss_cls, loss_centerness)
         return loss
 
 
 def postprocess(bbox_preds, cls_scores, bbox_coder, centerness=None,
                 nms_pre=5000, iou_threshold=0.5, score_threshold=0.05,
                 topk=200, soft_nms_sigma=0., use_sigmoid=False, label_offset=0):
-    if centerness is not None:
-        cls_scores = cls_scores * tf.sigmoid(centerness)[..., None]
     if use_sigmoid:
         scores = tf.sigmoid(cls_scores)
     else:
         scores = tf.math.softmax(cls_scores, -1)
     scores = scores[..., label_offset:]
+    if centerness is not None:
+        scores = scores * tf.sigmoid(centerness)[..., None]
 
     anchors = bbox_coder.anchors
     if nms_pre < anchors.shape[0]:
