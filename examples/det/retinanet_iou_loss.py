@@ -7,10 +7,8 @@ import tensorflow_datasets as tfds
 
 from hanser.tpu import setup
 from hanser.datasets import prepare
-from hanser.losses import l1_loss, focal_loss, iou_loss
-from hanser.detection import DetectionLoss, postprocess, coords_to_absolute, encode_target
-from hanser.detection.assign import max_iou_assign
-from hanser.detection.anchor import AnchorGenerator
+from hanser.detection import encode_target, postprocess, coords_to_absolute, BBoxCoder, \
+    max_iou_assign, AnchorGenerator, DetectionLoss, iou_loss, focal_loss
 
 from hanser.datasets.detection.voc import decode, make_voc_dataset_sub
 
@@ -40,8 +38,11 @@ featmap_sizes = [
     [32, 32], [16, 16], [8, 8], [4, 4], [2, 2],
 ]
 
-anchors = anchor_gen.grid_anchors(featmap_sizes)
-flat_anchors = tf.concat(anchors, axis=0)
+mlvl_anchors = anchor_gen.grid_anchors(featmap_sizes)
+num_level_bboxes = [a.shape[0] for a in mlvl_anchors]
+anchors = tf.concat(mlvl_anchors, axis=0)
+
+bbox_coder = BBoxCoder(anchors, (0.1, 0.1, 0.2, 0.2))
 
 @curry
 def preprocess(example, output_size=(HEIGHT, WIDTH), max_objects=100, training=True):
@@ -61,9 +62,8 @@ def preprocess(example, output_size=(HEIGHT, WIDTH), max_objects=100, training=T
     gt_bboxes = coords_to_absolute(gt_bboxes, tf.shape(image)[:2])
 
     assigned_gt_inds = max_iou_assign(
-        flat_anchors, gt_bboxes, pos_iou_thr=0.5, neg_iou_thr=0.4, min_pos_iou=0.)
-    bbox_targets, labels, ignore = encode_target(
-        gt_bboxes, gt_labels, assigned_gt_inds, flat_anchors)
+        anchors, gt_bboxes, pos_iou_thr=0.5, neg_iou_thr=0.4, min_pos_iou=0.)
+    bbox_targets, labels, ignore = encode_target(gt_bboxes, gt_labels, assigned_gt_inds)
 
     gt_bboxes = pad_to_fixed_size(gt_bboxes, max_objects)
     gt_labels = pad_to_fixed_size(gt_labels, max_objects)
@@ -75,7 +75,7 @@ def preprocess(example, output_size=(HEIGHT, WIDTH), max_objects=100, training=T
                    'image_id': image_id}
 
 mul = 1
-n_train, n_val = 16, 4
+n_train, n_val = 16, 8
 batch_size, eval_batch_size = 4 * mul, 4
 ds_train, ds_val, steps_per_epoch, val_steps = make_voc_dataset_sub(
     n_train, n_val, batch_size, eval_batch_size, preprocess)
@@ -88,7 +88,7 @@ model.build((None, HEIGHT, WIDTH, 3))
 
 criterion = DetectionLoss(
     box_loss_fn=iou_loss(mode='ciou'), cls_loss_fn=focal_loss(alpha=0.25, gamma=2.0),
-    decode_target=True, decode_pred=True, anchors=flat_anchors.numpy())
+    bbox_coder=bbox_coder, decode_pred=True)
 
 base_lr = 0.0025
 epochs = 60
@@ -105,7 +105,7 @@ eval_metrics = {
 
 def output_transform(output):
     bbox_preds, cls_scores = get(['bbox_pred', 'cls_score'], output)
-    return postprocess(bbox_preds, cls_scores, flat_anchors, iou_threshold=0.5,
+    return postprocess(bbox_preds, cls_scores, bbox_coder, iou_threshold=0.5,
                        score_threshold=0.05, use_sigmoid=True)
 
 local_eval_metrics = {
@@ -124,5 +124,5 @@ learner.fit(
     ds_train, epochs, ds_val, val_freq=1,
     steps_per_epoch=steps_per_epoch, val_steps=val_steps,
     local_eval_metrics=local_eval_metrics,
-    local_eval_freq=[(0, 3), (30, 6), (45, 1)],
+    local_eval_freq=[(0, 5), (45, 1)],
 )

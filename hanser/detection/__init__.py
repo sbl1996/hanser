@@ -12,6 +12,7 @@ from hanser.detection.iou import bbox_iou
 from hanser.detection.bbox import BBoxCoder, coords_to_absolute
 from hanser.detection.loss import DetectionLoss, focal_loss, iou_loss, l1_loss, smooth_l1_loss, cross_entropy_det
 
+
 def encode_target(gt_bboxes, gt_labels, assigned_gt_inds,
                   bbox_coder: BBoxCoder = None, encode_bbox=True,
                   centerness=False):
@@ -63,7 +64,7 @@ def postprocess(bbox_preds, cls_scores, bbox_coder, centerness=None,
         scores = tf.math.softmax(cls_scores, -1)
     scores = scores[..., label_offset:]
     if centerness is not None:
-        scores = scores * tf.sigmoid(centerness)[..., None]
+        scores = tf.sqrt(scores * tf.sigmoid(centerness)[..., None])
 
     anchors = bbox_coder.anchors
     if nms_pre < anchors.shape[0]:

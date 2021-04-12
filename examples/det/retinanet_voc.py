@@ -3,12 +3,10 @@ from toolz import curry, get
 import tensorflow as tf
 from tensorflow.keras.metrics import Mean
 
-from hanser.datasets.detection.voc import decode, make_voc_dataset_sub
-from hanser.losses import l1_loss, focal_loss
-from hanser.detection import encode_target, postprocess, coords_to_absolute, DetectionLoss, BBoxCoder
-from hanser.detection.assign import max_iou_assign
-from hanser.detection.anchor import AnchorGenerator
+from hanser.detection import encode_target, postprocess, coords_to_absolute, BBoxCoder, \
+    max_iou_assign, AnchorGenerator, DetectionLoss, l1_loss, focal_loss
 
+from hanser.datasets.detection.voc import decode, make_voc_dataset_sub
 
 from hanser.transform import normalize
 from hanser.transform.detection import pad_to_fixed_size, random_hflip, random_resize, resize, pad_to, random_crop

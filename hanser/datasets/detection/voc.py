@@ -1,3 +1,4 @@
+import math
 import tensorflow as tf
 import tensorflow_datasets as tfds
 from hanser.datasets import prepare
@@ -29,7 +30,7 @@ NUM_EXAMPLES = {
 def make_voc_dataset(
     batch_size, eval_batch_size, transform, data_dir=None):
     n_train, n_val = NUM_EXAMPLES['train'], NUM_EXAMPLES['val']
-    steps_per_epoch, val_steps = n_train // batch_size, n_val // eval_batch_size
+    steps_per_epoch, val_steps = n_train // batch_size, math.ceil(n_val / eval_batch_size)
 
     ds_train1 = tfds.load("voc/2007", split=f"train+validation", data_dir=data_dir,
                           shuffle_files=True, read_config=tfds.ReadConfig(try_autocache=False, skip_prefetch=True))
@@ -41,7 +42,7 @@ def make_voc_dataset(
     ds_train = prepare(ds_train, batch_size, transform(training=True),
                        training=True, repeat=False)
     ds_val = prepare(ds_val, eval_batch_size, transform(training=False),
-                     training=False, repeat=False, drop_remainder=True)
+                     training=False, repeat=False)
     return ds_train, ds_val, steps_per_epoch, val_steps
 
 

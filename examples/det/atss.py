@@ -94,7 +94,7 @@ criterion = DetectionLoss(
 )
 
 base_lr = 0.0025
-epochs = 60
+epochs = 30
 lr_schedule = CosineLR(base_lr * mul, steps_per_epoch, epochs, min_lr=0,
                        warmup_min_lr=base_lr, warmup_epoch=5)
 optimizer = SGD(lr_schedule, momentum=0.9, nesterov=True, weight_decay=1e-4)
@@ -128,5 +128,25 @@ learner.fit(
     ds_train, epochs, ds_val, val_freq=1,
     steps_per_epoch=steps_per_epoch, val_steps=val_steps,
     local_eval_metrics=local_eval_metrics,
-    local_eval_freq=[(0, 5), (45, 1)],
+    local_eval_freq=[(0, 4), (20, 1)],
 )
+
+
+# def output_transform(output):
+#     bbox_preds, cls_scores, centerness = get(
+#         ['bbox_pred', 'cls_score', 'centerness'], output, default=None)
+#     return postprocess(bbox_preds, cls_scores, bbox_coder, centerness,
+#                        iou_threshold=0.5, score_threshold=0.05, use_sigmoid=True)
+
+# learner.evaluate_local(ds_val, val_steps, {"mAP": MeanAveragePrecision(output_transform=output_transform)})
+
+# it = iter(ds_val)
+# m = MeanAveragePrecision(output_transform=output_transform)
+# for i in range(val_steps):
+#     x, y = next(it)
+#     p = model(x)
+#     centerness = y['centerness']
+#     centerness = tf.math.log(centerness / (1 - centerness))
+#     p['centerness'] = centerness
+#     m.update_state(y, p)
+# m.result()
