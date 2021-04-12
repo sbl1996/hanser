@@ -1,14 +1,16 @@
 import colorsys
 import random
 
-from hanser.detection.assign import max_iou_assign, atss_assign
-from hanser.detection.nms import batched_nms
-from hanser.losses import reduce_loss
 from toolz import curry
 
 import numpy as np
 import tensorflow as tf
+
 from hanser.ops import index_put, to_float, get_shape
+from hanser.detection.assign import max_iou_assign, atss_assign
+from hanser.detection.nms import batched_nms
+from hanser.losses import reduce_loss
+from hanser.detection.iou import bbox_iou
 
 
 def coords_to_absolute(bboxes, size):
@@ -309,3 +311,12 @@ def random_bboxes(shape):
     bboxes = tf.reshape(bboxes, tuple(shape) + (4,))
     bboxes = tf.clip_by_value(bboxes, 0, 1)
     return bboxes
+
+
+@curry
+def iou_loss(y_true, y_pred, weight=None, mode='iou', reduction='sum'):
+    # y_true: (batch_size, n_dts, 4)
+    # y_pred: (batch_size, n_dts, 4)
+    # weight: (batch_size, n_dts)
+    losses = 1.0 - bbox_iou(y_true, y_pred, mode=mode, is_aligned=True)
+    return reduce_loss(losses, weight, reduction)

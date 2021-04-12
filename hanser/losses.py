@@ -4,7 +4,6 @@ import tensorflow as tf
 import tensorflow.keras.backend as K
 from hanser.train.losses import CrossEntropy
 from hanser.ops import to_float, to_int
-from hanser.detection.iou import bbox_iou
 
 
 @curry
@@ -147,15 +146,6 @@ def smooth_l1_loss(y_true, y_pred, weight=None, beta=1.0, reduction='sum'):
 def l1_loss(y_true, y_pred, weight=None, clip_value=10, reduction='sum'):
     losses = tf.math.abs(y_pred - y_true)
     losses = tf.clip_by_value(losses, 0, clip_value)
-    return reduce_loss(losses, weight, reduction)
-
-
-@curry
-def iou_loss(y_true, y_pred, weight=None, mode='iou', reduction='sum'):
-    # y_true: (batch_size, n_dts, 4)
-    # y_pred: (batch_size, n_dts, 4)
-    # weight: (batch_size, n_dts)
-    losses = 1.0 - bbox_iou(y_true, y_pred, mode=mode, is_aligned=True)
     return reduce_loss(losses, weight, reduction)
 
 
