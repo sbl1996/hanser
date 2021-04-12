@@ -90,9 +90,9 @@ def atss_assign(bboxes, num_level_bboxes, gt_bboxes, topk=9):
     num_gts = get_shape(gt_bboxes, 0)
     num_bboxes = get_shape(bboxes, 0)
 
-    # if num_gts == 0:
+    if num_gts == 0:
         # No truth, assign everything to background
-        # return tf.fill((num_bboxes,), tf.constant(0, dtype=tf.int32))
+        return tf.fill((num_bboxes,), tf.constant(0, dtype=tf.int32))
 
     # compute iou between all bbox and gt
     # (num_gts, num_bboxes)
