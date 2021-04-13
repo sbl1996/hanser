@@ -30,7 +30,11 @@ NUM_EXAMPLES = {
 def make_voc_dataset(
     batch_size, eval_batch_size, transform, data_dir=None, drop_remainder=None):
     n_train, n_val = NUM_EXAMPLES['train'], NUM_EXAMPLES['val']
-    steps_per_epoch, val_steps = n_train // batch_size, math.ceil(n_val / eval_batch_size)
+    steps_per_epoch = n_train // batch_size
+    if drop_remainder:
+        val_steps = n_val // eval_batch_size
+    else:
+        val_steps = math.ceil(n_val / eval_batch_size)
 
     ds_train1 = tfds.load("voc/2007", split=f"train+validation", data_dir=data_dir,
                           shuffle_files=True, read_config=tfds.ReadConfig(try_autocache=False, skip_prefetch=True))
