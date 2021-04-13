@@ -3,7 +3,8 @@ import tensorflow as tf
 
 from hanser.losses import reduce_loss, focal_loss, l1_loss, smooth_l1_loss
 from hanser.ops import to_float, to_int
-from hanser.detection.iou import bbox_iou
+from hanser.detection.iou import bbox_iou2
+
 
 class DetectionLoss:
 
@@ -54,7 +55,7 @@ def iou_loss(y_true, y_pred, weight=None, mode='iou', reduction='sum'):
     # y_true: (batch_size, n_dts, 4)
     # y_pred: (batch_size, n_dts, 4)
     # weight: (batch_size, n_dts)
-    losses = 1.0 - bbox_iou(y_true, y_pred, mode=mode, is_aligned=True)
+    losses = 1.0 - bbox_iou2(y_true, y_pred, mode=mode, is_aligned=True)
     return reduce_loss(losses, weight, reduction)
 
 

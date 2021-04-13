@@ -57,15 +57,6 @@ class FPN(Layer):
         self.use_norm = use_norm
         norm = 'def' if self.use_norm else None
 
-        self.extra_convs = []
-        in_channels = self.in_channels[-1]
-        for i in range(num_extra_convs):
-            extra_conv = Conv2d(in_channels, out_channels, 3, stride=2, norm=norm)
-            if i != 0:
-                extra_conv = Sequential([Act(), extra_conv])
-            self.extra_convs.append(extra_conv)
-            in_channels = out_channels
-
         self.lateral_convs = []
         self.fpn_convs = []
         for in_channels in self.in_channels:
@@ -73,6 +64,15 @@ class FPN(Layer):
                 Conv2d(in_channels, out_channels, 1))
             self.fpn_convs.append(
                 Conv2d(out_channels, out_channels, 3, norm=norm))
+
+        self.extra_convs = []
+        in_channels = self.in_channels[-1] if extra_convs_on == 'input' else out_channels
+        for i in range(num_extra_convs):
+            extra_conv = Conv2d(in_channels, out_channels, 3, stride=2, norm=norm)
+            if i != 0:
+                extra_conv = Sequential([Act(), extra_conv])
+            self.extra_convs.append(extra_conv)
+            in_channels = out_channels
 
         num_levels = len(self.in_channels) + num_extra_convs
         self.feat_channels = [out_channels] * num_levels

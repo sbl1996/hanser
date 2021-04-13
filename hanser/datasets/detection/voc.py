@@ -28,7 +28,7 @@ NUM_EXAMPLES = {
 }
 
 def make_voc_dataset(
-    batch_size, eval_batch_size, transform, data_dir=None):
+    batch_size, eval_batch_size, transform, data_dir=None, drop_remainder=None):
     n_train, n_val = NUM_EXAMPLES['train'], NUM_EXAMPLES['val']
     steps_per_epoch, val_steps = n_train // batch_size, math.ceil(n_val / eval_batch_size)
 
@@ -42,7 +42,7 @@ def make_voc_dataset(
     ds_train = prepare(ds_train, batch_size, transform(training=True),
                        training=True, repeat=False)
     ds_val = prepare(ds_val, eval_batch_size, transform(training=False),
-                     training=False, repeat=False)
+                     training=False, repeat=False, drop_remainder=drop_remainder)
     return ds_train, ds_val, steps_per_epoch, val_steps
 
 
