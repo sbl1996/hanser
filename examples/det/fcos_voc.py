@@ -91,7 +91,7 @@ eval_metrics = {
 
 def output_transform(output):
     bbox_preds, cls_scores, centerness = get(['bbox_pred', 'cls_score', 'centerness'], output)
-    return postprocess(bbox_preds, cls_scores, bbox_coder, centerness,
+    return postprocess(bbox_preds, cls_scores, bbox_coder, centerness, nms_pre=1000,
                        iou_threshold=0.6, score_threshold=0.05, use_sigmoid=True)
 
 local_eval_metrics = {

@@ -52,7 +52,7 @@ class FCOSBBoxCoder:
         if idx is not None:
             points = tf.gather(points, idx, axis=0)
         # preds: (batch_size, num_points, 4)
-        ys, xs = points[:, 0], points[:, 1]
+        ys, xs = points[..., 0], points[..., 1]
         t = ys - preds[..., 0]
         l = xs - preds[..., 1]
         b = preds[..., 2] + ys
