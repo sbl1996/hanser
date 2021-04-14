@@ -29,20 +29,35 @@ class BBoxCoder:
         self.anchors = tf.constant(anchors, tf.float32)
         self.bbox_std = tf.constant(bbox_std, tf.float32)
 
-    def encode(self, bboxes, anchors=None):
-        if anchors is None:
-            anchors = self.anchors
+    def encode(self, bboxes, idx=None):
+        anchors = self.anchors
+        if idx is not None:
+            anchors = tf.gather(anchors, idx, axis=0)
         return bbox_encode(bboxes, anchors, self.bbox_std)
 
-    def decode(self, bboxes, anchors=None):
-        if anchors is None:
-            anchors = self.anchors
+    def decode(self, bboxes, idx=None):
+        anchors = self.anchors
+        if idx is not None:
+            anchors = tf.gather(anchors, idx, axis=0)
         return bbox_decode(bboxes, anchors, self.bbox_std)
 
-    def centerness(self, bboxes, anchors=None):
-        if anchors is None:
-            anchors = self.anchors
-        return centerness_target(bboxes, anchors)
+
+class FCOSBBoxCoder:
+
+    def __init__(self, points):
+        self.points = tf.constant(points, tf.float32)
+
+    def decode(self, preds, idx=None):
+        points = self.points
+        if idx is not None:
+            points = tf.gather(points, idx, axis=0)
+        # preds: (batch_size, num_points, 4)
+        ys, xs = points[:, 0], points[:, 1]
+        t = ys - preds[..., 0]
+        l = xs - preds[..., 1]
+        b = preds[..., 2] + ys
+        r = preds[..., 3] + xs
+        return tf.stack([t, l, b, r], axis=-1)
 
 
 def coords_to_absolute(bboxes, size):

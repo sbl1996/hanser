@@ -1,15 +1,8 @@
-from typing import List, Iterable, Tuple
-
-from itertools import repeat
+from typing import List
 
 import numpy as np
 import tensorflow as tf
-
-
-def _pair(x) -> Tuple:
-    if isinstance(x, Iterable):
-        return tuple(x)
-    return tuple(repeat(x, 2))
+from hanser.ops import _pair, _meshgrid
 
 
 class AnchorGenerator(object):
@@ -97,11 +90,6 @@ class AnchorGenerator(object):
     def num_levels(self):
         """int: number of feature levels that the generator will be applied"""
         return len(self.strides)
-
-    def _meshgrid(self, x, y, row_major=False):
-        xx, yy = tf.meshgrid(x, y, indexing='xy' if row_major else 'ij')
-        xx, yy = tf.reshape(xx, -1), tf.reshape(yy, -1)
-        return xx, yy
 
     def gen_base_anchors(self):
         """Generate base anchors.
@@ -209,7 +197,7 @@ class AnchorGenerator(object):
         shift_y = tf.range(0, feat_h) * stride[0]
         shift_x = tf.range(0, feat_w) * stride[1]
 
-        shift_yy, shift_xx = self._meshgrid(shift_y, shift_x, row_major=False)
+        shift_yy, shift_xx = _meshgrid(shift_y, shift_x, row_major=False)
         shifts = tf.stack([shift_yy, shift_xx, shift_yy, shift_xx], axis=-1)
         shifts = tf.cast(shifts, base_anchors.dtype)
         # first feat_w elements correspond to the first row of shifts

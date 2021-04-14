@@ -1,3 +1,6 @@
+from itertools import repeat
+from typing import Tuple, Iterable
+
 import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp
@@ -101,3 +104,15 @@ def l2_norm(x, sqrt=False):
     if sqrt:
         return tf.norm(x, axis=-1)
     return tf.reduce_sum(tf.square(x), axis=-1)
+
+
+def _pair(x) -> Tuple:
+    if isinstance(x, Iterable):
+        return tuple(x)
+    return tuple(repeat(x, 2))
+
+
+def _meshgrid(x, y, row_major=False):
+    xx, yy = tf.meshgrid(x, y, indexing='xy' if row_major else 'ij')
+    xx, yy = tf.reshape(xx, -1), tf.reshape(yy, -1)
+    return xx, yy

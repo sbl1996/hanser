@@ -115,8 +115,6 @@ def focal_loss(y_true, y_pred, weight=None, alpha=0.25, gamma=2.0, label_smoothi
         y_true = (1. - label_smoothing) * y_true + label_smoothing / num_classes
     losses = tf.nn.sigmoid_cross_entropy_with_logits(y_true, y_pred)
     losses = losses * focal_weight
-    if losses.shape.ndims - weight.shape.ndims == 1:
-        weight = tf.expand_dims(weight, -1)
     return reduce_loss(losses, weight, reduction)
 
 

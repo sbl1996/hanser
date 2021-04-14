@@ -6,10 +6,10 @@ import tensorflow as tf
 
 from hanser.ops import index_put, get_shape
 from hanser.detection.anchor import AnchorGenerator
-from hanser.detection.assign import max_iou_assign, atss_assign
+from hanser.detection.assign import max_iou_assign, atss_assign, fcos_match, grid_points
 from hanser.detection.nms import batched_nms
 from hanser.detection.iou import bbox_iou
-from hanser.detection.bbox import BBoxCoder, coords_to_absolute
+from hanser.detection.bbox import BBoxCoder, FCOSBBoxCoder, coords_to_absolute, centerness_target
 from hanser.detection.loss import DetectionLoss, focal_loss, iou_loss, l1_loss, smooth_l1_loss, cross_entropy_det
 
 
@@ -42,10 +42,10 @@ def encode_target(gt_bboxes, gt_labels, assigned_gt_inds,
     if bbox_coder:
         assigned_anchors = tf.gather(bbox_coder.anchors, indices)
         if centerness:
-            assigned_centerness = bbox_coder.centerness(assigned_gt_bboxes, assigned_anchors)
+            assigned_centerness = centerness_target(assigned_gt_bboxes, assigned_anchors)
             centerness_t = index_put(centerness_t, indices, assigned_centerness)
         if encode_bbox:
-            assigned_gt_bboxes = bbox_coder.encode(assigned_gt_bboxes, assigned_anchors)
+            assigned_gt_bboxes = bbox_coder.encode(assigned_gt_bboxes, indices)
 
     bbox_targets = index_put(bbox_targets, indices, assigned_gt_bboxes)
     labels = index_put(labels, indices, assigned_gt_labels)
@@ -66,15 +66,15 @@ def postprocess(bbox_preds, cls_scores, bbox_coder, centerness=None,
     if centerness is not None:
         scores = tf.sqrt(scores * tf.sigmoid(centerness)[..., None])
 
-    anchors = bbox_coder.anchors
-    if nms_pre < anchors.shape[0]:
+    num_dets = bbox_preds.shape[1]
+    if nms_pre < num_dets:
         max_scores = tf.reduce_max(scores, axis=-1)
         idx = tf.math.top_k(max_scores, nms_pre, sorted=False)[1]
         bbox_preds = tf.gather(bbox_preds, idx, axis=1, batch_dims=1)
         scores = tf.gather(scores, idx, axis=1, batch_dims=1)
-        anchors = tf.gather(anchors, idx, axis=0, batch_dims=0)
-
-    bboxes = bbox_coder.decode(bbox_preds, anchors)
+        bboxes = bbox_coder.decode(bbox_preds, idx)
+    else:
+        bboxes = bbox_coder.decode(bbox_preds)
 
     bboxes = tf.expand_dims(bboxes, 2)
     bboxes, scores, labels, n_valids = batched_nms(

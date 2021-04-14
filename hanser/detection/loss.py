@@ -9,7 +9,8 @@ from hanser.detection.iou import bbox_iou2
 class DetectionLoss:
 
     def __init__(self, box_loss_fn, cls_loss_fn, box_loss_weight=1.,
-                 bbox_coder=None, decode_pred=False, centerness=False):
+                 bbox_coder=None, decode_pred=False, decode_target=False,
+                 centerness=False):
         if decode_pred or centerness:
             assert bbox_coder is not None
         self.box_loss_fn = box_loss_fn
@@ -17,13 +18,18 @@ class DetectionLoss:
         self.box_loss_weight = box_loss_weight
         self.bbox_coder = bbox_coder
         self.decode_pred = decode_pred
+        self.decode_target = decode_target
         self.centerness = centerness
 
     def __call__(self, y_true, y_pred):
 
         bbox_targets = y_true['bbox_target']
         labels = y_true['label']
-        non_ignore = to_float(~y_true['ignore'])
+        ignore = y_true.get("ignore")
+        if ignore is None:
+            non_ignore = None
+        else:
+            non_ignore = to_float(~ignore)
 
         bbox_preds = y_pred['bbox_pred']
         cls_scores = y_pred['cls_score']
@@ -32,9 +38,11 @@ class DetectionLoss:
         pos_weight = to_float(pos)
         total_pos = tf.reduce_sum(pos_weight) + 1
 
+        if self.decode_target:
+            bbox_targets = self.bbox_coder.decode(bbox_targets)
+
         if self.decode_pred:
-            dec_bbox_preds = self.bbox_coder.decode(bbox_preds)
-            bbox_preds = dec_bbox_preds
+            bbox_preds = self.bbox_coder.decode(bbox_preds)
 
         loss_box = self.box_loss_fn(bbox_targets, bbox_preds, weight=pos_weight, reduction='sum') / total_pos
         loss_cls = self.cls_loss_fn(labels, cls_scores, weight=non_ignore, reduction='sum') / total_pos

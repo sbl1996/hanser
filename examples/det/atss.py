@@ -58,7 +58,7 @@ def preprocess(example, output_size=(HEIGHT, WIDTH), max_objects=50, training=Tr
     gt_bboxes, gt_labels, is_difficults = get(['bbox', 'label', 'is_difficult'], objects)
     gt_bboxes = coords_to_absolute(gt_bboxes, tf.shape(image)[:2])
 
-    assigned_gt_inds = atss_assign(anchors, num_level_bboxes, gt_bboxes, topk=5)
+    assigned_gt_inds = atss_assign(anchors, num_level_bboxes, gt_bboxes, topk=9)
     bbox_targets, labels, centerness, ignore = encode_target(
         gt_bboxes, gt_labels, assigned_gt_inds, bbox_coder,
         encode_bbox=False, centerness=True)
@@ -89,14 +89,13 @@ model.build((None, HEIGHT, WIDTH, 3))
 # load_checkpoint("./drive/MyDrive/models/ImageNet-86/ckpt", model=backbone)
 
 criterion = DetectionLoss(
-    box_loss_fn=iou_loss(mode='ciou'), cls_loss_fn=focal_loss(alpha=0.25, gamma=2.0),
-    bbox_coder=bbox_coder, decode_pred=True, centerness=True,
-)
+    box_loss_fn=iou_loss(mode='giou'), cls_loss_fn=focal_loss(alpha=0.25, gamma=2.0),
+    bbox_coder=bbox_coder, decode_pred=True, centerness=True)
 
 base_lr = 0.0025
 epochs = 30
 lr_schedule = CosineLR(base_lr * mul, steps_per_epoch, epochs, min_lr=0,
-                       warmup_min_lr=base_lr, warmup_epoch=5)
+                       warmup_min_lr=0, warmup_epoch=5)
 optimizer = SGD(lr_schedule, momentum=0.9, nesterov=True, weight_decay=1e-4)
 
 train_metrics = {

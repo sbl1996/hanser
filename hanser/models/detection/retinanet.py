@@ -37,7 +37,7 @@ class RetinaNet(Model):
 class RetinaHead(Layer):
 
     def __init__(self, num_anchors, num_classes, in_channels, feat_channels, stacked_convs=4,
-                 centerness=False):
+                 centerness=False, concat=True):
         super().__init__()
         self.in_channels = in_channels
         self.feat_channels = feat_channels
@@ -45,6 +45,7 @@ class RetinaHead(Layer):
         self.num_anchors = num_anchors
         self.num_classes = num_classes
         self.centerness = centerness
+        self.concat = concat
 
         reg_convs = []
         cls_convs = []
@@ -95,11 +96,16 @@ class RetinaHead(Layer):
             bbox_pred, cls_score = self.call_single(x)
             bbox_preds.append(tf.reshape(bbox_pred, [b, -1, self.bbox_out_channels]))
             cls_scores.append(tf.reshape(cls_score, [b, -1, self.num_classes]))
-        bbox_preds = tf.concat(bbox_preds, axis=1)
-        cls_scores = tf.concat(cls_scores, axis=1)
+        if self.concat:
+            bbox_preds = tf.concat(bbox_preds, axis=1)
+            cls_scores = tf.concat(cls_scores, axis=1)
         if self.centerness:
-            bbox_preds = bbox_preds[..., :-1]
-            centerness = bbox_preds[..., -1]
+            if self.concat:
+                centerness = bbox_preds[..., -1]
+                bbox_preds = bbox_preds[..., :-1]
+            else:
+                centerness = [p[..., -1] for p in bbox_preds]
+                bbox_preds = [p[..., :-1] for p in bbox_preds]
             return {'bbox_pred': bbox_preds, 'cls_score': cls_scores, 'centerness': centerness}
         else:
             return {'bbox_pred': bbox_preds, 'cls_score': cls_scores}
@@ -108,7 +114,7 @@ class RetinaHead(Layer):
 class RetinaSepBNHead(Layer):
 
     def __init__(self, num_anchors, num_classes, in_channels, feat_channels=256, stacked_convs=4,
-                 num_levels=5, centerness=False):
+                 num_levels=5, centerness=False, concat=True):
         super().__init__()
         self.in_channels = in_channels
         self.feat_channels = feat_channels
@@ -116,6 +122,7 @@ class RetinaSepBNHead(Layer):
         self.num_anchors = num_anchors
         self.num_classes = num_classes
         self.centerness = centerness
+        self.concat = concat
 
         reg_convs = []
         reg_norm_acts = [[] for l in range(num_levels)]
@@ -175,11 +182,16 @@ class RetinaSepBNHead(Layer):
             bbox_pred, cls_score = self.call_single(x, i)
             bbox_preds.append(tf.reshape(bbox_pred, [b, -1, self.bbox_out_channels]))
             cls_scores.append(tf.reshape(cls_score, [b, -1, self.num_classes]))
-        bbox_preds = tf.concat(bbox_preds, axis=1)
-        cls_scores = tf.concat(cls_scores, axis=1)
+        if self.concat:
+            bbox_preds = tf.concat(bbox_preds, axis=1)
+            cls_scores = tf.concat(cls_scores, axis=1)
         if self.centerness:
-            bbox_preds = bbox_preds[..., :-1]
-            centerness = bbox_preds[..., -1]
+            if self.concat:
+                centerness = bbox_preds[..., -1]
+                bbox_preds = bbox_preds[..., :-1]
+            else:
+                centerness = [p[..., -1] for p in bbox_preds]
+                bbox_preds = [p[..., :-1] for p in bbox_preds]
             return {'bbox_pred': bbox_preds, 'cls_score': cls_scores, 'centerness': centerness}
         else:
             return {'bbox_pred': bbox_preds, 'cls_score': cls_scores}

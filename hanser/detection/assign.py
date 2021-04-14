@@ -1,7 +1,8 @@
+import numpy as np
 import tensorflow as tf
 
 from hanser.detection.iou import bbox_iou
-from hanser.ops import index_put, get_shape, l2_norm
+from hanser.ops import index_put, get_shape, l2_norm, _pair, _meshgrid
 
 
 def max_iou_assign(bboxes, gt_bboxes, pos_iou_thr, neg_iou_thr,
@@ -84,7 +85,6 @@ def max_iou_assign(bboxes, gt_bboxes, pos_iou_thr, neg_iou_thr,
     return assigned_gt_inds
 
 
-
 def atss_assign(bboxes, num_level_bboxes, gt_bboxes, topk=9):
 
     NINF = tf.constant(-100000000, dtype=tf.float32)
@@ -161,3 +161,113 @@ def atss_assign(bboxes, num_level_bboxes, gt_bboxes, topk=9):
     # pos = assigned_gt_inds != 0
     # pos_ious = tf.gather(ious_inf[pos], assigned_gt_inds[pos] - 1, axis=1, batch_dims=1)
     return assigned_gt_inds
+
+
+def mlvl_concat(xs, reps, dtype=tf.float32):
+    xs = np.array(xs)
+    ndim = len(xs.shape)
+    xs = np.concatenate([
+        np.tile(xs[i][None], (n,) + (1,) * (ndim - 1))
+        for i, n in enumerate(reps)
+    ], axis=0)
+    return tf.constant(xs, dtype)
+
+
+def grid_points(featmap_sizes, strides):
+    assert len(featmap_sizes) == len(strides)
+    strides = [_pair(s) for s in strides]
+    mlvl_points = []
+    for featmap_size, stride in zip(featmap_sizes, strides):
+        feat_h, feat_w = featmap_size[0], featmap_size[1]
+        point_y = tf.range(0, feat_h, dtype=tf.float32) * stride[0]
+        point_x = tf.range(0, feat_w, dtype=tf.float32) * stride[1]
+
+        point_yy, point_xx = _meshgrid(point_y, point_x, row_major=False)
+        points = tf.stack([point_yy, point_xx], axis=-1)
+        mlvl_points.append(points)
+    return mlvl_points
+
+INF = 100000000
+
+def fcos_match(gt_bboxes, gt_labels, points, num_level_points,
+               strides=(8, 16, 32, 64, 128), radius=1.5,
+               regress_ranges=((-1, 64), (64, 128), (128, 256), (256, 512), (512, INF))):
+    strides = [_pair(s) for s in strides]
+    INF = tf.constant(100000000, dtype=tf.float32)
+
+    num_points = get_shape(points, 0)
+    num_gts = get_shape(gt_bboxes, 0)
+
+    if num_gts == 0:
+        bbox_targets = tf.zeros([num_points, 4], dtype=tf.float32)
+        labels = tf.zeros([num_points, ], dtype=tf.int32)
+        centerness_t = tf.zeros([num_points, ], dtype=tf.float32)
+        return bbox_targets, labels, centerness_t
+
+    # (num_points, 2)
+    regress_ranges = mlvl_concat(
+        regress_ranges, num_level_points)
+    # (num_points, 2)
+    radius = mlvl_concat(
+        np.array(strides) * radius, num_level_points)
+
+    areas = (gt_bboxes[:, 2] - gt_bboxes[:, 0]) * (
+        gt_bboxes[:, 3] - gt_bboxes[:, 1])
+
+    # (num_points, num_gts, *)
+    radius = radius[:, None, :]
+    areas = tf.tile(areas[None], (num_points, 1))
+    regress_ranges = tf.tile(
+        regress_ranges[:, None, :], (1, num_gts, 1))
+    gt_bboxes = tf.tile(gt_bboxes[None], (num_points, 1, 1))
+    points = tf.tile(points[:, None, :], (1, num_gts, 1))
+    ys, xs = points[..., 0], points[..., 1]
+
+    t = ys - gt_bboxes[..., 0]
+    l = xs - gt_bboxes[..., 1]
+    b = gt_bboxes[..., 2] - ys
+    r = gt_bboxes[..., 3] - xs
+    bbox_targets = tf.stack((t, l, b, r), axis=-1)
+
+    # center sampling
+    # condition1: inside a `center bbox`
+    centers = (gt_bboxes[..., :2] + gt_bboxes[..., 2:]) / 2
+
+    mins = centers - radius
+    maxs = centers + radius
+    center_gts_tl = tf.maximum(mins, gt_bboxes[..., :2])
+    center_gts_br = tf.minimum(maxs, gt_bboxes[..., 2:])
+
+    center_gts_t, center_gts_l = center_gts_tl[..., 0], center_gts_tl[..., 1]
+    center_gts_b, center_gts_r = center_gts_br[..., 0], center_gts_br[..., 1]
+    inside_gt_bbox_mask = tf.math.reduce_all(
+        [ys > center_gts_t,
+         xs > center_gts_l,
+         ys < center_gts_b,
+         xs < center_gts_r], axis=0)
+
+    # condition2: limit the regression range for each location
+    max_regress_distance = tf.reduce_max(bbox_targets, axis=-1)
+    inside_regress_range = (
+        (max_regress_distance >= regress_ranges[..., 0]) &
+        (max_regress_distance <= regress_ranges[..., 1]))
+
+    # if there are still more than one objects for a location,
+    # we choose the one with minimal area
+    areas = tf.where(
+        inside_gt_bbox_mask & inside_regress_range, areas, INF)
+    min_area_inds = tf.argmin(areas, axis=1, output_type=tf.int32)
+    min_area = tf.gather(areas, min_area_inds, axis=1, batch_dims=1)
+
+    pos = min_area != INF
+    bbox_targets = tf.gather(
+        bbox_targets, min_area_inds, axis=1, batch_dims=1)
+    labels = tf.where(
+        pos, tf.gather(gt_labels, min_area_inds), 0)
+    t, l, b, r = [bbox_targets[:, i] for i in range(4)]
+    centerness = tf.sqrt(
+        (tf.minimum(l, r) / tf.maximum(l, r)) *
+        (tf.minimum(t, b) / tf.maximum(t, b)))
+    centerness = tf.where(pos, centerness, 0)
+
+    return bbox_targets, labels, centerness
