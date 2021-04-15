@@ -11,7 +11,7 @@ class DetectionLoss:
     def __init__(self, box_loss_fn, cls_loss_fn, box_loss_weight=1.,
                  bbox_coder=None, decode_pred=False, decode_target=False,
                  centerness=False):
-        if decode_pred or centerness:
+        if decode_pred or decode_target:
             assert bbox_coder is not None
         self.box_loss_fn = box_loss_fn
         self.cls_loss_fn = cls_loss_fn
@@ -59,11 +59,11 @@ class DetectionLoss:
 
 
 @curry
-def iou_loss(y_true, y_pred, weight=None, mode='iou', reduction='sum'):
+def iou_loss(y_true, y_pred, weight=None, mode='iou', offset=False, reduction='sum'):
     # y_true: (batch_size, n_dts, 4)
     # y_pred: (batch_size, n_dts, 4)
     # weight: (batch_size, n_dts)
-    losses = 1.0 - bbox_iou2(y_true, y_pred, mode=mode, is_aligned=True)
+    losses = 1.0 - bbox_iou2(y_true, y_pred, mode=mode, is_aligned=True, offset=offset)
     return reduce_loss(losses, weight, reduction)
 
 

@@ -74,8 +74,8 @@ model.build((None, HEIGHT, WIDTH, 3))
 # load_checkpoint("./drive/MyDrive/models/ImageNet-86/ckpt", model=backbone)
 
 criterion = DetectionLoss(
-    box_loss_fn=iou_loss(mode='giou'), cls_loss_fn=focal_loss(alpha=0.25, gamma=2.0),
-    bbox_coder=bbox_coder, decode_pred=True, decode_target=True, centerness=True)
+    box_loss_fn=iou_loss(mode='giou', offset=True),
+    cls_loss_fn=focal_loss(alpha=0.25, gamma=2.0), centerness=True)
 base_lr = 0.0025
 epochs = 60
 lr_schedule = CosineLR(base_lr * mul, steps_per_epoch, epochs, min_lr=0,
