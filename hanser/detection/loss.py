@@ -58,7 +58,7 @@ def iou_loss(y_true, y_pred, weight=None, mode='iou', offset=False, reduction='s
     # y_true: (batch_size, n_dts, 4)
     # y_pred: (batch_size, n_dts, 4)
     # weight: (batch_size, n_dts)
-    losses = 1.0 - bbox_iou2(y_true, y_pred, mode=mode, is_aligned=True, offset=offset, check=False)
+    losses = 1.0 - bbox_iou2(y_true, y_pred, mode=mode, is_aligned=True, offset=offset)
     return reduce_loss(losses, weight, reduction)
 
 
