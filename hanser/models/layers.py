@@ -45,7 +45,7 @@ DEFAULTS = {
         'eval': False,
     },
     'gn': {
-        'groups': None,
+        'groups': 32,
         'channels_per_group': 16,
         'eps': 1e-5,
         'affine': True,

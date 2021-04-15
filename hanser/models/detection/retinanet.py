@@ -13,18 +13,18 @@ class RetinaNet(Model):
 
     def __init__(self, backbone, num_anchors, num_classes, backbone_indices=(1, 2, 3),
                  feat_channels=256, extra_convs_on='input',
-                 stacked_convs=4, use_norm=True, centerness=False):
+                 stacked_convs=4, norm='bn', centerness=False):
         super().__init__()
         self.backbone = backbone
         self.backbone_indices = backbone_indices
         backbone_channels = [backbone.feat_channels[i] for i in backbone_indices]
-        self.neck = FPN(backbone_channels, feat_channels, 2, extra_convs_on, use_norm)
-        if use_norm:
+        self.neck = FPN(backbone_channels, feat_channels, 2, extra_convs_on, norm)
+        if norm == 'bn':
             self.head = RetinaSepBNHead(num_anchors, num_classes, feat_channels, feat_channels,
                                         stacked_convs, num_levels=5, centerness=centerness)
         else:
             self.head = RetinaHead(num_anchors, num_classes, feat_channels, feat_channels, stacked_convs,
-                                   centerness=centerness)
+                                   centerness=centerness, norm=norm)
 
     def call(self, x):
         xs = self.backbone(x)
@@ -37,7 +37,7 @@ class RetinaNet(Model):
 class RetinaHead(Layer):
 
     def __init__(self, num_anchors, num_classes, in_channels, feat_channels, stacked_convs=4,
-                 centerness=False, concat=True):
+                 centerness=False, concat=True, norm=None):
         super().__init__()
         self.in_channels = in_channels
         self.feat_channels = feat_channels
@@ -51,11 +51,11 @@ class RetinaHead(Layer):
         cls_convs = []
         for i in range(stacked_convs):
             reg_convs.append(
-                Conv2d(in_channels, feat_channels, 3, act='def',
+                Conv2d(in_channels, feat_channels, 3, norm=norm, act='def',
                        kernel_init=RandomNormal(stddev=0.01), bias_init=Zeros()))
 
             cls_convs.append(
-                Conv2d(in_channels, feat_channels, 3, act='def',
+                Conv2d(in_channels, feat_channels, 3, norm=norm, act='def',
                        kernel_init=RandomNormal(stddev=0.01), bias_init=Zeros()))
 
             in_channels = feat_channels

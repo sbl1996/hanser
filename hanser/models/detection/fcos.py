@@ -2,7 +2,7 @@ import tensorflow as tf
 from tensorflow.keras import Model
 
 from hanser.models.detection.fpn import FPN
-from hanser.models.detection.retinanet import RetinaSepBNHead
+from hanser.models.detection.retinanet import RetinaHead
 
 
 class FCOS(Model):
@@ -14,7 +14,7 @@ class FCOS(Model):
         self.backbone_indices = backbone_indices
         backbone_channels = [backbone.feat_channels[i] for i in backbone_indices]
         self.neck = FPN(backbone_channels, feat_channels, 2,
-                        extra_convs_on='output', use_norm=True)
+                        extra_convs_on='output', norm='gn')
         self.head = FCOSHead(num_classes, feat_channels, feat_channels, stacked_convs, strides=strides)
 
     def call(self, x):
@@ -25,13 +25,13 @@ class FCOS(Model):
         return preds
 
 
-class FCOSHead(RetinaSepBNHead):
+class FCOSHead(RetinaHead):
 
     def __init__(self, num_classes, in_channels, feat_channels=256, stacked_convs=4,
                  strides=(8, 16, 32, 64, 128)):
         super().__init__(
-            1, num_classes, in_channels, feat_channels, stacked_convs, len(strides),
-            centerness=True, concat=False)
+            1, num_classes, in_channels, feat_channels, stacked_convs,
+            centerness=True, concat=False, norm='gn')
         self.strides = strides
 
     def call(self, x):

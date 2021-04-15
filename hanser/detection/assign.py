@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 
-from hanser.detection.iou import bbox_iou, bbox_iou2
+from hanser.detection.iou import bbox_iou
 from hanser.ops import index_put, get_shape, l2_norm, _pair, _meshgrid
 
 

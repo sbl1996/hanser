@@ -46,7 +46,7 @@ class FPN(Layer):
                  out_channels=256,
                  num_extra_convs=2,
                  extra_convs_on='input',
-                 use_norm=True):
+                 norm='bn'):
         super().__init__()
         assert isinstance(in_channels, list)
         self.in_channels = in_channels
@@ -54,8 +54,6 @@ class FPN(Layer):
         self.num_extra_convs = num_extra_convs
         assert extra_convs_on in ['input', 'output']
         self.extra_convs_on = extra_convs_on
-        self.use_norm = use_norm
-        norm = 'def' if self.use_norm else None
 
         self.lateral_convs = []
         self.fpn_convs = []
