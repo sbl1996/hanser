@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 
-from hanser.detection.iou import bbox_iou2
+from hanser.detection.iou import bbox_iou, bbox_iou2
 from hanser.ops import index_put, get_shape, l2_norm, _pair, _meshgrid
 
 
@@ -48,7 +48,7 @@ def max_iou_assign(bboxes, gt_bboxes, pos_iou_thr, neg_iou_thr,
         # No truth, assign everything to background
         return tf.fill((num_bboxes,), tf.constant(0, dtype=tf.int32))
 
-    ious = bbox_iou2(gt_bboxes, bboxes)
+    ious = bbox_iou(gt_bboxes, bboxes)
 
     # 1. assign -1 by default
     assigned_gt_inds = tf.fill((num_bboxes,), tf.constant(-1, dtype=tf.int32))
@@ -97,7 +97,7 @@ def atss_assign(bboxes, num_level_bboxes, gt_bboxes, topk=9):
 
     # compute iou between all bbox and gt
     # (num_gts, num_bboxes)
-    ious = bbox_iou2(gt_bboxes, bboxes)
+    ious = bbox_iou(gt_bboxes, bboxes)
 
     # compute center distance between all bbox and gt
     gt_points = (gt_bboxes[:, :2] + gt_bboxes[:, 2:]) / 2.0

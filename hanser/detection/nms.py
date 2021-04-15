@@ -1,5 +1,5 @@
 import tensorflow as tf
-from hanser.detection.iou import bbox_iou2
+from hanser.detection.iou import bbox_iou
 from hanser.ops import triu
 
 def nms(bboxes, scores,
@@ -143,7 +143,7 @@ def fast_nms(bboxes,
     scores, idx = tf.math.top_k(scores, max_per_class)
     bboxes = tf.gather(bboxes, idx, axis=1, batch_dims=1)
 
-    ious = bbox_iou2(bboxes, bboxes)  # [#class, topk, topk]
+    ious = bbox_iou(bboxes, bboxes)  # [#class, topk, topk]
     ious = triu(ious, diag=False)
     keep = tf.reduce_max(ious, axis=1) <= iou_threshold
     keep = keep & (scores > score_threshold)
