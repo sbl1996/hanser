@@ -155,6 +155,7 @@ def bbox_size(bboxes, offset=False):
         hw = bboxes[..., 2:] + bboxes[..., :2]
     else:
         hw = bboxes[..., 2:] - bboxes[..., :2]
+    hw = tf.maximum(hw, 0)
     return hw
 
 
@@ -175,6 +176,7 @@ def intersect_size(bboxes1, bboxes2, offset=False):
         tl = tf.maximum(bboxes1[..., :2], bboxes2[..., :2])
         br = tf.minimum(bboxes1[..., 2:], bboxes2[..., 2:])
         hw = br - tl
+    hw = tf.maximum(hw, 0)
     return hw
 
 
@@ -187,6 +189,7 @@ def union_size(bboxes1, bboxes2, offset=False):
         tl = tf.minimum(bboxes1[..., :2], bboxes2[..., :2])
         br = tf.maximum(bboxes1[..., 2:], bboxes2[..., 2:])
         hw = br - tl
+    hw = tf.maximum(hw, 0)
     return hw
 
 
