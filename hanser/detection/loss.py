@@ -9,16 +9,14 @@ from hanser.detection.iou import bbox_iou2
 class DetectionLoss:
 
     def __init__(self, box_loss_fn, cls_loss_fn, box_loss_weight=1.,
-                 bbox_coder=None, decode_pred=False, decode_target=False,
-                 centerness=False):
-        if decode_pred or decode_target:
+                 bbox_coder=None, decode_pred=False, centerness=False):
+        if decode_pred:
             assert bbox_coder is not None
         self.box_loss_fn = box_loss_fn
         self.cls_loss_fn = cls_loss_fn
         self.box_loss_weight = box_loss_weight
         self.bbox_coder = bbox_coder
         self.decode_pred = decode_pred
-        self.decode_target = decode_target
         self.centerness = centerness
 
     def __call__(self, y_true, y_pred):
@@ -37,9 +35,6 @@ class DetectionLoss:
         pos = labels != 0
         pos_weight = to_float(pos)
         total_pos = tf.reduce_sum(pos_weight) + 1
-
-        if self.decode_target:
-            bbox_targets = self.bbox_coder.decode(bbox_targets)
 
         if self.decode_pred:
             bbox_preds = self.bbox_coder.decode(bbox_preds)
@@ -63,7 +58,7 @@ def iou_loss(y_true, y_pred, weight=None, mode='iou', offset=False, reduction='s
     # y_true: (batch_size, n_dts, 4)
     # y_pred: (batch_size, n_dts, 4)
     # weight: (batch_size, n_dts)
-    losses = 1.0 - bbox_iou2(y_true, y_pred, mode=mode, is_aligned=True, offset=offset)
+    losses = 1.0 - bbox_iou2(y_true, y_pred, mode=mode, is_aligned=True, offset=offset, check=False)
     return reduce_loss(losses, weight, reduction)
 
 

@@ -51,7 +51,7 @@ def preprocess(example, output_size=(HEIGHT, WIDTH), max_objects=100, training=T
     gt_bboxes = coords_to_absolute(gt_bboxes, tf.shape(image)[:2])
 
     bbox_targets, labels, centerness = fcos_match(
-        gt_bboxes, gt_labels, points, num_level_points, strides=strides, radius=1.5)
+        gt_bboxes, gt_labels, points, num_level_points, strides=strides, radius=0.5)
 
     gt_bboxes = pad_to_fixed_size(gt_bboxes, max_objects)
     gt_labels = pad_to_fixed_size(gt_labels, max_objects)
