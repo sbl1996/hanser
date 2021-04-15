@@ -150,8 +150,8 @@ def bbox_iou2(bboxes1, bboxes2, mode='iou', is_aligned=False, offset=False):
         diag = l2_norm(yx1 - yx2)
         enclosed_diag = l2_norm(enclose_hw)
         dious = ious - tf.math.divide_no_nan(diag, enclosed_diag)
-        dious = tf.clip_by_value(dious, -1.0, 1.0)
         if mode == 'diou':
+            dious = tf.clip_by_value(dious, -1.0, 1.0)
             return dious
 
         h1, w1 = hw1[..., 0], hw1[..., 1]
@@ -165,7 +165,8 @@ def bbox_iou2(bboxes1, bboxes2, mode='iou', is_aligned=False, offset=False):
             atan2 = atan2[..., None, :]
 
         v = factor * tf.square(atan1 - atan2)
-        cious = dious - tf.math.divide_no_nan(v**2, 1 - ious + v)
+        alpha = tf.math.divide_no_nan(v, 1 - ious + v)
+        cious = dious - tf.stop_gradient(alpha) * v
         cious = tf.clip_by_value(cious, -1.0, 1.0)
         return cious
 
