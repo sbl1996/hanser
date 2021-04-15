@@ -68,7 +68,7 @@ ds_train, ds_val, steps_per_epoch, val_steps = make_voc_dataset_sub(
     n_train, n_val, batch_size, eval_batch_size, preprocess)
 
 backbone = resnet10()
-model = FCOS(backbone, num_classes=20, feat_channels=64, stacked_convs=2)
+model = FCOS(backbone, num_classes=20, feat_channels=64, stacked_convs=2, norm='bn')
 model.build((None, HEIGHT, WIDTH, 3))
 
 # load_checkpoint("./drive/MyDrive/models/ImageNet-86/ckpt", model=backbone)
