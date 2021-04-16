@@ -93,7 +93,7 @@ criterion = DetectionLoss(
     bbox_coder=bbox_coder, decode_pred=True, centerness=True)
 
 base_lr = 0.0025
-epochs = 30
+epochs = 60
 lr_schedule = CosineLR(base_lr * mul, steps_per_epoch, epochs, min_lr=0,
                        warmup_min_lr=0, warmup_epoch=5)
 optimizer = SGD(lr_schedule, momentum=0.9, nesterov=True, weight_decay=1e-4)
@@ -127,7 +127,7 @@ learner.fit(
     ds_train, epochs, ds_val, val_freq=1,
     steps_per_epoch=steps_per_epoch, val_steps=val_steps,
     local_eval_metrics=local_eval_metrics,
-    local_eval_freq=[(0, 4), (20, 1)],
+    local_eval_freq=[(0, 5), (45, 1)],
 )
 
 

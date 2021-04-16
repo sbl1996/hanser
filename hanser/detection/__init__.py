@@ -24,18 +24,18 @@ def encode_target(gt_bboxes, gt_labels, assigned_gt_inds,
     labels = tf.zeros([num_anchors,], dtype=tf.int32)
     centerness_t = tf.zeros([num_anchors,], dtype=tf.float32)
 
-    if num_gts == 0:
+    pos = assigned_gt_inds > 0
+    indices = tf.range(num_anchors, dtype=tf.int32)[pos]
+
+    if num_gts == 0 or get_shape(indices, 0) == 0:
         ignore = tf.fill([num_anchors,], False)
         if centerness:
             return bbox_targets, labels, centerness_t, ignore
         return bbox_targets, labels, ignore
 
-    pos = assigned_gt_inds > 0
     ignore = assigned_gt_inds == -1
-    indices = tf.range(num_anchors, dtype=tf.int32)[pos]
 
     assigned_gt_inds = tf.gather(assigned_gt_inds, indices) - 1
-
     assigned_gt_bboxes = tf.gather(gt_bboxes, assigned_gt_inds)
     assigned_gt_labels = tf.gather(gt_labels, assigned_gt_inds)
 
