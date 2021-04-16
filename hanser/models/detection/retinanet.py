@@ -63,12 +63,12 @@ class RetinaHead(Layer):
         self.reg_convs = reg_convs
         self.cls_convs = cls_convs
 
-        bbox_out_channels = num_anchors * 4
+        bbox_out_channels = 4
         if self.centerness:
-            bbox_out_channels += num_anchors * 1
+            bbox_out_channels += 1
         self.bbox_out_channels = bbox_out_channels
         self.bbox_pred = Conv2d(
-            feat_channels, bbox_out_channels, 3,
+            feat_channels, num_anchors * bbox_out_channels, 3,
             kernel_init=RandomNormal(stddev=0.01), bias_init=Zeros())
 
         prior_prob = 0.01

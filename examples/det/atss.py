@@ -83,7 +83,7 @@ ds_train, ds_val, steps_per_epoch, val_steps = make_voc_dataset_sub(
 backbone = resnet10()
 model = RetinaNet(backbone, anchor_gen.num_base_anchors[0], 20,
                   feat_channels=64, stacked_convs=2, centerness=True,
-                  extra_convs_on='output', norm='bn')
+                  extra_convs_on='output', norm='gn')
 model.build((None, HEIGHT, WIDTH, 3))
 
 # load_checkpoint("./drive/MyDrive/models/ImageNet-86/ckpt", model=backbone)
@@ -109,7 +109,7 @@ def output_transform(output):
     bbox_preds, cls_scores, centerness = get(
         ['bbox_pred', 'cls_score', 'centerness'], output, default=None)
     return postprocess(bbox_preds, cls_scores, bbox_coder, centerness,
-                       iou_threshold=0.5, score_threshold=0.05, use_sigmoid=True)
+                       iou_threshold=0.6, score_threshold=0.05, use_sigmoid=True)
 
 local_eval_metrics = {
     'loss': MeanMetricWrapper(criterion),

@@ -61,6 +61,6 @@ def make_voc_dataset_sub(
     ds_train = prepare(ds_train, batch_size, transform(training=True),
                        training=True, repeat=False, prefetch=prefetch)
     ds_val = prepare(ds_val, eval_batch_size, transform(training=False),
-                     training=False, repeat=False, drop_remainder=True,
+                     training=False, repeat=False, drop_remainder=False,
                      prefetch=prefetch)
     return ds_train, ds_val, steps_per_epoch, val_steps
