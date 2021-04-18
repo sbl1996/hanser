@@ -4,13 +4,13 @@ import tensorflow as tf
 from tensorflow.keras.metrics import Mean
 
 from hanser.tpu import setup
-from hanser.detection import encode_target, postprocess, coords_to_absolute, BBoxCoder, \
-    atss_assign, AnchorGenerator, DetectionLoss, iou_loss, focal_loss
+from hanser.detection import postprocess, coords_to_absolute, BBoxCoder, \
+    atss_match, AnchorGenerator, DetectionLoss, iou_loss, focal_loss
 
 from hanser.datasets.detection.svhn import decode, make_svhn_dataset_sub
 
 from hanser.transform import normalize
-from hanser.transform.detection import pad_to_fixed_size, random_hflip, random_resize, resize, pad_to, random_crop
+from hanser.transform.detection import random_hflip, random_resize, resize, pad_to, random_crop, pad_objects
 
 from hanser.models.layers import set_defaults
 from hanser.models.backbone.resnet_vd import resnet10
@@ -47,29 +47,27 @@ def preprocess(example, output_size=(HEIGHT, WIDTH), max_objects=50, training=Tr
     image, objects, image_id = decode(example)
 
     # if training:
-        # image = random_resize(image, output_size, ratio_range=(0.8, 1.2))
-        # image, objects = random_crop(image, objects, output_size)
-        # image, objects = random_hflip(image, objects, 0.5)
+    #     image = random_resize(image, output_size, ratio_range=(0.8, 1.2))
+    #     image, objects = random_crop(image, objects, output_size)
+    #     image, objects = random_hflip(image, objects, 0.5)
     # else:
     image = resize(image, output_size)
 
     image = normalize(image, [123.68, 116.779, 103.939], [58.393, 57.12, 57.375])
     image, objects = pad_to(image, objects, output_size)
 
-    gt_bboxes, gt_labels = get(['bbox', 'label'], objects)
+    gt_bboxes, gt_labels = get(['gt_bbox', 'gt_label'], objects)
     gt_bboxes = coords_to_absolute(gt_bboxes, tf.shape(image)[:2])
+    objects = {**objects, 'gt_bbox': gt_bboxes}
 
-    assigned_gt_inds = atss_assign(anchors, num_level_bboxes, gt_bboxes, topk=9)
-    bbox_targets, labels, centerness, ignore = encode_target(
-        gt_bboxes, gt_labels, assigned_gt_inds, bbox_coder,
-        encode_bbox=False, centerness=True)
+    bbox_targets, labels, centerness = atss_match(
+        gt_bboxes, gt_labels, anchors, num_level_bboxes, topk=9, centerness=True)
 
-    gt_bboxes = pad_to_fixed_size(gt_bboxes, max_objects)
-    gt_labels = pad_to_fixed_size(gt_labels, max_objects)
+    objects = pad_objects(objects, max_objects)
 
     # image = tf.cast(image, tf.bfloat16)
     return image, {'bbox_target': bbox_targets, 'label': labels, 'centerness': centerness,
-                   'gt_bbox': gt_bboxes, 'gt_label': gt_labels, 'image_id': image_id}
+                   **objects, 'image_id': image_id}
 
 mul = 1
 n_train, n_val = 16, 8

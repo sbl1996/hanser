@@ -9,7 +9,8 @@ from hanser.detection import postprocess, coords_to_absolute, FCOSBBoxCoder, \
 from hanser.datasets.detection.svhn import decode, make_svhn_dataset_sub
 
 from hanser.transform import normalize
-from hanser.transform.detection import pad_to_fixed_size, random_hflip, random_resize, resize, pad_to, random_crop
+from hanser.transform.detection import pad_to_fixed_size, random_hflip, random_resize, resize, pad_to, random_crop, \
+    pad_objects
 
 from hanser.models.layers import set_defaults
 from hanser.models.backbone.resnet_vd import resnet10
@@ -34,7 +35,7 @@ points = tf.concat(mlvl_points, axis=0)
 bbox_coder = FCOSBBoxCoder(points)
 
 @curry
-def preprocess(example, output_size=(HEIGHT, WIDTH), max_objects=100, training=True):
+def preprocess(example, output_size=(HEIGHT, WIDTH), max_objects=50, training=True):
     image, objects, image_id = decode(example)
 
     # if training:
@@ -47,17 +48,17 @@ def preprocess(example, output_size=(HEIGHT, WIDTH), max_objects=100, training=T
     image = normalize(image, [123.68, 116.779, 103.939], [58.393, 57.12, 57.375])
     image, objects = pad_to(image, objects, output_size)
 
-    gt_bboxes, gt_labels = get(['bbox', 'label'], objects)
+    gt_bboxes, gt_labels = get(['gt_bbox', 'gt_label'], objects)
     gt_bboxes = coords_to_absolute(gt_bboxes, tf.shape(image)[:2])
+    objects = {**objects, 'gt_bbox': gt_bboxes}
 
     bbox_targets, labels, centerness = fcos_match(
         gt_bboxes, gt_labels, points, num_level_points, strides=strides, radius=0.5)
 
-    gt_bboxes = pad_to_fixed_size(gt_bboxes, max_objects)
-    gt_labels = pad_to_fixed_size(gt_labels, max_objects)
+    objects = pad_objects(objects, max_objects)
 
     return image, {'bbox_target': bbox_targets, 'label': labels, 'centerness': centerness,
-                   'gt_bbox': gt_bboxes, 'gt_label': gt_labels, 'image_id': image_id}
+                   **objects, 'image_id': image_id}
 
 mul = 1
 n_train, n_val = 16, 8

@@ -4,55 +4,12 @@ import random
 import numpy as np
 import tensorflow as tf
 
-from hanser.ops import index_put, get_shape
 from hanser.detection.anchor import AnchorGenerator
-from hanser.detection.assign import max_iou_assign, atss_assign, fcos_match, grid_points
+from hanser.detection.assign import max_iou_match, atss_match, fcos_match, grid_points
 from hanser.detection.nms import batched_nms
 from hanser.detection.iou import bbox_iou2
-from hanser.detection.bbox import BBoxCoder, FCOSBBoxCoder, coords_to_absolute, centerness_target
+from hanser.detection.bbox import BBoxCoder, FCOSBBoxCoder, coords_to_absolute
 from hanser.detection.loss import DetectionLoss, focal_loss, iou_loss, l1_loss, smooth_l1_loss, cross_entropy_det
-
-
-def encode_target(gt_bboxes, gt_labels, assigned_gt_inds,
-                  bbox_coder: BBoxCoder = None, encode_bbox=True,
-                  centerness=False):
-    if bbox_coder is not None:
-        assert encode_bbox or centerness
-    num_gts = get_shape(gt_bboxes, 0)
-    num_anchors = get_shape(assigned_gt_inds, 0)
-    bbox_targets = tf.zeros([num_anchors, 4], dtype=tf.float32)
-    labels = tf.zeros([num_anchors,], dtype=tf.int32)
-    centerness_t = tf.zeros([num_anchors,], dtype=tf.float32)
-
-    pos = assigned_gt_inds > 0
-    indices = tf.range(num_anchors, dtype=tf.int32)[pos]
-
-    if num_gts == 0 or get_shape(indices, 0) == 0:
-        ignore = tf.fill([num_anchors,], False)
-        if centerness:
-            return bbox_targets, labels, centerness_t, ignore
-        return bbox_targets, labels, ignore
-
-    ignore = assigned_gt_inds == -1
-
-    assigned_gt_inds = tf.gather(assigned_gt_inds, indices) - 1
-    assigned_gt_bboxes = tf.gather(gt_bboxes, assigned_gt_inds)
-    assigned_gt_labels = tf.gather(gt_labels, assigned_gt_inds)
-
-    if bbox_coder:
-        assigned_anchors = tf.gather(bbox_coder.anchors, indices)
-        if centerness:
-            assigned_centerness = centerness_target(assigned_gt_bboxes, assigned_anchors)
-            centerness_t = index_put(centerness_t, indices, assigned_centerness)
-        if encode_bbox:
-            assigned_gt_bboxes = bbox_coder.encode(assigned_gt_bboxes, indices)
-
-    bbox_targets = index_put(bbox_targets, indices, assigned_gt_bboxes)
-    labels = index_put(labels, indices, assigned_gt_labels)
-
-    if centerness:
-        return bbox_targets, labels, centerness_t, ignore
-    return bbox_targets, labels, ignore
 
 
 def postprocess(bbox_preds, cls_scores, bbox_coder, centerness=None,

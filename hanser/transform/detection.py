@@ -12,7 +12,7 @@ def random_apply(func, p, *args):
 
 def hflip(image, objects):
     image = tf.image.flip_left_right(image)
-    bboxes = objects['bbox']
+    bboxes = objects['gt_bbox']
     bboxes = tf.reshape(bboxes, [-1, 2, 2])
     bboxes_y = bboxes[..., 0]
     bboxes_x = bboxes[..., 1]
@@ -46,14 +46,14 @@ def resize(image, size, keep_ratio=True):
 def update_bbox(objects, bboxes):
     return {
         **objects,
-        'bbox': bboxes,
+        'gt_bbox': bboxes,
     }
 
 
 def map_bbox(objects, map_fn):
     return {
         **objects,
-        'bbox': map_fn(objects['bbox']),
+        'gt_bbox': map_fn(objects['gt_bbox']),
     }
 
 
@@ -66,7 +66,7 @@ def random_crop(image, objects, size):
     offset_x = tf.random.uniform((), 0, max_offset[1], dtype=tf.int32)
 
     image = tf.image.crop_to_bounding_box(image, offset_y, offset_x, crop_size[0], crop_size[1])
-    bboxes = objects['bbox']
+    bboxes = objects['gt_bbox']
     bboxes = tf.reshape(bboxes, [-1, 2, 2])
     bboxes = (bboxes * to_float([h, w]) - to_float([offset_y, offset_x])) / to_float(crop_size)
     bboxes = tf.reshape(bboxes, [-1, 4])
@@ -77,7 +77,7 @@ def random_crop(image, objects, size):
 
 
 def filter_objects(objects):
-    bboxes = objects['bbox']
+    bboxes = objects['gt_bbox']
     centers = (bboxes[..., :2] + bboxes[:, 2:]) / 2
     mask = tf.reduce_all((centers > 0) & (centers < 1), axis=-1)
     return {
@@ -96,7 +96,7 @@ def random_sample_crop(
 
     ori_image = image
     ori_objects = {**objects}
-    bboxes = objects['bbox']
+    bboxes = objects['gt_bbox']
     begin, size, box = tf.image.sample_distorted_bounding_box(
         tf.shape(image), bboxes[None],
         min_object_covered=min_object_covered,
@@ -111,7 +111,7 @@ def random_sample_crop(
     objects = update_bbox(objects, bboxes)
     objects = filter_objects(objects)
     objects = map_bbox(objects, lambda b: tf.clip_by_value(b, 0, 1))
-    if tf.shape(objects['bbox'])[0] == 0:
+    if tf.shape(objects['gt_bbox'])[0] == 0:
         return ori_image, ori_objects
     return image, objects
 
@@ -146,7 +146,7 @@ def pad_to_bounding_box(image, objects, offset_height, offset_width, target_heig
     scale = to_float([target_height, target_width]) / to_float([height, width])
     offset = tf.cast([offset_height, offset_width], tf.float32) / tf.cast([target_height, target_width], tf.float32)
 
-    bboxes = objects['bbox']
+    bboxes = objects['gt_bbox']
     bboxes = tf.reshape(bboxes, [-1, 2, 2])
     bboxes = bboxes / scale + offset
     bboxes = tf.reshape(bboxes, [-1, 4])
@@ -162,3 +162,15 @@ def pad_to_fixed_size(data, target_size, pad_value=0):
     paddings = tf.fill([pad_length, *left_shape], tf.cast(pad_value, data.dtype))
     padded_data = tf.concat([data, paddings], axis=0)
     return padded_data
+
+
+def pad_objects(objects, target_size, pad_value=0):
+    padded = {}
+    for k, data in objects.items():
+        left_shape = data.shape[1:]
+        num_instances = tf.shape(data)[0]
+        pad_length = target_size - num_instances
+        paddings = tf.fill([pad_length, *left_shape], tf.cast(pad_value, data.dtype))
+        padded_data = tf.concat([data, paddings], axis=0)
+        padded[k] = padded_data
+    return padded

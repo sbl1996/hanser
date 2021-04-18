@@ -4,8 +4,8 @@ import tensorflow as tf
 
 from hanser.tpu import setup
 from hanser.losses import focal_loss
-from hanser.detection import encode_target, DetectionLoss, postprocess, coords_to_absolute, BBoxCoder, iou_loss
-from hanser.detection.assign import atss_assign
+from hanser.detection import DetectionLoss, postprocess, coords_to_absolute, BBoxCoder, iou_loss
+from hanser.detection.assign import atss_assign, encode_target
 from hanser.detection.anchor import AnchorGenerator
 
 from hanser.datasets.detection.voc import decode, make_voc_dataset_sub

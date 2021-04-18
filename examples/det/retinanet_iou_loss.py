@@ -3,17 +3,16 @@ from toolz import curry, get
 import tensorflow as tf
 from tensorflow.keras.metrics import Mean
 
-import tensorflow_datasets as tfds
-
 from hanser.tpu import setup
 from hanser.datasets import prepare
-from hanser.detection import encode_target, postprocess, coords_to_absolute, BBoxCoder, \
-    max_iou_assign, AnchorGenerator, DetectionLoss, iou_loss, focal_loss
+from hanser.detection import postprocess, coords_to_absolute, BBoxCoder, \
+    max_iou_match, AnchorGenerator, DetectionLoss, iou_loss, focal_loss
 
 from hanser.datasets.detection.voc import decode, make_voc_dataset_sub
 
 from hanser.transform import normalize
-from hanser.transform.detection import pad_to_fixed_size, random_hflip, random_resize, resize, pad_to, random_crop
+from hanser.transform.detection import pad_to_fixed_size, random_hflip, random_resize, resize, pad_to, random_crop, \
+    pad_objects
 
 from hanser.models.layers import set_defaults
 from hanser.models.backbone.resnet_vd import resnet10
@@ -45,34 +44,32 @@ anchors = tf.concat(mlvl_anchors, axis=0)
 bbox_coder = BBoxCoder(anchors, (0.1, 0.1, 0.2, 0.2))
 
 @curry
-def preprocess(example, output_size=(HEIGHT, WIDTH), max_objects=100, training=True):
+def preprocess(example, output_size=(HEIGHT, WIDTH), max_objects=50, training=True):
     image, objects, image_id = decode(example)
 
-    if training:
-        image = random_resize(image, output_size, ratio_range=(0.8, 1.2))
-        image, objects = random_crop(image, objects, output_size)
-        image, objects = random_hflip(image, objects, 0.5)
-    else:
-        image = resize(image, output_size)
+    # if training:
+    #     image = random_resize(image, output_size, ratio_range=(0.8, 1.2))
+    #     image, objects = random_crop(image, objects, output_size)
+    #     image, objects = random_hflip(image, objects, 0.5)
+    # else:
+    image = resize(image, output_size)
 
     image = normalize(image, [123.68, 116.779, 103.939], [58.393, 57.12, 57.375])
     image, objects = pad_to(image, objects, output_size)
 
-    gt_bboxes, gt_labels, is_difficults = get(['bbox', 'label', 'is_difficult'], objects)
+    gt_bboxes, gt_labels = get(['gt_bbox', 'gt_label'], objects)
     gt_bboxes = coords_to_absolute(gt_bboxes, tf.shape(image)[:2])
+    objects = {**objects, 'gt_bbox': gt_bboxes}
 
-    assigned_gt_inds = max_iou_assign(
-        anchors, gt_bboxes, pos_iou_thr=0.5, neg_iou_thr=0.4, min_pos_iou=0.)
-    bbox_targets, labels, ignore = encode_target(gt_bboxes, gt_labels, assigned_gt_inds)
+    bbox_targets, labels, ignore = max_iou_match(
+        gt_bboxes, gt_labels, bbox_coder, pos_iou_thr=0.5, neg_iou_thr=0.4,
+        encode_bbox=False)
 
-    gt_bboxes = pad_to_fixed_size(gt_bboxes, max_objects)
-    gt_labels = pad_to_fixed_size(gt_labels, max_objects)
-    is_difficults = pad_to_fixed_size(is_difficults, max_objects)
+    objects = pad_objects(objects, max_objects)
 
-    # image = tf.cast(image, tf.bfloat16)
     return image, {'bbox_target': bbox_targets, 'label': labels, 'ignore': ignore,
-                   'gt_bbox': gt_bboxes, 'gt_label': gt_labels, 'is_difficult': is_difficults,
-                   'image_id': image_id}
+                   **objects, 'image_id': image_id}
+
 
 mul = 1
 n_train, n_val = 16, 8
@@ -82,7 +79,7 @@ ds_train, ds_val, steps_per_epoch, val_steps = make_voc_dataset_sub(
 
 backbone = resnet10()
 model = RetinaNet(backbone, anchor_gen.num_base_anchors[0], num_classes=20,
-                  feat_channels=64, stacked_convs=2, use_norm=True)
+                  feat_channels=64, stacked_convs=2)
 model.build((None, HEIGHT, WIDTH, 3))
 
 

@@ -15,8 +15,8 @@ def decode(example):
 
     image = tf.cast(example['image'], tf.float32)
     objects = {
-        "bbox": example['objects']['bbox'],
-        'label': tf.cast(example['objects']['label'] + 1, tf.int32),
+        "gt_bbox": example['objects']['bbox'],
+        'gt_label': tf.cast(example['objects']['label'] + 1, tf.int32),
         'is_difficult': example['objects']['is_difficult']
     }
     return image, objects, image_id

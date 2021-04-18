@@ -13,8 +13,8 @@ def decode(example):
     image_id = example['image/id']
     image = tf.cast(example['image'], tf.float32)
     objects = {
-        "bbox": example['objects']['bbox'],
-        'label': tf.cast(example['objects']['label'] + 1, tf.int32),
+        "gt_bbox": example['objects']['bbox'],
+        'gt_label': tf.cast(example['objects']['label'] + 1, tf.int32),
     }
     return image, objects, image_id
 

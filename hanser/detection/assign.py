@@ -2,6 +2,7 @@ import numpy as np
 import tensorflow as tf
 
 from hanser.detection.iou import bbox_iou
+from hanser.detection.bbox import centerness_target
 from hanser.ops import index_put, get_shape, l2_norm, _pair, _meshgrid
 
 
@@ -41,6 +42,7 @@ def max_iou_assign(bboxes, gt_bboxes, pos_iou_thr, neg_iou_thr,
         gt_max_assign_all (bool): Whether to assign all bboxes with the same
             highest overlap with some gt to that gt.
     """
+    assert not gt_max_assign_all, "Not implemented."
     num_gts = get_shape(gt_bboxes, 0)
     num_bboxes = get_shape(bboxes, 0)
 
@@ -70,17 +72,14 @@ def max_iou_assign(bboxes, gt_bboxes, pos_iou_thr, neg_iou_thr,
     if match_low_quality:
         gt_max_ious = tf.reduce_max(ious, axis=1)
         gt_argmax_ious = tf.argmax(ious, axis=1, output_type=tf.int32)
-        if gt_max_assign_all:
-            pass
-        else:
-            assigned_gt_inds = index_put(
-                assigned_gt_inds, gt_argmax_ious,
-                tf.where(
-                    gt_max_ious > min_pos_iou,
-                    tf.range(1, num_gts + 1),
-                    tf.gather(assigned_gt_inds, gt_argmax_ious)
-                )
+        assigned_gt_inds = index_put(
+            assigned_gt_inds, gt_argmax_ious,
+            tf.where(
+                gt_max_ious > min_pos_iou,
+                tf.range(1, num_gts + 1),
+                tf.gather(assigned_gt_inds, gt_argmax_ious)
             )
+        )
 
     return assigned_gt_inds
 
@@ -189,6 +188,24 @@ def grid_points(featmap_sizes, strides):
 
 INF = 100000000
 
+
+def max_iou_match(gt_bboxes, gt_labels, bbox_coder, pos_iou_thr=0.5, neg_iou_thr=0.4,
+                   min_pos_iou=0.0, match_low_quality=True, encode_bbox=True, centerness=False):
+    anchors = bbox_coder.anchors
+    assigned_gt_inds = max_iou_assign(
+        anchors, gt_bboxes, pos_iou_thr, neg_iou_thr, min_pos_iou, match_low_quality)
+    return encode_target(
+        gt_bboxes, gt_labels, assigned_gt_inds,
+        bbox_coder=bbox_coder, centerness=centerness, encode_bbox=encode_bbox)
+
+
+def atss_match(gt_bboxes, gt_labels, anchors, num_level_bboxes, topk=9, centerness=True):
+    assigned_gt_inds = atss_assign(anchors, num_level_bboxes, gt_bboxes, topk=topk)
+    return encode_target(
+        gt_bboxes, gt_labels, assigned_gt_inds, anchors=anchors,
+        encode_bbox=False, centerness=centerness, with_ignore=False)
+
+
 def fcos_match(gt_bboxes, gt_labels, points, num_level_points,
                strides=(8, 16, 32, 64, 128), radius=1.5,
                regress_ranges=((-1, 64), (64, 128), (128, 256), (256, 512), (512, INF))):
@@ -271,3 +288,52 @@ def fcos_match(gt_bboxes, gt_labels, points, num_level_points,
     centerness = tf.where(pos, centerness, 0)
 
     return bbox_targets, labels, centerness
+
+
+def encode_target(gt_bboxes, gt_labels, assigned_gt_inds,
+                  bbox_coder=None, encode_bbox=True,
+                  anchors=None, centerness=False, with_ignore=True):
+    if centerness:
+        assert bbox_coder is not None or anchors is not None
+    num_gts = get_shape(gt_bboxes, 0)
+    num_anchors = get_shape(assigned_gt_inds, 0)
+    bbox_targets = tf.zeros([num_anchors, 4], dtype=tf.float32)
+    labels = tf.zeros([num_anchors,], dtype=tf.int32)
+    centerness_t = tf.zeros([num_anchors,], dtype=tf.float32)
+
+    pos = assigned_gt_inds > 0
+    indices = tf.range(num_anchors, dtype=tf.int32)[pos]
+
+    if num_gts == 0 or get_shape(indices, 0) == 0:
+        returns = [bbox_targets, labels]
+        if centerness:
+            returns.append(centerness_t)
+        if with_ignore:
+            ignore = tf.fill([num_anchors,], False)
+            returns.append(ignore)
+        return tuple(returns)
+
+    ignore = assigned_gt_inds == -1
+    assigned_gt_inds = tf.gather(assigned_gt_inds, indices) - 1
+    assigned_gt_bboxes = tf.gather(gt_bboxes, assigned_gt_inds)
+    assigned_gt_labels = tf.gather(gt_labels, assigned_gt_inds)
+
+    if centerness:
+        if bbox_coder is not None:
+            anchors = bbox_coder.anchors
+        assigned_anchors = tf.gather(anchors, indices, axis=0)
+        assigned_centerness = centerness_target(assigned_gt_bboxes, assigned_anchors)
+        centerness_t = index_put(centerness_t, indices, assigned_centerness)
+
+    if encode_bbox:
+        assigned_gt_bboxes = bbox_coder.encode(assigned_gt_bboxes, indices)
+
+    bbox_targets = index_put(bbox_targets, indices, assigned_gt_bboxes)
+    labels = index_put(labels, indices, assigned_gt_labels)
+
+    returns = [bbox_targets, labels]
+    if centerness:
+        returns.append(centerness_t)
+    if with_ignore:
+        returns.append(ignore)
+    return tuple(returns)

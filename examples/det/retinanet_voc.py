@@ -3,18 +3,16 @@ from toolz import curry, get
 import tensorflow as tf
 from tensorflow.keras.metrics import Mean
 
-from hanser.detection import encode_target, postprocess, coords_to_absolute, BBoxCoder, \
-    max_iou_assign, AnchorGenerator, DetectionLoss, l1_loss, focal_loss
+from hanser.detection import postprocess, coords_to_absolute, BBoxCoder, \
+    max_iou_match, AnchorGenerator, DetectionLoss, l1_loss, focal_loss
 
 from hanser.datasets.detection.voc import decode, make_voc_dataset_sub
 
 from hanser.transform import normalize
-from hanser.transform.detection import pad_to_fixed_size, random_hflip, random_resize, resize, pad_to, random_crop
+from hanser.transform.detection import random_hflip, random_resize, resize, pad_to, random_crop, pad_objects
 
-from hanser.models.layers import set_defaults
 from hanser.models.backbone.resnet_vd import resnet10
 from hanser.models.detection.retinanet import RetinaNet
-from hanser.models.utils import load_checkpoint
 
 from hanser.train.optimizers import SGD
 from hanser.train.lr_schedule import CosineLR
@@ -41,7 +39,7 @@ anchors = tf.concat(mlvl_anchors, axis=0)
 bbox_coder = BBoxCoder(anchors, (0.1, 0.1, 0.2, 0.2))
 
 @curry
-def preprocess(example, output_size=(HEIGHT, WIDTH), max_objects=100, training=True):
+def preprocess(example, output_size=(HEIGHT, WIDTH), max_objects=50, training=True):
     image, objects, image_id = decode(example)
 
     # if training:
@@ -54,21 +52,17 @@ def preprocess(example, output_size=(HEIGHT, WIDTH), max_objects=100, training=T
     image = normalize(image, [123.68, 116.779, 103.939], [58.393, 57.12, 57.375])
     image, objects = pad_to(image, objects, output_size)
 
-    gt_bboxes, gt_labels, is_difficults = get(['bbox', 'label', 'is_difficult'], objects)
+    gt_bboxes, gt_labels = get(['gt_bbox', 'gt_label'], objects)
     gt_bboxes = coords_to_absolute(gt_bboxes, tf.shape(image)[:2])
+    objects = {**objects, 'gt_bbox': gt_bboxes}
 
-    assigned_gt_inds = max_iou_assign(
-        anchors, gt_bboxes, pos_iou_thr=0.5, neg_iou_thr=0.4, min_pos_iou=0.)
-    bbox_targets, labels, ignore = encode_target(
-        gt_bboxes, gt_labels, assigned_gt_inds, bbox_coder)
+    bbox_targets, labels, ignore = max_iou_match(
+        gt_bboxes, gt_labels, bbox_coder, pos_iou_thr=0.5, neg_iou_thr=0.4)
 
-    gt_bboxes = pad_to_fixed_size(gt_bboxes, max_objects)
-    gt_labels = pad_to_fixed_size(gt_labels, max_objects)
-    is_difficults = pad_to_fixed_size(is_difficults, max_objects)
+    objects = pad_objects(objects, max_objects)
 
     return image, {'bbox_target': bbox_targets, 'label': labels, 'ignore': ignore,
-                   'gt_bbox': gt_bboxes, 'gt_label': gt_labels, 'is_difficult': is_difficults,
-                   'image_id': image_id}
+                   **objects, 'image_id': image_id}
 
 mul = 1
 n_train, n_val = 16, 8

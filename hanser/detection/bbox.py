@@ -102,8 +102,8 @@ def centerness_target(bboxes, anchors):
     l_ = anchors_cx - bboxes[..., 1]
     b_ = bboxes[..., 2] - anchors_cy
     r_ = bboxes[..., 3] - anchors_cx
-
     centerness = tf.sqrt(
         (tf.minimum(l_, r_) / tf.maximum(l_, r_)) *
         (tf.minimum(t_, b_) / tf.maximum(t_, b_)))
+    centerness = tf.where(tf.math.is_nan(centerness), 0.0, centerness)
     return centerness
