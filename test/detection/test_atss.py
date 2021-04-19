@@ -1,80 +1,72 @@
 from toolz import curry, get
 
 import tensorflow as tf
+from tensorflow.keras.metrics import Mean
 
 from hanser.tpu import setup
-from hanser.losses import focal_loss
-from hanser.detection import DetectionLoss, postprocess, coords_to_absolute, BBoxCoder, iou_loss
-from hanser.detection.assign import atss_assign, encode_target
-from hanser.detection.anchor import AnchorGenerator
+from hanser.detection import postprocess, coords_to_absolute, BBoxCoder, \
+    atss_match, AnchorGenerator, DetectionLoss, iou_loss, focal_loss
 
 from hanser.datasets.detection.voc import decode, make_voc_dataset_sub
 
 from hanser.transform import normalize
-from hanser.transform.detection import pad_to_fixed_size, random_hflip, random_resize, resize, pad_to, random_crop
+from hanser.transform.detection import pad_objects, random_hflip, random_resize, resize, pad_to, random_crop
 
-from hanser.train.metrics import MeanAveragePrecision
-
-
-HEIGHT = WIDTH = 640
+HEIGHT = WIDTH = 256
 
 anchor_gen = AnchorGenerator(
     strides=[8, 16, 32, 64, 128],
-    ratios=[1.0],
-    octave_base_scale=6,
-    scales_per_octave=1,
+    ratios=[0.5, 1.0, 2.0],
+    octave_base_scale=2,
+    scales_per_octave=3,
 )
 featmap_sizes = [
-    [80, 80], [40, 40], [20, 20], [10, 10], [5, 5],
+    [32, 32], [16, 16], [8, 8], [4, 4], [2, 2],
 ]
 
 mlvl_anchors = anchor_gen.grid_anchors(featmap_sizes)
 num_level_bboxes = [a.shape[0] for a in mlvl_anchors]
 anchors = tf.concat(mlvl_anchors, axis=0)
 
-bbox_coder = BBoxCoder(anchors)
+bbox_coder = BBoxCoder(anchors, (0.1, 0.1, 0.2, 0.2))
+
 
 @curry
 def preprocess(example, output_size=(HEIGHT, WIDTH), max_objects=50, training=True):
     image, objects, image_id = decode(example)
 
-    # if training:
-        # image = random_resize(image, output_size, ratio_range=(0.8, 1.2))
-        # image, objects = random_crop(image, objects, output_size)
-        # image, objects = random_hflip(image, objects, 0.5)
-    # else:
-    image = resize(image, output_size)
+    if training:
+        image = random_resize(image, output_size, ratio_range=(0.5, 2.0))
+        image, objects = random_crop(image, objects, output_size)
+        image, objects = random_hflip(image, objects, 0.5)
+    else:
+        image = resize(image, output_size)
 
     image = normalize(image, [123.68, 116.779, 103.939], [58.393, 57.12, 57.375])
     image, objects = pad_to(image, objects, output_size)
 
-    gt_bboxes, gt_labels, is_difficults = get(['bbox', 'label', 'is_difficult'], objects)
+    gt_bboxes, gt_labels = get(['gt_bbox', 'gt_label'], objects)
     gt_bboxes = coords_to_absolute(gt_bboxes, tf.shape(image)[:2])
+    objects = {**objects, 'gt_bbox': gt_bboxes}
 
-    assigned_gt_inds = atss_assign(anchors, num_level_bboxes, gt_bboxes, topk=9)
-    bbox_targets, labels, centerness, ignore = encode_target(
-        gt_bboxes, gt_labels, assigned_gt_inds, bbox_coder,
-        encode_bbox=False, centerness=True)
+    bbox_targets, labels, centerness = atss_match(
+        gt_bboxes, gt_labels, anchors, num_level_bboxes, topk=9, centerness=True)
 
-    gt_bboxes = pad_to_fixed_size(gt_bboxes, max_objects)
-    gt_labels = pad_to_fixed_size(gt_labels, max_objects)
-    is_difficults = pad_to_fixed_size(is_difficults, max_objects)
+    objects = pad_objects(objects, max_objects)
 
-    # image = tf.cast(image, tf.bfloat16)
-    return image, {'bbox_target': bbox_targets, 'label': labels, 'ignore': ignore,
-                   'centerness': centerness, 'gt_bbox': gt_bboxes, 'gt_label': gt_labels,
-                   'is_difficult': is_difficults, 'image_id': image_id}
+    image = tf.cast(image, tf.bfloat16)
+    return image, {'bbox_target': bbox_targets, 'label': labels, 'centerness': centerness,
+                   **objects, 'image_id': image_id}
 
-mul = 1
-n_train, n_val = 128, 8
-batch_size, eval_batch_size = 1, 4
+
+mul = 2
+n_train, n_val = 2000, 1000
+batch_size, eval_batch_size = 16 * mul, 64
 ds_train, ds_val, steps_per_epoch, val_steps = make_voc_dataset_sub(
-    n_train, n_val, batch_size, eval_batch_size, preprocess, prefetch=False)
+    n_train, n_val, batch_size, eval_batch_size, preprocess)
 
-it = iter(ds_train)
-
-x, y = next(it)
-print("Assign", y['assigned_gt_inds'][y['assigned_gt_inds'] != 0])
-print("Label", y['label'][y['label'] != 0])
-print("GT", y['gt_label'][y['gt_label'] != 0])
-print(y['pos_ious'])
+while True:
+    it = iter(ds_train)
+    for i in range(steps_per_epoch):
+        print(i)
+        x, y = next(it)

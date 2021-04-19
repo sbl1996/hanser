@@ -12,13 +12,13 @@ from hanser.models.layers import Conv2d, Norm, Act
 class RetinaNet(Model):
 
     def __init__(self, backbone, num_anchors, num_classes, backbone_indices=(1, 2, 3),
-                 feat_channels=256, extra_convs_on='input',
+                 feat_channels=256, extra_convs_on='input', num_extra_convs=2,
                  stacked_convs=4, norm='bn', centerness=False):
         super().__init__()
         self.backbone = backbone
         self.backbone_indices = backbone_indices
         backbone_channels = [backbone.feat_channels[i] for i in backbone_indices]
-        self.neck = FPN(backbone_channels, feat_channels, 2, extra_convs_on, norm)
+        self.neck = FPN(backbone_channels, feat_channels, num_extra_convs, extra_convs_on, norm)
         if norm == 'bn':
             self.head = RetinaSepBNHead(num_anchors, num_classes, feat_channels, feat_channels,
                                         stacked_convs, num_levels=5, centerness=centerness)
