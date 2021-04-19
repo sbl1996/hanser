@@ -192,12 +192,14 @@ def bbox_transform(bbox, output_size, image_size):
 
 class COCOEval:
 
-    def __init__(self, ann_file, output_size, output_transform=None, bbox_transform=bbox_transform):
+    def __init__(self, ann_file, output_size, output_transform=None,
+                 bbox_transform=bbox_transform, label_transform=lambda x: x+1):
         from pycocotools.coco import COCO
         self.coco = COCO(ann_file)
         self.output_size = output_size
         self.output_transform = output_transform
         self.bbox_transform = bbox_transform
+        self.label_transform = label_transform
 
         self.image_ids = []
         self.dts = []
@@ -223,10 +225,11 @@ class COCOEval:
                 w, h = bbox[3] - bbox[1], bbox[2] - bbox[0]
                 bbox = [x, y, w, h]
                 bbox = bbox_transform(bbox, self.output_size, (width, height))
+                label = self.label_transform(all_dt_classes[i, j])
                 self.dts.append({
                     'image_id': image_id,
                     'bbox': bbox,
-                    'category_id': all_dt_classes[i, j] + 1,
+                    'category_id': label,
                     'score': all_dt_scores[i, j],
                 })
 
