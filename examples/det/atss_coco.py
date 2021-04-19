@@ -116,5 +116,5 @@ learner.fit(
     ds_train, epochs, ds_val, val_freq=1,
     steps_per_epoch=steps_per_epoch, val_steps=val_steps,
     local_eval_metrics=local_eval_metrics,
-    local_eval_freq=[(0, 5), (45, 1)],
+    local_eval_freq=[(0, 5), (90, 1)],
 )

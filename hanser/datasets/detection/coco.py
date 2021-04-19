@@ -1,5 +1,4 @@
 import math
-import tensorflow as tf
 import tensorflow_datasets as tfds
 from hanser.datasets import prepare
 from hanser.datasets.detection.general import decode
@@ -26,7 +25,7 @@ NUM_EXAMPLES = {
 
 def make_dataset(
     batch_size, eval_batch_size, transform, data_dir=None, drop_remainder=None):
-    n_train, n_val = NUM_EXAMPLES['train'], NUM_EXAMPLES['val']
+    n_train, n_val = NUM_EXAMPLES['train'], NUM_EXAMPLES['validation']
     steps_per_epoch = n_train // batch_size
     if drop_remainder:
         val_steps = n_val // eval_batch_size
