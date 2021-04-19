@@ -2,6 +2,7 @@ import math
 import tensorflow as tf
 import tensorflow_datasets as tfds
 from hanser.datasets import prepare
+from hanser.datasets.detection.general import decode
 
 LABEL_MAP = [
     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17,
@@ -12,18 +13,8 @@ LABEL_MAP = [
 ]
 
 
-def coco_label_map(c):
+def label_map(c):
     return LABEL_MAP[c]
-
-
-def decode(example):
-    image_id = example['image/id']
-    image = tf.cast(example['image'], tf.float32)
-    objects = {
-        "gt_bbox": example['objects']['bbox'],
-        'gt_label': tf.cast(example['objects']['label'] + 1, tf.int32),
-    }
-    return image, objects, image_id
 
 
 NUM_EXAMPLES = {
@@ -42,10 +33,33 @@ def make_dataset(
     else:
         val_steps = math.ceil(n_val / eval_batch_size)
 
+    read_config = tfds.ReadConfig(try_autocache=False, skip_prefetch=True)
     ds_train = tfds.load("coco/2017", split=f"train", data_dir=data_dir,
-                          shuffle_files=True, read_config=tfds.ReadConfig(try_autocache=False, skip_prefetch=True))
+                          shuffle_files=True, read_config=read_config)
     ds_val = tfds.load("coco/2017", split=f"validation", data_dir=data_dir,
-                       shuffle_files=False, read_config=tfds.ReadConfig(try_autocache=False, skip_prefetch=True))
+                       shuffle_files=False, read_config=read_config)
+    ds_train = prepare(ds_train, batch_size, transform(training=True),
+                       training=True, repeat=False)
+    ds_val = prepare(ds_val, eval_batch_size, transform(training=False),
+                     training=False, repeat=False, drop_remainder=drop_remainder)
+    return ds_train, ds_val, steps_per_epoch, val_steps
+
+
+def make_dataset_sub(
+    n_train, n_val, batch_size, eval_batch_size, transform, data_dir=None, drop_remainder=None):
+    steps_per_epoch = n_train // batch_size
+    if drop_remainder:
+        val_steps = n_val // eval_batch_size
+    else:
+        val_steps = math.ceil(n_val / eval_batch_size)
+
+    read_config = tfds.ReadConfig(try_autocache=False, skip_prefetch=True)
+    train_split = f"validation[:{n_train}]" if n_train != 5000 else 'validation'
+    val_split = f"validation[:{n_val}]" if n_val != 5000 else 'validation'
+    ds_train = tfds.load("coco/2017", split=train_split, data_dir=data_dir,
+                          shuffle_files=False, read_config=read_config)
+    ds_val = tfds.load("coco/2017", split=val_split, data_dir=data_dir,
+                       shuffle_files=False, read_config=read_config)
     ds_train = prepare(ds_train, batch_size, transform(training=True),
                        training=True, repeat=False)
     ds_val = prepare(ds_val, eval_batch_size, transform(training=False),
