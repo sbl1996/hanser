@@ -9,7 +9,7 @@ from hanser.models.detection.retinanet import RetinaHead, RetinaSepBNHead
 class FCOSBiFPN(Model):
 
     def __init__(self, backbone, num_classes, backbone_indices=(1, 2, 3),
-                 feat_channels=160, fpn_repeats=6, seperable_conv=False,
+                 feat_channels=160, fpn_repeats=6, seperable_conv=False, fpn_act='def',
                  stacked_convs=4, strides=(8, 16, 32, 64, 128), norm='gn'):
         super().__init__()
         self.backbone = backbone
@@ -17,7 +17,7 @@ class FCOSBiFPN(Model):
         backbone_channels = [backbone.feat_channels[i] for i in backbone_indices]
 
         num_extra_levels = len(strides) - len(backbone_indices)
-        self.neck = BiFPN(backbone_channels, feat_channels, fpn_repeats, num_extra_levels, seperable_conv, norm)
+        self.neck = BiFPN(backbone_channels, feat_channels, fpn_repeats, num_extra_levels, seperable_conv, norm, fpn_act)
         if norm == 'bn':
             self.head = FCOSSepBNHead(num_classes, feat_channels, feat_channels, stacked_convs, strides=strides)
         else:

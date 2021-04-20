@@ -14,12 +14,13 @@ class RetinaNetBiFPN(Model):
 
     def __init__(self, backbone, num_anchors, num_classes, backbone_indices=(1, 2, 3),
                  feat_channels=160, fpn_repeats=6, num_extra_levels=2, seperable_conv=False,
-                 stacked_convs=4, norm='bn', centerness=False):
+                 fpn_act='def', stacked_convs=4, norm='bn', centerness=False):
         super().__init__()
         self.backbone = backbone
         self.backbone_indices = backbone_indices
         backbone_channels = [backbone.feat_channels[i] for i in backbone_indices]
-        self.neck = BiFPN(backbone_channels, feat_channels, fpn_repeats, num_extra_levels, seperable_conv, norm)
+        self.neck = BiFPN(backbone_channels, feat_channels, fpn_repeats, num_extra_levels,
+                          seperable_conv, norm, fpn_act)
         if norm == 'bn':
             self.head = RetinaSepBNHead(num_anchors, num_classes, feat_channels, feat_channels,
                                         stacked_convs, num_levels=5, centerness=centerness)

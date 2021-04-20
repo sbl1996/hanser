@@ -14,7 +14,7 @@ class ATSSBiFPN(RetinaNetBiFPN):
 
     def __init__(self, backbone, num_classes, backbone_indices=(1, 2, 3),
                  feat_channels=160, fpn_repeats=6, num_extra_levels=2, seperable_conv=False,
-                 stacked_convs=4, norm='bn'):
+                 fpn_act='def', stacked_convs=4, norm='bn'):
         super().__init__(backbone, 1, num_classes, backbone_indices,
                          feat_channels, fpn_repeats, num_extra_levels, seperable_conv,
-                         stacked_convs=stacked_convs, norm=norm, centerness=True)
+                         fpn_act, stacked_convs=stacked_convs, norm=norm, centerness=True)

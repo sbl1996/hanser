@@ -61,14 +61,14 @@ def fast_fusion(xs, ws, eps=1e-4):
 
 
 class BottomUpFusion2(Layer):
-    def __init__(self, feat_channels, seperable_conv=True, norm='bn'):
+    def __init__(self, feat_channels, seperable_conv=True, norm='bn', act='def'):
         super().__init__()
         self.fusion_weights = [
             self.add_weight(
                 f"weight{i+1}", shape=(), initializer='ones') for i in range(2)]
         conv_op = SeparableConv2d if seperable_conv else Conv2d
         self.conv = Sequential([
-            Act(),
+            Act(act),
             conv_op(feat_channels, feat_channels, 3, norm=norm)
         ])
 
@@ -80,7 +80,7 @@ class BottomUpFusion2(Layer):
 
 
 class TopDownFusion2(Layer):
-    def __init__(self, feat_channels, seperable_conv=True, norm='bn'):
+    def __init__(self, feat_channels, seperable_conv=True, norm='bn', act='def'):
         super().__init__()
         self.fusion_weights = [
             self.add_weight(
@@ -88,7 +88,7 @@ class TopDownFusion2(Layer):
 
         conv_op = SeparableConv2d if seperable_conv else Conv2d
         self.conv = Sequential([
-            Act(),
+            Act(act),
             conv_op(feat_channels, feat_channels, 3, norm=norm)
         ])
 
@@ -101,7 +101,7 @@ class TopDownFusion2(Layer):
 
 
 class BottomUpFusion3(Layer):
-    def __init__(self, feat_channels, seperable_conv=True, norm='bn'):
+    def __init__(self, feat_channels, seperable_conv=True, norm='bn', act='def'):
         super().__init__()
         self.fusion_weights = [
             self.add_weight(
@@ -109,7 +109,7 @@ class BottomUpFusion3(Layer):
 
         conv_op = SeparableConv2d if seperable_conv else Conv2d
         self.conv = Sequential([
-            Act(),
+            Act(act),
             conv_op(feat_channels, feat_channels, 3, norm=norm)
         ])
 
@@ -121,7 +121,7 @@ class BottomUpFusion3(Layer):
 
 
 class BiFPNCell(Layer):
-    def __init__(self, in_channels, feat_channels, seperable_conv=True, norm='bn'):
+    def __init__(self, in_channels, feat_channels, seperable_conv=True, norm='bn', act='def'):
         super().__init__()
         n = len(in_channels)
         self.lats = [
@@ -135,14 +135,14 @@ class BiFPNCell(Layer):
             for c in in_channels[1:-1]
         ]
         self.tds = [
-            TopDownFusion2(feat_channels, seperable_conv, norm)
+            TopDownFusion2(feat_channels, seperable_conv, norm, act)
             for _ in range(n - 1)
         ]
         self.bus = [
-            BottomUpFusion3(feat_channels, seperable_conv, norm)
+            BottomUpFusion3(feat_channels, seperable_conv, norm, act)
             for _ in range(n - 2)
         ]
-        self.bu = BottomUpFusion2(feat_channels, seperable_conv, norm)
+        self.bu = BottomUpFusion2(feat_channels, seperable_conv, norm, act)
 
     def call(self, ps):
         ps1 = [lat(p) for p, lat in zip(ps, self.lats)]
@@ -161,7 +161,7 @@ class BiFPNCell(Layer):
 
 class BiFPN(Layer):
     def __init__(self, in_channels, feat_channels, repeats, num_extra_levels=2, seperable_conv=True,
-                 norm='bn'):
+                 norm='bn', act='def'):
         super().__init__()
         in_channels = list(in_channels)
         self.extra_layers = []
@@ -172,7 +172,7 @@ class BiFPN(Layer):
         self.cells = []
         for i in range(repeats):
             self.cells.append(
-                BiFPNCell(in_channels, feat_channels, seperable_conv, norm))
+                BiFPNCell(in_channels, feat_channels, seperable_conv, norm, act))
             in_channels = [feat_channels] * len(in_channels)
 
     def call(self, ps):
