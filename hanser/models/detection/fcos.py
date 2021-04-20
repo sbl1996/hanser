@@ -9,7 +9,7 @@ from hanser.models.detection.retinanet import RetinaHead, RetinaSepBNHead
 class FCOSBiFPN(Model):
 
     def __init__(self, backbone, num_classes, backbone_indices=(1, 2, 3),
-                 feat_channels=160, fpn_repeats=6, seperable_conv=True,
+                 feat_channels=160, fpn_repeats=6, seperable_conv=False,
                  stacked_convs=4, strides=(8, 16, 32, 64, 128), norm='gn'):
         super().__init__()
         self.backbone = backbone

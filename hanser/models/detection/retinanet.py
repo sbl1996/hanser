@@ -13,7 +13,7 @@ from hanser.models.layers import Conv2d, Norm, Act
 class RetinaNetBiFPN(Model):
 
     def __init__(self, backbone, num_anchors, num_classes, backbone_indices=(1, 2, 3),
-                 feat_channels=160, fpn_repeats=6, num_extra_levels=2, seperable_conv=True,
+                 feat_channels=160, fpn_repeats=6, num_extra_levels=2, seperable_conv=False,
                  stacked_convs=4, norm='bn', centerness=False):
         super().__init__()
         self.backbone = backbone
