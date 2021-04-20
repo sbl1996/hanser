@@ -2,7 +2,7 @@ import tensorflow as tf
 from tensorflow.keras import Sequential
 from tensorflow.keras.layers import Layer
 
-from hanser.models.layers import Conv2d, Act, Norm
+from hanser.models.layers import Conv2d, Act
 
 
 def interpolate(x, shape):
