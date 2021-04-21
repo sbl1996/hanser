@@ -6,6 +6,45 @@ from hanser.ops import to_float, to_int
 from hanser.detection.iou import bbox_iou2
 
 
+class GFLoss:
+
+    def __init__(self, bbox_coder, decode_pred=True, box_loss_weight=2.,
+                 iou_loss_mode='giou', quantity_mode='iou', offset=False):
+        self.bbox_coder = bbox_coder
+        self.decode_pred = decode_pred
+        self.box_loss_weight = box_loss_weight
+        self.iou_loss_mode = iou_loss_mode
+        self.quantity_mode = quantity_mode
+        self.offset = offset
+
+    def __call__(self, y_true, y_pred):
+
+        bbox_targets = y_true['bbox_target']
+        labels = y_true['label']
+
+        bbox_preds = y_pred['bbox_pred']
+        cls_scores = y_pred['cls_score']
+
+        pos = labels != 0
+        pos_weight = to_float(pos)
+        total_pos = tf.reduce_sum(pos_weight) + 1
+
+        if self.decode_pred:
+            bbox_preds = self.bbox_coder.decode(bbox_preds)
+
+        loss_box = iou_loss(bbox_targets, bbox_preds, weight=pos_weight,
+                            reduction='sum', mode=self.iou_loss_mode, offset=self.offset) / total_pos
+
+        quantity_scores =  bbox_iou2(bbox_targets, bbox_preds,
+                                     mode=self.quantity_mode, is_aligned=True, offset=self.offset)
+        quantity_scores = tf.stop_gradient(quantity_scores)
+        loss_cls = quality_focal_loss(
+            (labels, quantity_scores), cls_scores, reduction='sum') / total_pos
+
+        loss = loss_box * self.box_loss_weight + loss_cls
+        return loss
+
+
 class DetectionLoss:
 
     def __init__(self, box_loss_fn, cls_loss_fn, box_loss_weight=1.,
@@ -86,3 +125,15 @@ def hard_negative_mining(losses, n_pos, neg_pos_ratio, max_pos=1000):
     weights = tf.cast(ind < n_neg[:, None], tf.float32)
     losses = tf.math.top_k(losses, k=max_pos, sorted=True)[0]
     return tf.reduce_sum(weights * losses)
+
+
+def quality_focal_loss(y_true, y_pred, gamma=2.0, reduction='sum'):
+    label, score = y_true
+    num_classes = tf.shape(y_pred)[-1]
+    y_true = tf.one_hot(label, num_classes + 1)[..., 1:] * score[..., None]
+
+    sigma = tf.sigmoid(y_pred)
+    focal_weight = tf.abs(y_true - sigma) ** gamma
+    losses = tf.nn.sigmoid_cross_entropy_with_logits(y_true, y_pred)
+    losses = losses * focal_weight
+    return reduce_loss(losses, weight=None, reduction=reduction)

@@ -208,7 +208,8 @@ def atss_match(gt_bboxes, gt_labels, anchors, num_level_bboxes, topk=9, centerne
 
 def fcos_match(gt_bboxes, gt_labels, points, num_level_points,
                strides=(8, 16, 32, 64, 128), radius=1.5,
-               regress_ranges=((-1, 64), (64, 128), (128, 256), (256, 512), (512, INF))):
+               regress_ranges=((-1, 64), (64, 128), (128, 256), (256, 512), (512, INF)),
+               centerness=True):
     strides = [_pair(s) for s in strides]
     INF = tf.constant(100000000, dtype=tf.float32)
 
@@ -218,6 +219,8 @@ def fcos_match(gt_bboxes, gt_labels, points, num_level_points,
     if num_gts == 0:
         bbox_targets = tf.zeros([num_points, 4], dtype=tf.float32)
         labels = tf.zeros([num_points, ], dtype=tf.int32)
+        if not centerness:
+            return bbox_targets, labels
         centerness_t = tf.zeros([num_points, ], dtype=tf.float32)
         return bbox_targets, labels, centerness_t
 
@@ -281,6 +284,10 @@ def fcos_match(gt_bboxes, gt_labels, points, num_level_points,
         bbox_targets, min_area_inds, axis=1, batch_dims=1)
     labels = tf.where(
         pos, tf.gather(gt_labels, min_area_inds), 0)
+
+    if not centerness:
+        return bbox_targets, labels
+
     t, l, b, r = [bbox_targets[:, i] for i in range(4)]
     centerness = tf.sqrt(
         (tf.minimum(l, r) / tf.maximum(l, r)) *

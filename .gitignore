@@ -1,3 +1,6 @@
+examples/det/gendet/*/data
+examples/det/gendet/*/tfrecords
+
 .DS_Store
 .idea/
 

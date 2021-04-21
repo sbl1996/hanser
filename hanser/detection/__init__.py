@@ -9,7 +9,7 @@ from hanser.detection.assign import max_iou_match, atss_match, fcos_match, grid_
 from hanser.detection.nms import batched_nms
 from hanser.detection.iou import bbox_iou2
 from hanser.detection.bbox import BBoxCoder, FCOSBBoxCoder, coords_to_absolute
-from hanser.detection.loss import DetectionLoss, focal_loss, iou_loss, l1_loss, smooth_l1_loss, cross_entropy_det
+from hanser.detection.loss import DetectionLoss, focal_loss, iou_loss, l1_loss, smooth_l1_loss, cross_entropy_det, GFLoss
 
 
 def postprocess(bbox_preds, cls_scores, bbox_coder, centerness=None,
