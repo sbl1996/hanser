@@ -9,13 +9,15 @@ from hanser.detection.iou import bbox_iou2
 class GFLoss:
 
     def __init__(self, bbox_coder, decode_pred=True, box_loss_weight=2.,
-                 iou_loss_mode='giou', quantity_mode='iou', offset=False):
+                 iou_loss_mode='giou', quantity_mode='iou', offset=False,
+                 quantity_weighted=False):
         self.bbox_coder = bbox_coder
         self.decode_pred = decode_pred
         self.box_loss_weight = box_loss_weight
         self.iou_loss_mode = iou_loss_mode
         self.quantity_mode = quantity_mode
         self.offset = offset
+        self.quantity_weighted = quantity_weighted
 
     def __call__(self, y_true, y_pred):
 
@@ -32,14 +34,17 @@ class GFLoss:
         if self.decode_pred:
             bbox_preds = self.bbox_coder.decode(bbox_preds)
 
-        loss_box = iou_loss(bbox_targets, bbox_preds, weight=pos_weight,
-                            reduction='sum', mode=self.iou_loss_mode, offset=self.offset) / total_pos
-
         quantity_scores =  bbox_iou2(bbox_targets, bbox_preds,
                                      mode=self.quantity_mode, is_aligned=True, offset=self.offset)
         quantity_scores = tf.stop_gradient(quantity_scores)
         loss_cls = quality_focal_loss(
             (labels, quantity_scores), cls_scores, reduction='sum') / total_pos
+
+        box_losses_weight = pos_weight
+        if self.quantity_weighted:
+            box_losses_weight = box_losses_weight * quantity_scores
+        loss_box = iou_loss(bbox_targets, bbox_preds, weight=box_losses_weight,
+                            reduction='sum', mode=self.iou_loss_mode, offset=self.offset) / total_pos
 
         loss = loss_box * self.box_loss_weight + loss_cls
         return loss
@@ -48,7 +53,8 @@ class GFLoss:
 class DetectionLoss:
 
     def __init__(self, box_loss_fn, cls_loss_fn, box_loss_weight=1.,
-                 bbox_coder=None, decode_pred=False, centerness=False):
+                 bbox_coder=None, decode_pred=False, centerness=False,
+                 quantity_weighted=False):
         if decode_pred:
             assert bbox_coder is not None
         self.box_loss_fn = box_loss_fn
@@ -57,6 +63,7 @@ class DetectionLoss:
         self.bbox_coder = bbox_coder
         self.decode_pred = decode_pred
         self.centerness = centerness
+        self.quantity_weighted = quantity_weighted
 
     def __call__(self, y_true, y_pred):
 
@@ -78,17 +85,24 @@ class DetectionLoss:
         if self.decode_pred:
             bbox_preds = self.bbox_coder.decode(bbox_preds)
 
-        loss_box = self.box_loss_fn(bbox_targets, bbox_preds, weight=pos_weight, reduction='sum') / total_pos
         loss_cls = self.cls_loss_fn(labels, cls_scores, weight=non_ignore, reduction='sum') / total_pos
+        loss = loss_cls
 
-        loss = loss_box * self.box_loss_weight + loss_cls
+        box_losses_weight = pos_weight
         if self.centerness:
             centerness = y_pred['centerness']
             centerness_t = y_true['centerness']
-            loss_centerness = tf.nn.sigmoid_cross_entropy_with_logits(
-                centerness_t, centerness)
+            loss_centerness = tf.nn.sigmoid_cross_entropy_with_logits(centerness_t, centerness)
             loss_centerness = reduce_loss(loss_centerness, pos_weight, reduction='sum') / total_pos
             loss = loss + loss_centerness
+
+            if self.quantity_weighted:
+                box_losses_weight = box_losses_weight * centerness_t
+
+        loss_box = self.box_loss_fn(bbox_targets, bbox_preds,
+                                    weight=box_losses_weight, reduction='sum') / total_pos
+
+        loss = loss + loss_box * self.box_loss_weight
         return loss
 
 
