@@ -40,9 +40,14 @@ class GFLoss:
         loss_cls = quality_focal_loss(
             (labels, quantity_scores), cls_scores, reduction='sum') / total_pos
 
-        box_losses_weight = pos_weight
         if self.quantity_weighted:
-            box_losses_weight = box_losses_weight * quantity_scores
+            # TODO: I do not know why predicted scores are used rather true scores, like in FCOS and ATSS.
+            #  Experiments on COCO are on the way (#24 vs #28).
+            cls_scores = tf.reduce_max(tf.stop_gradient(cls_scores), axis=-1)
+            cls_scores = tf.sigmoid(cls_scores)
+            box_losses_weight = cls_scores * pos_weight
+        else:
+            box_losses_weight = pos_weight
         loss_box = iou_loss(bbox_targets, bbox_preds, weight=box_losses_weight,
                             reduction='sum', mode=self.iou_loss_mode, offset=self.offset) / total_pos
 
