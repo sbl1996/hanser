@@ -29,7 +29,8 @@ class GFLoss:
 
         pos = labels != 0
         pos_weight = to_float(pos)
-        total_pos = tf.reduce_sum(pos_weight) + 1
+        total_pos = tf.reduce_sum(pos_weight)
+        total_pos = all_reduce_mean(total_pos)
 
         if self.decode_pred:
             bbox_preds = self.bbox_coder.decode(bbox_preds)
@@ -46,13 +47,13 @@ class GFLoss:
             cls_scores = tf.reduce_max(tf.stop_gradient(cls_scores), axis=-1)
             cls_scores = tf.sigmoid(cls_scores)
             box_losses_weight = cls_scores * pos_weight
-            box_loss_avg_factor = total_pos
+            box_loss_avg_factor = tf.reduce_sum(box_losses_weight)
+            box_loss_avg_factor = all_reduce_mean(box_loss_avg_factor)
         else:
             box_losses_weight = pos_weight
             box_loss_avg_factor = total_pos
         loss_box = iou_loss(bbox_targets, bbox_preds, weight=box_losses_weight,
-                            reduction='sum', mode=self.iou_loss_mode, offset=self.offset)
-        loss_box = tf.math.divide_no_nan(loss_box, box_loss_avg_factor)
+                            reduction='sum', mode=self.iou_loss_mode, offset=self.offset) / box_loss_avg_factor
 
         loss = loss_box * self.box_loss_weight + loss_cls
         return loss
