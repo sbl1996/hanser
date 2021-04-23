@@ -116,3 +116,14 @@ def _meshgrid(x, y, row_major=False):
     xx, yy = tf.meshgrid(x, y, indexing='xy' if row_major else 'ij')
     xx, yy = tf.reshape(xx, -1), tf.reshape(yy, -1)
     return xx, yy
+
+
+def all_reduce(tensor, op):
+    replica_context = tf.distribute.get_replica_context()
+    return replica_context.all_reduce(op, tensor)
+
+def all_reduce_mean(tensor):
+    return all_reduce(tensor, tf.distribute.ReduceOp.MEAN)
+
+def all_reduce_sum(tensor):
+    return all_reduce(tensor, tf.distribute.ReduceOp.SUM)

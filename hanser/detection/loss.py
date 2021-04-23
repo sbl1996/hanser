@@ -2,7 +2,7 @@ from toolz import curry
 import tensorflow as tf
 
 from hanser.losses import reduce_loss, focal_loss, l1_loss, smooth_l1_loss
-from hanser.ops import to_float, to_int
+from hanser.ops import to_float, to_int, all_reduce_mean
 from hanser.detection.iou import bbox_iou2
 
 
@@ -88,7 +88,8 @@ class DetectionLoss:
 
         pos = labels != 0
         pos_weight = to_float(pos)
-        total_pos = tf.reduce_sum(pos_weight) + 1
+        total_pos = tf.reduce_sum(pos_weight)
+        total_pos = all_reduce_mean(total_pos)
 
         if self.decode_pred:
             bbox_preds = self.bbox_coder.decode(bbox_preds)
@@ -109,10 +110,10 @@ class DetectionLoss:
             centerness_t = y_true['centerness']
             box_losses_weight = centerness_t
             box_loss_avg_factor = tf.reduce_sum(centerness_t)
+            box_loss_avg_factor = all_reduce_mean(box_loss_avg_factor)
 
         loss_box = self.box_loss_fn(bbox_targets, bbox_preds,
-                                    weight=box_losses_weight, reduction='sum')
-        loss_box = tf.math.divide_no_nan(loss_box, box_loss_avg_factor)
+                                    weight=box_losses_weight, reduction='sum') / box_loss_avg_factor
 
         loss = loss + loss_box * self.box_loss_weight
         return loss
