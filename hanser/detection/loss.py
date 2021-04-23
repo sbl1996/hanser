@@ -46,10 +46,13 @@ class GFLoss:
             cls_scores = tf.reduce_max(tf.stop_gradient(cls_scores), axis=-1)
             cls_scores = tf.sigmoid(cls_scores)
             box_losses_weight = cls_scores * pos_weight
+            box_loss_avg_factor = total_pos
         else:
             box_losses_weight = pos_weight
+            box_loss_avg_factor = total_pos
         loss_box = iou_loss(bbox_targets, bbox_preds, weight=box_losses_weight,
-                            reduction='sum', mode=self.iou_loss_mode, offset=self.offset) / total_pos
+                            reduction='sum', mode=self.iou_loss_mode, offset=self.offset)
+        loss_box = tf.math.divide_no_nan(loss_box, box_loss_avg_factor)
 
         loss = loss_box * self.box_loss_weight + loss_cls
         return loss
@@ -93,7 +96,6 @@ class DetectionLoss:
         loss_cls = self.cls_loss_fn(labels, cls_scores, weight=non_ignore, reduction='sum') / total_pos
         loss = loss_cls
 
-        box_losses_weight = pos_weight
         if self.centerness:
             centerness = y_pred['centerness']
             centerness_t = y_true['centerness']
@@ -101,11 +103,16 @@ class DetectionLoss:
             loss_centerness = reduce_loss(loss_centerness, pos_weight, reduction='sum') / total_pos
             loss = loss + loss_centerness
 
-            if self.quantity_weighted:
-                box_losses_weight = box_losses_weight * centerness_t
+        box_losses_weight = pos_weight
+        box_loss_avg_factor = total_pos
+        if self.quantity_weighted and self.centerness:
+            centerness_t = y_true['centerness']
+            box_losses_weight = centerness_t
+            box_loss_avg_factor = tf.reduce_sum(centerness_t)
 
         loss_box = self.box_loss_fn(bbox_targets, bbox_preds,
-                                    weight=box_losses_weight, reduction='sum') / total_pos
+                                    weight=box_losses_weight, reduction='sum')
+        loss_box = tf.math.divide_no_nan(loss_box, box_loss_avg_factor)
 
         loss = loss + loss_box * self.box_loss_weight
         return loss
