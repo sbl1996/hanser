@@ -120,6 +120,8 @@ def _meshgrid(x, y, row_major=False):
 
 def all_reduce(tensor, op):
     replica_context = tf.distribute.get_replica_context()
+    if replica_context is None:
+        return tensor
     return replica_context.all_reduce(op, tensor)
 
 def all_reduce_mean(tensor):
