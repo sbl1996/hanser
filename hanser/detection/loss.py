@@ -10,7 +10,7 @@ class GFLoss:
 
     def __init__(self, bbox_coder, decode_pred=True, box_loss_weight=2.,
                  iou_loss_mode='giou', quantity_mode='iou', offset=False,
-                 quantity_weighted=False):
+                 quantity_weighted=True):
         self.bbox_coder = bbox_coder
         self.decode_pred = decode_pred
         self.box_loss_weight = box_loss_weight
@@ -42,8 +42,7 @@ class GFLoss:
             (labels, quantity_scores), cls_scores, reduction='sum') / total_pos
 
         if self.quantity_weighted:
-            # TODO: I do not know why predicted scores are used rather true scores, like in FCOS and ATSS.
-            #  Experiments on COCO are on the way (#24 vs #28).
+            # TODO: May be better to use groundtruth
             cls_scores = tf.reduce_max(tf.stop_gradient(cls_scores), axis=-1)
             cls_scores = tf.sigmoid(cls_scores)
             box_losses_weight = cls_scores * pos_weight
@@ -63,7 +62,7 @@ class DetectionLoss:
 
     def __init__(self, box_loss_fn, cls_loss_fn, box_loss_weight=1.,
                  bbox_coder=None, decode_pred=False, centerness=False,
-                 quantity_weighted=False):
+                 quantity_weighted=True):
         if decode_pred:
             assert bbox_coder is not None
         self.box_loss_fn = box_loss_fn
