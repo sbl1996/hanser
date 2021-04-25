@@ -114,7 +114,7 @@ def _pair(x) -> Tuple:
 
 def _meshgrid(x, y, row_major=False):
     xx, yy = tf.meshgrid(x, y, indexing='xy' if row_major else 'ij')
-    xx, yy = tf.reshape(xx, -1), tf.reshape(yy, -1)
+    xx, yy = tf.reshape(xx, (-1,)), tf.reshape(yy, (-1,))
     return xx, yy
 
 
