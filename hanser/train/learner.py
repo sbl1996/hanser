@@ -128,14 +128,18 @@ class Learner(metaclass=ABCMeta):
 
         self.n_batches_per_step = n_batches_per_step
 
-    def _make_ckpt(self):
+    def _make_ckpt(self, model_only=False):
         optimizers = self.optimizers
         # if len(optimizers) == 1 and hasattr(self, "original_optimizer"):
         #     optimizers = [self.original_optimizer]
-        ckpt = tf.train.Checkpoint(
-            model=self.model, optimizers=optimizers,
-            epoch=self._state['train']['epoch']
-        )
+        if model_only:
+            ckpt = tf.train.Checkpoint(
+                model=self.model, epoch=self._state['train']['epoch'])
+        else:
+            ckpt = tf.train.Checkpoint(
+                model=self.model, optimizers=optimizers,
+                epoch=self._state['train']['epoch']
+            )
         ckpt_options = tf.train.CheckpointOptions(
             experimental_io_device="/job:localhost") if self._strategy else None
         return ckpt, ckpt_options
@@ -379,7 +383,7 @@ class Learner(metaclass=ABCMeta):
             else:
                 optimizer.apply_gradients(zip(grads, trainable_variables))
 
-    def save(self, save_dir=None):
+    def save(self, save_dir=None, model_only=False):
         if save_dir is None:
             save_dir = self.work_dir
         else:
@@ -391,11 +395,11 @@ class Learner(metaclass=ABCMeta):
                 rm(f)
 
         save_path = str(save_dir / "ckpt")
-        ckpt, ckpt_options = self._make_ckpt()
+        ckpt, ckpt_options = self._make_ckpt(model_only=model_only)
         path = ckpt.write(save_path, ckpt_options)
         print('Save learner to %s' % path)
 
-    def load(self, fp=None, miss_ok=False):
+    def load(self, fp=None, miss_ok=False, model_only=False):
         if fp is None:
             fp = find_most_recent(self.work_dir, "ckpt.index")
             if fp is None:
@@ -405,7 +409,7 @@ class Learner(metaclass=ABCMeta):
                 else:
                     raise FileNotFoundError("No checkpoint to load in %s" % self.work_dir)
             fp = str(fp)[:-6]
-        ckpt, ckpt_options = self._make_ckpt()
+        ckpt, ckpt_options = self._make_ckpt(model_only=model_only)
         ckpt.restore(fp, ckpt_options)
         self.set_global_state('epoch', self.epoch)
         print("Load learner at epoch %d from %s" % (self.epoch + 1, fp))
