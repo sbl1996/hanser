@@ -318,8 +318,13 @@ def Act(type='default', **kwargs):
         return Activation(type, **kwargs)
 
 
-def Pool2d(kernel_size, stride, padding='same', type='avg', ceil_mode=False):
+def Pool2d(kernel_size, stride, padding='same', type='avg', ceil_mode=True):
     assert padding == 0 or padding == 'same'
+    if ceil_mode:
+        assert padding == 'same'
+    else:
+        assert padding == 0
+
     if padding == 0:
         padding = 'valid'
 
