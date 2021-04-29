@@ -51,7 +51,8 @@ class GFocalHead(RetinaHead):
         self.reg_channels = reg_channels
 
         self.reg_conf = Sequential([
-            Linear(4 * (reg_topk + 1), reg_channels, act='relu',
+            Linear(4, reg_channels, act='relu',
+            # Linear(4 * (reg_topk + 1), reg_channels, act='relu',
                    kernel_init=RandomNormal(stddev=0.01), bias_init=Zeros()),
             Linear(reg_channels, 1, act='sigmoid',
                    kernel_init=RandomNormal(stddev=0.01), bias_init=Zeros()),
@@ -69,10 +70,11 @@ class GFocalHead(RetinaHead):
         cls_scores = tf.concat(cls_scores, axis=1)
 
         dis_logits = tf.reshape(bbox_preds, [b, -1, 4, self.reg_max + 1])
-        prob = tf.nn.softmax(dis_logits, axis=-1)
-        prob_topk = tf.math.top_k(prob, k=self.reg_topk).values
-        stat = tf.concat([prob_topk, tf.reduce_mean(prob_topk, axis=-1, keepdims=True)], axis=-1)
-        stat = tf.reshape(stat, [b, -1, 4 * (self.reg_topk + 1)])
+        prob = safe_softmax(dis_logits, axis=-1)
+        # prob_topk = tf.math.top_k(prob, k=self.reg_topk).values
+        # stat = tf.concat([prob_topk, tf.reduce_mean(prob_topk, axis=-1, keepdims=True)], axis=-1)
+        # stat = tf.reshape(stat, [b, -1, 4 * (self.reg_topk + 1)])
+        stat = tf.math.reduce_std(prob, axis=-1)
         quality_score = self.reg_conf(stat)
         cls_scores = tf.nn.sigmoid(cls_scores) * quality_score
 
