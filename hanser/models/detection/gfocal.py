@@ -15,7 +15,7 @@ from hanser.detection.assign import mlvl_concat
 def integral(prob):
     # n: (..., 4, n+1)
     reg_max = prob.shape[-1] - 1
-    p = tf.constant(np.linspace(0, reg_max, reg_max + 1), dtype=tf.float32)
+    p = tf.constant(np.linspace(0, reg_max, reg_max + 1), dtype=prob.dtype)
     p = tf.tensordot(prob, p, axes=[[-1], [0]])
     return p
 
@@ -67,7 +67,6 @@ class GFocalHead(RetinaHead):
 
         bbox_preds = tf.concat(bbox_preds, axis=1)
         cls_scores = tf.concat(cls_scores, axis=1)
-        scales = mlvl_concat(self.strides, num_level_bboxes, bbox_preds.dtype)
 
         dis_logits = tf.reshape(bbox_preds, [b, -1, 4, self.reg_max + 1])
         prob = safe_softmax(dis_logits, axis=-1)
@@ -77,6 +76,7 @@ class GFocalHead(RetinaHead):
         quality_score = self.reg_conf(stat)
         cls_scores = tf.nn.sigmoid(cls_scores) * quality_score
 
+        scales = mlvl_concat(self.strides, num_level_bboxes, prob.dtype)
         bbox_preds = integral(prob) * scales[:, None]
         return {'dis_logit': dis_logits, 'bbox_pred': bbox_preds, 'cls_score': cls_scores,
                 'scales': scales,}
