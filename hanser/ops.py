@@ -142,14 +142,32 @@ def safe_softmax(logits, axis):
     return weights
 
 
+# def top_k(x, k):
+#     NINF = tf.cast(-100000000, x.dtype)
+#     results = []
+#     v = tf.reduce_max(x, axis=-1, keepdims=True)
+#     results.append(v)
+#     for i in range(k - 1):
+#         x = tf.where(x == v, NINF, x)
+#         v = tf.reduce_max(x, axis=-1, keepdims=True)
+#         results.append(v)
+#     x = tf.concat(results, axis=-1)
+#     return x
+
+
 def top_k(x, k):
-    NINF = tf.cast(-100000000, x.dtype)
-    results = []
-    v = tf.reduce_max(x, axis=-1, keepdims=True)
-    results.append(v)
-    for i in range(k - 1):
-        x = tf.where(x == v, NINF, x)
-        v = tf.reduce_max(x, axis=-1, keepdims=True)
-        results.append(v)
-    x = tf.concat(results, axis=-1)
-    return x
+    """Equivalent to tf.math.top_k(x, k) but more efficient on tpu."""
+    last_dim_size = x.shape[-1]
+    min_value = tf.math.reduce_min(x) - 1.0
+
+    out_values = []
+
+    for unused_i in range(k):
+        index = tf.math.argmax(x, axis=-1, output_type=tf.int32)
+        mask = tf.one_hot(index, last_dim_size)
+        # TODO(yonghui): Would tf.gather be more efficient and numerically stable here?
+        value = tf.reduce_sum(mask * x, -1, keepdims=True)
+        x = (1.0 - mask) * x + mask * min_value
+        out_values.append(value)
+
+    return tf.concat(out_values, -1)
