@@ -76,7 +76,7 @@ class GFocalHead(RetinaHead):
         quality_score = self.reg_conf(stat)
         cls_scores = tf.nn.sigmoid(cls_scores) * quality_score
 
-        scales = mlvl_concat(self.strides, num_level_bboxes, prob.dtype)
-        bbox_preds = integral(prob) * scales[:, None]
+        scales = mlvl_concat(self.strides, num_level_bboxes, prob.dtype)[None, :, None]
+        bbox_preds = integral(prob) * scales
         return {'dis_logit': dis_logits, 'bbox_pred': bbox_preds, 'cls_score': cls_scores,
-                'scales': scales,}
+                'scales': scales}
