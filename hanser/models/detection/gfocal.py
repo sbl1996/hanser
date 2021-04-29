@@ -72,7 +72,7 @@ class GFocalHead(RetinaHead):
 
         dis_logits = tf.reshape(bbox_preds, [b, -1, 4, self.reg_max + 1])
         prob = safe_softmax(dis_logits, axis=-1)
-        prob_topk = tf.math.top_k(prob, k=self.reg_topk, sorted=False)
+        prob_topk = tf.math.top_k(prob, k=self.reg_topk, sorted=False).values
         stat = tf.concat([prob_topk, tf.reduce_mean(prob_topk, axis=-1, keepdims=True)], axis=-1)
         stat = tf.reshape(stat, [b, -1, 4 * (self.reg_topk + 1)])
         quality_score = self.reg_conf(stat)
