@@ -367,10 +367,10 @@ class Identity(Layer):
         return tf.identity(inputs)
 
 
-def Linear(in_channels, out_channels, act=None):
-    kernel_initializer = VarianceScaling(1.0 / 3, 'fan_in', 'uniform')
+def Linear(in_channels, out_channels, act=None, kernel_init=None, bias_init=None):
+    kernel_initializer = kernel_init or VarianceScaling(1.0 / 3, 'fan_in', 'uniform')
     bound = math.sqrt(1 / in_channels)
-    bias_initializer = RandomUniform(-bound, bound)
+    bias_initializer = bias_init or RandomUniform(-bound, bound)
     return Dense(out_channels, activation=act,
                  kernel_initializer=kernel_initializer,
                  bias_initializer=bias_initializer)

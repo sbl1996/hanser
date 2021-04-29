@@ -1,9 +1,82 @@
 from toolz import curry
+import numpy as np
+
 import tensorflow as tf
 
 from hanser.losses import reduce_loss, focal_loss, l1_loss, smooth_l1_loss
 from hanser.ops import to_float, to_int, all_reduce_mean
 from hanser.detection.iou import bbox_iou2
+
+
+def distribution_focal_loss(y_true, y_pred):
+    r"""Distribution Focal Loss (DFL) is from `Generalized Focal Loss: Learning
+    Qualified and Distributed Bounding Boxes for Dense Object Detection
+    <https://arxiv.org/abs/2006.04388>`_.
+
+    Args:
+        y_true (tf.Tensor): Target distance label for bounding boxes with
+            shape (N,).
+        y_pred (tf.Tensor): Predicted general distribution of bounding boxes
+            (before softmax) with shape (N, n+1), n is the max value of the
+            integral set `{0, ..., n}` in paper.
+
+    Returns:
+        torch.Tensor: Loss tensor with shape (N,).
+    """
+    dis_left = tf.cast(y_true, tf.int32)
+    dis_right = dis_left + 1
+    weight_left = tf.cast(dis_right, tf.float32) - y_true
+    weight_right = y_true - tf.cast(dis_left, tf.float32)
+    cross_entropy = tf.keras.losses.sparse_categorical_crossentropy
+    loss = cross_entropy(dis_left, y_pred, from_logits=True) * weight_left \
+        + cross_entropy(dis_right, y_pred, from_logits=True) * weight_right
+    return loss
+
+
+class GFLossV2:
+
+    def __init__(self, bbox_coder, box_loss_weight=2.,
+                 iou_loss_mode='giou', quantity_mode='iou'):
+        self.bbox_coder = bbox_coder
+        self.box_loss_weight = box_loss_weight
+        self.iou_loss_mode = iou_loss_mode
+        self.quantity_mode = quantity_mode
+
+    def __call__(self, y_true, y_pred):
+
+        bbox_targets = y_true['bbox_target']
+        labels = y_true['label']
+
+        dis_logits = y_pred['dis_logit']
+        bbox_preds = y_pred['bbox_pred']
+        cls_scores = y_pred['cls_score']
+
+        pos = labels != 0
+        pos_weight = to_float(pos)
+        total_pos = tf.reduce_sum(pos_weight)
+        total_pos = all_reduce_mean(total_pos)
+
+        reg_max = dis_logits.shape[-1] - 1
+        bbox_targets = self.bbox_coder.encode(bbox_targets)
+        scaled_targets = tf.clip_by_value(bbox_targets / y_pred['scales'][:, None], 0, reg_max - 0.001)
+        loss_dfl = distribution_focal_loss(scaled_targets, dis_logits)
+
+        quantity_scores = bbox_iou2(bbox_targets, bbox_preds,
+                                    mode=self.quantity_mode, is_aligned=True, offset=True)
+        quantity_scores = tf.stop_gradient(quantity_scores)
+        loss_cls = quality_focal_loss(
+            (labels, quantity_scores), cls_scores, from_logits=False, reduction='sum') / total_pos
+
+        cls_scores = tf.reduce_max(tf.stop_gradient(cls_scores), axis=-1)
+        weight = cls_scores * pos_weight
+        avg_factor = tf.reduce_sum(weight)
+        avg_factor = all_reduce_mean(avg_factor)
+        loss_box = iou_loss(bbox_targets, bbox_preds, weight=weight,
+                            reduction='sum', mode=self.iou_loss_mode, offset=True) / avg_factor
+
+        loss_dfl = tf.reduce_sum(loss_dfl * weight[:, :, None]) / (avg_factor * 4)
+        loss = loss_box * self.box_loss_weight + loss_cls + loss_dfl
+        return loss
 
 
 class GFLoss:
@@ -154,13 +227,17 @@ def hard_negative_mining(losses, n_pos, neg_pos_ratio, max_pos=1000):
     return tf.reduce_sum(weights * losses)
 
 
-def quality_focal_loss(y_true, y_pred, gamma=2.0, reduction='sum'):
+def quality_focal_loss(y_true, y_pred, gamma=2.0, from_logits=True, reduction='sum'):
     label, score = y_true
     num_classes = tf.shape(y_pred)[-1]
     y_true = tf.one_hot(label, num_classes + 1)[..., 1:] * score[..., None]
 
-    sigma = tf.sigmoid(y_pred)
-    focal_weight = tf.abs(y_true - sigma) ** gamma
-    losses = tf.nn.sigmoid_cross_entropy_with_logits(y_true, y_pred)
+    if from_logits:
+        sigma = tf.sigmoid(y_pred)
+        focal_weight = tf.abs(y_true - sigma) ** gamma
+        losses = tf.nn.sigmoid_cross_entropy_with_logits(y_true, y_pred)
+    else:
+        focal_weight = tf.abs(y_true - y_pred) ** gamma
+        losses = tf.keras.backend.binary_crossentropy(y_true, y_pred, from_logits=False)
     losses = losses * focal_weight
     return reduce_loss(losses, weight=None, reduction=reduction)

@@ -129,3 +129,14 @@ def all_reduce_mean(tensor):
 
 def all_reduce_sum(tensor):
     return all_reduce(tensor, tf.distribute.ReduceOp.SUM)
+
+
+def safe_softmax(logits, axis):
+    dtype = logits.dtype
+    if dtype in [tf.float16, tf.bfloat16]:
+        logits = tf.cast(logits, tf.float32)
+        weights = tf.nn.softmax(logits, axis=axis)
+        weights = tf.cast(weights, dtype)
+    else:
+        weights = tf.nn.softmax(logits, axis=axis)
+    return weights

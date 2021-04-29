@@ -9,16 +9,20 @@ from hanser.detection.assign import max_iou_match, atss_match, fcos_match, grid_
 from hanser.detection.nms import batched_nms
 from hanser.detection.iou import bbox_iou2
 from hanser.detection.bbox import BBoxCoder, FCOSBBoxCoder, coords_to_absolute
-from hanser.detection.loss import DetectionLoss, focal_loss, iou_loss, l1_loss, smooth_l1_loss, cross_entropy_det, GFLoss
+from hanser.detection.loss import DetectionLoss, focal_loss, iou_loss, l1_loss, smooth_l1_loss, cross_entropy_det, GFLoss, GFLossV2
 
 
 def postprocess(bbox_preds, cls_scores, bbox_coder, centerness=None,
                 nms_pre=5000, iou_threshold=0.5, score_threshold=0.05,
-                topk=200, soft_nms_sigma=0., use_sigmoid=False, label_offset=0):
-    if use_sigmoid:
-        scores = tf.sigmoid(cls_scores)
+                topk=200, soft_nms_sigma=0., use_sigmoid=False, label_offset=0,
+                from_logits=True):
+    if from_logits:
+        if use_sigmoid:
+            scores = tf.sigmoid(cls_scores)
+        else:
+            scores = tf.math.softmax(cls_scores, -1)
     else:
-        scores = tf.math.softmax(cls_scores, -1)
+        scores = cls_scores
     scores = scores[..., label_offset:]
     if centerness is not None:
         scores = tf.sqrt(scores * tf.sigmoid(centerness)[..., None])

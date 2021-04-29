@@ -47,6 +47,18 @@ class FCOSBBoxCoder:
     def __init__(self, points):
         self.points = tf.constant(points, tf.float32)
 
+    def encode(self, bboxes, idx=None):
+        points = self.points
+        if idx is not None:
+            points = tf.gather(points, idx, axis=0)
+        # preds: (batch_size, num_points, 4)
+        ys, xs = points[..., 0], points[..., 1]
+        t_ = ys - bboxes[..., 0]
+        l_ = xs - bboxes[..., 1]
+        b_ = bboxes[..., 2] - ys
+        r_ = bboxes[..., 3] - xs
+        return tf.stack([t_, l_, b_, r_], axis=-1)
+
     def decode(self, preds, idx=None):
         points = self.points
         if idx is not None:

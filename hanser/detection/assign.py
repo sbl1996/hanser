@@ -243,12 +243,6 @@ def fcos_match(gt_bboxes, gt_labels, points, num_level_points,
     points = tf.tile(points[:, None, :], (1, num_gts, 1))
     ys, xs = points[..., 0], points[..., 1]
 
-    t = ys - gt_bboxes[..., 0]
-    l = xs - gt_bboxes[..., 1]
-    b = gt_bboxes[..., 2] - ys
-    r = gt_bboxes[..., 3] - xs
-    bbox_targets = tf.stack((t, l, b, r), axis=-1)
-
     # center sampling
     # condition1: inside a `center bbox`
     centers = (gt_bboxes[..., :2] + gt_bboxes[..., 2:]) / 2
@@ -267,6 +261,12 @@ def fcos_match(gt_bboxes, gt_labels, points, num_level_points,
          xs < center_gts_r], axis=0)
 
     # condition2: limit the regression range for each location
+    t = ys - gt_bboxes[..., 0]
+    l = xs - gt_bboxes[..., 1]
+    b = gt_bboxes[..., 2] - ys
+    r = gt_bboxes[..., 3] - xs
+    bbox_targets = tf.stack((t, l, b, r), axis=-1)
+
     max_regress_distance = tf.reduce_max(bbox_targets, axis=-1)
     inside_regress_range = (
         (max_regress_distance >= regress_ranges[..., 0]) &
