@@ -164,7 +164,7 @@ def top_k(x, k):
 
     for unused_i in range(k):
         index = tf.math.argmax(x, axis=-1, output_type=tf.int32)
-        mask = tf.one_hot(index, last_dim_size)
+        mask = tf.one_hot(index, last_dim_size, dtype=x.dtype)
         # TODO(yonghui): Would tf.gather be more efficient and numerically stable here?
         value = tf.reduce_sum(mask * x, -1, keepdims=True)
         x = (1.0 - mask) * x + mask * min_value
