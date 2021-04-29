@@ -3,7 +3,7 @@ import tensorflow as tf
 from tensorflow.keras import Sequential
 from tensorflow.keras.initializers import RandomNormal, Zeros
 
-from hanser.ops import safe_softmax
+from hanser.ops import safe_softmax, top_k
 from hanser.models.layers import Linear
 
 from hanser.models.detection.detector import SingleStageDetector
@@ -11,6 +11,7 @@ from hanser.models.detection.neck.fpn import FPN
 from hanser.models.detection.retinanet import RetinaHead
 
 from hanser.detection.assign import mlvl_concat
+
 
 def integral(prob):
     # n: (..., 4, n+1)
@@ -31,7 +32,7 @@ class GFocal(SingleStageDetector):
         self.neck = FPN(backbone_channels, feat_channels, num_extra_convs,
                         extra_convs_on='output', norm=norm)
         num_levels = len(backbone_indices) + num_extra_convs
-        strides = [ 2 ** (l + backbone_indices[0] + 2) for l in range(num_levels) ]
+        strides = [2 ** (l + backbone_indices[0] + 2) for l in range(num_levels)]
         self.head = GFocalHead(
             num_classes, feat_channels, feat_channels, stacked_convs,
             norm=norm, strides=strides)
@@ -52,7 +53,7 @@ class GFocalHead(RetinaHead):
 
         self.reg_conf = Sequential([
             Linear(4, reg_channels, act='relu',
-            # Linear(4 * (reg_topk + 1), reg_channels, act='relu',
+                   # Linear(4 * (reg_topk + 1), reg_channels, act='relu',
                    kernel_init=RandomNormal(stddev=0.01), bias_init=Zeros()),
             Linear(reg_channels, 1, act='sigmoid',
                    kernel_init=RandomNormal(stddev=0.01), bias_init=Zeros()),
@@ -71,10 +72,9 @@ class GFocalHead(RetinaHead):
 
         dis_logits = tf.reshape(bbox_preds, [b, -1, 4, self.reg_max + 1])
         prob = safe_softmax(dis_logits, axis=-1)
-        # prob_topk = tf.math.top_k(prob, k=self.reg_topk).values
-        # stat = tf.concat([prob_topk, tf.reduce_mean(prob_topk, axis=-1, keepdims=True)], axis=-1)
-        # stat = tf.reshape(stat, [b, -1, 4 * (self.reg_topk + 1)])
-        stat = tf.math.reduce_std(prob, axis=-1)
+        prob_topk = top_k(prob, k=self.reg_topk)
+        stat = tf.concat([prob_topk, tf.reduce_mean(prob_topk, axis=-1, keepdims=True)], axis=-1)
+        stat = tf.reshape(stat, [b, -1, 4 * (self.reg_topk + 1)])
         quality_score = self.reg_conf(stat)
         cls_scores = tf.nn.sigmoid(cls_scores) * quality_score
 

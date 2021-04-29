@@ -140,3 +140,16 @@ def safe_softmax(logits, axis):
     else:
         weights = tf.nn.softmax(logits, axis=axis)
     return weights
+
+
+def top_k(x, k):
+    NINF = tf.cast(-100000000, x.dtype)
+    results = []
+    v = tf.reduce_max(x, axis=-1, keepdims=True)
+    results.append(v)
+    for i in range(k - 1):
+        x = tf.where(x == v, NINF, x)
+        v = tf.reduce_max(x, axis=-1, keepdims=True)
+        results.append(v)
+    x = tf.concat(results, axis=-1)
+    return x
