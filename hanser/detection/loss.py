@@ -58,7 +58,7 @@ class GFLossV2:
 
         reg_max = dis_logits.shape[-1] - 1
         bbox_targets = self.bbox_coder.encode(bbox_targets)
-        scaled_targets = tf.clip_by_value(bbox_targets / y_pred['scales'][:, None], 0, reg_max - 0.001)
+        scaled_targets = tf.clip_by_value(bbox_targets / y_pred['scales'][0], 0, reg_max - 0.001)
         loss_dfl = distribution_focal_loss(scaled_targets, dis_logits)
 
         quantity_scores = bbox_iou2(bbox_targets, bbox_preds,
