@@ -50,12 +50,12 @@ class GFocalHead(RetinaHead):
         self.reg_topk = reg_topk
         self.reg_channels = reg_channels
 
-        # self.reg_conf = Sequential([
-        #     Linear(4 * (reg_topk + 1), reg_channels, act='relu',
-        #            kernel_init=RandomNormal(stddev=0.01), bias_init=Zeros()),
-        #     Linear(reg_channels, 1, act='sigmoid',
-        #            kernel_init=RandomNormal(stddev=0.01), bias_init=Zeros()),
-        # ])
+        self.reg_conf = Sequential([
+            Linear(4 * (reg_topk + 1), reg_channels, act='relu',
+                   kernel_init=RandomNormal(stddev=0.01), bias_init=Zeros()),
+            Linear(reg_channels, 1, act='sigmoid',
+                   kernel_init=RandomNormal(stddev=0.01), bias_init=Zeros()),
+        ])
 
     def call(self, x):
         preds = super().call(x)
@@ -73,7 +73,7 @@ class GFocalHead(RetinaHead):
         prob_topk = tf.math.top_k(prob, k=self.reg_topk).values
         stat = tf.concat([prob_topk, tf.reduce_mean(prob_topk, axis=-1, keepdims=True)], axis=-1)
         stat = tf.reshape(stat, [b, -1, 4 * (self.reg_topk + 1)])
-        quality_score = tf.reduce_mean(stat, axis=-1, keepdims=True) * 3
+        quality_score = self.reg_conf(stat)
         cls_scores = tf.nn.sigmoid(cls_scores) * quality_score
 
         scales = mlvl_concat(self.strides, num_level_bboxes, prob.dtype)[None, :, None]
