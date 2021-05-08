@@ -8,8 +8,6 @@ from sklearn.datasets import load_digits
 from sklearn.model_selection import train_test_split
 
 import tensorflow as tf
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' 
-tf.get_logger().setLevel("ERROR")
 from tensorflow.keras.layers import Flatten
 from tensorflow_addons.optimizers import AdamW
 from hanser.datasets import prepare
@@ -101,6 +99,7 @@ for i in range(50):
     it = iter(ds_train)
     for i in tqdm(range(steps_per_epoch)):
         x, y = next(it)
+
         with tf.GradientTape() as tape:
             p = model(x, training=True)
             loss = tf.keras.losses.sparse_categorical_crossentropy(y, p, from_logits=True)
