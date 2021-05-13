@@ -1,7 +1,7 @@
 from tensorflow.keras import Model
 from tensorflow.keras.layers import Layer
 
-from hanser.models.layers import Conv2d, Act, Identity, GlobalAvgPool, Linear, Sequential, set_defaults
+from hanser.models.layers import Conv2d, Act, Identity, GlobalAvgPool, Linear, Sequential
 
 
 class BasicBlock(Layer):
@@ -10,13 +10,14 @@ class BasicBlock(Layer):
     def __init__(self, in_channels, channels, stride, erase_relu):
         super().__init__()
         out_channels = channels * self.expansion
-        self.conv1 = Conv2d(in_channels, out_channels, kernel_size=3, stride=stride,
-                            norm='def', act='def')
+        self.conv1 = Conv2d(in_channels, out_channels, kernel_size=3,
+                            stride=stride, norm='def', act='def')
         self.conv2 = Conv2d(out_channels, out_channels, kernel_size=3,
                             norm='def')
 
         if stride != 1 or in_channels != out_channels:
-            self.shortcut = Conv2d(in_channels, out_channels, kernel_size=1, stride=stride, norm='def')
+            self.shortcut = Conv2d(in_channels, out_channels, kernel_size=1,
+                                   stride=stride, norm='def')
         else:
             self.shortcut = Identity()
         self.act = Act() if not erase_relu else Identity()
@@ -33,7 +34,7 @@ class BasicBlock(Layer):
 class Bottleneck(Layer):
     expansion = 4
 
-    def __init__(self, in_channels, channels, stride, erase_relu):
+    def __init__(self, in_channels, channels, stride, erase_relu=False):
         super().__init__()
         out_channels = channels * self.expansion
         self.conv1 = Conv2d(in_channels, channels, kernel_size=1,
@@ -43,7 +44,8 @@ class Bottleneck(Layer):
         self.conv3 = Conv2d(channels, out_channels, kernel_size=1,
                             norm='def')
         if stride != 1 or in_channels != out_channels:
-            self.shortcut = Conv2d(in_channels, out_channels, kernel_size=1, stride=stride, norm='def')
+            self.shortcut = Conv2d(in_channels, out_channels, kernel_size=1,
+                                   stride=stride, norm='def')
         else:
             self.shortcut = Identity()
         self.act = Act() if not erase_relu else Identity()
@@ -66,9 +68,11 @@ class ResNet(Model):
         if block == 'basic':
             block = BasicBlock
             layers = [(depth - 2) // 6] * 3
-        else:
+        elif block == 'bottleneck':
             block = Bottleneck
             layers = [(depth - 2) // 9] * 3
+        else:
+            raise ValueError("Not supported block: %s" % block)
 
         self.stem = Conv2d(3, self.stages[0], kernel_size=3, norm='def', act='def')
         self.in_channels = self.stages[0]
@@ -105,3 +109,7 @@ class ResNet(Model):
         x = self.avgpool(x)
         x = self.fc(x)
         return x
+
+
+def resnet110(**kwargs):
+    return ResNet(depth=110, block='bottleneck', **kwargs)

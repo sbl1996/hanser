@@ -5,6 +5,7 @@ from tensorflow.keras import Sequential
 from tensorflow_addons.layers import GELU
 from tensorflow.keras.layers import Layer, Dense, Dropout, Activation
 
+
 def safe_softmax(logits, axis):
     dtype = logits.dtype
     if dtype in [tf.float16, tf.bfloat16]:
@@ -95,7 +96,8 @@ def positional_encoding(seq_len, d_model):
     return tf.cast(angle_rads, dtype=tf.float32)
 
 
-def FFN(d_model, dff, drop_rate, activation):
+def FFN(d_model, dff, drop_rate=0, activation='gelu'):
+
     layers = [
         Dense(dff),
         GELU() if activation == 'gelu' else Activation('relu'),

@@ -1,32 +1,41 @@
 import tensorflow as tf
-from tensorflow.keras.layers import Dense, Layer, LayerNormalization, Dropout, Embedding
+from tensorflow.keras.layers import Dense, Layer, Dropout, Embedding
 from tensorflow.keras.initializers import Constant
+
+from hanser.models.layers import Norm, Identity
+from hanser.models.modules import DropPath
 from hanser.models.transformer.modules import MultiHeadAttention, positional_encoding, FFN
 
 
 class TransformerEncoderLayer(Layer):
-    def __init__(self, d_model, num_heads, dff, drop_rate, activation='gelu', **kwargs):
+    def __init__(self, d_model, num_heads, dff, drop_rate=0, attn_drop_rate=0,
+                 activation='gelu', drop_path=0, **kwargs):
         super().__init__(**kwargs)
         self.d_model = d_model
         self.num_heads = num_heads
         self.dff = dff
         self.drop_rate = drop_rate
         self.activation = activation
+        self.drop_path = drop_path
 
-        self.ln1 = LayerNormalization(epsilon=1e-5)
-        self.mha = MultiHeadAttention(d_model, num_heads, drop_rate)
+        self.ln1 = Norm(type='ln')
+        self.mha = MultiHeadAttention(d_model, num_heads, attn_drop_rate)
 
         self.ffn = FFN(d_model, dff, drop_rate, activation)
-        self.ln2 = LayerNormalization(epsilon=1e-5)
+        self.ln2 = Norm(type='ln')
+
+        self.drop_path = DropPath(drop_path) if drop_rate else Identity()
 
     def call(self, x):
         identity = x
         x = self.ln1(x)
         x, _ = self.mha(x, x, x)
+        x = self.drop_path(x)
         x = x + identity
 
         identity = x
         x = self.ffn(self.ln2(x))
+        x = self.drop_path(x)
         x = x + identity
         return x
 
@@ -37,6 +46,7 @@ class TransformerEncoderLayer(Layer):
             "num_heads": self.num_heads,
             "dff": self.dff,
             "drop_rate": self.drop_rate,
+            "drop_path": self.drop_path,
             "activation": self.activation,
         }
 
@@ -68,7 +78,7 @@ class TransformerEncoder(Layer):
             for i in range(num_layers)
         ]
 
-        self.ln = LayerNormalization(epsilon=1e-5)
+        self.ln = Norm(type='ln')
 
         if with_head:
             self.cls_head = Dense(n_tokens)

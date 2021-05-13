@@ -8,7 +8,7 @@ import tensorflow as tf
 from tensorflow.keras import Sequential
 from tensorflow.keras.initializers import VarianceScaling, RandomUniform, Initializer
 from tensorflow.keras.layers import Dense, Activation, Layer, Conv2D, ZeroPadding2D, LeakyReLU, \
-    DepthwiseConv2D, MaxPooling2D as KerasMaxPool2D, AveragePooling2D as KerasAvgPool2D
+    DepthwiseConv2D, MaxPooling2D as KerasMaxPool2D, AveragePooling2D as KerasAvgPool2D, LayerNormalization
 import tensorflow_addons as tfa
 from tensorflow_addons.activations import mish
 
@@ -49,6 +49,9 @@ DEFAULTS = {
         'channels_per_group': 16,
         'eps': 1e-5,
         'affine': True,
+    },
+    'ln': {
+        'eps': 1e-5,
     },
     'activation': 'relu',
     'leaky_relu': {
@@ -269,7 +272,7 @@ def get_groups(channels, ref=32):
     return channels // c
 
 
-def Norm(channels, type='default', affine=None, track_running_stats=None, gamma_init='ones'):
+def Norm(channels=None, type='default', affine=None, track_running_stats=None, gamma_init='ones'):
     if type in ['default', 'def']:
         type = DEFAULTS['norm']
     if type == 'bn':
@@ -300,6 +303,9 @@ def Norm(channels, type='default', affine=None, track_running_stats=None, gamma_
         gn = tfa.layers.GroupNormalization(
             groups=groups, epsilon=cfg['eps'], center=affine, scale=affine)
         return gn
+    elif type == 'ln':
+        cfg = DEFAULTS['ln']
+        return LayerNormalization(epsilon=cfg['eps'])
     elif type == 'none':
         return Identity()
     else:
