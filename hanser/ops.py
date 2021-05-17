@@ -61,7 +61,7 @@ def choice(t, p=None):
     return t[i]
 
 
-def beta_mc(a, b, shape, mc_size=1000000):
+def beta_mc(a, b, shape, mc_size=10000):
     mc_table = tf.constant(np.random.beta(a, b, mc_size), dtype=tf.float32)
     indices = tf.random.uniform(shape, 0, mc_size, dtype=tf.int32)
     return tf.gather(mc_table, indices)
