@@ -85,10 +85,13 @@ def load_cifar100(label_mode='fine', cache_dir=None):
 
 
 def make_cifar_dataset(load_fn, batch_size, eval_batch_size, transform,
-                       zip_transform, batch_transform, **kwargs):
+                       zip_transform, batch_transform, aug_repeats=None, **kwargs):
     (x_train, y_train), (x_test, y_test) = load_fn()
 
     n_train, n_test = len(x_train), len(x_test)
+    if aug_repeats is not None:
+        n_train *= aug_repeats
+        n_test *= aug_repeats
     steps_per_epoch = n_train // batch_size
     test_steps = math.ceil(n_test / eval_batch_size)
 
@@ -97,18 +100,21 @@ def make_cifar_dataset(load_fn, batch_size, eval_batch_size, transform,
 
     ds_train = prepare(ds, batch_size, transform=transform(training=True),
                        zip_transform=zip_transform, batch_transform=batch_transform,
-                       training=True, buffer_size=len(x_train), **kwargs)
-    ds_test = prepare(ds_test, eval_batch_size, transform=transform(training=False), training=False, **kwargs)
+                       training=True, buffer_size=n_train, aug_repeats=aug_repeats, **kwargs)
+    ds_test = prepare(ds_test, eval_batch_size, transform=transform(training=False),
+                      training=False, **kwargs)
     return ds_train, ds_test, steps_per_epoch, test_steps
 
 
 def make_cifar10_dataset(batch_size, eval_batch_size, transform,
-                         zip_transform=None, batch_transform=None, **kwargs):
+                         zip_transform=None, batch_transform=None,
+                         aug_repeats=None, **kwargs):
     return make_cifar_dataset(load_cifar10, batch_size, eval_batch_size, transform,
-                              zip_transform, batch_transform, **kwargs)
+                              zip_transform, batch_transform, aug_repeats, **kwargs)
 
 
 def make_cifar100_dataset(batch_size, eval_batch_size, transform,
-                          zip_transform=None, batch_transform=None, **kwargs):
+                          zip_transform=None, batch_transform=None,
+                          aug_repeats=None, **kwargs):
     return make_cifar_dataset(load_cifar100, batch_size, eval_batch_size, transform,
-                              zip_transform, batch_transform, **kwargs)
+                              zip_transform, batch_transform, aug_repeats, **kwargs)

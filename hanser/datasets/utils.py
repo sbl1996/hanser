@@ -1,9 +1,16 @@
 import tensorflow as tf
 
+def make_repeat_fn(n):
+    def fn(x, y):
+        xs = [x for _ in range(n)]
+        ys = [y for _ in range(n)]
+        return tf.data.Dataset.from_tensor_slices((xs, ys))
+    return fn
 
 def prepare(ds, batch_size, transform=None, training=True, buffer_size=1024,
             drop_remainder=None, cache=True, repeat=True, prefetch=True,
-            zip_transform=None, batch_transform=None, datasets_num_private_threads=None):
+            zip_transform=None, batch_transform=None, datasets_num_private_threads=None,
+            aug_repeats=None):
     if datasets_num_private_threads:
         options = tf.data.Options()
         options.experimental_threading.private_threadpool_size = (
@@ -16,6 +23,9 @@ def prepare(ds, batch_size, transform=None, training=True, buffer_size=1024,
         ds = ds.cache()
     if training:
         ds = ds.shuffle(buffer_size)
+        if aug_repeats is not None:
+            assert len(ds.element_spec) == 2
+            ds = ds.flat_map(make_repeat_fn(aug_repeats))
         if repeat:
             ds = ds.repeat()
     if transform:
