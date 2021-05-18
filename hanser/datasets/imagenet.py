@@ -110,10 +110,10 @@ def parse_example_proto(example_serialized):
 #     return dataset
 
 
-def parse_and_transform(transform):
+def parse_and_transform(transform, training):
     def fn(x):
         image, label = parse_example_proto(x)
-        return transform(image, label)
+        return transform(image, label, training)
     return fn
 
 
@@ -136,7 +136,7 @@ def make_imagenet_dataset_split(
         num_parallel_calls=tf.data.experimental.AUTOTUNE,
         deterministic=False)
 
-    transform = parse_and_transform(transform)
+    transform = parse_and_transform(transform, training)
     ds = prepare(dataset, batch_size, transform, training=training, buffer_size=_SHUFFLE_BUFFER,
                  cache=True, prefetch=True, **kwargs)
 
