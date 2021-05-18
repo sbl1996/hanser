@@ -118,7 +118,8 @@ def parse_and_transform(transform):
 
 
 def make_imagenet_dataset_split(
-    batch_size, transform, filenames, split, training=None, **kwargs):
+    batch_size, transform, filenames, split, training=None, cache_decoded_image=False, **kwargs):
+    assert split in NUM_IMAGES.keys()
 
     if training is None:
         training = split == 'train'
@@ -154,7 +155,8 @@ def make_imagenet_dataset_split(
 
 
 def make_imagenet_dataset(
-    batch_size, eval_batch_size, transform, data_dir=None, train_files=None, eval_files=None, **kwargs):
+    batch_size, eval_batch_size, transform, data_dir=None, train_files=None, eval_files=None,
+    zip_transform=None, batch_transform=None, aug_repeats=None, **kwargs):
 
     if train_files is None:
         train_files = get_filenames(data_dir, training=True)
@@ -162,7 +164,9 @@ def make_imagenet_dataset(
         eval_files = get_filenames(data_dir, training=False)
 
     ds_train, steps_per_epoch = make_imagenet_dataset_split(
-        batch_size, transform, train_files, 'train', training=True, **kwargs)
+        batch_size, transform, train_files, 'train', training=True,
+        zip_transform=zip_transform, batch_transform=batch_transform,
+        aug_repeats=aug_repeats, **kwargs)
     ds_eval, eval_steps = make_imagenet_dataset_split(
         eval_batch_size, transform, eval_files, 'validation', training=False, **kwargs)
     return ds_train, ds_eval, steps_per_epoch, eval_steps
