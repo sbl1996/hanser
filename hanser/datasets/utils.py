@@ -26,7 +26,9 @@ def prepare(ds, batch_size, transform=None, training=True, buffer_size=1024,
         if aug_repeats is not None:
             assert len(ds.element_spec) == 2
             ds = ds.flat_map(make_repeat_fn(aug_repeats))
-        if repeat:
+        if type(repeat) == int:
+            ds = ds.repeat(repeat)
+        elif repeat:
             ds = ds.repeat()
     if transform:
         ds = ds.map(transform, num_parallel_calls=tf.data.experimental.AUTOTUNE)

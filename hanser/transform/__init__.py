@@ -383,7 +383,7 @@ def resize(img, size, method='bilinear'):
 
 
 def random_resized_crop(image, size, scale=(0.05, 1.0), ratio=(0.75, 1.33)):
-    bbox = tf.zeros((1,0,4), dtype=tf.float32)
+    bbox = tf.zeros((1, 0, 4), dtype=tf.float32)
     decoded = image.dtype != tf.string
     shape = tf.shape(image) if decoded else tf.image.extract_jpeg_shape(image)
     sample_distorted_bounding_box = tf.image.sample_distorted_bounding_box(
