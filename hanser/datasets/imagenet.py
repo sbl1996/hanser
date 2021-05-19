@@ -139,6 +139,7 @@ def make_imagenet_dataset_split(
 
     if cache_parsed:
         dataset = dataset.map(parse_example_proto, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+        transform = functools.partial(transform, training=training)
     else:
         transform = parse_and_transform(transform, training)
     ds = prepare(dataset, batch_size, transform, training=training, buffer_size=_SHUFFLE_BUFFER,
