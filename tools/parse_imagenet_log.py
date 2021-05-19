@@ -37,6 +37,7 @@ def parse_log(fp):
         elif ' valid ' in l:
             valid_lines.append(l)
 
+    total_epochs = int(epoch_lines[0].split('/')[1])
     train_p = re.compile(f"""({dt_p}) train - loss: ({m_p}), acc: ({m_p})""")
     valid_p = re.compile(f"""({dt_p}) valid - loss: ({m_p}), acc: ({m_p}), acc5: ({m_p})""")
     train_ends, train_losses, train_accs = zip(*map(parse_metric_line(p=train_p), train_lines))
@@ -44,7 +45,7 @@ def parse_log(fp):
 
     train_losses, valid_accs, valid_acc5s = [
         np.array(x) for x in [train_losses, valid_accs, valid_acc5s]]
-    return train_start, train_losses, valid_ends, valid_accs, valid_acc5s
+    return total_epochs, train_start, train_losses, valid_ends, valid_accs, valid_acc5s
 
 def estimate_epoch_cost(valid_ends):
     epoch_seconds = list(map(lambda t: dtime(t[0], t[1]).seconds, zip(valid_ends[1:], valid_ends[:-1])))
@@ -59,6 +60,12 @@ def estimate_epoch_cost(valid_ends):
             break
     return sum / tc
 
+def format_timedelta(td):
+    total_seconds = int(td.total_seconds())
+    hours, remainder = divmod(total_seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    return '%s:%s:%s' % (hours, minutes, seconds)
+
 parser = argparse.ArgumentParser()
 parser.add_argument('-f','--log', type=str, help='Log file', required=True)
 args = parser.parse_args()
@@ -68,10 +75,11 @@ epoch_p = re.compile(r"""Epoch \d+/\d+""")
 dt_p = "\d{2}:\d{2}:\d{2}"
 m_p = "\d+\.\d{4}"
 
-train_start, train_losses, valid_ends, valid_accs, valid_acc5s = parse_log(log_file)
-total_cost = timedelta(seconds=dtime(valid_ends[-1], train_start).seconds)
+total_epochs, train_start, train_losses, valid_ends, valid_accs, valid_acc5s = parse_log(log_file)
 epoch_cost = estimate_epoch_cost(valid_ends)
+total_cost = dtime(valid_ends[0], train_start).seconds + int(epoch_cost * (total_epochs - 1))
+total_cost = timedelta(seconds=total_cost)
 max_acc_epoch = np.argmax(valid_accs)
 print(f"%.2f %.2f %.4f %s %.1f" % (
     valid_accs[max_acc_epoch] * 100, valid_acc5s[max_acc_epoch] * 100, train_losses[-1],
-    total_cost, epoch_cost))
+    format_timedelta(total_cost), epoch_cost))
