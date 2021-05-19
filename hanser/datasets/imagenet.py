@@ -150,7 +150,8 @@ def make_imagenet_dataset_split(
     n = min(len(filenames) * chunksize, n)
     if 'repeat' in kwargs and type(kwargs['repeat']) == int:
         n *= kwargs['repeat']
-
+    if 'aug_repeats' in kwargs and type(kwargs['aug_repeats']) == int:
+        n *= kwargs['aug_repeats']
     if drop_remainder:
         steps = n // batch_size
     else:
