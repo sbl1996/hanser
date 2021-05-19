@@ -1,10 +1,8 @@
 import tensorflow as tf
 
 def make_repeat_fn(n):
-    def fn(x, y):
-        xs = [x for _ in range(n)]
-        ys = [y for _ in range(n)]
-        return tf.data.Dataset.from_tensor_slices((xs, ys))
+    def fn(*args):
+        return tf.data.Dataset.from_tensor_slices(tuple([arg for _ in range(n)] for arg in args))
     return fn
 
 def prepare(ds, batch_size, transform=None, training=True, buffer_size=1024,

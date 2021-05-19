@@ -118,7 +118,8 @@ def parse_and_transform(transform, training):
 
 
 def make_imagenet_dataset_split(
-    batch_size, transform, filenames, split, training=None, cache_decoded_image=False, **kwargs):
+    batch_size, transform, filenames, split, training=None,
+    cache_decoded_image=False, cache_parsed=False, **kwargs):
     assert split in NUM_IMAGES.keys()
 
     if training is None:
@@ -136,7 +137,10 @@ def make_imagenet_dataset_split(
         num_parallel_calls=tf.data.experimental.AUTOTUNE,
         deterministic=False)
 
-    transform = parse_and_transform(transform, training)
+    if cache_parsed:
+        dataset = dataset.map(parse_example_proto, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+    else:
+        transform = parse_and_transform(transform, training)
     ds = prepare(dataset, batch_size, transform, training=training, buffer_size=_SHUFFLE_BUFFER,
                  cache=True, prefetch=True, **kwargs)
 
