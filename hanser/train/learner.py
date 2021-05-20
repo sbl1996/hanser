@@ -199,7 +199,6 @@ class Learner(metaclass=ABCMeta):
         if self._verbose:
             print("%s Start training" % (time_now(),))
 
-        # May have problem when recover training from checkpoint
         if reuse_train_iterator:
             self._train_it = iter(ds_train)
         cbks.begin_train(self._state['train'])
@@ -209,8 +208,12 @@ class Learner(metaclass=ABCMeta):
             state = self._state['train']
             state['metrics'] = {}
             cbks.begin_epoch(state)
+
             if not reuse_train_iterator:
                 self._train_it = iter(ds_train)
+            elif type(reuse_train_iterator) == int and epoch % reuse_train_iterator == 0:
+                    self._train_it = iter(ds_train)
+
             self._run_epoch(self._train_it, steps_per_epoch, cbks, 'train')
             cbks.after_epoch(state)
 
