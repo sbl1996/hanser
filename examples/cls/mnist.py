@@ -25,9 +25,8 @@ def transform(image, label, training):
 
 batch_size = 128
 eval_batch_size = 256
-ds_train, ds_test, steps_per_epoch, test_steps = make_mnist_dataset(
-    batch_size, eval_batch_size, transform, sub_ratio=0.01
-)
+ds_train, ds_test, steps_per_epoch, test_steps = \
+    make_mnist_dataset(batch_size, eval_batch_size, transform, sub_ratio=0.01)
 
 model = LeNet5()
 model.build((None, 32, 32, 1))
@@ -52,7 +51,7 @@ eval_metrics = {
 learner = SuperLearner(
     model, criterion, optimizer,
     train_metrics=train_metrics, eval_metrics=eval_metrics,
-    work_dir=f"./MNIST", multiple_steps=True)
+    work_dir=f"./MNIST")
 
 
 learner.fit(ds_train, epochs, ds_test, val_freq=2,

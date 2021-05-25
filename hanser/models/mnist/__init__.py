@@ -6,9 +6,9 @@ from hanser.models.layers import Conv2d, Pool2d, Linear
 
 class LeNet5(Sequential):
 
-    def __init__(self, num_classes=10):
+    def __init__(self, in_channels=1, num_classes=10):
         super().__init__([
-            Conv2d(1, 6, kernel_size=5, norm='def', act='def'),
+            Conv2d(in_channels, 6, kernel_size=5, norm='def', act='def'),
             Pool2d(2, 2, type='avg'),
             Conv2d(6, 16, kernel_size=5, norm='def', act='def'),
             Pool2d(2, 2, type='avg'),

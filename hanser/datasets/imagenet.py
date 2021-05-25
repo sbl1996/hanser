@@ -3,7 +3,7 @@ import math
 import functools
 import tensorflow as tf
 from hanser.datasets import prepare
-from hanser.datasets.imagenet_classes import IMAGENET_CLASSES
+from hanser.datasets.classification.imagenet_classes import IMAGENET_CLASSES
 
 NUM_IMAGES = {
     'train': 1281167,
