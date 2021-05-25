@@ -4,7 +4,6 @@ import tensorflow as tf
 
 import tensorflow_datasets as tfds
 
-from hanser.tpu import setup
 from hanser.datasets import prepare
 from hanser.datasets.detection.voc import decode
 from hanser.detection import match_anchors, detection_loss, postprocess, coords_to_absolute

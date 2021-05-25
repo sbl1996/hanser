@@ -12,7 +12,7 @@ from tensorflow.keras.layers import Flatten
 from tensorflow_addons.optimizers import AdamW
 from hanser.datasets import prepare
 from hanser.transform import to_tensor, normalize
-from hanser.tpu import setup
+from hanser.distribute import setup_runtime, distribute_datasets
 
 from hanser.models.layers import Conv2d, Linear
 from hanser.ops import gumbel_softmax
@@ -40,7 +40,8 @@ ds_test = tf.data.Dataset.from_tensor_slices((X_test, y_test))
 ds_train = prepare(ds, batch_size, transform=transform(training=True), training=True, buffer_size=n_train)
 ds_test = prepare(ds_test, eval_batch_size, transform=transform(training=False), training=False)
 
-ds_train, ds_test = setup([ds_train, ds_test])
+setup_runtime()
+ds_train, ds_test = distribute_datasets(ds_train, ds_test)
 
 class MixOp(tf.keras.layers.Layer):
 

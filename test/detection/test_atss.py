@@ -3,7 +3,6 @@ from toolz import curry, get
 import tensorflow as tf
 from tensorflow.keras.metrics import Mean
 
-from hanser.tpu import setup
 from hanser.detection import postprocess, coords_to_absolute, BBoxCoder, \
     atss_match, AnchorGenerator, DetectionLoss, iou_loss, focal_loss
 

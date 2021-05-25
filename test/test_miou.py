@@ -2,10 +2,10 @@ import tensorflow as tf
 
 from tensorflow.keras.metrics import MeanIoU as MeanIoU2
 
-from hanser.tpu import setup
+from hanser.distribute import setup_tpu
 from hanser.train.metrics import MeanIoU
 
-setup([], fp16=True)
+setup_tpu(fp16=True)
 strategy = tf.distribute.get_strategy()
 
 num_classes = 8

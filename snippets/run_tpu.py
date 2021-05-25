@@ -1,9 +1,9 @@
 import tensorflow as tf
-from hanser.tpu import setup
+from hanser.distribute.tpu import setup_tpu
 
 from hanser.ops import gumbel_softmax
 
-setup([], fp16=True)
+setup_tpu()
 strategy = tf.distribute.get_strategy()
 tf.distribute.experimental_set_strategy(strategy)
 weights = tf.Variable(tf.random.normal([3]), trainable=True)

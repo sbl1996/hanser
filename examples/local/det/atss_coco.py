@@ -3,9 +3,8 @@ from toolz import curry, get
 import tensorflow as tf
 from tensorflow.keras.metrics import Mean
 
-from hanser.tpu import setup
 from hanser.detection import postprocess, coords_to_absolute, BBoxCoder, \
-    atss_match, AnchorGenerator, GFLoss
+    atss_match, AnchorGenerator, DetectionLoss, iou_loss, focal_loss
 
 from hanser.datasets.detection.cocoval import decode, make_dataset_sub, label_map
 
@@ -14,7 +13,7 @@ from hanser.transform.detection import random_hflip, random_resize, resize, pad_
 
 from hanser.models.layers import set_defaults
 from hanser.models.backbone.resnet_vd import resnet10
-from hanser.models.detection.gfl import GFL
+from hanser.models.detection.atss import ATSS
 from hanser.models.utils import load_checkpoint
 
 from hanser.train.optimizers import SGD
@@ -58,10 +57,11 @@ def transform(example, output_size=(HEIGHT, WIDTH), training=True):
     gt_bboxes, gt_labels = get(['gt_bbox', 'gt_label'], objects)
     gt_bboxes = coords_to_absolute(gt_bboxes, tf.shape(image)[:2])
 
-    bbox_targets, labels = atss_match(
-        gt_bboxes, gt_labels, anchors, num_level_bboxes, topk=9, centerness=False)
+    bbox_targets, labels, centerness = atss_match(
+        gt_bboxes, gt_labels, anchors, num_level_bboxes, topk=9, centerness=True)
 
-    return image, {'bbox_target': bbox_targets, 'label': labels, 'image_id': image_id}
+    return image, {'bbox_target': bbox_targets, 'label': labels, 'centerness': centerness,
+                   'image_id': image_id}
 
 mul = 1
 n_train, n_val = 8, 8
@@ -71,11 +71,12 @@ ds_train, ds_val, steps_per_epoch, val_steps = make_dataset_sub(
     n_train, n_val, batch_size, eval_batch_size, transform)
 
 backbone = resnet10()
-model = GFL(backbone, num_classes=80, feat_channels=64, stacked_convs=2)
+model = ATSS(backbone, num_classes=80, feat_channels=64, stacked_convs=2)
 model.build((None, HEIGHT, WIDTH, 3))
 
-criterion = GFLoss(
-    bbox_coder, iou_loss_mode='giou', box_loss_weight=2.0)
+criterion = DetectionLoss(
+    box_loss_fn=iou_loss(mode='giou'), cls_loss_fn=focal_loss(alpha=0.25, gamma=2.0),
+    bbox_coder=bbox_coder, decode_pred=True, centerness=True)
 
 base_lr = 0.0025
 epochs = 100
@@ -91,9 +92,9 @@ eval_metrics = {
 }
 
 def output_transform(output):
-    bbox_preds, cls_scores = get(
-        ['bbox_pred', 'cls_score'], output, default=None)
-    return postprocess(bbox_preds, cls_scores, bbox_coder, topk=100,
+    bbox_preds, cls_scores, centerness = get(
+        ['bbox_pred', 'cls_score', 'centerness'], output, default=None)
+    return postprocess(bbox_preds, cls_scores, bbox_coder, centerness, topk=100,
                        iou_threshold=0.6, score_threshold=0.05, use_sigmoid=True)
 
 ann_file = "/Users/hrvvi/Downloads/annotations/instances_val2017.json"
@@ -114,5 +115,5 @@ learner.fit(
     ds_train, epochs, ds_val, val_freq=1,
     steps_per_epoch=steps_per_epoch, val_steps=val_steps,
     local_eval_metrics=local_eval_metrics,
-    local_eval_freq=[(0, 20), (20, 5), (90, 1)],
+    local_eval_freq=[(0, 5), (90, 1)],
 )

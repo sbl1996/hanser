@@ -4,8 +4,11 @@ import tensorflow as tf
 from tensorflow.keras.metrics import CategoricalAccuracy, Mean, CategoricalCrossentropy
 
 from hanser.datasets.mnist import make_mnist_dataset
+
 from hanser.transform import pad, to_tensor, normalize
+
 from hanser.models.mnist import LeNet5
+
 from hanser.train.optimizers import SGD
 from hanser.train.cls import SuperLearner
 from hanser.train.callbacks import NNIReportIntermediateResult, EMA

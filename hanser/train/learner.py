@@ -11,7 +11,7 @@ from tensorflow.keras.metrics import Metric, Mean
 
 from hhutil.io import fmt_path, eglob, rm, time_now
 
-from hanser.tpu import local_results, parse_strategy, strategy_run, is_distribute_strategy
+from hanser.distribute import parse_strategy, strategy_run, is_distribute_strategy, local_results
 from hanser.train.metric_history import MetricHistory
 from hanser.train.callbacks import config_callbacks, log_metrics
 

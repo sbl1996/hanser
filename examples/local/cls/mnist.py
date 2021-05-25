@@ -3,8 +3,11 @@ from toolz import curry
 import tensorflow as tf
 from tensorflow.keras.metrics import CategoricalAccuracy, Mean, CategoricalCrossentropy
 
+from hanser.tpu import setup
 from hanser.datasets.mnist import make_mnist_dataset
+
 from hanser.transform import pad, to_tensor, normalize
+
 from hanser.models.mnist import LeNet5
 from hanser.train.optimizers import SGD
 from hanser.train.cls import SuperLearner
@@ -27,6 +30,8 @@ batch_size = 128
 eval_batch_size = 256
 ds_train, ds_test, steps_per_epoch, test_steps = \
     make_mnist_dataset(batch_size, eval_batch_size, transform, sub_ratio=0.01)
+
+ds_train, ds_test = setup([ds_train, ds_test], fp16=True)
 
 model = LeNet5()
 model.build((None, 32, 32, 1))

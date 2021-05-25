@@ -3,7 +3,7 @@ from toolz import curry
 import tensorflow as tf
 from tensorflow.keras.metrics import CategoricalAccuracy, Mean, CategoricalCrossentropy
 
-from hanser.tpu import setup
+from hanser.distribute import setup_runtime, distribute_datasets
 from hanser.datasets.cifar import make_cifar100_dataset
 from hanser.transform import random_crop, normalize, to_tensor, cutout, mixup, random_apply
 from hanser.transform.autoaugment import autoaugment
@@ -53,7 +53,9 @@ def objective(trial: optuna.Trial):
 
     ds_train, ds_test, steps_per_epoch, test_steps = make_cifar100_dataset(
         batch_size, eval_batch_size, transform, zip_transform)
-    ds_train, ds_test = setup([ds_train, ds_test], fp16=True)
+
+    setup_runtime(fp16=True)
+    ds_train, ds_test = distribute_datasets(ds_train, ds_test)
 
     model = ResNet(depth=16, k=8, num_classes=100)
     model.build((None, 32, 32, 3))

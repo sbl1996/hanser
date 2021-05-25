@@ -1,18 +1,19 @@
 from toolz import curry
 
 import tensorflow as tf
+
 from tensorflow.keras.metrics import CategoricalAccuracy, Mean, CategoricalCrossentropy
 
-from hanser.tpu import setup
-from hanser.datasets.cifar import make_cifar100_dataset
+from hanser.distribute import setup_runtime, distribute_datasets
+from hanser.datasets.classification.cifar import make_cifar100_dataset
 from hanser.transform import random_crop, normalize, to_tensor
 
 from hanser.train.optimizers import SGD
-from hanser.models.cifar.preactresnet import ResNet
+from hanser.models.cifar.pyramidnet import PyramidNet
+from hanser.models.layers import set_defaults
 from hanser.train.cls import SuperLearner
 from hanser.train.lr_schedule import CosineLR
 from hanser.losses import CrossEntropy
-
 @curry
 def transform(image, label, training):
 
@@ -27,23 +28,32 @@ def transform(image, label, training):
 
     return image, label
 
-batch_size = 128
-eval_batch_size = 2048
 
+mul = 1
+batch_size = 64 * mul
+eval_batch_size = batch_size * (16 // mul)
 ds_train, ds_test, steps_per_epoch, test_steps = make_cifar100_dataset(
     batch_size, eval_batch_size, transform)
-ds_train, ds_test = setup([ds_train, ds_test], fp16=True)
 
-model = ResNet(depth=16, k=8, num_classes=100)
+setup_runtime(fp16=True)
+ds_train, ds_test = distribute_datasets(ds_train, ds_test)
+
+set_defaults({
+    'init': {
+        'mode': 'fan_out',
+        'distribution': 'untruncated_normal'
+    },
+})
+model = PyramidNet(16, depth=200, alpha=240, block='bottleneck', num_classes=100)
 model.build((None, 32, 32, 3))
 model.summary()
 
 criterion = CrossEntropy(label_smoothing=0)
 
-base_lr = 0.1
-epochs = 200
-lr_schedule = CosineLR(base_lr, steps_per_epoch, epochs=epochs, min_lr=0)
-optimizer = SGD(lr_schedule, momentum=0.9, weight_decay=5e-4, nesterov=True)
+base_lr = 0.25
+epochs = 300
+lr_schedule = CosineLR(base_lr * mul, steps_per_epoch, epochs=epochs, min_lr=0)
+optimizer = SGD(lr_schedule, momentum=0.9, weight_decay=1e-4, nesterov=True)
 train_metrics = {
     'loss': Mean(),
     'acc': CategoricalAccuracy(),
@@ -56,7 +66,7 @@ eval_metrics = {
 learner = SuperLearner(
     model, criterion, optimizer,
     train_metrics=train_metrics, eval_metrics=eval_metrics,
-    work_dir="./drive/My Drive/models/CIFAR100-1", multiple_steps=True)
+    work_dir="./drive/MyDrive/models/CIFAR100")
 
 hist = learner.fit(ds_train, epochs, ds_test, val_freq=1,
                    steps_per_epoch=steps_per_epoch, val_steps=test_steps)

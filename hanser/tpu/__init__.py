@@ -1,12 +1,20 @@
 import os
-import multiprocessing
+import warnings
 from typing import Optional
+
+import multiprocessing
 
 import tensorflow as tf
 import tensorflow.keras.mixed_precision.experimental as mixed_precision
 
 
 def setup(datasets, fp16=True, device='auto', cross_device_ops=None):
+    warnings.warn(
+        "setup will be deprecated in hanser 1.0, "
+        "use setup_runtime and distribute_datasets from hanser.distribute instead.",
+        DeprecationWarning,
+    )
+
     if device == 'auto':
         strategy = get_colab_tpu()
         if strategy:

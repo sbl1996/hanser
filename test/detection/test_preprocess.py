@@ -3,7 +3,6 @@ from toolz import curry, get
 import tensorflow as tf
 import tensorflow_datasets as tfds
 
-from hanser.tpu import setup
 from hanser.detection import postprocess, coords_to_absolute, BBoxCoder, \
     AnchorGenerator, DetectionLoss, iou_loss, focal_loss
 from hanser.detection.assign import atss_match

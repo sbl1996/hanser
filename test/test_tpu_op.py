@@ -4,10 +4,11 @@ import torch
 import torch.nn as nn
 import tensorflow as tf
 from hanser.models.layers import Conv2d
-from hanser.tpu import get_colab_tpu
+from hanser.distribute.tpu import setup_tpu
 from horch.nn import Swish
 
-strategy = get_colab_tpu()
+setup_tpu(fp16=False)
+strategy = tf.distribute.get_strategy()
 
 def t2t(x):
     if tf.is_tensor(x):
