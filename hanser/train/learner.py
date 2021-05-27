@@ -211,8 +211,6 @@ class Learner(metaclass=ABCMeta):
 
             if not reuse_train_iterator:
                 self._train_it = iter(ds_train)
-            elif type(reuse_train_iterator) == int and epoch % reuse_train_iterator == 0:
-                    self._train_it = iter(ds_train)
 
             self._run_epoch(self._train_it, steps_per_epoch, cbks, 'train')
             cbks.after_epoch(state)
