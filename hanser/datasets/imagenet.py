@@ -143,7 +143,7 @@ def make_imagenet_dataset_split(
     else:
         transform = parse_and_transform(transform, training)
     ds = prepare(dataset, batch_size, transform, training=training, buffer_size=_SHUFFLE_BUFFER,
-                 cache=True, prefetch=True, repeat=False, **kwargs)
+                 cache=True, prefetch=True, repeat=training, **kwargs)
 
     n = NUM_IMAGES[split]
     chunksize = math.ceil(n / NUM_FILES[split])

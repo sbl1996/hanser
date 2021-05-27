@@ -1,5 +1,4 @@
-import os
-
+import resource
 from toolz import curry
 
 import tensorflow as tf
@@ -7,8 +6,11 @@ from hanser.datasets.cifar import make_cifar100_dataset
 from hanser.transform import random_crop, normalize, to_tensor, cutout, mixup, mixup_batch
 from hanser.transform.autoaugment import autoaugment
 
-WORKER_ID = os.environ.get("WORKER_ID", 0)
+def get_memory_usage():
+    return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
 
+used_mem = get_memory_usage()
+print("used memory: {} Mb".format(used_mem / 1024 / 1024))
 
 @curry
 def transform(image, label, training):
@@ -32,17 +34,41 @@ def zip_transform(data1, data2):
     return mixup(data1, data2, alpha=0.2)
 
 def batch_transform(image, label):
-    return mixup_batch(image, label, 0.2)
+    return mixup_batch(image, label, alpha=0.2)
 
-batch_size = 128
+batch_size = 1024
 eval_batch_size = 2048
 
 ds_train, ds_test, steps_per_epoch, test_steps = make_cifar100_dataset(
-    batch_size, eval_batch_size, transform, batch_transform=batch_transform)
+    batch_size, eval_batch_size, transform, repeat=False,
+    zip_transform=zip_transform)
 
-train_it = iter(ds_train)
-x, y = next(train_it)
+used_mem = get_memory_usage()
+print("used memory: {} Mb".format(used_mem / 1024 / 1024))
 
-# 543.2M
+for epoch in range(100):
+    print(epoch)
+    train_it = iter(ds_train)
+    for i in range(steps_per_epoch):
+        x, y = next(train_it)
+        s = x.shape
+        if i == steps_per_epoch - 1:
+            used_mem = get_memory_usage()
+            print("used memory: {} Mb".format(used_mem / 1024 / 1024))
+
+# not reuse
+# 801 -> 1006 -> 1011
+# 802 -> 1006 -> 1011
+# 802 -> 1006 -> 1011
+# 802 -> 1007 -> 1010
+# 800 -> 1004 -> 1009
+
+# reuse
+# 801
+# 771
+# 771
+# 789
+# 802
+
 # mixup zip 548.8
 # mixup batch 552.3
