@@ -24,7 +24,6 @@ def make_numpy_dataset(
     n_train, n_test = len(x_train), len(x_test)
     if aug_repeats is not None:
         n_train *= aug_repeats
-        n_test *= aug_repeats
     steps_per_epoch = n_train // batch_size
     test_steps = math.ceil(n_test / eval_batch_size)
 
