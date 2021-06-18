@@ -352,7 +352,6 @@ class PolynomialDecay(LearningRateSchedule):
         warmup_epoch=0,
         warmup_min_lr=0,
     ):
-
         super().__init__()
         self.base_lr = learning_rate
         self.steps_per_epoch = steps_per_epoch
@@ -405,3 +404,101 @@ def scale_lr(lr, mul, mode='linear'):
         return lr * math.sqrt(mul)
     else:
         raise ValueError("Not supported mode: %s" % mode)
+
+
+class OneCycleLR(LearningRateSchedule):
+
+    def __init__(
+        self,
+        learning_rate,
+        steps_per_epoch,
+        epochs,
+        pct_start=0.3,
+        anneal_strategy='linear',
+        # cycle_momentum=True,
+        # base_momentum=0.85,
+        # max_momentum=0.95,
+        div_factor=25.0,
+        final_div_factor=10000.0,
+        warmup_epoch=0,
+        warmup_min_lr=0,
+    ):
+        super().__init__()
+        assert anneal_strategy in ['cos', 'linear']
+        min_lr = learning_rate / div_factor
+        self.max_lr = learning_rate
+        self.min_lr = min_lr
+        self.steps_per_epoch = steps_per_epoch
+        self.epochs = epochs
+        self.pct_start = pct_start
+        self.anneal_strategy = anneal_strategy
+        self.final_lr = learning_rate / final_div_factor
+        self.warmup_min_lr = warmup_min_lr
+        self.warmup_epoch = warmup_epoch
+
+        self.total_steps = steps_per_epoch * epochs
+        self.warmup_steps = warmup_epoch * steps_per_epoch
+        self.cycle_steps = int(self.total_steps * pct_start * 2)
+
+        if self.warmup_epoch != 0:
+            assert self.warmup_min_lr <= self.min_lr
+            assert self.warmup_steps + self.cycle_steps < self.total_steps
+        else:
+            assert self.cycle_steps <= self.total_steps
+
+    def __call__(self, step):
+        max_lr = tf.convert_to_tensor(self.max_lr)
+        dtype = max_lr.dtype
+        min_lr = tf.cast(self.min_lr, dtype)
+        final_lr = tf.cast(self.final_lr, dtype)
+        total_steps = tf.cast(self.total_steps, dtype)
+        cycle_steps = tf.cast(self.cycle_steps, dtype)
+        final_steps = total_steps - cycle_steps
+        warmup_steps = tf.cast(self.warmup_steps, dtype)
+        warmup_min_lr = tf.cast(self.warmup_min_lr, dtype)
+
+        def warmup(step):
+            return warmup_min_lr + (min_lr - warmup_min_lr) * step / warmup_steps
+
+        def cosine_decay(step):
+            frac = step / cycle_steps
+            mult = (tf.cos(frac * tf.constant(math.pi)) + 1) / 2
+            return min_lr + (max_lr - min_lr) * mult
+
+        def linear_decay(step):
+            frac = step / cycle_steps
+            mult = 1 - tf.abs(2 * frac - 1)
+            return min_lr + (max_lr - min_lr) * mult
+
+        def final_decay(step):
+            return min_lr - step / final_steps * (min_lr - final_lr)
+
+        if self.anneal_strategy == 'cos':
+            cycle_decay_fn = cosine_decay
+        else:
+            cycle_decay_fn = linear_decay
+
+        step = tf.cast(step, dtype)
+        decayed_lr = tf.cond(
+            tf.less(step, warmup_steps),
+            lambda: warmup(step),
+            lambda: tf.cond(
+                tf.less(step, warmup_steps + cycle_steps),
+                lambda: cycle_decay_fn(step - warmup_steps),
+                lambda: final_decay(step - warmup_steps - cycle_steps),
+            ),
+        )
+        return decayed_lr
+
+    def get_config(self):
+        return {
+            "learning_rate": self.max_lr,
+            "steps_per_epoch": self.steps_per_epoch,
+            "epochs": self.epochs,
+            "pct_start": self.pct_start,
+            "anneal_strategy": self.anneal_strategy,
+            "div_factor": self.div_factor,
+            "final_div_factor": self.final_div_factor,
+            "warmup_min_lr": self.warmup_min_lr,
+            "warmup_epoch": self.warmup_epoch,
+        }
