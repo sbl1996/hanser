@@ -4,8 +4,9 @@ import os
 
 from absl import logging
 import tensorflow as tf
-
 import tensorflow_datasets as tfds
+
+from hanser.datasets.tfds.helper import HGeneratorBasedBuilder, DatasetInfo
 
 Split = collections.namedtuple(
     'Split', ['name', 'images', 'annotations'])
@@ -26,7 +27,7 @@ class CocoConfig(tfds.core.BuilderConfig):
         self.has_panoptic = has_panoptic
 
 
-class CocoVal(tfds.core.GeneratorBasedBuilder):
+class CocoVal(HGeneratorBasedBuilder):
     """Base MS Coco dataset."""
 
     BUILDER_CONFIGS = [
@@ -64,7 +65,7 @@ class CocoVal(tfds.core.GeneratorBasedBuilder):
             }),
         })
 
-        return tfds.core.DatasetInfo(
+        return DatasetInfo(
             builder=self,
             description="",
             features=tfds.features.FeaturesDict(features),

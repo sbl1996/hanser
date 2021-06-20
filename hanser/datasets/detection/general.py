@@ -6,6 +6,8 @@ from toolz import groupby
 import tensorflow as tf
 import tensorflow_datasets as tfds
 
+from hanser.datasets.tfds.helper import HGeneratorBasedBuilder, DatasetInfo
+
 def decode(example):
     image_id = example['image/id']
     image = tf.cast(example['image'], tf.float32)
@@ -16,7 +18,7 @@ def decode(example):
     return image, objects, image_id
 
 
-class CocoBuilder(tfds.core.GeneratorBasedBuilder):
+class CocoBuilder(HGeneratorBasedBuilder):
 
     VERSION = tfds.core.Version('1.0.0')
     RELEASE_NOTES = {
@@ -26,9 +28,11 @@ class CocoBuilder(tfds.core.GeneratorBasedBuilder):
 
     LABEL_OFFSET = 0
     SPLITS = ['train', 'val', 'test']
+    NUM_CLASSES = None
 
-    def _info(self) -> tfds.core.DatasetInfo:
+    def _info(self) -> DatasetInfo:
         """Returns the dataset metadata."""
+        assert isinstance(self.NUM_CLASSES, int)
         features = {
             # Images can have variable shape
             'image': tfds.features.Image(encoding_format='png'),

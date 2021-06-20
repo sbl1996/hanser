@@ -1,5 +1,4 @@
-examples/local/det/gendet/*/data
-examples/local/det/gendet/*/tfrecords
+/examples/local
 
 .DS_Store
 .idea/
