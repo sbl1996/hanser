@@ -64,7 +64,7 @@ def format_timedelta(td):
     total_seconds = int(td.total_seconds())
     hours, remainder = divmod(total_seconds, 3600)
     minutes, seconds = divmod(remainder, 60)
-    return '%s:%s:%s' % (hours, minutes, seconds)
+    return '%02d:%02d:%02d' % (hours, minutes, seconds)
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-f','--log', type=str, help='Log file', required=True)
