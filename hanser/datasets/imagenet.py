@@ -53,7 +53,7 @@ def parse_and_transform(transform, training):
 
 def make_imagenet_dataset_split(
     batch_size, transform, filenames, split, training=None,
-    cache_decoded_image=False, cache_parsed=False, **kwargs):
+    cache_decoded_image=False, cache_parsed=True, **kwargs):
     assert split in NUM_IMAGES.keys()
 
     if training is None:
