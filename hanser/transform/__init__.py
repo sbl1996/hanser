@@ -3,9 +3,11 @@ import math
 from toolz import curry
 
 import tensorflow as tf
-import tensorflow_addons as tfa
-import tensorflow_probability as tfp
 from tensorflow.python.ops import gen_image_ops
+
+import tensorflow_addons as tfa
+from tensorflow_addons.image.translate_ops import translations_to_projective_transforms
+import tensorflow_probability as tfp
 
 from hanser.ops import beta_mc
 from hanser.transform.fmix import sample_mask
@@ -482,7 +484,43 @@ def cutout(images, length):
     return images
 
 
+@curry
+def cutout2(image, pad_size, replace=0):
+
+    image_height = tf.shape(image)[0]
+    image_width = tf.shape(image)[1]
+
+    # Sample the center location in the image where the zero mask will be applied.
+    cutout_center_height = tf.random.uniform(
+        shape=[], minval=0, maxval=image_height,
+        dtype=tf.int32)
+
+    cutout_center_width = tf.random.uniform(
+        shape=[], minval=0, maxval=image_width,
+        dtype=tf.int32)
+
+    lower_pad = tf.maximum(0, cutout_center_height - pad_size)
+    upper_pad = tf.maximum(0, image_height - cutout_center_height - pad_size)
+    left_pad = tf.maximum(0, cutout_center_width - pad_size)
+    right_pad = tf.maximum(0, image_width - cutout_center_width - pad_size)
+
+    cutout_shape = [image_height - (lower_pad + upper_pad),
+                    image_width - (left_pad + right_pad)]
+    padding_dims = [[lower_pad, upper_pad], [left_pad, right_pad]]
+    mask = tf.pad(
+        tf.zeros(cutout_shape, dtype=image.dtype),
+        padding_dims, constant_values=1)
+    mask = tf.expand_dims(mask, -1)
+    mask = tf.tile(mask, [1, 1, image.shape[2]])
+    image = tf.where(
+        tf.equal(mask, 0),
+        tf.ones_like(image, dtype=image.dtype) * replace,
+        image)
+    return image
+
+
 def invert(image):
+    image = tf.convert_to_tensor(image)
     return 255 - image
 
 
@@ -519,6 +557,7 @@ def blend(image1, image2, factor):
     temp = image1 + scaled
 
     # Interpolate
+    # noinspection PyChainedComparisons
     if factor > 0.0 and factor < 1.0:
         # Interpolation means we always stay within 0 and 255.
         return tf.cast(temp, tf.uint8)
@@ -602,8 +641,8 @@ def rotate(image, degrees, replace):
     # In practice, we should randomize the rotation degrees by flipping
     # it negatively half the time, but that's done on 'degrees' outside
     # of the function.
-    image_height = tf.cast(tf.shape(image)[0], tf.dtypes.float32)
-    image_width = tf.cast(tf.shape(image)[1], tf.dtypes.float32)
+    image_height = tf.cast(tf.shape(image)[0], tf.float32)
+    image_width = tf.cast(tf.shape(image)[1], tf.float32)
     transforms = tfa.image.transform_ops.angles_to_projective_transforms(
         radians, image_height, image_width)
     image = transform(wrap(image), transforms)
@@ -667,13 +706,13 @@ def autocontrast(image):
         uint8.
     """
 
-    def scale_channel(image):
+    def scale_channel(img):
         """Scale the 2D image using the autocontrast rule."""
         # A possibly cheaper version can be done using cumsum/unique_with_counts
         # over the histogram values, rather than iterating over the entire image.
         # to compute mins and maxes.
-        lo = tf.cast(tf.reduce_min(image), tf.float32)
-        hi = tf.cast(tf.reduce_max(image), tf.float32)
+        lo = tf.cast(tf.reduce_min(img), tf.float32)
+        hi = tf.cast(tf.reduce_max(img), tf.float32)
 
         # Scale the image, making the lowest value 0 and the highest value 255.
         def scale_values(im):
@@ -683,7 +722,7 @@ def autocontrast(image):
             im = tf.clip_by_value(im, 0.0, 255.0)
             return tf.cast(im, tf.uint8)
 
-        result = tf.cond(hi > lo, lambda: scale_values(image), lambda: image)
+        result = tf.cond(hi > lo, lambda: scale_values(img), lambda: img)
         return result
 
     # Assumes RGB for now.  Scales each channel independently
@@ -709,6 +748,7 @@ def equalize(image):
         nonzero_histo = tf.reshape(tf.gather(histo, nonzero), [-1])
         step = (tf.reduce_sum(nonzero_histo) - nonzero_histo[-1]) // 255
 
+        # noinspection PyShadowingNames
         def build_lut(histo, step):
             # Compute the cumulative sum, shifting by step // 2
             # and then normalization by step.
@@ -766,31 +806,25 @@ def sharpness(image, factor):
 
 
 def shear_x(image, magnitude, replace):
-    transform_or_transforms = tf.convert_to_tensor(
-        [1., magnitude, 0., 0., 1., 0., 0., 0.], dtype=tf.dtypes.float32)
-    image = transform(wrap(image), transform_or_transforms)
+    image = transform(
+        wrap(image), [1., magnitude, 0., 0., 1., 0., 0., 0.])
     return unwrap(image, replace)
 
 
 def shear_y(image, magnitude, replace):
-    transform_or_transforms = tf.convert_to_tensor(
-        [1., 0., 0., magnitude, 1., 0., 0., 0.], dtype=tf.dtypes.float32)
-    image = transform(wrap(image), transform_or_transforms)
+    image = transform(
+        wrap(image), [1., 0., 0., magnitude, 1., 0., 0., 0.])
     return unwrap(image, replace)
 
 
 def translate_x(image, pixels, replace):
-    translations = tf.convert_to_tensor(
-        [pixels, 0], name="translations", dtype=tf.dtypes.float32)
-    transforms = tfa.image.translate_ops.translations_to_projective_transforms(translations)
+    transforms = translations_to_projective_transforms([pixels, 0])
     image = transform(wrap(image), transforms)
     return unwrap(image, replace)
 
 
 def translate_y(image, pixels, replace):
-    translations = tf.convert_to_tensor(
-        [0, pixels], name="translations", dtype=tf.dtypes.float32)
-    transforms = tfa.image.translate_ops.translations_to_projective_transforms(translations)
+    transforms = translations_to_projective_transforms([0, pixels])
     image = transform(wrap(image), transforms)
     return unwrap(image, replace)
 
@@ -841,6 +875,7 @@ def photo_metric_distortion(image,
     return image
 
 
+# noinspection PyShadowingNames
 def color_jitter(image, brightness, contrast, saturation, hue):
     dtype = image.dtype
     image = tf.cast(image, tf.float32) / 255
@@ -865,16 +900,17 @@ def color_jitter(image, brightness, contrast, saturation, hue):
     return image
 
 
+# noinspection PyShadowingNames
 def color_jitter2(image, brightness, contrast, saturation, hue):
     image = tf.cast(image, tf.float32) / 255
 
     def branch_fn(i):
-        def func(image):
+        def func(img):
             return tf.switch_case(i, [
-                lambda: tf.clip_by_value(tf.image.random_brightness(image, brightness), 0, 1),
-                lambda: tf.clip_by_value(tf.image.random_contrast(image, 1 - contrast, 1 + contrast), 0, 1),
-                lambda: tf.clip_by_value(tf.image.random_saturation(image, 1 - saturation, 1 + saturation), 0, 1),
-                lambda: tf.clip_by_value(tf.image.random_hue(image, hue), 0, 1),
+                lambda: tf.clip_by_value(tf.image.random_brightness(img, brightness), 0, 1),
+                lambda: tf.clip_by_value(tf.image.random_contrast(img, 1 - contrast, 1 + contrast), 0, 1),
+                lambda: tf.clip_by_value(tf.image.random_saturation(img, 1 - saturation, 1 + saturation), 0, 1),
+                lambda: tf.clip_by_value(tf.image.random_hue(img, hue), 0, 1),
             ])
 
         return func
@@ -899,6 +935,7 @@ _EIG_VECS = [
 ]
 
 
+# noinspection PyDefaultArgument
 def lighting(x, alpha_std, eig_val=_EIG_VALS, eig_vec=_EIG_VECS, vmax=255):
     """Performs AlexNet-style PCA jitter (used for training)."""
     eig_val = tf.convert_to_tensor(eig_val, x.dtype)
