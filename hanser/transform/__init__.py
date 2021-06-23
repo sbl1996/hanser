@@ -487,30 +487,46 @@ def invert(image):
 
 
 def blend(image1, image2, factor):
+    """Blend image1 and image2 using 'factor'.
 
-    def blend_fn(image1, image2):
-        image1 = tf.cast(image1, tf.float32)
-        image2 = tf.cast(image2, tf.float32)
+    Factor can be above 0.0.  A value of 0.0 means only image1 is used.
+    A value of 1.0 means only image2 is used.  A value between 0.0 and
+    1.0 means we linearly interpolate the pixel values between the two
+    images.  A value greater than 1.0 "extrapolates" the difference
+    between the two pixel values, and we clip the results to values
+    between 0 and 255.
 
-        difference = image2 - image1
-        scaled = factor * difference
+    Args:
+      image1: An image Tensor of type uint8.
+      image2: An image Tensor of type uint8.
+      factor: A floating point value above 0.0.
 
-        temp = image1 + scaled
-        return tf.cond(
-            tf.logical_and(tf.greater(factor, 0.0), tf.less(factor, 1.0)),
-            lambda: tf.cast(temp, tf.uint8),
-            lambda: tf.cast(tf.clip_by_value(temp, 0.0, 255.0), tf.uint8)
-        )
+    Returns:
+      A blended image Tensor of type uint8.
+    """
+    if factor == 0.0:
+        return tf.convert_to_tensor(image1)
+    if factor == 1.0:
+        return tf.convert_to_tensor(image2)
 
-    return tf.cond(
-        tf.equal(factor, 0.0),
-        lambda: tf.identity(image1),
-        lambda: tf.cond(
-            tf.equal(factor, 1.0),
-            lambda: tf.identity(image2),
-            lambda: blend_fn(image1, image2)
-        )
-    )
+    image1 = tf.cast(image1, tf.float32)
+    image2 = tf.cast(image2, tf.float32)
+
+    difference = image2 - image1
+    scaled = factor * difference
+
+    # Do addition in float.
+    temp = image1 + scaled
+
+    # Interpolate
+    if factor > 0.0 and factor < 1.0:
+        # Interpolation means we always stay within 0 and 255.
+        return tf.cast(temp, tf.uint8)
+
+    # Extrapolate:
+    #
+    # We need to clip and then cast.
+    return tf.cast(tf.clip_by_value(temp, 0.0, 255.0), tf.uint8)
 
 
 def solarize(image, threshold=128):
