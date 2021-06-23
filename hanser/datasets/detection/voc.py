@@ -44,7 +44,7 @@ def make_voc_dataset(
     ds_val = tfds.load("voc/2007", split=f"test", data_dir=data_dir,
                        shuffle_files=False, read_config=tfds.ReadConfig(try_autocache=False, skip_prefetch=True))
     ds_train = prepare(ds_train, batch_size, transform(training=True),
-                       training=True, repeat=False)
+                       training=True, repeat=True)
     ds_val = prepare(ds_val, eval_batch_size, transform(training=False),
                      training=False, repeat=False, drop_remainder=drop_remainder)
     return ds_train, ds_val, steps_per_epoch, val_steps
@@ -59,7 +59,7 @@ def make_voc_dataset_sub(
     ds_val = tfds.load("voc/2012", split=f"train[:{n_val}]", data_dir=data_dir,
                        shuffle_files=False, read_config=tfds.ReadConfig(try_autocache=False, skip_prefetch=True))
     ds_train = prepare(ds_train, batch_size, transform(training=True),
-                       training=True, repeat=False, prefetch=prefetch)
+                       training=True, repeat=True, prefetch=prefetch)
     ds_val = prepare(ds_val, eval_batch_size, transform(training=False),
                      training=False, repeat=False, drop_remainder=False,
                      prefetch=prefetch)

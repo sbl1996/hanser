@@ -26,7 +26,7 @@ def make_dataset_sub(
     ds_val = tfds.load("coco_val/2017", split=val_split, data_dir=data_dir,
                        shuffle_files=False, read_config=read_config)
     ds_train = prepare(ds_train, batch_size, transform(training=True),
-                       training=True, repeat=False)
+                       training=True, repeat=True)
     ds_val = prepare(ds_val, eval_batch_size, transform(training=False),
                      training=False, repeat=False, drop_remainder=drop_remainder)
     return ds_train, ds_val, steps_per_epoch, val_steps

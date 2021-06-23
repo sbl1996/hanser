@@ -1,11 +1,14 @@
+# These implementations were stolen from https://github.com/google/automl/blob/master/efficientnetv2/autoaugment.py
+# 1. Image ops are exactly the same.
+# 2. Function to combine and apply policies is different.
+# 3. The way to apply hparams (cutout_const and translate_const) is different.
+
 import tensorflow as tf
 from hanser.transform import sharpness, shear_x, shear_y, solarize, solarize_add, autocontrast, translate_x, \
     translate_y, rotate, color, posterize, contrast, brightness, equalize, invert, cutout2 as cutout, random_apply
 
-# This implementation was stolen from https://github.com/google/automl/blob/master/efficientnetv2/autoaugment.py
-# 1. Image ops are exactly the same.
-# 2. The function to combine and apply policies is different.
-
+__all__ = [
+    "autoaugment", "randaugment", "rand_or_auto_augment"]
 
 _MAX_LEVEL = 10.
 _FILL_COLOR = (128, 128, 128)
@@ -195,17 +198,17 @@ def sub_policy(p1, op1, level1, p2, op2, level2):
 
 def imagenet_policy_v0():
     policies = [
-        sub_policy(0.8, 'equalize', 1, 0.8, 'shearY',   4),
-        sub_policy(0.4, 'color',    9, 0.6, 'equalize', 3),
-        sub_policy(0.4, 'color',    1, 0.6, 'rotate',   8),
-        sub_policy(0.8, 'solarize', 3, 0.4, 'equalize', 7),
-        sub_policy(0.4, 'solarize', 2, 0.6, 'solarize', 2),
+        sub_policy(0.8, 'equalize',  1, 0.8, 'shearY',       4),
+        sub_policy(0.4, 'color',     9, 0.6, 'equalize',     3),
+        sub_policy(0.4, 'color',     1, 0.6, 'rotate',       8),
+        sub_policy(0.8, 'solarize',  3, 0.4, 'equalize',     7),
+        sub_policy(0.4, 'solarize',  2, 0.6, 'solarize',     2),
 
-        sub_policy(0.2, 'color',    0, 0.8, 'equalize',     8),
-        sub_policy(0.4, 'equalize', 8, 0.8, 'solarize_add', 3),
-        sub_policy(0.2, 'shearX',   9, 0.6, 'rotate',       8),
-        sub_policy(0.6, 'color',    1, 1.0, 'equalize',     2),
-        sub_policy(0.4, 'invert',   9, 0.6, 'rotate',       0),
+        sub_policy(0.2, 'color',     0, 0.8, 'equalize',     8),
+        sub_policy(0.4, 'equalize',  8, 0.8, 'solarize_add', 3),
+        sub_policy(0.2, 'shearX',    9, 0.6, 'rotate',       8),
+        sub_policy(0.6, 'color',     1, 1.0, 'equalize',     2),
+        sub_policy(0.4, 'invert',    9, 0.6, 'rotate',       0),
 
         sub_policy(1.0, 'equalize',  9, 0.6, 'shearY',       3),
         sub_policy(0.4, 'color',     7, 0.6, 'equalize',     0),
@@ -213,11 +216,11 @@ def imagenet_policy_v0():
         sub_policy(0.6, 'solarize',  8, 0.6, 'color',        9),
         sub_policy(0.2, 'solarize',  4, 0.8, 'rotate',       9),
 
-        sub_policy(1.0, 'rotate',   7, 0.8, 'translateY', 9),
-        sub_policy(0.0, 'shearX',   0, 0.8, 'solarize',   4),
-        sub_policy(0.8, 'shearY',   0, 0.6, 'color',      4),
-        sub_policy(1.0, 'color',    0, 0.6, 'rotate',     2),
-        sub_policy(0.8, 'equalize', 4, 0.0, 'equalize',   8),
+        sub_policy(1.0, 'rotate',    7, 0.8, 'translateY',   9),
+        sub_policy(0.0, 'shearX',    0, 0.8, 'solarize',     4),
+        sub_policy(0.8, 'shearY',    0, 0.6, 'color',        4),
+        sub_policy(1.0, 'color',     0, 0.6, 'rotate',       2),
+        sub_policy(0.8, 'equalize',  4, 0.0, 'equalize',     8),
 
         sub_policy(1.0, 'equalize',  4, 0.6, 'autocontrast', 2),
         sub_policy(0.4, 'shearY',    7, 0.6, 'solarize_add', 7),
