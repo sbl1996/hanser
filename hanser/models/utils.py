@@ -1,5 +1,8 @@
 import tensorflow as tf
 
+from hanser.models.hub import load_model_from_hub
+
+
 def load_checkpoint(ckpt_path, **ckpt_kwargs):
     ckpt = tf.train.Checkpoint(**ckpt_kwargs)
     ckpt_options = tf.train.CheckpointOptions(experimental_io_device="/job:localhost")
@@ -7,10 +10,15 @@ def load_checkpoint(ckpt_path, **ckpt_kwargs):
     return status.assert_nontrivial_match().expect_partial()
 
 
+def load_model(name_or_url, **ckpt_kwargs):
+    ckpt_path = load_model_from_hub(name_or_url)
+    return load_checkpoint(ckpt_path, **ckpt_kwargs)
+
+
 def convert_checkpoint(ckpt_path, save_path, key_map=None):
-    # This function do two things:
-    #   1. filter model variables and exclude others (optimizer, epoch, ...)
-    #   2. map keys to different name for loading weight
+    # This function does two things:
+    #   1. select model variables and exclude others (optimizer, epoch, ...)
+    #   2. map keys to different name
 
     key_map = key_map or {
         'model/fc': 'model/fc_ckpt_ignored'
