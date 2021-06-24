@@ -1,4 +1,5 @@
 from tensorflow.keras import Sequential, Model
+from tensorflow.keras.layers import Dropout
 
 from hanser.models.layers import GlobalAvgPool, Linear
 from hanser.models.cifar.resnet_vd import BasicBlock, Bottleneck
@@ -8,7 +9,8 @@ from hanser.models.imagenet.stem import ResNetvdStem
 class ResNet(Model):
 
     def __init__(self, block, layers, zero_init_residual=False,
-                 avd=False, maxpool=True, num_classes=1000, stages=(64, 64, 128, 256, 512)):
+                 avd=False, maxpool=True, dropout=0.0,
+                 num_classes=1000, stages=(64, 64, 128, 256, 512)):
         super().__init__()
         self.stages = stages
 
@@ -29,6 +31,7 @@ class ResNet(Model):
             zero_init_residual=zero_init_residual, avd=avd)
 
         self.avgpool = GlobalAvgPool()
+        self.dropout = Dropout(dropout) if dropout else None
         self.fc = Linear(self.in_channels, num_classes)
 
     def _make_layer(self, block, channels, blocks, stride=1, **kwargs):
@@ -49,6 +52,8 @@ class ResNet(Model):
         x = self.layer4(x)
 
         x = self.avgpool(x)
+        if self.dropout is not None:
+            x = self.dropout(x)
         x = self.fc(x)
         return x
 
