@@ -10,9 +10,9 @@ def load_checkpoint(ckpt_path, **ckpt_kwargs):
     return status.assert_nontrivial_match().expect_partial()
 
 
-def load_model(name_or_url, **ckpt_kwargs):
+def load_pretrained_model(name_or_url, model):
     ckpt_path = load_model_from_hub(name_or_url)
-    return load_checkpoint(ckpt_path, **ckpt_kwargs)
+    return load_checkpoint(ckpt_path, model=model)
 
 
 def convert_checkpoint(ckpt_path, save_path, key_map=None):
