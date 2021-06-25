@@ -1,6 +1,6 @@
 from abc import ABCMeta
 from bisect import bisect_right
-from typing import Sequence, Mapping, Optional
+from typing import Sequence, Mapping
 
 from dateutil.parser import parse
 from datetime import timedelta
@@ -14,7 +14,7 @@ from hhutil.io import fmt_path, eglob, rm, time_now
 from hanser.distribute import parse_strategy, strategy_run, is_distribute_strategy, local_results
 from hanser.train.metric_history import MetricHistory
 from hanser.train.callbacks import config_callbacks, log_metrics
-
+from hanser.ops import cpu_variable
 
 def validate_freq(freqs):
     if isinstance(freqs, list):
@@ -121,7 +121,7 @@ class Learner(metaclass=ABCMeta):
         self.metric_history = MetricHistory(["train", "eval", "test"])
 
         self._terminated = False
-        self.set_global_state("epoch", tf.Variable(-1, dtype=tf.int64))
+        self.set_global_state("epoch", cpu_variable(-1, tf.int64))
 
         if self.xla_compile:
             self.xla_train_batch = tf.function(self.train_batch, experimental_compile=True)
@@ -138,7 +138,7 @@ class Learner(metaclass=ABCMeta):
         else:
             ckpt = tf.train.Checkpoint(
                 model=self.model, optimizers=optimizers,
-                epoch=self._state['train']['epoch']
+                epoch=self._state['train']['epoch'],
             )
         ckpt_options = tf.train.CheckpointOptions(
             experimental_io_device="/job:localhost") if self._strategy else None
@@ -161,7 +161,7 @@ class Learner(metaclass=ABCMeta):
 
     @property
     def epoch(self):
-        return self._state['train']['epoch'].numpy()
+        return int(self._state['train']['epoch'].numpy())
 
     def set_state(self, k, v, mode):
         if k not in self._state[mode] or not isinstance(self._state[mode][k], tf.Variable):

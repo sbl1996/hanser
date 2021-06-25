@@ -160,7 +160,7 @@ class ModelCheckpoint(Callback):
         self.save_freq = save_freq
 
     def after_epoch(self, state):
-        epoch = state['epoch'] + 1
+        epoch = self.learner.epoch + 1
         if epoch % self.save_freq == 0:
             self.learner.save()
 
@@ -176,16 +176,16 @@ class TrainEvalLogger(Callback):
 
     def begin_epoch(self, state):
         if self._is_print():
-            print("Epoch %d/%d" % (state['epoch'] + 1, state['epochs']))
+            print("Epoch %d/%d" % (self.learner.epoch + 1, state['epochs']))
 
     def after_epoch(self, state):
         learner = self.learner
-        log_metrics('train', state['metrics'], state['epoch'].numpy(), learner._writer, learner.metric_history,
+        log_metrics('train', state['metrics'], learner.epoch, learner._writer, learner.metric_history,
                     verbose=self._is_print())
 
     def after_eval(self, state):
         learner = self.learner
-        log_metrics('eval', state['metrics'], state['epoch'].numpy(), learner._writer, learner.metric_history,
+        log_metrics('eval', state['metrics'], learner.epoch, learner._writer, learner.metric_history,
                     stage_name='valid', verbose=self._is_print())
 
 
@@ -200,7 +200,7 @@ class EvalLogger(Callback):
 
     def after_eval(self, state):
         learner = self.learner
-        log_metrics('eval', state['metrics'], state['epoch'].numpy(), learner._writer, learner.metric_history,
+        log_metrics('eval', state['metrics'], learner.epoch, learner._writer, learner.metric_history,
                     stage_name='valid', verbose=self._is_print())
 
 
@@ -232,7 +232,7 @@ class DropPathRateSchedule(Callback):
         self.drop_path = drop_path
 
     def begin_epoch(self, state):
-        epoch = int(state['epoch'].numpy())
+        epoch = self.learner.epoch
         epochs = state['epochs']
         rate = (epoch - 1) / epochs * self.drop_path
         for l in self.learner.model.submodules:
@@ -247,7 +247,7 @@ class EvalEveryAfter(Callback):
         self.eval_after = eval_after
 
     def begin_epoch(self, state):
-        if state['epoch'] >= self.eval_after:
+        if self.learner.epoch >= self.eval_after:
             self.learner._val_freq = 1
 
 
@@ -259,7 +259,7 @@ class SetEvalFreq(Callback):
         self._eval_freq = eval_freq
 
     def begin_epoch(self, state):
-        if state['epoch'] >= self._after_epoch:
+        if self.learner.epoch >= self._after_epoch:
             self.learner._val_freq = self._eval_freq
 
 
@@ -276,7 +276,7 @@ class NNIReportIntermediateResult(Callback):
         self.metric = metric
 
     def after_epoch(self, state):
-        epoch = int(state['epoch'].numpy())
+        epoch = self.learner.epoch
         val_metric = self.learner.metric_history.get_metric(self.metric, "eval", epoch, epoch)
         if val_metric:
             import nni
@@ -296,7 +296,7 @@ class OptunaReportIntermediateResult(Callback):
         self.trial = trial
 
     def after_eval(self, state):
-        epoch = int(state['epoch'].numpy())
+        epoch = self.learner.epoch
         val_metric = self.learner.metric_history.get_metric(self.metric, "eval", epoch, epoch)
         if val_metric:
             self.trial.report(val_metric, epoch)

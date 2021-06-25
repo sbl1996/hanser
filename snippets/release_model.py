@@ -4,7 +4,6 @@
 # 3. Model zip file, produced by this script from format 2, for release on GitHub
 
 from pathlib import Path
-from typing import Optional
 
 import typer
 

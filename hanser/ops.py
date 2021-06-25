@@ -172,3 +172,9 @@ def top_k(x, k):
         out_values.append(value)
 
     return tf.concat(out_values, -1)
+
+
+def cpu_variable(value, dtype):
+    with tf.device("/device:CPU:0"):
+        v = tf.Variable(value, trainable=False, dtype=dtype)
+    return v
