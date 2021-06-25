@@ -10,9 +10,18 @@ def load_checkpoint(ckpt_path, **ckpt_kwargs):
     return status.assert_nontrivial_match().expect_partial()
 
 
-def load_pretrained_model(name_or_url, model):
+def load_pretrained_model(name_or_url, model, with_fc=False):
     ckpt_path = load_model_from_hub(name_or_url)
-    return load_checkpoint(ckpt_path, model=model)
+    status = load_checkpoint(ckpt_path, model=model)
+    if with_fc:
+        assert hasattr(model, "fc")
+        assert hasattr(model.fc, "kernel")
+        assert hasattr(model.fc, "bias")
+        weight = tf.train.load_variable(ckpt_path, "model/fc_ckpt_ignored/kernel/.ATTRIBUTES/VARIABLE_VALUE")
+        model.fc.kernel.assign(weight)
+        weight = tf.train.load_variable(ckpt_path, "model/fc_ckpt_ignored/bias/.ATTRIBUTES/VARIABLE_VALUE")
+        model.fc.bias.assign(weight)
+    return status
 
 
 def convert_checkpoint(ckpt_path, save_path, key_map=None):

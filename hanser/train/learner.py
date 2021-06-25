@@ -276,6 +276,7 @@ class Learner(metaclass=ABCMeta):
 
     @tf.function
     def _run_steps(self, step_fn, iterator, n_batches_per_step, n_steps, callbacks, state):
+        state['step'].assign(-1)
         for i in tf.range(n_steps):
             state['step'].assign_add(1)
             callbacks.begin_batch(state)
@@ -289,6 +290,7 @@ class Learner(metaclass=ABCMeta):
 
     @tf.function
     def _run_xla_train_steps(self, iterator, n_steps, callbacks, state):
+        state['step'].assign(-1)
         for i in tf.range(n_steps):
             batch = next(iterator)
             state['step'].assign_add(1)
@@ -313,7 +315,6 @@ class Learner(metaclass=ABCMeta):
         state.update({
             'steps': steps,
         })
-        state['step'].assign(-1)
 
         for metric in metrics.values():
             metric.reset_states()
@@ -332,6 +333,7 @@ class Learner(metaclass=ABCMeta):
                 self._run_steps(
                     step_fn, iterator, None, steps, callbacks, sub_state)
         else:
+            state['step'].assign(-1)
             for _ in range(steps):
                 batch = next(iterator)
                 state['step'].assign_add(1)
