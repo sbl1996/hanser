@@ -14,7 +14,7 @@ from hhutil.io import fmt_path, eglob, rm, time_now
 from hanser.distribute import parse_strategy, strategy_run, is_distribute_strategy, local_results
 from hanser.train.metric_history import MetricHistory
 from hanser.train.callbacks import config_callbacks, log_metrics
-from hanser.ops import cpu_variable
+
 
 def validate_freq(freqs):
     if isinstance(freqs, list):
@@ -121,7 +121,8 @@ class Learner(metaclass=ABCMeta):
         self.metric_history = MetricHistory(["train", "eval", "test"])
 
         self._terminated = False
-        self.set_global_state("epoch", cpu_variable(-1, tf.int64))
+        self.set_global_state("epoch", -1)
+        self._epoch_var = tf.Variable(self.epoch, dtype=tf.int32)
 
         if self.xla_compile:
             self.xla_train_batch = tf.function(self.train_batch, experimental_compile=True)
@@ -132,13 +133,14 @@ class Learner(metaclass=ABCMeta):
         optimizers = self.optimizers
         # if len(optimizers) == 1 and hasattr(self, "original_optimizer"):
         #     optimizers = [self.original_optimizer]
+        self._epoch_var.assign(self.epoch)
         if model_only:
             ckpt = tf.train.Checkpoint(
-                model=self.model, epoch=self._state['train']['epoch'])
+                model=self.model, epoch=self._epoch_var)
         else:
             ckpt = tf.train.Checkpoint(
                 model=self.model, optimizers=optimizers,
-                epoch=self._state['train']['epoch'],
+                epoch=self._epoch_var,
             )
         ckpt_options = tf.train.CheckpointOptions(
             experimental_io_device="/job:localhost") if self._strategy else None
@@ -161,7 +163,7 @@ class Learner(metaclass=ABCMeta):
 
     @property
     def epoch(self):
-        return int(self._state['train']['epoch'].numpy())
+        return self._state['train']['epoch']
 
     def set_state(self, k, v, mode):
         if k not in self._state[mode] or not isinstance(self._state[mode][k], tf.Variable):
@@ -415,7 +417,7 @@ class Learner(metaclass=ABCMeta):
             fp = str(fp)[:-6]
         ckpt, ckpt_options = self._make_ckpt(model_only=model_only)
         ckpt.restore(fp, ckpt_options)
-        self.set_global_state('epoch', self.epoch)
+        self.set_global_state('epoch', int(self._epoch_var.numpy()))
         print("Load learner at epoch %d from %s" % (self.epoch + 1, fp))
 
     def recover_log(self, start, from_epochs, total_epochs, train_time, eval_time):
