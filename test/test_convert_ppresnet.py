@@ -1,8 +1,9 @@
 import numpy as np
 import tensorflow as tf
 
-from hanser.models.legacy.imagenet.res2net.resnet_vd import resnet50 as resnet50_1
-from hanser.models.imagenet.res2net.resnet_vd import resnet50 as resnet50_2
+from hanser.models.legacy.imagenet.ppnas.resnet_avd_fair import resnet50 as resnet50_1
+from hanser.models.imagenet.ppnas.resnet_avd_fair import resnet50 as resnet50_2
+from hanser.models.cifar.ppnas.genotypes import PP_ResNet_ImageNet_FAIR_AVD_1
 from hanser.models.utils import load_pretrained_model, convert_checkpoint
 
 def convert_res2conv(gconv, convs):
@@ -24,7 +25,7 @@ def convert_res2conv(gconv, convs):
 
 def convert_bottleneck(block1, block2):
     block2.conv1.set_weights(block1.conv1.get_weights())
-    convert_res2conv(block1.conv2.conv, block2.conv2.convs)
+    convert_res2conv(block1.conv2.layers[-1].conv, block2.conv2.layers[-1].convs)
     block2.conv3.set_weights(block1.conv3.get_weights())
     block2.bn3.set_weights(block1.bn3.get_weights())
     block2.shortcut.set_weights(block1.shortcut.get_weights())
@@ -43,13 +44,13 @@ def convert_res2net(net1, net2):
 
 
 x = np.load("/Users/hrvvi/Downloads/cat1_input.npy")
-y = np.load("/Users/hrvvi/Downloads/cat1_logits.npy")
+y = np.load("/Users/hrvvi/Downloads/cat1_logits_pp.npy")
 
-net1 = resnet50_1()
+net1 = resnet50_1(PP_ResNet_ImageNet_FAIR_AVD_1)
 net1.build((None, 224, 224, 3))
-load_pretrained_model('legacy_res2netvd50_nlb', net1, with_fc=True)
+load_pretrained_model('legacy_ppresnet50', net1, with_fc=True)
 
-net2 = resnet50_2()
+net2 = resnet50_2(PP_ResNet_ImageNet_FAIR_AVD_1)
 net2.build((None, 224, 224, 3))
 
 convert_res2net(net1, net2)
@@ -58,8 +59,10 @@ xt = tf.convert_to_tensor(x)
 yt = net2(x[None])[0].numpy()
 np.testing.assert_allclose(yt, y, atol=1e-5)
 
+
+
 ckpt = tf.train.Checkpoint(model=net2)
-ckpt_path = "/Users/hrvvi/Downloads/res2net/ckpt"
+ckpt_path = "/Users/hrvvi/Downloads/ppresnet/ckpt"
 ckpt.write(ckpt_path)
-convert_checkpoint(ckpt_path, "/Users/hrvvi/Downloads/res2net/model")
-# python snippets/release_model.py "/Users/hrvvi/Downloads/res2net/model" res2netvd50_nlb "/Users/hrvvi/Downloads"
+convert_checkpoint(ckpt_path, "/Users/hrvvi/Downloads/ppresnet/model")
+# python snippets/release_model.py "/Users/hrvvi/Downloads/ppresnet/model" ppresnet "/Users/hrvvi/Downloads"

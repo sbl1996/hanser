@@ -3,7 +3,7 @@ from tensorflow.keras import Sequential, Model
 from tensorflow.keras.layers import Layer
 
 from hanser.models.layers import Conv2d, Identity, GlobalAvgPool, Linear, Act, Pool2d, Norm
-from hanser.models.cifar.res2net2.layers import Res2Conv
+from hanser.models.legacy.cifar.res2net.layers import Res2Conv
 
 
 class Bottle2neck(Layer):

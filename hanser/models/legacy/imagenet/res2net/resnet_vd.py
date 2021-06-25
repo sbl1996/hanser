@@ -1,7 +1,7 @@
 from tensorflow.keras import Sequential, Model
 
 from hanser.models.layers import GlobalAvgPool, Linear
-from hanser.models.cifar.res2net2.resnet_vd import Bottle2neck
+from hanser.models.legacy.cifar.res2net.resnet_vd import Bottle2neck
 from hanser.models.imagenet.stem import ResNetvdStem
 
 

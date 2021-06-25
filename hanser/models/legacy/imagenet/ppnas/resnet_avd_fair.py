@@ -1,17 +1,18 @@
-from tensorflow.keras import Model
-from hanser.models.layers import Linear, Sequential, GlobalAvgPool
+from tensorflow.keras import Model, Sequential
+from hanser.models.layers import Linear, GlobalAvgPool
 
-from hanser.models.cifar.ppnas.resnet_vd import Bottleneck
+from hanser.models.legacy.cifar.ppnas.resnet_avd_fair import Bottleneck
 from hanser.models.imagenet.stem import ResNetvdStem
 
 
 class ResNet(Model):
 
-    def __init__(self, genotype, block, layers, base_width=24, splits=4, zero_init_residual=False,
+    def __init__(self, genotype, block, layers, base_width=26, splits=4, zero_init_residual=False,
                  num_classes=1000, stages=(64, 64, 128, 256, 512)):
         super().__init__()
         self.stages = stages
         self.splits = splits
+        genotype = genotype.normal
 
         self.stem = ResNetvdStem(self.stages[0])
         self.in_channels = self.stages[0]
@@ -19,19 +20,19 @@ class ResNet(Model):
         self.layer1 = self._make_layer(
             block, self.stages[1], layers[0], stride=1,
             base_width=base_width, splits=splits,
-            zero_init_residual=zero_init_residual, genotype=genotype)
+            zero_init_residual=zero_init_residual, genotype=genotype[0])
         self.layer2 = self._make_layer(
             block, self.stages[2], layers[1], stride=2,
             base_width=base_width, splits=splits,
-            zero_init_residual=zero_init_residual, genotype=genotype)
+            zero_init_residual=zero_init_residual, genotype=genotype[1])
         self.layer3 = self._make_layer(
             block, self.stages[3], layers[2], stride=2,
             base_width=base_width, splits=splits,
-            zero_init_residual=zero_init_residual, genotype=genotype)
+            zero_init_residual=zero_init_residual, genotype=genotype[2])
         self.layer4 = self._make_layer(
             block, self.stages[4], layers[3], stride=2,
             base_width=base_width, splits=splits,
-            zero_init_residual=zero_init_residual, genotype=genotype)
+            zero_init_residual=zero_init_residual, genotype=genotype[3])
 
         self.avgpool = GlobalAvgPool()
         self.fc = Linear(self.in_channels, num_classes)

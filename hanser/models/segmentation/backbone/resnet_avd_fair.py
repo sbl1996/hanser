@@ -1,5 +1,5 @@
-from hanser.models.cifar.ppnas.resnet_avd_fair import Bottleneck
-from hanser.models.backbone.resnet_avd_fair import ResNet
+from hanser.models.legacy.cifar.ppnas.resnet_avd_fair import Bottleneck
+from hanser.models.backbone.ppresnet_avd_fair import ResNet
 
 
 def resnet50(genotype, output_stride=16, multi_grad=(1, 2, 4), **kwargs):

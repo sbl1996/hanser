@@ -61,7 +61,7 @@ class ResNet(Model):
         return c2, c3, c4, c5
 
 
-def gresnet50(genotype, **kwargs):
+def resnet50(genotype, **kwargs):
     return ResNet(genotype, Bottleneck, [3, 4, 6, 3], **kwargs)
 
 def resnet101(genotype, **kwargs):

@@ -13,7 +13,7 @@ x = x.astype(np.float32)
 
 # Tensorflow Model
 
-from hanser.models.imagenet.res2net.resnet_vd import resnet50
+from hanser.models.legacy.imagenet.res2net import resnet50
 from hanser.models.utils import load_pretrained_model
 
 net = resnet50()

@@ -1,11 +1,11 @@
 import math
 import tensorflow as tf
-from hanser.models.cifar.res2net.layers import Res2Conv
+from hanser.models.legacy.cifar.res2net.layers import StartRes2Conv
 from tensorflow.keras import Model
 from tensorflow.keras.layers import Layer
 from hanser.models.layers import Conv2d, Norm, Act, Linear, Pool2d, Sequential, Identity, GlobalAvgPool
 
-from hanser.models.cifar.ppnas.operations import OPS
+from hanser.models.legacy.cifar.ppnas.operations import OPS
 
 def parse_genotype(genotype):
     connections = []
@@ -61,8 +61,8 @@ class Bottleneck(Layer):
             if stride != 1:
                 layers.append(Pool2d(3, stride=2, type='avg'))
             layers.append(
-                Res2Conv(width, width, kernel_size=3, stride=1, dilation=dilation, scale=splits,
-                         norm='def', act='def', start_block=True))
+                StartRes2Conv(width, kernel_size=3, stride=1, dilation=dilation, scale=splits,
+                              norm='def', act='def'))
             self.conv2 = Sequential(layers)
         else:
             self.conv2 = PPConv(width, dilation=dilation, splits=splits, genotype=genotype)
