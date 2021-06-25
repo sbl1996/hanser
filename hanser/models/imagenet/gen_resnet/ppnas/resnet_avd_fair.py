@@ -1,4 +1,4 @@
-from hanser.models.legacy.cifar.ppnas.resnet_avd_fair import Bottleneck
+from hanser.models.cifar.ppnas.resnet_avd_fair import Bottleneck
 from hanser.models.imagenet.gen_resnet.resnet_vd import ResNet as GenResNet
 
 
