@@ -323,7 +323,7 @@ class Learner(metaclass=ABCMeta):
 
         if self.multiple_steps:
             sub_state = {
-                k: state[k] for k in ["step", "steps", "epoch", "epochs"]
+                k: state[k] for k in ["step", "steps", "epochs"]
             }
             if self.xla_compile and mode == 'train':
                 self._run_xla_train_steps(iterator, steps, callbacks, sub_state)
@@ -350,7 +350,7 @@ class Learner(metaclass=ABCMeta):
         if 'step' not in self._state['eval']:
             self.set_state('step', tf.Variable(0, dtype=tf.int32), 'eval')
         if 'epoch' not in self._state['eval']:
-            self.set_state('epoch', cpu_variable(0, tf.int32), 'eval')
+            self.set_state('epoch', 0, 'eval')
         if 'epochs' not in self._state['eval']:
             self.set_state('epochs', 0, 'eval')
 
