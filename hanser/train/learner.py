@@ -195,7 +195,7 @@ class Learner(metaclass=ABCMeta):
         )
         start_epoch = self.epoch + 1
         self.set_global_state("epochs", max_epochs)
-        self.set_global_state("step", tf.Variable(0, dtype=tf.int64))
+        self.set_global_state("step", tf.Variable(0, dtype=tf.int32))
 
         if self._verbose:
             print("%s Start training" % (time_now(),))
@@ -346,11 +346,11 @@ class Learner(metaclass=ABCMeta):
 
     def evaluate(self, ds_val, val_steps=None, callbacks=None):
         if 'step' not in self._state['eval']:
-            self.set_state('step', tf.Variable(0, dtype=tf.int64), 'eval')
+            self.set_state('step', tf.Variable(0, dtype=tf.int32), 'eval')
         if 'epoch' not in self._state['eval']:
-            self.set_state('epoch', tf.Variable(0, dtype=tf.int64), 'eval')
+            self.set_state('epoch', cpu_variable(0, tf.int32), 'eval')
         if 'epochs' not in self._state['eval']:
-            self.set_state('epochs', tf.Variable(0, dtype=tf.int64), 'eval')
+            self.set_state('epochs', 0, 'eval')
 
         val_steps = val_steps or len(ds_val)
         cbks = config_callbacks(self, callbacks, mode='eval')
