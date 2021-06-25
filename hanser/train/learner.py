@@ -122,7 +122,7 @@ class Learner(metaclass=ABCMeta):
 
         self._terminated = False
         self.set_global_state("epoch", -1)
-        self._epoch_var = tf.Variable(self.epoch, dtype=tf.int32)
+        self._epoch_var = tf.Variable(self.epoch, dtype=tf.int64)
 
         if self.xla_compile:
             self.xla_train_batch = tf.function(self.train_batch, experimental_compile=True)
