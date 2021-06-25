@@ -42,8 +42,8 @@ def convert_res2net(net1, net2):
     net2.fc.set_weights(net1.fc.get_weights())
 
 
-x = np.load("/Users/hrvvi/Downloads/cat1_input.npy")
-y = np.load("/Users/hrvvi/Downloads/cat1_logits.npy")
+# x = np.load("/Users/hrvvi/Downloads/cat1_input.npy")
+# y = np.load("/Users/hrvvi/Downloads/cat1_logits.npy")
 
 net1 = resnet50_1()
 net1.build((None, 224, 224, 3))
@@ -54,9 +54,9 @@ net2.build((None, 224, 224, 3))
 
 convert_res2net(net1, net2)
 
-xt = tf.convert_to_tensor(x)
-yt = net2(x[None])[0].numpy()
-np.testing.assert_allclose(yt, y, atol=1e-5)
+# xt = tf.convert_to_tensor(x)
+# yt = net2(x[None])[0].numpy()
+# np.testing.assert_allclose(yt, y, atol=1e-5)
 
 ckpt = tf.train.Checkpoint(model=net2)
 ckpt_path = "/Users/hrvvi/Downloads/res2net/ckpt"

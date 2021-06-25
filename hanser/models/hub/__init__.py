@@ -10,11 +10,11 @@ from hhutil.hash import sha256
 
 _model_path = {
     "resnetvd50": "https://github.com/sbl1996/hanser/releases/download/0.1.1/resnetvd50-8df2a5e4.zip",
-    "res2netvd50": "https://github.com/sbl1996/hanser/releases/download/0.1.2/res2netvd50-f9294020.zip",
     "resnetvd50_nlb": "https://github.com/sbl1996/hanser/releases/download/0.1.1/resnetvd50_nlb-f273a9d1.zip",
-    # "res2netvd50_nlb": "",
+    "res2netvd50": "https://github.com/sbl1996/hanser/releases/download/0.1.2/res2netvd50-f9294020.zip",
+    "res2netvd50_nlb": "https://github.com/sbl1996/hanser/releases/download/0.1.2/res2netvd50_nlb-a4c28fd9.zip",
     "ppresnet50": "https://github.com/sbl1996/hanser/releases/download/0.1.2/ppresnet-14c86ae2.zip",
-    # "ppresnet50_nlb": "",
+    "ppresnet50_nlb": "https://github.com/sbl1996/hanser/releases/download/0.1.2/ppresnet50_nlb-167cdde6.zip",
     "legacy_res2netvd50": "https://github.com/sbl1996/hanser/releases/download/0.1.1/res2netvd50-f7ab3d99.zip",
     "legacy_res2netvd50_nlb": "https://github.com/sbl1996/hanser/releases/download/0.1.1/res2netvd50_nlb-8958f30f.zip",
     "legacy_ppresnet50": "https://github.com/sbl1996/hanser/releases/download/0.1.1/ppresnet50-7c0adb0b.zip",
