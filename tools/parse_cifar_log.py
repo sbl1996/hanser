@@ -2,7 +2,7 @@ import argparse
 import re
 
 import numpy as np
-from toolz.curried import map, curry
+from toolz.curried import curry
 from datetime import timedelta
 from dateutil.parser import parse
 
@@ -90,16 +90,8 @@ parser.add_argument('--mode', choices=["final", "max", "all"], default='all')
 args = parser.parse_args()
 
 
-def estimate_epoch_train_time(train_ends, valid_ends):
-    times = []
-    for train_end, valid_end in zip(train_ends[1:], valid_ends[:-1]):
-        times.append(dtime(train_end, valid_end).seconds)
-    return np.mean(times)
-
-
 log_file = args.log
 train_start, train_metrics, valid_metrics = parse_log(log_file)
-epoch_train_time = estimate_epoch_train_time(train_metrics['time'], valid_metrics['time'])
 total_cost = timedelta(seconds=dtime(valid_metrics['time'][-1], train_start).seconds)
 main_valid_metrics = valid_metrics[args.key] * 100
 train_losses = train_metrics['loss']

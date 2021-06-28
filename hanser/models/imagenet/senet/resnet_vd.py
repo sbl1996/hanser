@@ -1,6 +1,6 @@
 from hanser.models.modules import SELayer
 from tensorflow.keras import Sequential, Model
-from tensorflow.keras.layers import Layer
+from tensorflow.keras.layers import Layer, Dropout
 
 from hanser.models.layers import Conv2d, Act, Identity, GlobalAvgPool, Linear, Pool2d, Norm
 from hanser.models.imagenet.stem import ResNetvdStem
@@ -82,7 +82,7 @@ class Bottleneck(Layer):
 class ResNet(Model):
 
     def __init__(self, block, layers, num_classes=1000, stages=(64, 64, 128, 256, 512),
-                 zero_init_residual=False, reduction=16):
+                 zero_init_residual=False, reduction=16, dropout=0):
         super().__init__()
         self.stages = stages
 
@@ -103,6 +103,7 @@ class ResNet(Model):
             zero_init_residual=zero_init_residual, reduction=reduction)
 
         self.avgpool = GlobalAvgPool()
+        self.dropout = Dropout(dropout) if dropout else None
         self.fc = Linear(self.in_channels, num_classes)
 
     def _make_layer(self, block, channels, blocks, stride=1, **kwargs):
@@ -123,6 +124,8 @@ class ResNet(Model):
         x = self.layer4(x)
 
         x = self.avgpool(x)
+        if self.dropout is not None:
+            x = self.dropout(x)
         x = self.fc(x)
         return x
 

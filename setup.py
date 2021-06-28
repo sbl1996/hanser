@@ -35,6 +35,7 @@ REQUIRED = [
     "tensorflow_addons==0.13.0",
     "tensorflow_datasets>=4.3.0",
     "hhutil",
+    "lark",
 ]
 
 DEPENDENCY_LINKS = [

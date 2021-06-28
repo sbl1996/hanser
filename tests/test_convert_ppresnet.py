@@ -1,4 +1,3 @@
-import numpy as np
 import tensorflow as tf
 
 from hanser.models.legacy.imagenet.ppnas.resnet_avd_fair import resnet50 as resnet50_1
