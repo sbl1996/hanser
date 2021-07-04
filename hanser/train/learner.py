@@ -79,9 +79,8 @@ class Learner(metaclass=ABCMeta):
     def __init__(self, model, criterion, optimizers,
                  train_metrics: Mapping[str, Metric],
                  eval_metrics: Mapping[str, Metric], work_dir,
-                 grad_clip_norm=0.0, multiple_steps=None, xla_compile=None,
-                 output_transform=default_metric_transform,
-                 n_batches_per_step=None):
+                 grad_clip_norm=0.0, output_transform=default_metric_transform,
+                 n_batches_per_step=None, multiple_steps=None, xla_compile=None):
         if not isinstance(optimizers, Sequence):
             optimizers = [optimizers]
         optimizers = list(optimizers)
