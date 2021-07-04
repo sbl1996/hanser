@@ -125,7 +125,10 @@ class Learner(metaclass=ABCMeta):
         self._epoch_var = tf.Variable(self.epoch, dtype=tf.int64)
 
         if self.xla_compile:
-            self.xla_train_batch = tf.function(self.train_batch, experimental_compile=True)
+            self.train_batch = tf.function(self.train_batch, experimental_compile=True)
+
+        if multiple_steps:
+            self._run_steps = tf.function(self._run_steps)
 
         self.n_batches_per_step = n_batches_per_step
 
@@ -251,10 +254,6 @@ class Learner(metaclass=ABCMeta):
                     metric_history=self.metric_history, verbose=self._verbose)
 
     @tf.function
-    def _xla_train_step(self, batch):
-        strategy_run(self._strategy, self.xla_train_batch, (batch,))
-
-    @tf.function
     def _train_step(self, batch):
         strategy_run(self._strategy, self.train_batch, (batch,))
 
@@ -276,7 +275,6 @@ class Learner(metaclass=ABCMeta):
     def _test_step(self, inputs):
         return strategy_run(self._strategy, self.test_batch, (inputs,))
 
-    @tf.function
     def _run_steps(self, step_fn, iterator, n_batches_per_step, n_steps, callbacks, state):
         state['step'].assign(-1)
         for i in tf.range(n_steps):
@@ -288,16 +286,6 @@ class Learner(metaclass=ABCMeta):
             else:
                 batch = next(iterator)
                 step_fn(batch)
-            callbacks.after_batch(state)
-
-    @tf.function
-    def _run_xla_train_steps(self, iterator, n_steps, callbacks, state):
-        state['step'].assign(-1)
-        for i in tf.range(n_steps):
-            batch = next(iterator)
-            state['step'].assign_add(1)
-            callbacks.begin_batch(state)
-            self._xla_train_step(batch)
             callbacks.after_batch(state)
 
     def update_metrics(self, metrics, y_true, y_pred, per_example_loss=None):
@@ -322,26 +310,16 @@ class Learner(metaclass=ABCMeta):
             metric.reset_states()
 
         if self.multiple_steps:
-            sub_state = {
+            run_state = {
                 k: state[k] for k in ["step", "steps", "epochs"]
             }
-            if self.xla_compile and mode == 'train':
-                self._run_xla_train_steps(iterator, steps, callbacks, sub_state)
-            elif mode == 'train' and self.n_batches_per_step is not None:
-                step_fn = self._train_step_on_batches
-                self._run_steps(
-                    step_fn, iterator, self.n_batches_per_step, steps, callbacks, sub_state)
-            else:
-                self._run_steps(
-                    step_fn, iterator, None, steps, callbacks, sub_state)
         else:
-            state['step'].assign(-1)
-            for _ in range(steps):
-                batch = next(iterator)
-                state['step'].assign_add(1)
-                callbacks.begin_batch(state)
-                step_fn(batch)
-                callbacks.after_batch(state)
+            run_state = state
+        if mode == 'train' and self.n_batches_per_step is not None:
+            step_fn = self._train_step_on_batches
+
+        self._run_steps(
+            step_fn, iterator, self.n_batches_per_step, steps, callbacks, run_state)
 
         for name, metric in metrics.items():
             state['metrics'][name] = metric.result().numpy()
