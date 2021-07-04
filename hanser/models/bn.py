@@ -9,10 +9,10 @@ class BatchNormalization(KerasBatchNormalization):
                  beta_regularizer=None, gamma_regularizer=None, beta_constraint=None, gamma_constraint=None,
                  renorm=False, renorm_clipping=None, renorm_momentum=0.99, fused=None, trainable=True,
                  virtual_batch_size=None, adjustment=None, track_running_stats=True, eval_mode=False, name=None, **kwargs):
-        super().__init__(axis, momentum, epsilon, center, scale, beta_initializer, gamma_initializer,
-                         moving_mean_initializer, moving_variance_initializer, beta_regularizer, gamma_regularizer,
-                         beta_constraint, gamma_constraint, renorm, renorm_clipping, renorm_momentum, fused, trainable,
-                         virtual_batch_size, adjustment, name, **kwargs)
+        super().__init__(axis, momentum, epsilon, center, scale, beta_initializer, gamma_initializer, moving_mean_initializer,
+                         moving_variance_initializer, beta_regularizer, gamma_regularizer, beta_constraint, gamma_constraint,
+                         renorm=renorm, renorm_clipping=renorm_clipping, renorm_momentum=renorm_momentum, fused=fused, trainable=trainable,
+                         virtual_batch_size=virtual_batch_size, adjustment=adjustment, name=name, **kwargs)
         self.track_running_stats = track_running_stats
         self.eval_mode = eval_mode
 
@@ -33,10 +33,10 @@ class SyncBatchNormalization(KerasSyncBatchNormalization):
                  renorm=False, renorm_clipping=None, renorm_momentum=0.99, trainable=True, adjustment=None,
                  track_running_stats=True, eval_mode=False, name=None, **kwargs):
 
-        super().__init__(axis, momentum, epsilon, center, scale, beta_initializer, gamma_initializer,
-                         moving_mean_initializer, moving_variance_initializer, beta_regularizer, gamma_regularizer,
-                         beta_constraint, gamma_constraint, renorm, renorm_clipping, renorm_momentum, trainable,
-                         adjustment, name, **kwargs)
+        super().__init__(axis, momentum, epsilon, center, scale, beta_initializer, gamma_initializer, moving_mean_initializer,
+                         moving_variance_initializer, beta_regularizer, gamma_regularizer, beta_constraint, gamma_constraint,
+                         renorm=renorm, renorm_clipping=renorm_clipping, renorm_momentum=renorm_momentum, trainable=trainable,
+                         adjustment=adjustment, name=name, **kwargs)
         self.track_running_stats = track_running_stats
         self.eval_mode = eval_mode
 
