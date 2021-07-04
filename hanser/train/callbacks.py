@@ -6,7 +6,7 @@ from hanser.models.modules import DropPath
 
 
 @curry
-def log_metrics(stage, metrics, epoch, writer=None, metric_history=None, stage_name=None, verbose=True):
+def log_metrics(stage, metrics, epoch, writer=None, metric_history=None, stage_name=None, print_fn=print):
     stage_name = stage_name or stage
     log_str = "%s %s - " % (time_now(), stage_name)
     metric_logs = []
@@ -17,8 +17,7 @@ def log_metrics(stage, metrics, epoch, writer=None, metric_history=None, stage_n
         if metric_history:
             metric_history.record(stage, epoch, k, v)
     log_str += ", ".join(metric_logs)
-    if verbose:
-        print(log_str)
+    print_fn(log_str)
 
 
 def config_callbacks(
@@ -26,14 +25,13 @@ def config_callbacks(
     callbacks=None,
     save_freq=None,
     mode='train',
-    verbose=True,
 ):
     cbks = callbacks or []
     cbks = cbks if isinstance(cbks, (list, tuple)) else [cbks]
 
     if mode == 'train':
         if not any(isinstance(k, TrainEvalLogger) for k in cbks):
-            cbks = [TrainEvalLogger(verbose=verbose)] + cbks
+            cbks = [TrainEvalLogger(print_fn=learner._print)] + cbks
         if not any(isinstance(k, ModelCheckpoint) for k in cbks) and save_freq:
             cbks = cbks + [ModelCheckpoint(save_freq)]
     else:
@@ -167,41 +165,34 @@ class ModelCheckpoint(Callback):
 
 class TrainEvalLogger(Callback):
 
-    def __init__(self, verbose=True):
+    def __init__(self, print_fn=print):
         super().__init__()
-        self.verbose = verbose
-
-    def _is_print(self):
-        return self.verbose
+        self.print_fn = print_fn
 
     def begin_epoch(self, state):
-        if self._is_print():
-            print("Epoch %d/%d" % (self.learner.epoch + 1, state['epochs']))
+        self.print_fn("Epoch %d/%d" % (self.learner.epoch + 1, state['epochs']))
 
     def after_epoch(self, state):
         learner = self.learner
         log_metrics('train', state['metrics'], learner.epoch, learner._writer, learner.metric_history,
-                    verbose=self._is_print())
+                    print_fn=self.print_fn)
 
     def after_eval(self, state):
         learner = self.learner
         log_metrics('eval', state['metrics'], learner.epoch, learner._writer, learner.metric_history,
-                    stage_name='valid', verbose=self._is_print())
+                    stage_name='valid', print_fn=self.print_fn)
 
 
 class EvalLogger(Callback):
 
-    def __init__(self):
+    def __init__(self, print_fn=print):
         super().__init__()
-        self.verbose = True
-
-    def _is_print(self):
-        return self.verbose
+        self.print_fn = print_fn
 
     def after_eval(self, state):
         learner = self.learner
         log_metrics('eval', state['metrics'], learner.epoch, learner._writer, learner.metric_history,
-                    stage_name='valid', verbose=self._is_print())
+                    stage_name='valid', print_fn=self.print_fn)
 
 
 class EMA(Callback):

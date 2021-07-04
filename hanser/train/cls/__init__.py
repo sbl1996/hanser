@@ -34,30 +34,18 @@ class SuperLearner(Learner):
         batch = self.batches_transform(*batches)
         return self.train_batch(batch)
 
-    def eval_batch(self, batch):
-        model = self.model
-
+    def _eval_batch(self, batch):
         inputs, target = batch
         inputs = cast(inputs, self.dtype)
-        preds = model(inputs, training=False)
-        preds = cast(preds, tf.float32)
-        self.update_metrics(self.eval_metrics, target, preds)
-
-    def simple_eval_batch(self, batch):
-        model = self.model
-
-        inputs, target = batch
-        inputs = cast(inputs, self.dtype)
-        preds = model(inputs, training=False)
+        preds = self.model(inputs, training=False)
         preds = cast(preds, tf.float32)
         return target, preds
 
-    def test_batch(self, inputs):
-        model = self.model
+    def eval_batch(self, batch):
+        target, preds = self._eval_batch(batch)
+        self.update_metrics(self.eval_metrics, target, preds)
 
-        inputs = cast(inputs, self.dtype)
-        preds = model(inputs, training=False)
-        preds = cast(preds, tf.float32)
-        return preds
+    def local_eval_batch(self, batch):
+        return self._eval_batch(batch)
 
 CNNLearner = SuperLearner

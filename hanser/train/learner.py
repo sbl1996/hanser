@@ -158,7 +158,7 @@ class Learner(metaclass=ABCMeta):
     def eval_batch(self, batch):
         pass
 
-    def simple_eval_batch(self, batch):
+    def local_eval_batch(self, batch):
         pass
 
     def test_batch(self, batch):
@@ -168,17 +168,37 @@ class Learner(metaclass=ABCMeta):
     def epoch(self):
         return self._state['train']['epoch']
 
+    def init_state(self, mode, epochs=None):
+        if mode == 'eval':
+            if 'step' not in self._state['eval']:
+                self.set_state('step', tf.Variable(0, dtype=tf.int32), 'eval')
+            if 'epoch' not in self._state['eval']:
+                self.set_state('epoch', 0, 'eval')
+            if 'epochs' not in self._state['eval']:
+                self.set_state('epochs', epochs or 0, 'eval')
+        elif mode == 'train':
+            self.set_global_state("epochs", epochs)
+            self.set_global_state("step", tf.Variable(0, dtype=tf.int32))
+
     def set_state(self, k, v, mode):
-        if k not in self._state[mode] or not isinstance(self._state[mode][k], tf.Variable):
-            self._state[mode][k] = v
-        else:
+        # State
+        # epoch: int (Variable by _epoch_var), for save and load
+        # epochs: int
+        # step: Variable
+        # steps: int
+        if k in self._state[mode] and isinstance(self._state[mode][k], tf.Variable):
             self._state[mode][k].assign(v)
+        else:
+            self._state[mode][k] = v
 
     def set_global_state(self, k, v):
         modes = ['train', 'eval', 'test']
         for m in modes:
             self.set_state(k, v, m)
 
+    def _print(self, *args, **kwargs):
+        if self._verbose:
+            print(*args, **kwargs)
 
     def fit(self, ds_train, max_epochs, ds_val=None, val_freq=1,
             steps_per_epoch=None, val_steps=None, save_freq=None, callbacks=None,
@@ -192,21 +212,17 @@ class Learner(metaclass=ABCMeta):
             val_steps = val_steps or len(ds_val)
             val_steps = tf.convert_to_tensor(val_steps, dtype=tf.int32)
 
+        self.init_state('train', epochs=max_epochs)
         cbks = config_callbacks(
-            self,
-            callbacks,
-            save_freq=save_freq,
-            verbose=self._verbose,
-        )
-        start_epoch = self.epoch + 1
-        self.set_global_state("epochs", max_epochs)
-        self.set_global_state("step", tf.Variable(0, dtype=tf.int32))
+            self, callbacks, save_freq=save_freq, mode='train')
 
-        if self._verbose:
-            print("%s Start training" % (time_now(),))
+        start_epoch = self.epoch + 1
+
+        self._print("%s Start training" % (time_now(),))
 
         if reuse_train_iterator:
             self._train_it = iter(ds_train)
+
         cbks.begin_train(self._state['train'])
         for epoch in range(start_epoch, max_epochs):
             self.set_global_state("epoch", epoch)
@@ -235,23 +251,35 @@ class Learner(metaclass=ABCMeta):
                 self.evaluate_local(ds_val, val_steps, local_eval_metrics)
 
             if self._terminated:
-                print("Terminated at epoch %d" % (epoch + 1))
+                self._print("Terminated at epoch %d" % (epoch + 1))
                 break
         cbks.after_train(self._state['train'])
+
+    def evaluate(self, ds_val, val_steps=None, callbacks=None):
+        self.init_state('eval')
+
+        val_steps = val_steps or len(ds_val)
+        cbks = config_callbacks(self, callbacks, mode='eval')
+
+        state = self._state['eval']
+        state['metrics'] = {}
+        cbks.begin_eval(state)
+        self._run_epoch(iter(ds_val), val_steps, cbks, 'eval')
+        cbks.after_eval(state)
 
     def evaluate_local(self, iterator, steps, metrics):
         for m in metrics.values():
             m.reset_states()
         it = iter(iterator)
         for step in range(steps):
-            y_true, y_pred = self._simple_eval_step(next(it))
+            y_true, y_pred = self._local_eval_step(next(it))
             for m in metrics.values():
                 m.update_state(y_true, y_pred, None)
         metric_results = {}
         for k, m in metrics.items():
             metric_results[k] = m.result().numpy()
         log_metrics('eval', metric_results, self.epoch, stage_name='valid',
-                    metric_history=self.metric_history, verbose=self._verbose)
+                    metric_history=self.metric_history, print_fn=self._print)
 
     @tf.function
     def _train_step(self, batch):
@@ -266,14 +294,9 @@ class Learner(metaclass=ABCMeta):
         strategy_run(self._strategy, self.eval_batch, (batch,))
 
     @tf.function
-    def _simple_eval_step(self, batch):
+    def _local_eval_step(self, batch):
         return local_results(
-            strategy_run(self._strategy, self.simple_eval_batch, (batch,)),
-            self._strategy)
-
-    @tf.function
-    def _test_step(self, inputs):
-        return strategy_run(self._strategy, self.test_batch, (inputs,))
+            strategy_run(self._strategy, self._local_eval_step, (batch,)), self._strategy)
 
     def _run_steps(self, step_fn, iterator, n_batches_per_step, n_steps, callbacks, state):
         state['step'].assign(-1)
@@ -287,15 +310,6 @@ class Learner(metaclass=ABCMeta):
                 batch = next(iterator)
                 step_fn(batch)
             callbacks.after_batch(state)
-
-    def update_metrics(self, metrics, y_true, y_pred, per_example_loss=None):
-        y_pred = self.output_transform(y_pred)
-        for name, metric in metrics.items():
-            if 'loss' in name and type(metric) == Mean:
-                metric.update_state(per_example_loss)
-            else:
-                metric.update_state(y_true, y_pred, None)
-
 
     def _run_epoch(self, iterator, steps, callbacks, mode):
         state = self._state[mode]
@@ -324,22 +338,13 @@ class Learner(metaclass=ABCMeta):
         for name, metric in metrics.items():
             state['metrics'][name] = metric.result().numpy()
 
-    def evaluate(self, ds_val, val_steps=None, callbacks=None):
-        if 'step' not in self._state['eval']:
-            self.set_state('step', tf.Variable(0, dtype=tf.int32), 'eval')
-        if 'epoch' not in self._state['eval']:
-            self.set_state('epoch', 0, 'eval')
-        if 'epochs' not in self._state['eval']:
-            self.set_state('epochs', 0, 'eval')
-
-        val_steps = val_steps or len(ds_val)
-        cbks = config_callbacks(self, callbacks, mode='eval')
-
-        state = self._state['eval']
-        state['metrics'] = {}
-        cbks.begin_eval(state)
-        self._run_epoch(iter(ds_val), val_steps, cbks, 'eval')
-        cbks.after_eval(state)
+    def update_metrics(self, metrics, y_true, y_pred, per_example_loss=None):
+        y_pred = self.output_transform(y_pred)
+        for name, metric in metrics.items():
+            if 'loss' in name and type(metric) == Mean:
+                metric.update_state(per_example_loss)
+            else:
+                metric.update_state(y_true, y_pred, None)
 
     def reduce_loss(self, per_example_loss):
         loss = tf.reduce_mean(per_example_loss)
@@ -381,14 +386,14 @@ class Learner(metaclass=ABCMeta):
         save_path = str(save_dir / "ckpt")
         ckpt, ckpt_options = self._make_ckpt(model_only=model_only)
         path = ckpt.write(save_path, ckpt_options)
-        print('Save learner to %s' % path)
+        self._print('Save learner to %s' % path)
 
     def load(self, fp=None, miss_ok=False, model_only=False):
         if fp is None:
             fp = find_most_recent(self.work_dir, "ckpt.index")
             if fp is None:
                 if miss_ok:
-                    print("No checkpoint in %s" % self.work_dir)
+                    self._print("No checkpoint in %s" % self.work_dir)
                     return
                 else:
                     raise FileNotFoundError("No checkpoint to load in %s" % self.work_dir)
@@ -396,12 +401,13 @@ class Learner(metaclass=ABCMeta):
         ckpt, ckpt_options = self._make_ckpt(model_only=model_only)
         ckpt.restore(fp, ckpt_options)
         self.set_global_state('epoch', int(self._epoch_var.numpy()))
-        print("Load learner at epoch %d from %s" % (self.epoch + 1, fp))
+        self._print("Load learner at epoch %d from %s" % (self.epoch + 1, fp))
 
     def recover_log(self, start, from_epochs, total_epochs, train_time, eval_time):
         """Recover log from speficic epoch.
 
         Example:
+            >>> learner = Learner()
             >>> learner.recover_log("22:03:42", 38, 60, 68, 8)
         """
         start = parse(start)
