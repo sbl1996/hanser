@@ -11,7 +11,7 @@ from tensorflow.keras.metrics import Metric, Mean
 
 from hhutil.io import fmt_path, eglob, rm, time_now
 
-from hanser.distribute import parse_strategy, strategy_run, is_distribute_strategy, local_results
+from hanser.distribute import parse_strategy, strategy_run, is_distribute_strategy, local_results, discover_device
 from hanser.train.metric_history import MetricHistory
 from hanser.train.callbacks import config_callbacks, log_metrics
 
@@ -79,7 +79,7 @@ class Learner(metaclass=ABCMeta):
     def __init__(self, model, criterion, optimizers,
                  train_metrics: Mapping[str, Metric],
                  eval_metrics: Mapping[str, Metric], work_dir,
-                 grad_clip_norm=0.0, multiple_steps=True, xla_compile=False,
+                 grad_clip_norm=0.0, multiple_steps=None, xla_compile=None,
                  output_transform=default_metric_transform,
                  n_batches_per_step=None):
         if not isinstance(optimizers, Sequence):
@@ -103,9 +103,15 @@ class Learner(metaclass=ABCMeta):
                 for optimizer in self.optimizers
             ]
         self.grad_clip_norm = grad_clip_norm
+        self.output_transform = output_transform
+
+        device = discover_device()
+        if multiple_steps is None:
+            multiple_steps = device == 'TPU'
+        if xla_compile is None:
+            xla_compile = device != 'TPU'
         self.multiple_steps = multiple_steps
         self.xla_compile = xla_compile
-        self.output_transform = output_transform
 
         self._log_dir = self.work_dir / "runs"
         self._writer = None
