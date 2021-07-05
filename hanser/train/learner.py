@@ -1,6 +1,6 @@
 from abc import ABCMeta
 from bisect import bisect_right
-from typing import Sequence, Mapping
+from typing import Sequence, Mapping, Optional
 
 from dateutil.parser import parse
 from datetime import timedelta
@@ -77,10 +77,10 @@ def cast(xs, dtype, whiltelist=(tf.int32, tf.int64, tf.bool)):
 class Learner(metaclass=ABCMeta):
 
     def __init__(self, model, criterion, optimizers,
-                 train_metrics: Mapping[str, Metric],
-                 eval_metrics: Mapping[str, Metric], work_dir,
-                 grad_clip_norm=0.0, output_transform=default_metric_transform,
-                 n_batches_per_step=None, multiple_steps=None, xla_compile=None):
+                 train_metrics: Mapping[str, Metric], eval_metrics: Mapping[str, Metric],
+                 work_dir: str, output_transform=default_metric_transform,
+                 n_batches_per_step: Optional[int] = None, multiple_steps: Optional[bool] = None,
+                 xla_compile: Optional[bool] = None):
         if not isinstance(optimizers, Sequence):
             optimizers = [optimizers]
         optimizers = list(optimizers)
@@ -101,7 +101,6 @@ class Learner(metaclass=ABCMeta):
                 if not isinstance(optimizer, mixed_precision.LossScaleOptimizer) else optimizer
                 for optimizer in self.optimizers
             ]
-        self.grad_clip_norm = grad_clip_norm
         self.output_transform = output_transform
 
         device = discover_device()
@@ -171,6 +170,7 @@ class Learner(metaclass=ABCMeta):
 
     @property
     def epoch(self):
+        # Epoch is 0-based, not 1-based
         return self._state['train']['epoch']
 
     def init_state(self, mode, epochs=None):
@@ -357,11 +357,13 @@ class Learner(metaclass=ABCMeta):
             loss = loss / self._strategy.num_replicas_in_sync
         return loss
 
-    def minimize(self, tape, optimizer, loss, trainable_variables):
-        grad_clip_norm = self.grad_clip_norm
+    def minimize(self, tape, optimizer, loss, trainable_variables, grad_clip_norm=None):
         grads = tape.gradient(loss, trainable_variables)
         if self.dtype == tf.float16:
             grads = optimizer.get_unscaled_gradients(grads)
+        self.apply_gradients(optimizer, grads, trainable_variables, grad_clip_norm)
+
+    def apply_gradients(self, optimizer, grads, vars, grad_clip_norm=None):
         aggregate_grads_outside_optimizer = grad_clip_norm and is_distribute_strategy(self._strategy)
 
         if aggregate_grads_outside_optimizer:
@@ -369,13 +371,12 @@ class Learner(metaclass=ABCMeta):
 
         if grad_clip_norm:
             grads = tf.clip_by_global_norm(grads, grad_clip_norm)[0]
-        if trainable_variables:
-            if aggregate_grads_outside_optimizer:
-                optimizer.apply_gradients(
-                    zip(grads, trainable_variables),
-                    experimental_aggregate_gradients=False)
-            else:
-                optimizer.apply_gradients(zip(grads, trainable_variables))
+        if aggregate_grads_outside_optimizer:
+            optimizer.apply_gradients(
+                zip(grads, vars),
+                experimental_aggregate_gradients=False)
+        else:
+            optimizer.apply_gradients(zip(grads, vars))
 
     def save(self, save_dir=None, model_only=False):
         if save_dir is None:

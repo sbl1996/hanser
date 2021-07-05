@@ -5,9 +5,10 @@ from hanser.train.learner import Learner, cast
 
 class SuperLearner(Learner):
 
-    def __init__(self, model, criterion, optimizer,
+    def __init__(self, model, criterion, optimizer, grad_clip_norm=0.0,
                  batch_transform=None, batches_transform=None,
                  **kwargs):
+        self.grad_clip_norm = grad_clip_norm
         self.batch_transform = batch_transform
         self.batches_transform = batches_transform
         super().__init__(model, criterion, optimizer, **kwargs)
@@ -27,7 +28,7 @@ class SuperLearner(Learner):
             loss = self.reduce_loss(per_example_loss)
             if self.dtype == tf.float16:
                 loss = optimizer.get_scaled_loss(loss)
-        self.minimize(tape, optimizer, loss, model.trainable_variables)
+        self.minimize(tape, optimizer, loss, model.trainable_variable, self.grad_clip_norm)
         self.update_metrics(self.train_metrics, target, preds, per_example_loss)
 
     def train_batches(self, *batches):

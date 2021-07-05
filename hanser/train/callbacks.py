@@ -1,3 +1,4 @@
+import warnings
 from toolz import curry
 import numpy as np
 from hhutil.io import time_now
@@ -220,14 +221,35 @@ class DropPathRateSchedule(Callback):
 
     def __init__(self, drop_path):
         super().__init__()
+        warnings.warn(
+            "DropPathRateSchedule will be deprecated, use DropPathRateScheduleV2 instead.",
+            DeprecationWarning,
+        )
         self.drop_path = drop_path
 
     def begin_epoch(self, state):
         epoch = self.learner.epoch
         epochs = state['epochs']
-        rate = (epoch - 1) / epochs * self.drop_path
+        rate = (epoch + 1) / epochs * self.drop_path
         for l in self.learner.model.submodules:
             if isinstance(l, DropPath):
+                l.rate.assign(rate)
+
+
+class DropPathRateScheduleV2(Callback):
+
+    def __init__(self):
+        super().__init__()
+
+    def begin_epoch(self, state):
+        epoch = self.learner.epoch
+        epochs = state['epochs']
+        for l in self.learner.model.submodules:
+            if isinstance(l, DropPath):
+                if epoch == 0:
+                    rate = 1 / epochs * l.rate
+                else:
+                    rate = (epoch + 1) / epoch * l.rate
                 l.rate.assign(rate)
 
 
