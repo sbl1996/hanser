@@ -1,3 +1,4 @@
+import re
 import tensorflow as tf
 
 from hanser.models.hub import load_model_from_hub
@@ -63,3 +64,31 @@ def convert_checkpoint(ckpt_path, save_path, key_map=None):
 
     fake_ckpt = tf.train.Checkpoint(model=root)
     return fake_ckpt.write(save_path)
+
+
+def init_layer_ascending_drop_path(model, max_drop_path=None):
+    r"""
+
+    Args:
+        model:
+        max_drop_path:
+
+    Returns:
+
+    """
+    def get_layer_number(l):
+        match = re.match("drop_path_?([0-9]+)?", l.name)
+        if match is None:
+            raise AttributeError("Not supported layer name")
+        if match.group(1) is not None:
+            return int(match.group(1))
+        else:
+            return 0
+    from hanser.models.modules import DropPath
+    ls = [ l for l in model.submodules if isinstance(l, DropPath) ]
+    ls = sorted(ls, key=get_layer_number)
+    if max_drop_path is None:
+        max_drop_path = ls[-1].rate.numpy()
+    for i, l in enumerate(ls):
+        rate = (i + 1) / len(ls) * max_drop_path
+        l.rate.assign(rate)

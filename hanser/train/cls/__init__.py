@@ -28,7 +28,7 @@ class SuperLearner(Learner):
             loss = self.reduce_loss(per_example_loss)
             if self.dtype == tf.float16:
                 loss = optimizer.get_scaled_loss(loss)
-        self.minimize(tape, optimizer, loss, model.trainable_variable, self.grad_clip_norm)
+        self.minimize(tape, optimizer, loss, model.trainable_variables, self.grad_clip_norm)
         self.update_metrics(self.train_metrics, target, preds, per_example_loss)
 
     def train_batches(self, *batches):

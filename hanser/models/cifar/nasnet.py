@@ -133,7 +133,9 @@ class NASNet(Model):
                 reduction = True
             else:
                 reduction = False
-            cell = Cell(genotype, C_prev_prev, C_prev, C_curr, reduction, reduction_prev, drop_path)
+            # drop_path_i = (i + 1) / layers * drop_path
+            drop_path_i = drop_path
+            cell = Cell(genotype, C_prev_prev, C_prev, C_curr, reduction, reduction_prev, drop_path_i)
             reduction_prev = reduction
             self.cells.append(cell)
             C_prev_prev, C_prev = C_prev, cell.multiplier * C_curr
