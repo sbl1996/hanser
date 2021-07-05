@@ -59,7 +59,7 @@ def checkpoint_exists(ckpt_dir: Path):
     return True
 
 
-def load_model_from_url(url, model_dir=None, check_hash=False):
+def load_model_from_url_or_path(url_or_path, model_dir=None, check_hash=False):
     r"""Loads the Torch serialized object at the given URL.
 
     If downloaded file is a zip file, it will be automatically
@@ -71,7 +71,7 @@ def load_model_from_url(url, model_dir=None, check_hash=False):
     `hub_dir` is the directory returned by :func:`~torch.hub.get_dir`.
 
     Args:
-        url (string): URL of the object to download
+        url_or_path (string or Path): URL of the object to download, or path to the model zip file
         model_dir (string, optional): directory in which to save the object
         check_hash(bool, optional): If True, the filename part of the URL should follow the naming convention
             ``filename-<sha256>.ext`` where ``<sha256>`` is the first eight or more
@@ -80,24 +80,37 @@ def load_model_from_url(url, model_dir=None, check_hash=False):
             Default: False
 
     Example:
-        >>> state_dict = load_model_from_url('https://github.com/sbl1996/hanser/releases/download/0.1.1/resnetvd50_nlb-f273a9d1.zip')
+        >>> state_dict = load_model_from_url_or_path('https://github.com/sbl1996/hanser/releases/download/0.1.1/resnetvd50_nlb-f273a9d1.zip')
 
     """
-    # Issue warning to move data if old env is set
 
     if model_dir is None:
         hub_dir = _get_hanser_home() / 'hub'
         model_dir = hub_dir / 'checkpoints'
 
     model_dir.mkdir(parents=True, exist_ok=True)
-    path = Path(urlparse(url).path)
+
+    if isinstance(url_or_path, Path) or not is_url(url_or_path):
+        url = None
+        path = fmt_path(url_or_path)
+        if not path.exists():
+            raise FileNotFoundError("Not found model zip file in %s" % path)
+        if not path.suffix == '.zip':
+            raise AttributeError("Only support model zip file")
+    else:
+        url = url_or_path
+        path = Path(urlparse(url).path)
+
     file_name = path.name
     stem = path.stem
     ckpt_dir = model_dir / stem
     if checkpoint_exists(ckpt_dir):
         return str(ckpt_dir / "model")
 
-    cached_file = model_dir / file_name
+    if is_url(url_or_path):
+        cached_file = model_dir / file_name
+    else:
+        cached_file = path
     if not os.path.exists(cached_file):
         sys.stderr.write('Downloading: "{}" to {}\n'.format(url, cached_file))
         hash_prefix = None
@@ -122,11 +135,24 @@ def is_url(s):
     return all([result.scheme, result.netloc, result.path])
 
 
-def load_model_from_hub(name_or_url, model_dir=None, check_hash=False):
-    if not is_url(name_or_url):
-        if not name_or_url in _model_path:
-            raise ValueError("No model named %s" % name_or_url)
-        url = _model_path[name_or_url]
+def load_model_from_hub(name_or_url_or_path: str, model_dir=None, check_hash=False):
+    if isinstance(name_or_url_or_path, Path):
+        path = name_or_url_or_path
+        return load_model_from_url_or_path(path, model_dir, check_hash)
+
+    if is_url(name_or_url_or_path):
+        url_or_path = name_or_url_or_path
     else:
-        url = name_or_url
-    return load_model_from_url(url, model_dir, check_hash)
+        name_or_path = name_or_url_or_path
+        if name_or_path.endswith(".zip"):
+            url_or_path = name_or_path
+        else:
+            name = name_or_path
+            if not name in _model_path:
+                raise ValueError("No model named %s" % name)
+            url_or_path = _model_path[name]
+    return load_model_from_url_or_path(url_or_path, model_dir, check_hash)
+
+
+def model_registered(name):
+    return name in _model_path
