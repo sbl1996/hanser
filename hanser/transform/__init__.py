@@ -493,7 +493,6 @@ def cutout(images, length, fill=0):
 
     Notes:
         Set `fill` to 'normal' only if pixel values are in [0, 1], and 'uniform' if in [0, 255].
-
     """
     is_batch = _is_batch(images)
     if not is_batch:
@@ -578,6 +577,19 @@ def cutout3(image, length, fill=0):
 # noinspection PyUnboundLocalVariable
 @curry
 def random_erasing(image, p=0.5, s_l=0.02, s_h=0.4, r_1=0.3, r_2=None, fill='normal'):
+    r"""Random Erasing.
+
+    Args:
+        image: the input image with shape (H, W, C), C may be 1, 3, 4.
+        p: probabilty to apply this augmentation.
+        s_l: lower bound of erasing area ratio.
+        s_h: upper bound of erasing area ratio.
+        r_1: lower bound of erasing aspect ratio.
+        r_2: upper bound of erasing aspect ratio, default to 1/r_1.
+        fill: value to be filled in erasing area, can be scalar, vector, 'normal' or 'uniform'.
+    Notes:
+        Set `fill` to 'normal' if pixel values are in [0, 1], and 'uniform' if in [0, 255].
+    """
     if tf.random.uniform(()) > p:
         return image
 
