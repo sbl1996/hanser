@@ -1,22 +1,21 @@
-# import tensorflow as tf
-#
-# n = 4
-# image = tf.random.normal((n, 160, 160, 3))
-# label = tf.one_hot(tf.random.uniform((n,), 0, 1000, dtype=tf.int32), 1000, dtype=tf.float32)
-# alpha = 1.0
-# hard = False
-#
-# from hanser.transform import mixup_batch
-# mixup_batch(image, label, 0.2)
+import math
 
 from PIL import Image
 
 import numpy as np
 
 import tensorflow as tf
-from hanser.transform import photo_metric_distortion
-
+from hanser.transform import random_erasing, IMAGENET_MEAN, IMAGENET_STD, cutout, cutout2, cutout3
+from hanser.transform.autoaugment.cifar import autoaugment
 im = Image.open("/Users/hrvvi/Downloads/images/cat1.jpeg")
 x = tf.convert_to_tensor(np.array(im))
-x2 = photo_metric_distortion(x)
-Image.fromarray(x2.numpy()).show()
+xc = x[:, 66:234:]
+# x = tf.cast(x, dtype=tf.float32)
+# x = (x - IMAGENET_MEAN) / IMAGENET_STD
+# x2 = cutout2(x, 112, 'uniform')
+x2 = autoaugment(x, "CIFAR10")
+# x2 = shear_x(xt, 1, 0)
+# x2 = x2 * IMAGENET_STD + IMAGENET_MEAN
+x2 = x2.numpy()
+# x2 = x2.astype(np.uint8)
+Image.fromarray(x2).show()

@@ -67,6 +67,13 @@ def beta_mc(a, b, shape, mc_size=10000):
     return tf.gather(mc_table, indices)
 
 
+def log_uniform(shape, minval, maxval, dtype=tf.float32):
+    minval = tf.math.log(minval)
+    maxval = tf.math.log(maxval)
+    x = tf.random.uniform(shape, minval, maxval, dtype)
+    return tf.exp(x)
+
+
 def misc_concat(values):
     if isinstance(values, (tuple, list)):
         val = values[0]
@@ -143,6 +150,10 @@ def safe_softmax(logits, axis):
     return weights
 
 
+def prepend_dims(x, n):
+    for i in range(n):
+        x = tf.expand_dims(x, 0)
+    return x
 # def top_k(x, k):
 #     NINF = tf.cast(-100000000, x.dtype)
 #     results = []

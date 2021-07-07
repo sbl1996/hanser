@@ -6,7 +6,7 @@ from tensorflow.keras.metrics import CategoricalAccuracy, Mean, CategoricalCross
 from hanser.tpu import setup
 from hanser.datasets.mnist import make_mnist_dataset
 
-from hanser.transform import pad, to_tensor, normalize
+from hanser.transform import pad, to_tensor, normalize, mixup_or_cutmix_batch
 
 from hanser.models.mnist import LeNet5
 from hanser.train.optimizers import SGD
@@ -26,10 +26,18 @@ def transform(image, label, training):
     return image, label
 
 
+def batch_transform(image, label):
+    return mixup_or_cutmix_batch(
+        image, label,
+        mixup_alpha=0.8, cutmix_alpha=1.0,
+        prob=0.5, switch_prob=0.5,
+    )
+
 batch_size = 128
 eval_batch_size = 256
 ds_train, ds_test, steps_per_epoch, test_steps = \
-    make_mnist_dataset(batch_size, eval_batch_size, transform, sub_ratio=0.01)
+    make_mnist_dataset(batch_size, eval_batch_size, transform, sub_ratio=0.01,
+                       batch_transform=batch_transform)
 
 ds_train, ds_test = setup([ds_train, ds_test], fp16=True)
 

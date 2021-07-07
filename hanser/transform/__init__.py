@@ -7,9 +7,10 @@ from tensorflow.python.ops import gen_image_ops
 
 import tensorflow_addons as tfa
 from tensorflow_addons.image.translate_ops import translations_to_projective_transforms
+from tensorflow_addons.image import shear_x
 import tensorflow_probability as tfp
 
-from hanser.ops import beta_mc
+from hanser.ops import beta_mc, log_uniform, prepend_dims
 from hanser.transform.fmix import sample_mask
 
 IMAGENET_MEAN = [123.675, 116.28, 103.53]
@@ -129,6 +130,17 @@ def cutmix_batch(image, label, alpha, hard=False, **gen_lam_kwargs):
     lam = tf.cast(lam, label.dtype)[:, None]
     label = label * lam + label2 * (1. - lam)
     return image, label
+
+
+@curry
+def mixup_or_cutmix_batch(
+    image, label, mixup_alpha, cutmix_alpha, prob, switch_prob, hard=False, **gen_lam_kwargs):
+    if tf.random.uniform(()) < prob:
+        return image, label
+    if tf.random.uniform(()) < switch_prob:
+        return mixup_batch(image, label, mixup_alpha, hard=hard, **gen_lam_kwargs)
+    else:
+        return cutmix_batch(image, label, cutmix_alpha, hard=hard, **gen_lam_kwargs)
 
 
 @curry
@@ -456,8 +468,33 @@ def center_crop(image, size):
         image, [crop_top, crop_left, 0], [crop_height, crop_width, -1])
 
 
+def _fill_region(shape, value, dtype):
+    if value == 'normal':
+        value = tf.random.normal(shape)
+    elif value == 'uniform':
+        value = tf.random.uniform(shape, 0, 256, dtype=tf.int32)
+    else:
+        value = tf.convert_to_tensor(value)
+        if len(value.shape) == 0:
+            value = tf.fill(shape[-1], value)
+        value = tf.tile(prepend_dims(value, len(shape) - 1), (*shape[:-1], 1))
+    value = tf.cast(value, dtype)
+    return value
+
+
 @curry
-def cutout(images, length):
+def cutout(images, length, fill=0):
+    r"""Cutout, support batch input.
+
+    Args:
+        images: (N?, H, W, C) single image or a batch of images.
+        length: length of the cutout region.
+        fill: value to be filled in cutout region, maybe scalar, tensor, 'normal' and 'uniform'.
+
+    Notes:
+        Set `fill` to 'normal' only if pixel values are in [0, 1], and 'uniform' if in [0, 255].
+
+    """
     is_batch = _is_batch(images)
     if not is_batch:
         images = images[None]
@@ -466,10 +503,11 @@ def cutout(images, length):
     cy = tf.random.uniform((bs,), 0, h, dtype=tf.int32)
     cx = tf.random.uniform((bs,), 0, w, dtype=tf.int32)
 
-    t = tf.maximum(0, cy - length // 2)
-    b = tf.minimum(h, cy + length // 2)
-    l = tf.maximum(0, cx - length // 2)
-    r = tf.minimum(w, cx + length // 2)
+    length = length // 2
+    t = tf.maximum(0, cy - length)
+    b = tf.minimum(h, cy + length)
+    l = tf.maximum(0, cx - length)
+    r = tf.minimum(w, cx + length)
 
     hi = tf.range(h)[None, :, None, None]
     mh = (hi >= t[:, None, None, None]) & (hi < b[:, None, None, None])
@@ -477,7 +515,8 @@ def cutout(images, length):
     mw = (wi >= l[:, None, None, None]) & (wi < r[:, None, None, None])
     masks = tf.cast(tf.logical_not(mh & mw), images.dtype)
 
-    images = images * masks
+    fill = _fill_region((bs, h, w, c), fill, images.dtype)
+    images = tf.where(tf.equal(masks, 0), fill, images)
 
     if not is_batch:
         images = images[0]
@@ -485,37 +524,89 @@ def cutout(images, length):
 
 
 @curry
-def cutout2(image, pad_size, replace=0):
+def cutout2(image, length, fill=0):
+    shape = tf.shape(image)
+    height, width, channels = shape[0], shape[1], shape[2]
 
-    image_height = tf.shape(image)[0]
-    image_width = tf.shape(image)[1]
+    center_y = tf.random.uniform((), 0, height, dtype=tf.int32)
+    center_x = tf.random.uniform((), 0, width, dtype=tf.int32)
 
-    # Sample the center location in the image where the zero mask will be applied.
-    cutout_center_height = tf.random.uniform(
-        shape=[], minval=0, maxval=image_height,
-        dtype=tf.int32)
+    length = length // 2
+    lower_pad = tf.maximum(0, center_y - length)
+    upper_pad = tf.maximum(0, height - center_y - length)
+    left_pad = tf.maximum(0, center_x - length)
+    right_pad = tf.maximum(0, width - center_x - length)
 
-    cutout_center_width = tf.random.uniform(
-        shape=[], minval=0, maxval=image_width,
-        dtype=tf.int32)
-
-    lower_pad = tf.maximum(0, cutout_center_height - pad_size)
-    upper_pad = tf.maximum(0, image_height - cutout_center_height - pad_size)
-    left_pad = tf.maximum(0, cutout_center_width - pad_size)
-    right_pad = tf.maximum(0, image_width - cutout_center_width - pad_size)
-
-    cutout_shape = [image_height - (lower_pad + upper_pad),
-                    image_width - (left_pad + right_pad)]
+    cutout_shape = [height - (lower_pad + upper_pad),
+                    width - (left_pad + right_pad)]
     padding_dims = [[lower_pad, upper_pad], [left_pad, right_pad]]
     mask = tf.pad(
         tf.zeros(cutout_shape, dtype=image.dtype),
         padding_dims, constant_values=1)
-    mask = tf.expand_dims(mask, -1)
-    mask = tf.tile(mask, [1, 1, image.shape[2]])
-    image = tf.where(
-        tf.equal(mask, 0),
-        tf.ones_like(image, dtype=image.dtype) * replace,
-        image)
+    mask = tf.tile(mask[:, :, None], [1, 1, channels])
+    fill = _fill_region((height, width, channels), fill, image.dtype)
+    image = tf.where(tf.equal(mask, 0), fill, image)
+    return image
+
+
+@curry
+def cutout3(image, length, fill=0):
+    shape = tf.shape(image)
+    h, w, c = shape[0], shape[1], shape[2]
+
+    cy = tf.random.uniform((), 0, h, dtype=tf.int32)
+    cx = tf.random.uniform((), 0, w, dtype=tf.int32)
+
+    length = length // 2
+    t = tf.maximum(0, cy - length)
+    b = tf.minimum(h, cy + length)
+    l = tf.maximum(0, cx - length)
+    r = tf.minimum(w, cx + length)
+
+    top = image[:t, :, :]
+    mid_left = image[t:b, :l, :]
+    mid_right = image[t:b, r:, :]
+    bottem = image[b:, :, :]
+
+    fill = _fill_region((b - t, r - l, c), fill, image.dtype)
+
+    mid = tf.concat([mid_left, fill, mid_right], 1)  # along x axis
+    image = tf.concat([top, mid, bottem], 0)  # along y axis
+    return image
+
+
+# noinspection PyUnboundLocalVariable
+@curry
+def random_erasing(image, p=0.5, s_l=0.02, s_h=0.4, r_1=0.3, r_2=None, fill='normal'):
+    if tf.random.uniform(()) > p:
+        return image
+
+    if r_2 is None:
+        r_2 = 1 / r_1
+    shape = tf.shape(image)
+    height, width, c = shape[0], shape[1], shape[2]
+    area = tf.cast(height * width, tf.float32)
+
+    while tf.constant(True):
+        target_area = tf.random.uniform((), s_l, s_h) * area
+        aspect_ratio = log_uniform((), r_1, r_2)
+        h = tf.cast(tf.math.round(tf.math.sqrt(target_area * aspect_ratio)), tf.int32)
+        w = tf.cast(tf.math.round(tf.math.sqrt(target_area / aspect_ratio)), tf.int32)
+
+        if h < height and w < width:
+            break
+
+    x = tf.random.uniform((), 0, width - w, dtype=tf.int32)
+    y = tf.random.uniform((), 0, height - h, dtype=tf.int32)
+
+    top = image[0:y, :, :]
+    mid_left = image[y:y+h, 0:x, :]
+    mid_right = image[y:y+h, x+w:width, :]
+    bottem = image[y+h:height, :, :]
+
+    fill = _fill_region((h, w, c), fill, image.dtype)
+    mid = tf.concat([mid_left, fill, mid_right], 1)
+    image = tf.concat([top, mid, bottem], 0)
     return image
 
 

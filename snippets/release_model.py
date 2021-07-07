@@ -44,10 +44,10 @@ app = typer.Typer(add_completion=False)
 
 @app.command()
 def release_model(
-    ckpt_path: Path = typer.Argument(..., help="Path to checkpoint file"),
+    ckpt_path: Path = typer.Argument(..., help="Path to checkpoint file, i.e. ./resnet50/ckpt"),
     model_name: str = typer.Argument(..., help="Model name, i.e. resnetvd50"),
     target_dir: Path = typer.Argument(..., help="Target directory to save released model file"),
-    convert: bool = typer.Option(True, "-c", help="Convert to model checkpoint first"),
+    convert: bool = typer.Option(True, "-c/-nc", help="Convert to model checkpoint first"),
 ):
     if convert:
         from hanser.models.utils import convert_checkpoint
