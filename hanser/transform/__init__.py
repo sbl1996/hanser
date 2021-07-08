@@ -476,7 +476,7 @@ def _fill_region(shape, value, dtype):
     else:
         value = tf.convert_to_tensor(value)
         if len(value.shape) == 0:
-            value = tf.fill(shape[-1], value)
+            value = tf.fill((shape[-1],), value)
         value = tf.tile(prepend_dims(value, len(shape) - 1), (*shape[:-1], 1))
     value = tf.cast(value, dtype)
     return value

@@ -10,13 +10,12 @@ from hanser.detection.assign import atss_match
 from hanser.datasets.detection.voc import decode, make_voc_dataset_sub
 
 from hanser.transform import normalize
-from hanser.transform.detection import random_hflip, random_resize, resize, pad_to, random_crop, \
-    pad_objects
+from hanser.transform.detection import random_hflip, random_resize, resize, pad_to, random_crop, pad_objects
 
 from hanser.models.layers import set_defaults
-from hanser.models.backbone.resnet_vd import resnet10
+from hanser.models.backbone.resnet_avd_fair import resnet50
 from hanser.models.detection.retinanet import RetinaNet
-from hanser.models.utils import load_checkpoint
+from hanser.models.utils import load_checkpoint, load_pretrained_model
 
 from hanser.train.optimizers import SGD
 from hanser.train.lr_schedule import CosineLR
@@ -76,11 +75,13 @@ batch_size, eval_batch_size = 4 * mul, 4
 ds_train, ds_val, steps_per_epoch, val_steps = make_voc_dataset_sub(
     n_train, n_val, batch_size, eval_batch_size, preprocess)
 
-backbone = resnet10()
+backbone = resnet50()
 model = RetinaNet(backbone, anchor_gen.num_base_anchors[0], 20,
                   feat_channels=64, stacked_convs=2, centerness=True,
                   extra_convs_on='output', norm='gn')
 model.build((None, HEIGHT, WIDTH, 3))
+
+load_pretrained_model('ppresnetvd50_nlb', model)
 
 # load_checkpoint("./drive/MyDrive/models/ImageNet-86/ckpt", model=backbone)
 
