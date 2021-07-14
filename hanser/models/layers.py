@@ -272,7 +272,7 @@ def get_groups(channels, ref=32):
     return channels // c
 
 
-def Norm(channels=None, type='default', affine=None, track_running_stats=None, gamma_init='ones'):
+def Norm(channels=None, type='default', affine=None, track_running_stats=None, gamma_init='ones', fused=None):
     if type in ['default', 'def']:
         type = DEFAULTS['norm']
     if type == 'bn':
@@ -281,6 +281,8 @@ def Norm(channels=None, type='default', affine=None, track_running_stats=None, g
             affine = cfg['affine']
         if track_running_stats is None:
             track_running_stats = cfg['track_running_stats']
+        if fused is None:
+            fused = cfg['fused']
         if cfg['sync']:
             bn = SyncBatchNormalization(
                 momentum=cfg['momentum'], epsilon=cfg['eps'], center=affine, scale=affine,
@@ -289,7 +291,7 @@ def Norm(channels=None, type='default', affine=None, track_running_stats=None, g
         else:
             bn = BatchNormalization(
                 momentum=cfg['momentum'], epsilon=cfg['eps'], center=affine, scale=affine,
-                gamma_initializer=gamma_init, fused=cfg['fused'], track_running_stats=track_running_stats,
+                gamma_initializer=gamma_init, fused=fused, track_running_stats=track_running_stats,
                 eval_mode=cfg['eval'])
         return bn
     elif type == 'gn':

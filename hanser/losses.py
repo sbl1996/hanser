@@ -123,7 +123,9 @@ def reduce_loss(losses, weight=None, reduction='sum'):
         if losses.shape.ndims - weight.shape.ndims == 1:
             weight = weight[..., None]
         losses = losses * weight
-    if reduction == 'sum':
+    if reduction == 'none':
+        return losses
+    elif reduction == 'sum':
         return tf.reduce_sum(losses)
     else:
         return ValueError("Not supported reduction: %s" % reduction)

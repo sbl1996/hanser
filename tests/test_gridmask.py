@@ -1,4 +1,3 @@
-from hanser.train.callbacks import Callback
 from toolz import curry
 
 import tensorflow as tf
@@ -10,10 +9,11 @@ from hanser.datasets.mnist import make_mnist_dataset
 from hanser.transform import pad, to_tensor, normalize, cutout, mixup_or_cutmix_batch
 
 from hanser.models.mnist import LeNet5
+from hanser.losses import CrossEntropy
 from hanser.train.optimizers import SGD
 from hanser.train.cls import SuperLearner
 from hanser.train.lr_schedule import CosineLR
-from hanser.losses import CrossEntropy
+from hanser.train.callbacks import Callback
 
 
 @curry
