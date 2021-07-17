@@ -329,10 +329,18 @@ def trival_augment(image):
         NAME_TO_FUNC[op_name] for op_name in available_ops
     ]
 
-    branch_fns = {
-        i: lambda: op_func(image, random_level(hparams['max_level']), hparams)
-        for i, op_func in enumerate(op_funcs)
-    }
-
     op_to_select = tf.random.uniform((), 0, maxval=len(available_ops), dtype=tf.int32)
-    return tf.switch_case(op_to_select, branch_fns)
+    for i, op_func in enumerate(op_funcs):
+        image = tf.cond(
+            tf.equal(i, op_to_select),
+            lambda: op_func(image, random_level(hparams['max_level']), hparams),
+            lambda: image)
+    return image
+
+    # branch_fns = {
+    #     i: lambda: op_func(image, random_level(hparams['max_level']), hparams)
+    #     for i, op_func in enumerate(op_funcs)
+    # }
+    #
+    # op_to_select = tf.random.uniform((), 0, maxval=len(available_ops), dtype=tf.int32)
+    # return tf.switch_case(op_to_select, branch_fns)
