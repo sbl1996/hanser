@@ -1,7 +1,7 @@
 # These implementations were stolen from https://github.com/google/automl/blob/master/efficientnetv2/autoaugment.py
 # 1. Image ops are exactly the same.
 # 2. Function to combine and apply policies is different.
-# 3. The way to apply hparams (cutout_const and translate_const) is different.
+# 3. The way to apply hparams (cutout_max and translate_max) is different.
 
 import tensorflow as tf
 from hanser.transform import sharpness, shear_x, shear_y, solarize, solarize_add, autocontrast, translate_x, \
@@ -89,13 +89,13 @@ def _shear_y(img, level, hparams):
 
 def _translate_x(img, level, hparams):
     fill_color = hparams['fill_color']
-    magnitude = _translate_level_to_arg(level, hparams['max_level'], hparams['translate_const'])
+    magnitude = _translate_level_to_arg(level, hparams['max_level'], hparams['translate_max'])
     return translate_x(img, magnitude, fill_color)
 
 
 def _translate_y(img, level, hparams):
     fill_color = hparams['fill_color']
-    magnitude = _translate_level_to_arg(level, hparams['max_level'], hparams['translate_const'])
+    magnitude = _translate_level_to_arg(level, hparams['max_level'], hparams['translate_max'])
     return translate_y(img, magnitude, fill_color)
 
 
@@ -162,7 +162,7 @@ def _invert(img, level, hparams):
 
 def _cutout(img, level, hparams):
     fill_color = hparams['fill_color']
-    magnitude = _cutout_level_to_arg(level, hparams['max_level'], hparams['cutout_const'])
+    magnitude = _cutout_level_to_arg(level, hparams['max_level'], hparams['cutout_max'])
     return cutout(img, magnitude, fill_color)
 
 
@@ -265,8 +265,8 @@ def imagenet_policy_v0():
 def autoaugment(image):
     hparams = {
         **H_PARAMS,
-        'cutout_const': 100,
-        'translate_const': 250,
+        'cutout_max': 100,
+        'translate_max': 250,
     }
 
     policies = imagenet_policy_v0()
@@ -279,8 +279,8 @@ def randaugment(image, num_layers=2, magnitude=10.):
 
     hparams = {
         **H_PARAMS,
-        'cutout_const': 40,
-        'translate_const': 100,
+        'cutout_max': 40,
+        'translate_max': 100,
     }
 
     available_ops = [
