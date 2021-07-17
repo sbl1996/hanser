@@ -720,7 +720,7 @@ def brightness(image, factor):
 
 def posterize(image, bits):
     """Equivalent of PIL Posterize."""
-    return tf.bitwise.left_shift(tf.bitwise.right_shift(image, shift), shift)
+    return tf.bitwise.left_shift(tf.bitwise.right_shift(image, bits), bits)
 
 
 def rotate(image, degrees, replace):
