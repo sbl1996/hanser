@@ -27,6 +27,7 @@ H_PARAMS = {
 
 
 def _randomly_negate_tensor(tensor):
+    tensor = tf.convert_to_tensor(tensor)
     sign = tf.sign(tf.random.normal(()))
     sign = tf.convert_to_tensor(sign, tensor.dtype)
     return tensor * sign
