@@ -36,8 +36,7 @@ def objective(trial: optuna.Trial):
     batch_size = 128
     eval_batch_size = 256
     ds_train, ds_test, steps_per_epoch, test_steps = make_mnist_dataset(
-        batch_size, eval_batch_size, transform, sub_ratio=0.01
-    )
+        batch_size, eval_batch_size, transform, sub_ratio=0.01)
 
     model = LeNet5()
     model.build((None, 32, 32, 1))
