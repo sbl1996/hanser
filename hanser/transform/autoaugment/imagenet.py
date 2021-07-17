@@ -204,60 +204,45 @@ def _apply_func_with_prob(func, p, image, level, hparams):
     return augmented_image
 
 
-def select_and_apply_random_policy(policies, image, hparams):
-    """Select a random policy from `policies` and apply it to `image`."""
-
-    policy_to_select = tf.random.uniform((), maxval=len(policies), dtype=tf.int32)
-    # Note that using tf.case instead of tf.conds would result in significantly
-    # larger graphs and would even break export for some larger policies.
-    for (i, policy) in enumerate(policies):
-        image = tf.cond(
-            tf.equal(i, policy_to_select),
-            lambda: policy(image, hparams),
-            lambda: image)
-    return image
-
-
-def sub_policy(p1, op1, level1, p2, op2, level2):
-    def _apply_policy(image, hparams):
+def sub_policy(p1, op1, level1, p2, op2, level2, hparams):
+    def _apply_policy(image):
         image = _apply_func_with_prob(NAME_TO_FUNC[op1], p1, image, level1, hparams)
         image = _apply_func_with_prob(NAME_TO_FUNC[op2], p2, image, level2, hparams)
         return image
-
     return _apply_policy
 
 
 def imagenet_policy_v0():
     policies = [
-        sub_policy(0.8, 'equalize',  1, 0.8, 'shearY',       4),
-        sub_policy(0.4, 'color',     9, 0.6, 'equalize',     3),
-        sub_policy(0.4, 'color',     1, 0.6, 'rotate',       8),
-        sub_policy(0.8, 'solarize',  3, 0.4, 'equalize',     7),
-        sub_policy(0.4, 'solarize',  2, 0.6, 'solarize',     2),
+        (0.8, 'equalize',  1, 0.8, 'shearY',       4),
+        (0.4, 'color',     9, 0.6, 'equalize',     3),
+        (0.4, 'color',     1, 0.6, 'rotate',       8),
+        (0.8, 'solarize',  3, 0.4, 'equalize',     7),
+        (0.4, 'solarize',  2, 0.6, 'solarize',     2),
 
-        sub_policy(0.2, 'color',     0, 0.8, 'equalize',     8),
-        sub_policy(0.4, 'equalize',  8, 0.8, 'solarize_add', 3),
-        sub_policy(0.2, 'shearX',    9, 0.6, 'rotate',       8),
-        sub_policy(0.6, 'color',     1, 1.0, 'equalize',     2),
-        sub_policy(0.4, 'invert',    9, 0.6, 'rotate',       0),
+        (0.2, 'color',     0, 0.8, 'equalize',     8),
+        (0.4, 'equalize',  8, 0.8, 'solarize_add', 3),
+        (0.2, 'shearX',    9, 0.6, 'rotate',       8),
+        (0.6, 'color',     1, 1.0, 'equalize',     2),
+        (0.4, 'invert',    9, 0.6, 'rotate',       0),
 
-        sub_policy(1.0, 'equalize',  9, 0.6, 'shearY',       3),
-        sub_policy(0.4, 'color',     7, 0.6, 'equalize',     0),
-        sub_policy(0.4, 'posterize', 6, 0.4, 'autocontrast', 7),
-        sub_policy(0.6, 'solarize',  8, 0.6, 'color',        9),
-        sub_policy(0.2, 'solarize',  4, 0.8, 'rotate',       9),
+        (1.0, 'equalize',  9, 0.6, 'shearY',       3),
+        (0.4, 'color',     7, 0.6, 'equalize',     0),
+        (0.4, 'posterize', 6, 0.4, 'autocontrast', 7),
+        (0.6, 'solarize',  8, 0.6, 'color',        9),
+        (0.2, 'solarize',  4, 0.8, 'rotate',       9),
 
-        sub_policy(1.0, 'rotate',    7, 0.8, 'translateY',   9),
-        sub_policy(0.0, 'shearX',    0, 0.8, 'solarize',     4),
-        sub_policy(0.8, 'shearY',    0, 0.6, 'color',        4),
-        sub_policy(1.0, 'color',     0, 0.6, 'rotate',       2),
-        sub_policy(0.8, 'equalize',  4, 0.0, 'equalize',     8),
+        (1.0, 'rotate',    7, 0.8, 'translateY',   9),
+        (0.0, 'shearX',    0, 0.8, 'solarize',     4),
+        (0.8, 'shearY',    0, 0.6, 'color',        4),
+        (1.0, 'color',     0, 0.6, 'rotate',       2),
+        (0.8, 'equalize',  4, 0.0, 'equalize',     8),
 
-        sub_policy(1.0, 'equalize',  4, 0.6, 'autocontrast', 2),
-        sub_policy(0.4, 'shearY',    7, 0.6, 'solarize_add', 7),
-        sub_policy(0.8, 'posterize', 2, 0.6, 'solarize',     10),
-        sub_policy(0.6, 'solarize',  8, 0.6, 'equalize',     1),
-        sub_policy(0.8, 'color',     6, 0.4, 'rotate',       5),
+        (1.0, 'equalize',  4, 0.6, 'autocontrast', 2),
+        (0.4, 'shearY',    7, 0.6, 'solarize_add', 7),
+        (0.8, 'posterize', 2, 0.6, 'solarize',     10),
+        (0.6, 'solarize',  8, 0.6, 'equalize',     1),
+        (0.8, 'color',     6, 0.4, 'rotate',       5),
     ]
     return policies
 
@@ -270,7 +255,14 @@ def autoaugment(image):
     }
 
     policies = imagenet_policy_v0()
-    image = select_and_apply_random_policy(policies, image, hparams)
+
+    policy_to_select = tf.random.uniform((), maxval=len(policies), dtype=tf.int32)
+    for i, policy in enumerate(policies):
+        policy_fn = sub_policy(*policy, hparams)
+        image = tf.cond(
+            tf.equal(i, policy_to_select),
+            lambda: policy_fn(image),
+            lambda: image)
     return image
 
 
