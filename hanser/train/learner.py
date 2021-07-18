@@ -294,11 +294,11 @@ class Learner(metaclass=ABCMeta):
     def _train_step_on_batches(self, batches):
         strategy_run(self._strategy, self.train_batches, batches)
 
-    @tf.function
+    @tf.function(experimental_relax_shapes=True)
     def _eval_step(self, batch):
         strategy_run(self._strategy, self.eval_batch, (batch,))
 
-    @tf.function
+    @tf.function(experimental_relax_shapes=True)
     def _local_eval_step(self, batch):
         return local_results(
             strategy_run(self._strategy, self._local_eval_step, (batch,)), self._strategy)

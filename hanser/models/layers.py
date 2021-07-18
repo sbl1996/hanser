@@ -8,7 +8,7 @@ import tensorflow as tf
 from tensorflow.keras import Sequential
 from tensorflow.keras.initializers import VarianceScaling, RandomUniform, Initializer
 from tensorflow.keras.layers import Dense, Activation, Layer, Conv2D, ZeroPadding2D, LeakyReLU, \
-    DepthwiseConv2D, MaxPooling2D as KerasMaxPool2D, AveragePooling2D as KerasAvgPool2D, LayerNormalization
+    DepthwiseConv2D, MaxPooling2D as KerasMaxPool2D, AveragePooling2D as KerasAvgPool2D, LayerNormalization, Flatten
 import tensorflow_addons as tfa
 from tensorflow_addons.activations import mish
 

@@ -8,7 +8,7 @@ from hanser.transform import sharpness, shear_x, shear_y, solarize, solarize_add
     translate_y, rotate, color, posterize, contrast, brightness, equalize, invert, cutout2 as cutout, random_apply
 
 __all__ = [
-    "autoaugment", "randaugment", "rand_or_auto_augment"]
+    "autoaugment", "randaugment", "rand_or_auto_augment", "trival_augment"]
 
 H_PARAMS = {
     "max_level": 10,
@@ -336,11 +336,3 @@ def trival_augment(image):
             lambda: op_func(image, random_level(hparams['max_level']), hparams),
             lambda: image)
     return image
-
-    # branch_fns = {
-    #     i: lambda: op_func(image, random_level(hparams['max_level']), hparams)
-    #     for i, op_func in enumerate(op_funcs)
-    # }
-    #
-    # op_to_select = tf.random.uniform((), 0, maxval=len(available_ops), dtype=tf.int32)
-    # return tf.switch_case(op_to_select, branch_fns)
