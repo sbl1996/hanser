@@ -15,6 +15,8 @@ class MetricHistory:
         h[epoch][metric] = value
 
     def get_metric(self, metric, stage=None, start=None, end=None):
+        # Epochs is 0-based
+        # Get metric from [start, end]
         if stage is None:
             return {
                 stage: self.get_metric(metric, stage, start, end)

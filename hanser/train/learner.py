@@ -2,8 +2,7 @@ from abc import ABCMeta
 from bisect import bisect_right
 from typing import Sequence, Mapping, Optional
 
-from dateutil.parser import parse
-from datetime import timedelta
+import pickle
 
 import tensorflow as tf
 import tensorflow.keras.mixed_precision.experimental as mixed_precision
@@ -122,11 +121,14 @@ class Learner(metaclass=ABCMeta):
         }
 
         # epoch -> stage -> metric -> value
+        # Epoch is 0-based
         self.metric_history = MetricHistory(["train", "eval", "test"])
+        self._train_start = None
+        self._max_epochs = None
 
         self._terminated = False
         self.set_global_state("epoch", -1)
-        self._epoch_var = tf.Variable(self.epoch, dtype=tf.int64)
+        self._epoch_var = tf.Variable(self.epoch, dtype=tf.int64) # TODO: no need to use var
 
         if self.xla_compile:
             self.train_batch = tf.function(self.train_batch, experimental_compile=True)
@@ -209,6 +211,7 @@ class Learner(metaclass=ABCMeta):
             steps_per_epoch=None, val_steps=None, save_freq=None, callbacks=None,
             reuse_train_iterator=True, local_eval_metrics=None, local_eval_freq=None):
         # It seems that reuse_train_iterator speed up the first epoch significantly
+        self._max_epochs = max_epochs
 
         steps_per_epoch = steps_per_epoch or len(ds_train)
         steps_per_epoch = tf.convert_to_tensor(steps_per_epoch, dtype=tf.int32)
@@ -223,7 +226,11 @@ class Learner(metaclass=ABCMeta):
 
         start_epoch = self.epoch + 1
 
-        self._print("%s Start training" % (time_now(),))
+        train_start = time_now()
+        self._print(f"{train_start} Start training")
+
+        if self._train_start is None:
+            self._train_start = train_start
 
         if reuse_train_iterator:
             self._train_it = iter(ds_train)
@@ -294,11 +301,11 @@ class Learner(metaclass=ABCMeta):
     def _train_step_on_batches(self, batches):
         strategy_run(self._strategy, self.train_batches, batches)
 
-    @tf.function(experimental_relax_shapes=True)
+    @tf.function
     def _eval_step(self, batch):
         strategy_run(self._strategy, self.eval_batch, (batch,))
 
-    @tf.function(experimental_relax_shapes=True)
+    @tf.function
     def _local_eval_step(self, batch):
         return local_results(
             strategy_run(self._strategy, self._local_eval_step, (batch,)), self._strategy)
@@ -378,7 +385,30 @@ class Learner(metaclass=ABCMeta):
         else:
             optimizer.apply_gradients(zip(grads, vars))
 
-    def save(self, save_dir=None, model_only=False):
+
+    def save_state(self, save_dir=None):
+        save_dir = save_dir or self.work_dir
+        with open(save_dir / "learner_state.pickle", "wb") as f:
+            pickle.dump({
+                "metric_history": self.metric_history._history,
+                "train_start": self._train_start,
+                "epoch": self.epoch,
+                "max_epochs": self._max_epochs,
+            }, f)
+
+
+    def load_state(self, save_dir=None):
+        save_dir = save_dir or self.work_dir
+        state_file = save_dir / "learner_state.pickle"
+        if state_file.exists():
+            with open(state_file, "rb") as f:
+                d = pickle.load(f)
+            return d
+        else:
+            return None
+
+
+    def save(self, save_dir=None, model_only=False, state=True):
         if save_dir is None:
             save_dir = self.work_dir
         else:
@@ -392,45 +422,62 @@ class Learner(metaclass=ABCMeta):
         save_path = str(save_dir / "ckpt")
         ckpt, ckpt_options = self._make_ckpt(model_only=model_only)
         path = ckpt.write(save_path, ckpt_options)
+
+        if state:
+            self.save_state(save_dir)
+
         self._print('Save learner to %s' % path)
 
-    def load(self, fp=None, miss_ok=False, model_only=False):
+    def load(self, fp=None, miss_ok=False, model_only=False, state=True):
         if fp is None:
             fp = find_most_recent(self.work_dir, "ckpt.index")
             if fp is None:
                 if miss_ok:
                     self._print("No checkpoint in %s" % self.work_dir)
-                    return
+                    return False
                 else:
                     raise FileNotFoundError("No checkpoint to load in %s" % self.work_dir)
             fp = str(fp)[:-6]
         ckpt, ckpt_options = self._make_ckpt(model_only=model_only)
         ckpt.restore(fp, ckpt_options)
-        self.set_global_state('epoch', int(self._epoch_var.numpy()))
+        epoch = int(self._epoch_var.numpy())
+
+        if state:
+            save_dir = fmt_path(fp).parent
+            d = self.load_state(save_dir)
+            if d is not None:
+                self.metric_history._history = d['metric_history']
+                self._train_start = d['train_start']
+                epoch = d['epoch']
+                self._max_epochs = d['max_epochs']
+
+        self.set_global_state('epoch', epoch)
         self._print("Load learner at epoch %d from %s" % (self.epoch + 1, fp))
+        return True
 
-    def recover_log(self, start, from_epochs, total_epochs, train_time, eval_time):
-        """Recover log from speficic epoch.
-
-        Example:
-            >>> learner = Learner()
-            >>> learner.recover_log("22:03:42", 38, 60, 68, 8)
-        """
-        start = parse(start)
+    def recover_log(self):
+        train_start = self._train_start
+        self._print(f"{train_start} Start training")
+        history = self.metric_history
+        max_epochs = self._max_epochs
         train_metric_keys = self.train_metrics.keys()
         eval_metric_keys = self.eval_metrics.keys()
-        for i in range(from_epochs - 1, total_epochs):
-            m = self.metric_history.get_epochs(i, i)
-            train_end = start + timedelta(seconds=train_time)
-            print("Epoch %d/%d" % (i + 1, total_epochs))
-            train_metric_logs = ", ".join(
-                f"{k}: {m['train'][k]:.4f}" for k in train_metric_keys if k in m['train'])
-            print(f"{str(train_end)[-8:]} train - {train_metric_logs}")
-            start = train_end
+        for epoch in range(max_epochs):
 
-            valid_metric_logs = ", ".join(
-                f"{k}: {m['eval'][k]:.4f}" for k in eval_metric_keys if k in m['eval'])
-            if valid_metric_logs:
-                eval_end = train_end + timedelta(seconds=eval_time)
-                print(f"{str(eval_end)[-8:]} valid - {valid_metric_logs}")
-                start = eval_end
+            m = self.metric_history.get_epochs(epoch, epoch)
+
+            train_metrics = {**m['train']}
+            if 'end' not in train_metrics:
+                break
+            print("Epoch %d/%d" % (epoch + 1, max_epochs))
+            train_end = train_metrics.pop("end")
+            train_metric_logs = ", ".join(
+                f"{k}: {train_metrics[k]:.4f}" for k in train_metric_keys)
+            print(f"{train_end} train - {train_metric_logs}")
+
+            eval_metrics = {**m['eval']}
+            if 'end' in eval_metrics:
+                eval_end = eval_metrics.pop("end")
+                eval_metric_logs = ", ".join(
+                    f"{k}: {eval_metrics[k]:.4f}" for k in eval_metric_keys)
+                print(f"{eval_end} valid - {eval_metric_logs}")

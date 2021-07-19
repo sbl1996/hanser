@@ -9,7 +9,8 @@ from hanser.models.modules import DropPath
 @curry
 def log_metrics(stage, metrics, epoch, writer=None, metric_history=None, stage_name=None, print_fn=print):
     stage_name = stage_name or stage
-    log_str = "%s %s - " % (time_now(), stage_name)
+    end_at = time_now()
+    log_str = "%s %s - " % (end_at, stage_name)
     metric_logs = []
     for k, v in metrics.items():
         metric_logs.append("%s: %.4f" % (k, v))
@@ -17,6 +18,8 @@ def log_metrics(stage, metrics, epoch, writer=None, metric_history=None, stage_n
             writer.add_scalar("%s/%s" % (k, stage), v, epoch)
         if metric_history:
             metric_history.record(stage, epoch, k, v)
+    if metric_history:
+        metric_history.record(stage, epoch, "end", end_at)
     log_str += ", ".join(metric_logs)
     print_fn(log_str)
 
@@ -163,6 +166,10 @@ class ModelCheckpoint(Callback):
         if epoch % self.save_freq == 0:
             self.learner.save()
 
+    def after_eval(self, state):
+        epoch = self.learner.epoch + 1
+        if epoch % self.save_freq == 0:
+            self.learner.save_state()
 
 class TrainEvalLogger(Callback):
 
