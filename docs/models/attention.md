@@ -15,7 +15,7 @@
 | RegNetY-1.6GF (F) |  160 |   Standard   |  100  | 77.55 | 93.83 |   159.7  |   [38](/configs/ImageNet/38.py)   | [1](/configs/ImageNet/log/38.log) |
 
 Notes:
-- ECA-Net seems to not work well in RegNet, no matter put it at the middle conv or at the final of block.
+- ECA-Net seems to not work well in RegNet, no matter put it at the middle conv (C) or at the final of block (F).
 
 
 ## Reference
