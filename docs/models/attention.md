@@ -3,8 +3,8 @@
 ## SENet
 | Model           | Size | Augmentation | Epoch | Top 1 | Top 5 | Time (s) | Script |
 |-----------------|:----:|:------------:|:-----:|:-----:|:-----:|:--------:|:------:|
-| ResNet_vd-50 |  160 |   Standard   |  120  | 78.93 | 94.48 |   208.1  |   [configs/ImageNet/23.py](23)   |
-| ResNet_vd-50 |  224 |   Standard   |  120  | 78.86 | 94.28 |   377.2  |   [configs/ImageNet/101.py](101)  |
+| ResNet_vd-50 |  160 |   Standard   |  120  | 78.93 | 94.48 |   208.1  |   [23](configs/ImageNet/23.py)   |
+| ResNet_vd-50 |  224 |   Standard   |  120  | 78.86 | 94.28 |   377.2  |   [101](configs/ImageNet/101.py)  |
 
 
 ## ECA-Net
