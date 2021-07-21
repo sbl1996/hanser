@@ -67,8 +67,7 @@ class DropPath(Dropout):
         super(Dropout, self).__init__(**kwargs)
         self.rate = self.add_weight(
             name="drop_rate", shape=(), dtype=tf.float32,
-            initializer=initializers.Constant(rate), trainable=False,
-        )
+            initializer=initializers.Constant(rate), trainable=False)
 
     def call(self, inputs, training=None):
         if training is None:

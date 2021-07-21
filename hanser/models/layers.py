@@ -460,6 +460,7 @@ class DropBlock(Layer):
         self.keep_prob = self.add_weight(
             name="keep_prob", shape=(), dtype=tf.float32,
             initializer=Constant(keep_prob), trainable=False,
+            experimental_autocast=False,
         )
 
     def call(self, x, training=None):
