@@ -1,0 +1,1040 @@
+23:14:51 Start training
+Epoch 1/200
+23:22:22 train - loss: 6.5423, acc: 0.0133
+23:23:00 valid - loss: 5.3899, acc: 0.0628, acc5: 0.1733
+Epoch 2/200
+23:26:49 train - loss: 5.4375, acc: 0.0921
+23:27:00 valid - loss: 4.4532, acc: 0.1978, acc5: 0.4087
+Epoch 3/200
+23:30:47 train - loss: 4.7020, acc: 0.1918
+23:31:00 valid - loss: 3.5510, acc: 0.2945, acc5: 0.5368
+Epoch 4/200
+23:34:45 train - loss: 4.3191, acc: 0.2564
+23:35:06 valid - loss: 3.1284, acc: 0.3807, acc5: 0.6334
+Epoch 5/200
+23:38:44 train - loss: 4.1212, acc: 0.2924
+23:38:58 valid - loss: 3.1285, acc: 0.3827, acc5: 0.6429
+Epoch 6/200
+23:42:40 train - loss: 3.9864, acc: 0.3181
+23:42:54 valid - loss: 3.0309, acc: 0.4018, acc5: 0.6621
+Epoch 7/200
+23:46:37 train - loss: 3.8743, acc: 0.3395
+23:46:51 valid - loss: 2.8785, acc: 0.4497, acc5: 0.7069
+Epoch 8/200
+23:50:34 train - loss: 3.8013, acc: 0.3543
+23:50:55 valid - loss: 2.7633, acc: 0.4439, acc5: 0.7018
+Epoch 9/200
+23:54:31 train - loss: 3.7421, acc: 0.3666
+23:54:45 valid - loss: 2.7970, acc: 0.4481, acc5: 0.7015
+Epoch 10/200
+23:58:28 train - loss: 3.7009, acc: 0.3747
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+00:03:08 valid - loss: 2.8763, acc: 0.4348, acc5: 0.6875
+Epoch 11/200
+00:29:04 train - loss: 3.6633, acc: 0.3826
+00:29:44 valid - loss: 2.6617, acc: 0.5012, acc5: 0.7690
+Epoch 12/200
+00:33:34 train - loss: 3.6380, acc: 0.3878
+00:33:45 valid - loss: 2.4932, acc: 0.5090, acc5: 0.7746
+Epoch 13/200
+00:37:34 train - loss: 3.6106, acc: 0.3933
+00:37:46 valid - loss: 2.5573, acc: 0.5016, acc5: 0.7677
+Epoch 14/200
+00:41:34 train - loss: 3.5949, acc: 0.3961
+00:41:48 valid - loss: 2.5170, acc: 0.5030, acc5: 0.7689
+Epoch 15/200
+00:45:33 train - loss: 3.5760, acc: 0.4004
+00:45:47 valid - loss: 2.5195, acc: 0.5121, acc5: 0.7756
+Epoch 16/200
+00:49:31 train - loss: 3.5616, acc: 0.4033
+00:49:45 valid - loss: 2.5317, acc: 0.5133, acc5: 0.7786
+Epoch 17/200
+00:53:29 train - loss: 3.5479, acc: 0.4059
+00:53:44 valid - loss: 2.4551, acc: 0.5247, acc5: 0.7875
+Epoch 18/200
+00:57:28 train - loss: 3.5358, acc: 0.4086
+00:57:42 valid - loss: 2.5303, acc: 0.5175, acc5: 0.7757
+Epoch 19/200
+01:01:26 train - loss: 3.5265, acc: 0.4103
+01:01:40 valid - loss: 2.5459, acc: 0.5275, acc5: 0.7885
+Epoch 20/200
+01:05:24 train - loss: 3.5161, acc: 0.4128
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+01:05:49 valid - loss: 2.3963, acc: 0.5444, acc5: 0.8017
+Epoch 21/200
+01:09:28 train - loss: 3.5067, acc: 0.4148
+01:09:42 valid - loss: 2.4399, acc: 0.5321, acc5: 0.7919
+Epoch 22/200
+01:13:27 train - loss: 3.4962, acc: 0.4166
+01:13:41 valid - loss: 2.5030, acc: 0.5321, acc5: 0.7894
+Epoch 23/200
+01:17:24 train - loss: 3.4896, acc: 0.4183
+01:17:45 valid - loss: 2.4428, acc: 0.5371, acc5: 0.7956
+Epoch 24/200
+01:21:23 train - loss: 3.4848, acc: 0.4193
+01:21:44 valid - loss: 2.5441, acc: 0.5030, acc5: 0.7722
+Epoch 25/200
+01:25:21 train - loss: 3.4780, acc: 0.4208
+01:25:35 valid - loss: 2.3440, acc: 0.5414, acc5: 0.8012
+Epoch 26/200
+01:29:19 train - loss: 3.4733, acc: 0.4218
+01:29:33 valid - loss: 2.5378, acc: 0.5246, acc5: 0.7839
+Epoch 27/200
+01:33:17 train - loss: 3.4676, acc: 0.4227
+01:33:31 valid - loss: 2.4127, acc: 0.5380, acc5: 0.7978
+Epoch 28/200
+01:37:15 train - loss: 3.4622, acc: 0.4240
+01:37:29 valid - loss: 2.3134, acc: 0.5460, acc5: 0.8022
+Epoch 29/200
+01:41:13 train - loss: 3.4553, acc: 0.4254
+01:41:27 valid - loss: 2.4334, acc: 0.5439, acc5: 0.8019
+Epoch 30/200
+01:45:10 train - loss: 3.4528, acc: 0.4256
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+01:45:28 valid - loss: 2.3737, acc: 0.5329, acc5: 0.7928
+Epoch 31/200
+01:49:09 train - loss: 3.4493, acc: 0.4264
+01:49:22 valid - loss: 2.4512, acc: 0.5372, acc5: 0.7966
+Epoch 32/200
+01:53:06 train - loss: 3.4405, acc: 0.4280
+01:53:20 valid - loss: 2.5591, acc: 0.5101, acc5: 0.7731
+Epoch 33/200
+01:57:04 train - loss: 3.4370, acc: 0.4290
+01:57:18 valid - loss: 2.4863, acc: 0.5189, acc5: 0.7805
+Epoch 34/200
+02:01:02 train - loss: 3.4348, acc: 0.4297
+02:01:16 valid - loss: 2.2343, acc: 0.5561, acc5: 0.8132
+Epoch 35/200
+02:05:00 train - loss: 3.4271, acc: 0.4311
+02:05:14 valid - loss: 2.5730, acc: 0.4898, acc5: 0.7572
+Epoch 36/200
+02:08:58 train - loss: 3.4266, acc: 0.4320
+02:09:12 valid - loss: 2.4873, acc: 0.5182, acc5: 0.7815
+Epoch 37/200
+02:12:56 train - loss: 3.4189, acc: 0.4328
+02:13:17 valid - loss: 2.3993, acc: 0.5272, acc5: 0.7901
+Epoch 38/200
+02:16:54 train - loss: 3.4183, acc: 0.4332
+02:17:07 valid - loss: 2.1955, acc: 0.5621, acc5: 0.8188
+Epoch 39/200
+02:20:51 train - loss: 3.4157, acc: 0.4338
+02:21:05 valid - loss: 2.6475, acc: 0.5118, acc5: 0.7823
+Epoch 40/200
+02:24:49 train - loss: 3.4103, acc: 0.4344
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+02:25:07 valid - loss: 2.4569, acc: 0.5482, acc5: 0.8034
+Epoch 41/200
+02:28:46 train - loss: 3.4076, acc: 0.4354
+02:29:00 valid - loss: 2.3690, acc: 0.5450, acc5: 0.8069
+Epoch 42/200
+02:32:44 train - loss: 3.3997, acc: 0.4368
+02:32:58 valid - loss: 2.4748, acc: 0.5353, acc5: 0.7907
+Epoch 43/200
+02:36:42 train - loss: 3.3988, acc: 0.4370
+02:37:03 valid - loss: 2.5644, acc: 0.5130, acc5: 0.7751
+Epoch 44/200
+02:40:40 train - loss: 3.3959, acc: 0.4378
+02:40:53 valid - loss: 2.3646, acc: 0.5563, acc5: 0.8070
+Epoch 45/200
+02:44:38 train - loss: 3.3905, acc: 0.4381
+02:44:59 valid - loss: 2.3764, acc: 0.5481, acc5: 0.8014
+Epoch 46/200
+02:48:35 train - loss: 3.3834, acc: 0.4403
+02:48:56 valid - loss: 2.3062, acc: 0.5561, acc5: 0.8087
+Epoch 47/200
+02:52:33 train - loss: 3.3831, acc: 0.4403
+02:52:47 valid - loss: 2.3776, acc: 0.5536, acc5: 0.8057
+Epoch 48/200
+02:56:31 train - loss: 3.3822, acc: 0.4406
+02:56:45 valid - loss: 2.2351, acc: 0.5658, acc5: 0.8152
+Epoch 49/200
+03:00:28 train - loss: 3.3763, acc: 0.4416
+03:00:49 valid - loss: 2.3319, acc: 0.5612, acc5: 0.8119
+Epoch 50/200
+03:04:26 train - loss: 3.3712, acc: 0.4434
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+03:04:44 valid - loss: 2.2700, acc: 0.5554, acc5: 0.8102
+Epoch 51/200
+03:08:24 train - loss: 3.3676, acc: 0.4436
+03:08:38 valid - loss: 2.2559, acc: 0.5590, acc5: 0.8140
+Epoch 52/200
+03:12:22 train - loss: 3.3658, acc: 0.4443
+03:12:36 valid - loss: 2.2522, acc: 0.5614, acc5: 0.8149
+Epoch 53/200
+03:16:20 train - loss: 3.3587, acc: 0.4455
+03:16:34 valid - loss: 2.3974, acc: 0.5512, acc5: 0.8067
+Epoch 54/200
+03:20:18 train - loss: 3.3588, acc: 0.4456
+03:20:39 valid - loss: 2.2168, acc: 0.5794, acc5: 0.8276
+Epoch 55/200
+03:24:15 train - loss: 3.3547, acc: 0.4459
+03:24:29 valid - loss: 2.3528, acc: 0.5534, acc5: 0.8061
+Epoch 56/200
+03:28:13 train - loss: 3.3503, acc: 0.4467
+03:28:34 valid - loss: 2.2541, acc: 0.5823, acc5: 0.8283
+Epoch 57/200
+03:32:11 train - loss: 3.3455, acc: 0.4489
+03:32:25 valid - loss: 2.2189, acc: 0.5640, acc5: 0.8175
+Epoch 58/200
+03:36:09 train - loss: 3.3434, acc: 0.4485
+03:36:23 valid - loss: 2.3273, acc: 0.5543, acc5: 0.8083
+Epoch 59/200
+03:40:08 train - loss: 3.3373, acc: 0.4500
+03:40:21 valid - loss: 2.2182, acc: 0.5783, acc5: 0.8239
+Epoch 60/200
+03:44:06 train - loss: 3.3363, acc: 0.4506
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+03:49:18 valid - loss: 2.2720, acc: 0.5619, acc5: 0.8133
+Epoch 61/200
+04:27:14 train - loss: 3.3277, acc: 0.4519
+04:27:57 valid - loss: 2.3513, acc: 0.5598, acc5: 0.7959
+Epoch 62/200
+04:31:50 train - loss: 3.3250, acc: 0.4530
+04:32:02 valid - loss: 2.2598, acc: 0.5618, acc5: 0.8022
+Epoch 63/200
+04:35:52 train - loss: 3.3201, acc: 0.4542
+04:36:06 valid - loss: 2.2252, acc: 0.5670, acc5: 0.8052
+Epoch 64/200
+04:39:53 train - loss: 3.3187, acc: 0.4545
+04:40:06 valid - loss: 2.1614, acc: 0.5805, acc5: 0.8148
+Epoch 65/200
+04:43:52 train - loss: 3.3138, acc: 0.4551
+04:44:06 valid - loss: 2.4177, acc: 0.5523, acc5: 0.7925
+Epoch 66/200
+04:47:51 train - loss: 3.3098, acc: 0.4559
+04:48:05 valid - loss: 2.3492, acc: 0.5618, acc5: 0.7994
+Epoch 67/200
+04:51:51 train - loss: 3.3038, acc: 0.4568
+04:52:05 valid - loss: 2.3142, acc: 0.5694, acc5: 0.8060
+Epoch 68/200
+04:55:50 train - loss: 3.3006, acc: 0.4577
+04:56:11 valid - loss: 2.1764, acc: 0.5797, acc5: 0.8127
+Epoch 69/200
+04:59:52 train - loss: 3.2960, acc: 0.4588
+05:00:06 valid - loss: 2.2419, acc: 0.5666, acc5: 0.8069
+Epoch 70/200
+05:03:51 train - loss: 3.2927, acc: 0.4597
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+15:01:16 Start training
+Epoch 71/200
+15:09:03 train - loss: 3.2875, acc: 0.4603
+15:09:44 valid - loss: 2.2528, acc: 0.5827, acc5: 0.8291
+Epoch 72/200
+15:13:26 train - loss: 3.2839, acc: 0.4618
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+15:13:37 valid - loss: 2.2232, acc: 0.5795, acc5: 0.8275
+Epoch 73/200
+15:17:17 train - loss: 3.2792, acc: 0.4627
+15:17:30 valid - loss: 2.2861, acc: 0.5733, acc5: 0.8221
+Epoch 74/200
+15:21:08 train - loss: 3.2720, acc: 0.4634
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+15:21:24 valid - loss: 2.2888, acc: 0.5789, acc5: 0.8232
+Epoch 75/200
+15:24:57 train - loss: 3.2712, acc: 0.4637
+15:25:10 valid - loss: 2.2511, acc: 0.5789, acc5: 0.8258
+Epoch 76/200
+15:28:46 train - loss: 3.2657, acc: 0.4652
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+15:29:02 valid - loss: 2.1147, acc: 0.5936, acc5: 0.8327
+Epoch 77/200
+15:32:36 train - loss: 3.2618, acc: 0.4664
+15:32:49 valid - loss: 2.2056, acc: 0.5868, acc5: 0.8304
+Epoch 78/200
+15:36:25 train - loss: 3.2585, acc: 0.4669
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+15:36:42 valid - loss: 2.1708, acc: 0.5854, acc5: 0.8257
+Epoch 79/200
+15:40:14 train - loss: 3.2539, acc: 0.4681
+15:40:28 valid - loss: 2.1768, acc: 0.5973, acc5: 0.8347
+Epoch 80/200
+15:44:03 train - loss: 3.2498, acc: 0.4691
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+15:44:19 valid - loss: 2.1196, acc: 0.6042, acc5: 0.8433
+Epoch 81/200
+15:47:53 train - loss: 3.2425, acc: 0.4703
+15:48:14 valid - loss: 2.1769, acc: 0.5926, acc5: 0.8352
+Epoch 82/200
+15:51:45 train - loss: 3.2366, acc: 0.4716
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+15:52:01 valid - loss: 2.1525, acc: 0.5904, acc5: 0.8351
+Epoch 83/200
+15:55:34 train - loss: 3.2310, acc: 0.4725
+15:55:48 valid - loss: 2.1643, acc: 0.5894, acc5: 0.8322
+Epoch 84/200
+15:59:23 train - loss: 3.2268, acc: 0.4738
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+15:59:40 valid - loss: 2.0823, acc: 0.6002, acc5: 0.8392
+Epoch 85/200
+16:03:13 train - loss: 3.2216, acc: 0.4748
+16:03:34 valid - loss: 2.2034, acc: 0.5895, acc5: 0.8340
+Epoch 86/200
+16:07:02 train - loss: 3.2180, acc: 0.4763
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+16:11:43 valid - loss: 2.1206, acc: 0.6056, acc5: 0.8462
+Traceback (most recent call last):
+  File "98.py", line 77, in <module>
+    save_freq=2)
+  File "/content/hanser/hanser/train/learner.py", line 211, in fit
+    cbks.begin_epoch(state)
+  File "/content/hanser/hanser/train/callbacks.py", line 69, in begin_epoch
+    c.begin_epoch(state)
+  File "/content/hanser/hanser/train/callbacks.py", line 179, in begin_epoch
+    print("Epoch %d/%d" % (self.learner.epoch + 1, state['epochs']))
+  File "/content/hanser/hanser/train/learner.py", line 164, in epoch
+    return int(self._state['train']['epoch'].numpy())
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/distribute/values.py", line 662, in numpy
+    return self.read_value().numpy()
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/framework/ops.py", line 1063, in numpy
+    maybe_arr = self._numpy()  # pylint: disable=protected-access
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/framework/ops.py", line 1031, in _numpy
+    six.raise_from(core._status_to_exception(e.code, e.message), None)  # pylint: disable=protected-access
+  File "<string>", line 3, in raise_from
+2021-06-25 08:18:36.323391: W tensorflow/core/distributed_runtime/eager/remote_tensor_handle_data.cc:76] Unable to destroy remote tensor handles. If you are running a tf.function, it usually indicates some op in the graph gets an error: Socket closed
+Additional GRPC error information from remote target /job:worker/replica:0/task:0:
+:{"created":"@1624609116.318458848","description":"Error received from peer ipv4:10.15.121.18:8470","file":"external/com_github_grpc_grpc/src/core/lib/surface/call.cc","file_line":1056,"grpc_message":"Socket closed","grpc_status":14}
+tensorflow.python.framework.errors_impl.UnavailableError: Socket closed
+Additional GRPC error information from remote target /job:worker/replica:0/task:0:
+:{"created":"@1624609116.318458848","description":"Error received from peer ipv4:10.15.121.18:8470","file":"external/com_github_grpc_grpc/src/core/lib/surface/call.cc","file_line":1056,"grpc_message":"Socket closed","grpc_status":14}
+Error in atexit._run_exitfuncs:
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/distribute/tpu_strategy.py", line 540, in async_wait
+    context.async_wait()
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/eager/context.py", line 2319, in async_wait
+    context().sync_executors()
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/eager/context.py", line 658, in sync_executors
+    pywrap_tfe.TFE_ContextSyncExecutors(self._context_handle)
+tensorflow.python.framework.errors_impl.UnavailableError: 2 root error(s) found.
+  (0) Unavailable: Socket closed
+Additional GRPC error information from remote target /job:worker/replica:0/task:0:
+:{"created":"@1624609116.318458848","description":"Error received from peer ipv4:10.15.121.18:8470","file":"external/com_github_grpc_grpc/src/core/lib/surface/call.cc","file_line":1056,"grpc_message":"Socket closed","grpc_status":14}
+  (1) Unavailable: Unable to find a context_id matching the specified one (56693908103341135). Perhaps the worker was restarted, or the context was GC'd?
+0 successful operations.
+0 derived errors ignored.
+16:20:38 Start training
+Epoch 87/200
+16:29:04 train - loss: 3.2102, acc: 0.4769
+16:29:49 valid - loss: 2.1833, acc: 0.6051, acc5: 0.8421
+Epoch 88/200
+16:33:34 train - loss: 3.2061, acc: 0.4780
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+16:33:46 valid - loss: 2.2312, acc: 0.5989, acc5: 0.8380
+Epoch 89/200
+2021-06-25 08:35:20.673264: W tensorflow/core/distributed_runtime/eager/remote_tensor_handle_data.cc:76] Unable to destroy remote tensor handles. If you are running a tf.function, it usually indicates some op in the graph gets an error: Socket closed
+Traceback (most recent call last):
+  File "98.py", line 77, in <module>
+    save_freq=2)
+  File "/content/hanser/hanser/train/learner.py", line 216, in fit
+    self._run_epoch(self._train_it, steps_per_epoch, cbks, 'train')
+  File "/content/hanser/hanser/train/learner.py", line 345, in _run_epoch
+    state['metrics'][name] = metric.result().numpy()
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/framework/ops.py", line 1063, in numpy
+    maybe_arr = self._numpy()  # pylint: disable=protected-access
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/framework/ops.py", line 1031, in _numpy
+    six.raise_from(core._status_to_exception(e.code, e.message), None)  # pylint: disable=protected-access
+  File "<string>", line 3, in raise_from
+tensorflow.python.framework.errors_impl.UnavailableError: Socket closed
+Error in atexit._run_exitfuncs:
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/distribute/tpu_strategy.py", line 540, in async_wait
+    context.async_wait()
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/eager/context.py", line 2319, in async_wait
+    context().sync_executors()
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/eager/context.py", line 658, in sync_executors
+    pywrap_tfe.TFE_ContextSyncExecutors(self._context_handle)
+tensorflow.python.framework.errors_impl.UnavailableError: 2 root error(s) found.
+  (0) Unavailable: Socket closed
+  (1) Unavailable: Unable to find a context_id matching the specified one (12104098464590596977). Perhaps the worker was restarted, or the context was GC'd?
+0 successful operations.
+0 derived errors ignored.
+16:37:12 Start training
+Epoch 89/200
+Traceback (most recent call last):
+  File "98.py", line 77, in <module>
+    save_freq=2)
+  File "/content/hanser/hanser/train/learner.py", line 216, in fit
+    self._run_epoch(self._train_it, steps_per_epoch, cbks, 'train')
+  File "/content/hanser/hanser/train/learner.py", line 345, in _run_epoch
+    state['metrics'][name] = metric.result().numpy()
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/framework/ops.py", line 1063, in numpy
+    maybe_arr = self._numpy()  # pylint: disable=protected-access
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/framework/ops.py", line 1031, in _numpy
+    six.raise_from(core._status_to_exception(e.code, e.message), None)  # pylint: disable=protected-access
+  File "<string>", line 3, in raise_from
+tensorflow.python.framework.errors_impl.UnavailableError: Connection reset by peer
+Additional GRPC error information from remote target /job:worker/replica:0/task:0:
+:{"created":"@1624610890.511318223","description":"Error received from peer ipv4:10.15.121.18:8470","file":"external/com_github_grpc_grpc/src/core/lib/surface/call.cc","file_line":1056,"grpc_message":"Connection reset by peer","grpc_status":14}
+2021-06-25 08:48:10.515164: W tensorflow/core/distributed_runtime/eager/remote_tensor_handle_data.cc:76] Unable to destroy remote tensor handles. If you are running a tf.function, it usually indicates some op in the graph gets an error: Connection reset by peer
+Additional GRPC error information from remote target /job:worker/replica:0/task:0:
+:{"created":"@1624610890.511318223","description":"Error received from peer ipv4:10.15.121.18:8470","file":"external/com_github_grpc_grpc/src/core/lib/surface/call.cc","file_line":1056,"grpc_message":"Connection reset by peer","grpc_status":14}
+Error in atexit._run_exitfuncs:
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/distribute/tpu_strategy.py", line 540, in async_wait
+    context.async_wait()
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/eager/context.py", line 2319, in async_wait
+    context().sync_executors()
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/eager/context.py", line 658, in sync_executors
+    pywrap_tfe.TFE_ContextSyncExecutors(self._context_handle)
+tensorflow.python.framework.errors_impl.UnavailableError: 2 root error(s) found.
+  (0) Unavailable: Connection reset by peer
+Additional GRPC error information from remote target /job:worker/replica:0/task:0:
+:{"created":"@1624610890.511318223","description":"Error received from peer ipv4:10.15.121.18:8470","file":"external/com_github_grpc_grpc/src/core/lib/surface/call.cc","file_line":1056,"grpc_message":"Connection reset by peer","grpc_status":14}
+  (1) Unavailable: Unable to find a context_id matching the specified one (13355536263332121424). Perhaps the worker was restarted, or the context was GC'd?
+0 successful operations.
+0 derived errors ignored.
+16:49:38 Start training
+Epoch 89/200
+16:58:07 train - loss: 3.1997, acc: 0.4794
+16:58:49 valid - loss: 2.0690, acc: 0.6033, acc5: 0.8453
+Epoch 90/200
+17:02:26 train - loss: 3.1975, acc: 0.4801
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+17:02:37 valid - loss: 2.2746, acc: 0.5817, acc5: 0.8270
+Epoch 91/200
+17:06:12 train - loss: 3.1932, acc: 0.4814
+17:06:23 valid - loss: 2.0924, acc: 0.6056, acc5: 0.8441
+Epoch 92/200
+17:09:57 train - loss: 3.1853, acc: 0.4826
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+17:10:10 valid - loss: 2.2851, acc: 0.5814, acc5: 0.8276
+Epoch 93/200
+17:13:41 train - loss: 3.1802, acc: 0.4835
+17:13:54 valid - loss: 2.0862, acc: 0.6051, acc5: 0.8446
+Epoch 94/200
+17:17:24 train - loss: 3.1738, acc: 0.4852
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+17:17:40 valid - loss: 2.0185, acc: 0.6147, acc5: 0.8494
+Epoch 95/200
+17:21:08 train - loss: 3.1725, acc: 0.4859
+17:21:20 valid - loss: 2.0291, acc: 0.6107, acc5: 0.8472
+Epoch 96/200
+17:24:51 train - loss: 3.1635, acc: 0.4873
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+17:25:07 valid - loss: 2.1342, acc: 0.6050, acc5: 0.8463
+Epoch 97/200
+17:28:35 train - loss: 3.1598, acc: 0.4879
+17:28:56 valid - loss: 2.0913, acc: 0.6116, acc5: 0.8492
+Epoch 98/200
+17:32:22 train - loss: 3.1540, acc: 0.4900
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+17:32:37 valid - loss: 2.1091, acc: 0.6220, acc5: 0.8546
+Epoch 99/200
+17:36:05 train - loss: 3.1468, acc: 0.4909
+17:36:18 valid - loss: 2.1754, acc: 0.6036, acc5: 0.8409
+Epoch 100/200
+17:39:48 train - loss: 3.1417, acc: 0.4921
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+17:40:04 valid - loss: 2.1215, acc: 0.6164, acc5: 0.8528
+Epoch 101/200
+17:43:31 train - loss: 3.1364, acc: 0.4937
+17:43:44 valid - loss: 2.0153, acc: 0.6198, acc5: 0.8526
+Epoch 102/200
+17:47:15 train - loss: 3.1261, acc: 0.4958
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+17:47:30 valid - loss: 2.1323, acc: 0.6159, acc5: 0.8513
+Epoch 103/200
+17:50:58 train - loss: 3.1223, acc: 0.4962
+17:51:11 valid - loss: 1.9881, acc: 0.6298, acc5: 0.8589
+Epoch 104/200
+17:54:41 train - loss: 3.1161, acc: 0.4979
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+17:54:57 valid - loss: 2.1336, acc: 0.6200, acc5: 0.8505
+Epoch 105/200
+17:58:25 train - loss: 3.1096, acc: 0.4989
+17:58:38 valid - loss: 2.0628, acc: 0.6076, acc5: 0.8440
+Epoch 106/200
+18:02:08 train - loss: 3.1038, acc: 0.5002
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+18:02:24 valid - loss: 2.1123, acc: 0.6094, acc5: 0.8501
+Epoch 107/200
+18:05:51 train - loss: 3.0979, acc: 0.5020
+18:06:04 valid - loss: 1.9483, acc: 0.6280, acc5: 0.8577
+Epoch 108/200
+18:09:34 train - loss: 3.0890, acc: 0.5040
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+18:09:50 valid - loss: 2.0029, acc: 0.6312, acc5: 0.8612
+Epoch 109/200
+18:13:18 train - loss: 3.0841, acc: 0.5045
+18:13:31 valid - loss: 1.9808, acc: 0.6383, acc5: 0.8666
+Epoch 110/200
+18:17:01 train - loss: 3.0786, acc: 0.5061
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+18:17:17 valid - loss: 2.0017, acc: 0.6299, acc5: 0.8602
+Epoch 111/200
+18:20:44 train - loss: 3.0732, acc: 0.5075
+18:20:57 valid - loss: 1.9558, acc: 0.6369, acc5: 0.8639
+Epoch 112/200
+18:24:28 train - loss: 3.0629, acc: 0.5098
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+Traceback (most recent call last):
+  File "98.py", line 77, in <module>
+    save_freq=2)
+  File "/content/hanser/hanser/train/learner.py", line 226, in fit
+    self._run_epoch(iter(ds_val), val_steps, cbks, 'eval')
+  File "/content/hanser/hanser/train/learner.py", line 345, in _run_epoch
+    state['metrics'][name] = metric.result().numpy()
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/framework/ops.py", line 1063, in numpy
+    maybe_arr = self._numpy()  # pylint: disable=protected-access
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/framework/ops.py", line 1031, in _numpy
+    six.raise_from(core._status_to_exception(e.code, e.message), None)  # pylint: disable=protected-access
+  File "<string>", line 3, in raise_from
+tensorflow.python.framework.errors_impl.UnavailableError: Socket closed
+Additional GRPC error information from remote target /job:worker/replica:0/task:0:
+:{"created":"@1624616746.528109861","description":"Error received from peer ipv4:10.15.121.18:8470","file":"external/com_github_grpc_grpc/src/core/lib/surface/call.cc","file_line":1056,"grpc_message":"Socket closed","grpc_status":14}
+2021-06-25 10:25:46.533407: W tensorflow/core/distributed_runtime/eager/remote_tensor_handle_data.cc:76] Unable to destroy remote tensor handles. If you are running a tf.function, it usually indicates some op in the graph gets an error: Socket closed
+Additional GRPC error information from remote target /job:worker/replica:0/task:0:
+:{"created":"@1624616746.528109861","description":"Error received from peer ipv4:10.15.121.18:8470","file":"external/com_github_grpc_grpc/src/core/lib/surface/call.cc","file_line":1056,"grpc_message":"Socket closed","grpc_status":14}
+Error in atexit._run_exitfuncs:
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/distribute/tpu_strategy.py", line 540, in async_wait
+    context.async_wait()
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/eager/context.py", line 2319, in async_wait
+    context().sync_executors()
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/eager/context.py", line 658, in sync_executors
+    pywrap_tfe.TFE_ContextSyncExecutors(self._context_handle)
+tensorflow.python.framework.errors_impl.UnavailableError: 2 root error(s) found.
+  (0) Unavailable: Socket closed
+Additional GRPC error information from remote target /job:worker/replica:0/task:0:
+:{"created":"@1624616746.528109861","description":"Error received from peer ipv4:10.15.121.18:8470","file":"external/com_github_grpc_grpc/src/core/lib/surface/call.cc","file_line":1056,"grpc_message":"Socket closed","grpc_status":14}
+  (1) Unavailable: Unable to find a context_id matching the specified one (8376017245164050913). Perhaps the worker was restarted, or the context was GC'd?
+0 successful operations.
+0 derived errors ignored.
+18:27:41 Start training
+Epoch 113/200
+18:34:53 train - loss: 3.0587, acc: 0.5103
+18:35:35 valid - loss: 2.0300, acc: 0.6372, acc5: 0.8525
+Epoch 114/200
+18:39:12 train - loss: 3.0515, acc: 0.5117
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+18:39:24 valid - loss: 2.0240, acc: 0.6424, acc5: 0.8549
+Epoch 115/200
+18:43:00 train - loss: 3.0449, acc: 0.5137
+18:43:13 valid - loss: 1.9930, acc: 0.6366, acc5: 0.8542
+Epoch 116/200
+18:46:46 train - loss: 3.0372, acc: 0.5151
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+18:47:02 valid - loss: 1.9371, acc: 0.6459, acc5: 0.8602
+Epoch 117/200
+18:50:34 train - loss: 3.0319, acc: 0.5157
+18:50:55 valid - loss: 1.9731, acc: 0.6446, acc5: 0.8556
+Epoch 118/200
+18:54:22 train - loss: 3.0226, acc: 0.5185
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+18:54:39 valid - loss: 1.9570, acc: 0.6498, acc5: 0.8629
+Epoch 119/200
+18:58:09 train - loss: 3.0156, acc: 0.5198
+18:58:22 valid - loss: 1.9321, acc: 0.6355, acc5: 0.8524
+Epoch 120/200
+19:01:54 train - loss: 3.0070, acc: 0.5219
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+19:02:11 valid - loss: 1.9169, acc: 0.6508, acc5: 0.8614
+Epoch 121/200
+19:05:40 train - loss: 3.0000, acc: 0.5234
+19:05:53 valid - loss: 1.8772, acc: 0.6533, acc5: 0.8631
+Epoch 122/200
+19:09:27 train - loss: 2.9944, acc: 0.5251
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+19:09:43 valid - loss: 1.9184, acc: 0.6479, acc5: 0.8617
+Epoch 123/200
+19:13:13 train - loss: 2.9860, acc: 0.5266
+19:13:34 valid - loss: 1.9064, acc: 0.6615, acc5: 0.8658
+Epoch 124/200
+19:16:58 train - loss: 2.9785, acc: 0.5283
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+19:22:41 valid - loss: 1.9124, acc: 0.6573, acc5: 0.8650
+Traceback (most recent call last):
+  File "98.py", line 77, in <module>
+    save_freq=2)
+  File "/content/hanser/hanser/train/learner.py", line 211, in fit
+    cbks.begin_epoch(state)
+  File "/content/hanser/hanser/train/callbacks.py", line 69, in begin_epoch
+    c.begin_epoch(state)
+  File "/content/hanser/hanser/train/callbacks.py", line 179, in begin_epoch
+    print("Epoch %d/%d" % (self.learner.epoch + 1, state['epochs']))
+  File "/content/hanser/hanser/train/learner.py", line 164, in epoch
+    return int(self._state['train']['epoch'].numpy())
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/distribute/values.py", line 662, in numpy
+    return self.read_value().numpy()
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/framework/ops.py", line 1063, in numpy
+    maybe_arr = self._numpy()  # pylint: disable=protected-access
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/framework/ops.py", line 1031, in _numpy
+    six.raise_from(core._status_to_exception(e.code, e.message), None)  # pylint: disable=protected-access
+  File "<string>", line 3, in raise_from
+tensorflow.python.framework.errors_impl.UnavailableError: Socket closed
+Additional GRPC error information from remote target /job:worker/replica:0/task:0:
+:{"created":"@1624620838.464081072","description":"Error received from peer ipv4:10.15.121.18:8470","file":"external/com_github_grpc_grpc/src/core/lib/surface/call.cc","file_line":1056,"grpc_message":"Socket closed","grpc_status":14}
+2021-06-25 11:33:58.469446: W tensorflow/core/distributed_runtime/eager/remote_tensor_handle_data.cc:76] Unable to destroy remote tensor handles. If you are running a tf.function, it usually indicates some op in the graph gets an error: Socket closed
+Additional GRPC error information from remote target /job:worker/replica:0/task:0:
+:{"created":"@1624620838.464081072","description":"Error received from peer ipv4:10.15.121.18:8470","file":"external/com_github_grpc_grpc/src/core/lib/surface/call.cc","file_line":1056,"grpc_message":"Socket closed","grpc_status":14}
+Error in atexit._run_exitfuncs:
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/distribute/tpu_strategy.py", line 540, in async_wait
+    context.async_wait()
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/eager/context.py", line 2319, in async_wait
+    context().sync_executors()
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/eager/context.py", line 658, in sync_executors
+    pywrap_tfe.TFE_ContextSyncExecutors(self._context_handle)
+tensorflow.python.framework.errors_impl.UnavailableError: 2 root error(s) found.
+  (0) Unavailable: Socket closed
+Additional GRPC error information from remote target /job:worker/replica:0/task:0:
+:{"created":"@1624620838.464081072","description":"Error received from peer ipv4:10.15.121.18:8470","file":"external/com_github_grpc_grpc/src/core/lib/surface/call.cc","file_line":1056,"grpc_message":"Socket closed","grpc_status":14}
+  (1) Unavailable: Unable to find a context_id matching the specified one (1368100223232125551). Perhaps the worker was restarted, or the context was GC'd?
+0 successful operations.
+0 derived errors ignored.
+19:36:09 Start training
+Epoch 125/200
+19:45:46 train - loss: 2.9704, acc: 0.5299
+19:46:30 valid - loss: 1.8829, acc: 0.6611, acc5: 0.8791
+Epoch 126/200
+19:50:11 train - loss: 2.9591, acc: 0.5328
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+19:50:24 valid - loss: 1.8471, acc: 0.6580, acc5: 0.8775
+Epoch 127/200
+19:54:05 train - loss: 2.9531, acc: 0.5340
+19:54:16 valid - loss: 1.9035, acc: 0.6661, acc5: 0.8811
+Epoch 128/200
+19:57:55 train - loss: 2.9480, acc: 0.5349
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+19:58:09 valid - loss: 1.8553, acc: 0.6606, acc5: 0.8798
+Epoch 129/200
+20:01:46 train - loss: 2.9403, acc: 0.5367
+20:02:07 valid - loss: 1.9707, acc: 0.6593, acc5: 0.8787
+Epoch 130/200
+20:05:38 train - loss: 2.9316, acc: 0.5394
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+20:09:45 valid - loss: 1.8994, acc: 0.6653, acc5: 0.8822
+Traceback (most recent call last):
+  File "98.py", line 77, in <module>
+    save_freq=2)
+  File "/content/hanser/hanser/train/learner.py", line 211, in fit
+    cbks.begin_epoch(state)
+  File "/content/hanser/hanser/train/callbacks.py", line 69, in begin_epoch
+    c.begin_epoch(state)
+  File "/content/hanser/hanser/train/callbacks.py", line 179, in begin_epoch
+    print("Epoch %d/%d" % (self.learner.epoch + 1, state['epochs']))
+  File "/content/hanser/hanser/train/learner.py", line 164, in epoch
+    return int(self._state['train']['epoch'].numpy())
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/distribute/values.py", line 662, in numpy
+    return self.read_value().numpy()
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/framework/ops.py", line 1063, in numpy
+    maybe_arr = self._numpy()  # pylint: disable=protected-access
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/framework/ops.py", line 1031, in _numpy
+    six.raise_from(core._status_to_exception(e.code, e.message), None)  # pylint: disable=protected-access
+  File "<string>", line 3, in raise_from
+tensorflow.python.framework.errors_impl.UnavailableError: Socket closed
+Additional GRPC error information from remote target /job:worker/replica:0/task:0:
+:{"created":"@1624624741.948781651","description":"Error received from peer ipv4:10.15.121.18:8470","file":"external/com_github_grpc_grpc/src/core/lib/surface/call.cc","file_line":1056,"grpc_message":"Socket closed","grpc_status":14}
+2021-06-25 12:39:01.953301: W tensorflow/core/distributed_runtime/eager/remote_tensor_handle_data.cc:76] Unable to destroy remote tensor handles. If you are running a tf.function, it usually indicates some op in the graph gets an error: Socket closed
+Additional GRPC error information from remote target /job:worker/replica:0/task:0:
+:{"created":"@1624624741.948781651","description":"Error received from peer ipv4:10.15.121.18:8470","file":"external/com_github_grpc_grpc/src/core/lib/surface/call.cc","file_line":1056,"grpc_message":"Socket closed","grpc_status":14}
+Error in atexit._run_exitfuncs:
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/distribute/tpu_strategy.py", line 540, in async_wait
+    context.async_wait()
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/eager/context.py", line 2319, in async_wait
+    context().sync_executors()
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/eager/context.py", line 658, in sync_executors
+    pywrap_tfe.TFE_ContextSyncExecutors(self._context_handle)
+tensorflow.python.framework.errors_impl.UnavailableError: 2 root error(s) found.
+  (0) Unavailable: Socket closed
+Additional GRPC error information from remote target /job:worker/replica:0/task:0:
+:{"created":"@1624624741.948781651","description":"Error received from peer ipv4:10.15.121.18:8470","file":"external/com_github_grpc_grpc/src/core/lib/surface/call.cc","file_line":1056,"grpc_message":"Socket closed","grpc_status":14}
+  (1) Unavailable: Unable to find a context_id matching the specified one (15799788068197073254). Perhaps the worker was restarted, or the context was GC'd?
+0 successful operations.
+0 derived errors ignored.
+20:42:14 Start training
+Epoch 131/200
+20:50:05 train - loss: 2.9206, acc: 0.5411
+20:50:50 valid - loss: 1.8950, acc: 0.6695, acc5: 0.8727
+Epoch 132/200
+20:54:31 train - loss: 2.9100, acc: 0.5436
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+20:54:43 valid - loss: 1.8699, acc: 0.6747, acc5: 0.8793
+Epoch 133/200
+20:58:22 train - loss: 2.9044, acc: 0.5448
+20:58:35 valid - loss: 1.8348, acc: 0.6632, acc5: 0.8736
+Epoch 134/200
+21:02:11 train - loss: 2.8969, acc: 0.5467
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+21:02:28 valid - loss: 1.8048, acc: 0.6739, acc5: 0.8782
+Epoch 135/200
+21:06:00 train - loss: 2.8876, acc: 0.5487
+21:06:14 valid - loss: 1.8109, acc: 0.6779, acc5: 0.8791
+Epoch 136/200
+21:09:50 train - loss: 2.8808, acc: 0.5503
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+21:10:06 valid - loss: 1.8417, acc: 0.6789, acc5: 0.8812
+Epoch 137/200
+21:13:38 train - loss: 2.8673, acc: 0.5529
+21:13:52 valid - loss: 1.8371, acc: 0.6773, acc5: 0.8803
+Epoch 138/200
+21:17:27 train - loss: 2.8616, acc: 0.5546
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+21:17:44 valid - loss: 1.7957, acc: 0.6735, acc5: 0.8774
+Epoch 139/200
+21:21:15 train - loss: 2.8492, acc: 0.5571
+21:21:28 valid - loss: 1.8993, acc: 0.6826, acc5: 0.8808
+Epoch 140/200
+21:25:04 train - loss: 2.8433, acc: 0.5585
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+21:25:20 valid - loss: 1.8474, acc: 0.6876, acc5: 0.8839
+Epoch 141/200
+21:28:52 train - loss: 2.8347, acc: 0.5605
+21:29:05 valid - loss: 1.7388, acc: 0.6867, acc5: 0.8855
+Epoch 142/200
+21:32:40 train - loss: 2.8245, acc: 0.5631
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+21:33:04 valid - loss: 1.7504, acc: 0.6904, acc5: 0.8876
+Epoch 143/200
+21:36:35 train - loss: 2.8167, acc: 0.5653
+21:36:48 valid - loss: 1.9030, acc: 0.6881, acc5: 0.8832
+Epoch 144/200
+21:40:23 train - loss: 2.8077, acc: 0.5668
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+21:40:39 valid - loss: 1.7451, acc: 0.6956, acc5: 0.8908
+Epoch 145/200
+21:44:11 train - loss: 2.7966, acc: 0.5693
+21:44:32 valid - loss: 1.7636, acc: 0.6977, acc5: 0.8925
+Epoch 146/200
+21:48:00 train - loss: 2.7860, acc: 0.5716
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+Traceback (most recent call last):
+  File "98.py", line 77, in <module>
+    save_freq=2)
+  File "/content/hanser/hanser/train/learner.py", line 227, in fit
+    cbks.after_eval(state)
+  File "/content/hanser/hanser/train/callbacks.py", line 105, in after_eval
+    c.after_eval(state)
+  File "/content/hanser/hanser/train/callbacks.py", line 188, in after_eval
+    log_metrics('eval', state['metrics'], learner.epoch, learner._writer, learner.metric_history,
+  File "/content/hanser/hanser/train/learner.py", line 164, in epoch
+    return int(self._state['train']['epoch'].numpy())
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/distribute/values.py", line 662, in numpy
+    return self.read_value().numpy()
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/framework/ops.py", line 1063, in numpy
+    maybe_arr = self._numpy()  # pylint: disable=protected-access
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/framework/ops.py", line 1031, in _numpy
+    six.raise_from(core._status_to_exception(e.code, e.message), None)  # pylint: disable=protected-access
+  File "<string>", line 3, in raise_from
+tensorflow.python.framework.errors_impl.UnavailableError: Connection reset by peer
+Additional GRPC error information from remote target /job:worker/replica:0/task:0:
+:{"created":"@1624629076.196708970","description":"Error received from peer ipv4:10.15.121.18:8470","file":"external/com_github_grpc_grpc/src/core/lib/surface/call.cc","file_line":1056,"grpc_message":"Connection reset by peer","grpc_status":14}
+2021-06-25 13:51:16.202848: W tensorflow/core/distributed_runtime/eager/remote_tensor_handle_data.cc:76] Unable to destroy remote tensor handles. If you are running a tf.function, it usually indicates some op in the graph gets an error: Connection reset by peer
+Additional GRPC error information from remote target /job:worker/replica:0/task:0:
+:{"created":"@1624629076.196708970","description":"Error received from peer ipv4:10.15.121.18:8470","file":"external/com_github_grpc_grpc/src/core/lib/surface/call.cc","file_line":1056,"grpc_message":"Connection reset by peer","grpc_status":14}
+Error in atexit._run_exitfuncs:
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/distribute/tpu_strategy.py", line 540, in async_wait
+    context.async_wait()
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/eager/context.py", line 2319, in async_wait
+    context().sync_executors()
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/eager/context.py", line 658, in sync_executors
+    pywrap_tfe.TFE_ContextSyncExecutors(self._context_handle)
+tensorflow.python.framework.errors_impl.UnavailableError: 2 root error(s) found.
+  (0) Unavailable: Connection reset by peer
+Additional GRPC error information from remote target /job:worker/replica:0/task:0:
+:{"created":"@1624629076.196708970","description":"Error received from peer ipv4:10.15.121.18:8470","file":"external/com_github_grpc_grpc/src/core/lib/surface/call.cc","file_line":1056,"grpc_message":"Connection reset by peer","grpc_status":14}
+  (1) Unavailable: Unable to find a context_id matching the specified one (16622798741786635649). Perhaps the worker was restarted, or the context was GC'd?
+0 successful operations.
+0 derived errors ignored.
+21:53:22 Start training
+Epoch 147/200
+22:00:29 train - loss: 2.7738, acc: 0.5744
+22:01:19 valid - loss: 1.7697, acc: 0.6992, acc5: 0.8930
+Epoch 148/200
+22:05:01 train - loss: 2.7670, acc: 0.5759
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+22:05:14 valid - loss: 1.8103, acc: 0.7008, acc5: 0.8922
+Epoch 149/200
+22:08:55 train - loss: 2.7582, acc: 0.5778
+22:09:06 valid - loss: 1.7704, acc: 0.7060, acc5: 0.8961
+Epoch 150/200
+22:12:45 train - loss: 2.7469, acc: 0.5805
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+22:12:59 valid - loss: 1.7217, acc: 0.7083, acc5: 0.8964
+Epoch 151/200
+22:16:36 train - loss: 2.7347, acc: 0.5831
+22:16:49 valid - loss: 1.8458, acc: 0.6979, acc5: 0.8896
+Epoch 152/200
+22:20:25 train - loss: 2.7243, acc: 0.5859
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+22:20:42 valid - loss: 1.7728, acc: 0.7111, acc5: 0.8982
+Epoch 153/200
+22:24:14 train - loss: 2.7137, acc: 0.5882
+22:24:35 valid - loss: 1.7060, acc: 0.7129, acc5: 0.8990
+Epoch 154/200
+22:28:06 train - loss: 2.7052, acc: 0.5905
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+Traceback (most recent call last):
+  File "98.py", line 77, in <module>
+    save_freq=2)
+  File "/content/hanser/hanser/train/learner.py", line 227, in fit
+    cbks.after_eval(state)
+  File "/content/hanser/hanser/train/callbacks.py", line 105, in after_eval
+    c.after_eval(state)
+  File "/content/hanser/hanser/train/callbacks.py", line 188, in after_eval
+    log_metrics('eval', state['metrics'], learner.epoch, learner._writer, learner.metric_history,
+  File "/content/hanser/hanser/train/learner.py", line 164, in epoch
+    return int(self._state['train']['epoch'].numpy())
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/distribute/values.py", line 662, in numpy
+    return self.read_value().numpy()
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/framework/ops.py", line 1063, in numpy
+    maybe_arr = self._numpy()  # pylint: disable=protected-access
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/framework/ops.py", line 1031, in _numpy
+    six.raise_from(core._status_to_exception(e.code, e.message), None)  # pylint: disable=protected-access
+  File "<string>", line 3, in raise_from
+tensorflow.python.framework.errors_impl.UnavailableError: Socket closed
+2021-06-25 14:28:46.037977: W tensorflow/core/distributed_runtime/eager/remote_tensor_handle_data.cc:76] Unable to destroy remote tensor handles. If you are running a tf.function, it usually indicates some op in the graph gets an error: Socket closed
+Error in atexit._run_exitfuncs:
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/distribute/tpu_strategy.py", line 540, in async_wait
+    context.async_wait()
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/eager/context.py", line 2319, in async_wait
+    context().sync_executors()
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/eager/context.py", line 658, in sync_executors
+    pywrap_tfe.TFE_ContextSyncExecutors(self._context_handle)
+tensorflow.python.framework.errors_impl.UnavailableError: 2 root error(s) found.
+  (0) Unavailable: Socket closed
+  (1) Unavailable: Unable to find a context_id matching the specified one (15607821461598137710). Perhaps the worker was restarted, or the context was GC'd?
+0 successful operations.
+0 derived errors ignored.
+22:30:57 Start training
+Epoch 155/200
+22:38:26 train - loss: 2.6924, acc: 0.5928
+22:39:12 valid - loss: 1.6774, acc: 0.7180, acc5: 0.9125
+Epoch 156/200
+22:42:54 train - loss: 2.6812, acc: 0.5959
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+22:43:06 valid - loss: 1.7369, acc: 0.7212, acc5: 0.9117
+Epoch 157/200
+22:46:47 train - loss: 2.6695, acc: 0.5984
+22:47:00 valid - loss: 1.6881, acc: 0.7188, acc5: 0.9102
+Epoch 158/200
+22:50:37 train - loss: 2.6595, acc: 0.6013
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+22:50:53 valid - loss: 1.7439, acc: 0.7206, acc5: 0.9121
+Epoch 159/200
+22:54:27 train - loss: 2.6468, acc: 0.6039
+22:54:40 valid - loss: 1.7473, acc: 0.7251, acc5: 0.9137
+Epoch 160/200
+22:58:17 train - loss: 2.6365, acc: 0.6058
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+22:58:33 valid - loss: 1.7261, acc: 0.7281, acc5: 0.9171
+Epoch 161/200
+23:02:06 train - loss: 2.6231, acc: 0.6096
+23:02:20 valid - loss: 1.6595, acc: 0.7308, acc5: 0.9163
+Epoch 162/200
+23:05:56 train - loss: 2.6127, acc: 0.6119
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+23:06:13 valid - loss: 1.5977, acc: 0.7320, acc5: 0.9182
+Epoch 163/200
+23:09:46 train - loss: 2.5998, acc: 0.6150
+23:09:59 valid - loss: 1.7304, acc: 0.7336, acc5: 0.9192
+Epoch 164/200
+23:13:35 train - loss: 2.5864, acc: 0.6176
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+23:13:52 valid - loss: 1.6313, acc: 0.7393, acc5: 0.9219
+Epoch 165/200
+23:17:25 train - loss: 2.5738, acc: 0.6203
+23:17:38 valid - loss: 1.6646, acc: 0.7388, acc5: 0.9201
+Epoch 166/200
+23:21:14 train - loss: 2.5630, acc: 0.6238
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+23:21:31 valid - loss: 1.6000, acc: 0.7400, acc5: 0.9215
+Epoch 167/200
+23:25:03 train - loss: 2.5486, acc: 0.6268
+23:25:16 valid - loss: 1.6366, acc: 0.7444, acc5: 0.9247
+Epoch 168/200
+23:28:52 train - loss: 2.5373, acc: 0.6299
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+23:29:08 valid - loss: 1.6637, acc: 0.7414, acc5: 0.9235
+Epoch 169/200
+23:32:42 train - loss: 2.5222, acc: 0.6330
+23:32:55 valid - loss: 1.6661, acc: 0.7413, acc5: 0.9229
+Epoch 170/200
+23:36:30 train - loss: 2.5113, acc: 0.6356
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+23:36:47 valid - loss: 1.5716, acc: 0.7495, acc5: 0.9263
+Epoch 171/200
+23:40:20 train - loss: 2.4977, acc: 0.6391
+23:40:33 valid - loss: 1.5555, acc: 0.7533, acc5: 0.9271
+Epoch 172/200
+23:44:09 train - loss: 2.4817, acc: 0.6422
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+23:44:25 valid - loss: 1.6392, acc: 0.7530, acc5: 0.9282
+Epoch 173/200
+23:47:58 train - loss: 2.4699, acc: 0.6456
+23:48:11 valid - loss: 1.6646, acc: 0.7529, acc5: 0.9286
+Epoch 174/200
+23:51:47 train - loss: 2.4568, acc: 0.6485
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+23:52:03 valid - loss: 1.5711, acc: 0.7590, acc5: 0.9323
+Epoch 175/200
+23:55:37 train - loss: 2.4421, acc: 0.6524
+23:55:50 valid - loss: 1.5986, acc: 0.7591, acc5: 0.9309
+Epoch 176/200
+23:59:26 train - loss: 2.4261, acc: 0.6561
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+23:59:42 valid - loss: 1.6216, acc: 0.7605, acc5: 0.9319
+Epoch 177/200
+00:03:15 train - loss: 2.4135, acc: 0.6597
+00:03:36 valid - loss: 1.6162, acc: 0.7641, acc5: 0.9327
+Epoch 178/200
+00:07:07 train - loss: 2.3980, acc: 0.6629
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+00:07:26 valid - loss: 1.5726, acc: 0.7653, acc5: 0.9340
+Epoch 179/200
+00:10:57 train - loss: 2.3881, acc: 0.6657
+00:11:18 valid - loss: 1.5988, acc: 0.7685, acc5: 0.9349
+Epoch 180/200
+00:14:46 train - loss: 2.3730, acc: 0.6691
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+00:15:02 valid - loss: 1.5940, acc: 0.7671, acc5: 0.9368
+Epoch 181/200
+00:18:35 train - loss: 2.3575, acc: 0.6727
+00:18:48 valid - loss: 1.5447, acc: 0.7697, acc5: 0.9378
+Epoch 182/200
+00:22:24 train - loss: 2.3443, acc: 0.6763
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+00:22:40 valid - loss: 1.5964, acc: 0.7718, acc5: 0.9379
+Epoch 183/200
+00:26:13 train - loss: 2.3296, acc: 0.6806
+00:26:26 valid - loss: 1.5747, acc: 0.7754, acc5: 0.9407
+Epoch 184/200
+00:30:02 train - loss: 2.3153, acc: 0.6830
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+00:30:18 valid - loss: 1.5858, acc: 0.7756, acc5: 0.9392
+Epoch 185/200
+00:33:52 train - loss: 2.3026, acc: 0.6864
+00:34:05 valid - loss: 1.5580, acc: 0.7773, acc5: 0.9409
+Epoch 186/200
+00:37:41 train - loss: 2.2922, acc: 0.6894
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+00:37:58 valid - loss: 1.5580, acc: 0.7788, acc5: 0.9407
+Epoch 187/200
+00:41:30 train - loss: 2.2773, acc: 0.6930
+00:41:51 valid - loss: 1.5631, acc: 0.7788, acc5: 0.9416
+Epoch 188/200
+00:45:19 train - loss: 2.2657, acc: 0.6960
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+Traceback (most recent call last):
+  File "98.py", line 77, in <module>
+    save_freq=2)
+  File "/content/hanser/hanser/train/learner.py", line 227, in fit
+2021-06-25 16:46:05.018148: W tensorflow/core/distributed_runtime/eager/remote_tensor_handle_data.cc:76] Unable to destroy remote tensor handles. If you are running a tf.function, it usually indicates some op in the graph gets an error: Socket closed
+Additional GRPC error information from remote target /job:worker/replica:0/task:0:
+:{"created":"@1624639565.013528451","description":"Error received from peer ipv4:10.15.121.18:8470","file":"external/com_github_grpc_grpc/src/core/lib/surface/call.cc","file_line":1056,"grpc_message":"Socket closed","grpc_status":14}
+    cbks.after_eval(state)
+  File "/content/hanser/hanser/train/callbacks.py", line 105, in after_eval
+    c.after_eval(state)
+  File "/content/hanser/hanser/train/callbacks.py", line 188, in after_eval
+    log_metrics('eval', state['metrics'], learner.epoch, learner._writer, learner.metric_history,
+  File "/content/hanser/hanser/train/learner.py", line 164, in epoch
+    return int(self._state['train']['epoch'].numpy())
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/distribute/values.py", line 662, in numpy
+    return self.read_value().numpy()
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/framework/ops.py", line 1063, in numpy
+    maybe_arr = self._numpy()  # pylint: disable=protected-access
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/framework/ops.py", line 1031, in _numpy
+    six.raise_from(core._status_to_exception(e.code, e.message), None)  # pylint: disable=protected-access
+  File "<string>", line 3, in raise_from
+tensorflow.python.framework.errors_impl.UnavailableError: Socket closed
+Additional GRPC error information from remote target /job:worker/replica:0/task:0:
+:{"created":"@1624639565.013528451","description":"Error received from peer ipv4:10.15.121.18:8470","file":"external/com_github_grpc_grpc/src/core/lib/surface/call.cc","file_line":1056,"grpc_message":"Socket closed","grpc_status":14}
+Error in atexit._run_exitfuncs:
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/distribute/tpu_strategy.py", line 540, in async_wait
+    context.async_wait()
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/eager/context.py", line 2319, in async_wait
+    context().sync_executors()
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/eager/context.py", line 658, in sync_executors
+    pywrap_tfe.TFE_ContextSyncExecutors(self._context_handle)
+tensorflow.python.framework.errors_impl.UnavailableError: 2 root error(s) found.
+  (0) Unavailable: Socket closed
+Additional GRPC error information from remote target /job:worker/replica:0/task:0:
+:{"created":"@1624639565.013528451","description":"Error received from peer ipv4:10.15.121.18:8470","file":"external/com_github_grpc_grpc/src/core/lib/surface/call.cc","file_line":1056,"grpc_message":"Socket closed","grpc_status":14}
+  (1) Unavailable: Unable to find a context_id matching the specified one (10617228325896979937). Perhaps the worker was restarted, or the context was GC'd?
+0 successful operations.
+0 derived errors ignored.
+00:48:31 Start training
+Epoch 189/200
+00:54:46 train - loss: 2.2561, acc: 0.6985
+00:55:37 valid - loss: 1.5506, acc: 0.7839, acc5: 0.9377
+Epoch 190/200
+00:59:17 train - loss: 2.2460, acc: 0.7010
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+00:59:30 valid - loss: 1.5451, acc: 0.7845, acc5: 0.9381
+Epoch 191/200
+01:03:09 train - loss: 2.2352, acc: 0.7036
+01:03:22 valid - loss: 1.5483, acc: 0.7870, acc5: 0.9389
+Epoch 192/200
+01:06:58 train - loss: 2.2292, acc: 0.7049
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+01:07:14 valid - loss: 1.5453, acc: 0.7874, acc5: 0.9394
+Epoch 193/200
+01:10:46 train - loss: 2.2182, acc: 0.7076
+01:11:09 valid - loss: 1.5332, acc: 0.7875, acc5: 0.9403
+Epoch 194/200
+01:14:39 train - loss: 2.2149, acc: 0.7090
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+01:14:56 valid - loss: 1.5379, acc: 0.7868, acc5: 0.9394
+Epoch 195/200
+01:18:27 train - loss: 2.2076, acc: 0.7107
+01:18:41 valid - loss: 1.5447, acc: 0.7886, acc5: 0.9404
+Epoch 196/200
+01:22:16 train - loss: 2.2032, acc: 0.7117
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+Traceback (most recent call last):
+  File "98.py", line 77, in <module>
+    save_freq=2)
+  File "/content/hanser/hanser/train/learner.py", line 227, in fit
+    cbks.after_eval(state)
+  File "/content/hanser/hanser/train/callbacks.py", line 105, in after_eval
+    c.after_eval(state)
+  File "/content/hanser/hanser/train/callbacks.py", line 188, in after_eval
+    log_metrics('eval', state['metrics'], learner.epoch, learner._writer, learner.metric_history,
+  File "/content/hanser/hanser/train/learner.py", line 164, in epoch
+    return int(self._state['train']['epoch'].numpy())
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/distribute/values.py", line 662, in numpy
+    return self.read_value().numpy()
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/framework/ops.py", line 1063, in numpy
+    maybe_arr = self._numpy()  # pylint: disable=protected-access
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/framework/ops.py", line 1031, in _numpy
+    six.raise_from(core._status_to_exception(e.code, e.message), None)  # pylint: disable=protected-access
+  File "<string>", line 3, in raise_from
+tensorflow.python.framework.errors_impl.UnavailableError: Socket closed
+Additional GRPC error information from remote target /job:worker/replica:0/task:0:
+:{"created":"@1624641793.666528084","description":"Error received from peer ipv4:10.15.121.18:8470","file":"external/com_github_grpc_grpc/src/core/lib/surface/call.cc","file_line":1056,"grpc_message":"Socket closed","grpc_status":14}
+2021-06-25 17:23:13.670346: W tensorflow/core/distributed_runtime/eager/remote_tensor_handle_data.cc:76] Unable to destroy remote tensor handles. If you are running a tf.function, it usually indicates some op in the graph gets an error: Socket closed
+Additional GRPC error information from remote target /job:worker/replica:0/task:0:
+:{"created":"@1624641793.666528084","description":"Error received from peer ipv4:10.15.121.18:8470","file":"external/com_github_grpc_grpc/src/core/lib/surface/call.cc","file_line":1056,"grpc_message":"Socket closed","grpc_status":14}
+Error in atexit._run_exitfuncs:
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/distribute/tpu_strategy.py", line 540, in async_wait
+    context.async_wait()
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/eager/context.py", line 2319, in async_wait
+    context().sync_executors()
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/eager/context.py", line 658, in sync_executors
+    pywrap_tfe.TFE_ContextSyncExecutors(self._context_handle)
+tensorflow.python.framework.errors_impl.UnavailableError: 2 root error(s) found.
+  (0) Unavailable: Socket closed
+Additional GRPC error information from remote target /job:worker/replica:0/task:0:
+:{"created":"@1624641793.666528084","description":"Error received from peer ipv4:10.15.121.18:8470","file":"external/com_github_grpc_grpc/src/core/lib/surface/call.cc","file_line":1056,"grpc_message":"Socket closed","grpc_status":14}
+  (1) Unavailable: Unable to find a context_id matching the specified one (110947302077622564). Perhaps the worker was restarted, or the context was GC'd?
+0 successful operations.
+0 derived errors ignored.
+01:25:26 Start training
+Epoch 197/200
+01:36:13 train - loss: 2.1981, acc: 0.7133
+01:36:58 valid - loss: 1.5481, acc: 0.7891, acc5: 0.9469
+Epoch 198/200
+01:40:39 train - loss: 2.1997, acc: 0.7127
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+01:40:52 valid - loss: 1.5459, acc: 0.7899, acc5: 0.9467
+Epoch 199/200
+01:44:33 train - loss: 2.1974, acc: 0.7135
+01:44:44 valid - loss: 1.5478, acc: 0.7894, acc5: 0.9467
+Epoch 200/200
+01:48:23 train - loss: 2.1944, acc: 0.7139
+Save learner to /content/drive/MyDrive/models/ImageNet-98/ckpt
+01:48:36 valid - loss: 1.5478, acc: 0.7896, acc5: 0.9467
