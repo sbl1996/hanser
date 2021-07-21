@@ -463,7 +463,8 @@ class DropBlock(Layer):
             experimental_autocast=False,
         )
 
-        self._max_pool = MaxPool2D((block_size, block_size), strides=(1, 1), padding='same')
+        self._max_pool = MaxPool2D(
+            (block_size, block_size), strides=(1, 1), padding='same', dtype=tf.float32)
 
     def call(self, x, training=None):
         if training:
