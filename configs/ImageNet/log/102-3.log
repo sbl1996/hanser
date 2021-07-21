@@ -1,0 +1,730 @@
+23:24:59 Start training
+Epoch 1/200
+23:32:29 train - loss: 6.5921, acc: 0.0111
+23:33:12 valid - loss: 5.5571, acc: 0.0515, acc5: 0.1631
+Epoch 2/200
+23:37:10 train - loss: 5.5258, acc: 0.0794
+23:37:22 valid - loss: 4.1309, acc: 0.2026, acc5: 0.4467
+Epoch 3/200
+23:41:19 train - loss: 4.8177, acc: 0.1704
+23:41:30 valid - loss: 3.5673, acc: 0.2936, acc5: 0.5592
+Epoch 4/200
+23:45:25 train - loss: 4.4409, acc: 0.2328
+23:45:39 valid - loss: 3.1986, acc: 0.3763, acc5: 0.6501
+Epoch 5/200
+23:49:31 train - loss: 4.1612, acc: 0.2827
+23:49:46 valid - loss: 2.9901, acc: 0.4079, acc5: 0.6827
+Epoch 6/200
+23:53:39 train - loss: 3.9745, acc: 0.3179
+23:53:56 valid - loss: 2.8206, acc: 0.4542, acc5: 0.7255
+Epoch 7/200
+00:22:12 train - loss: 3.8346, acc: 0.3460
+00:22:55 valid - loss: 2.7159, acc: 0.4824, acc5: 0.7473
+Epoch 8/200
+00:26:55 train - loss: 3.7314, acc: 0.3659
+00:27:07 valid - loss: 2.6201, acc: 0.4994, acc5: 0.7632
+Epoch 9/200
+00:31:06 train - loss: 3.6582, acc: 0.3810
+00:31:18 valid - loss: 2.4243, acc: 0.5394, acc5: 0.7954
+Epoch 10/200
+00:35:14 train - loss: 3.5995, acc: 0.3932
+00:35:29 valid - loss: 2.4941, acc: 0.5301, acc5: 0.7924
+Epoch 11/200
+00:39:23 train - loss: 3.5523, acc: 0.4029
+00:39:37 valid - loss: 2.4414, acc: 0.5281, acc5: 0.7864
+Epoch 12/200
+00:43:30 train - loss: 3.5117, acc: 0.4115
+00:43:47 valid - loss: 2.3155, acc: 0.5583, acc5: 0.8119
+Epoch 13/200
+00:47:37 train - loss: 3.4809, acc: 0.4180
+00:47:54 valid - loss: 2.3430, acc: 0.5609, acc5: 0.8110
+Epoch 14/200
+00:51:45 train - loss: 3.4502, acc: 0.4244
+00:52:01 valid - loss: 2.2747, acc: 0.5760, acc5: 0.8234
+Epoch 15/200
+00:55:56 train - loss: 3.4250, acc: 0.4290
+00:56:11 valid - loss: 2.4151, acc: 0.5494, acc5: 0.8030
+Epoch 16/200
+01:00:04 train - loss: 3.4011, acc: 0.4345
+01:00:22 valid - loss: 2.3060, acc: 0.5708, acc5: 0.8184
+Epoch 17/200
+01:40:03 train - loss: 3.3805, acc: 0.4385
+01:40:50 valid - loss: 2.2306, acc: 0.5870, acc5: 0.8185
+Epoch 18/200
+01:44:49 train - loss: 3.3636, acc: 0.4424
+01:45:02 valid - loss: 2.1916, acc: 0.5969, acc5: 0.8276
+Epoch 19/200
+01:49:00 train - loss: 3.3487, acc: 0.4459
+01:49:12 valid - loss: 2.2447, acc: 0.5929, acc5: 0.8225
+Epoch 20/200
+01:53:09 train - loss: 3.3321, acc: 0.4489
+01:53:24 valid - loss: 2.3009, acc: 0.5986, acc5: 0.8262
+Epoch 21/200
+01:57:17 train - loss: 3.3217, acc: 0.4510
+01:57:32 valid - loss: 2.3047, acc: 0.5966, acc5: 0.8220
+Epoch 22/200
+02:01:24 train - loss: 3.3069, acc: 0.4539
+02:01:41 valid - loss: 2.1573, acc: 0.6055, acc5: 0.8297
+Epoch 23/200
+02:05:36 train - loss: 3.2981, acc: 0.4560
+02:05:50 valid - loss: 2.2281, acc: 0.6109, acc5: 0.8351
+Epoch 24/200
+02:09:43 train - loss: 3.2862, acc: 0.4589
+02:10:01 valid - loss: 2.3307, acc: 0.5900, acc5: 0.8201
+Epoch 25/200
+02:13:51 train - loss: 3.2766, acc: 0.4607
+02:14:05 valid - loss: 2.2626, acc: 0.6042, acc5: 0.8310
+Epoch 26/200
+02:17:58 train - loss: 3.2665, acc: 0.4627
+02:18:15 valid - loss: 2.1473, acc: 0.6079, acc5: 0.8354
+Epoch 27/200
+02:22:05 train - loss: 3.2605, acc: 0.4639
+02:22:19 valid - loss: 2.2844, acc: 0.6020, acc5: 0.8263
+Epoch 28/200
+02:26:12 train - loss: 3.2487, acc: 0.4672
+02:26:30 valid - loss: 2.1732, acc: 0.6095, acc5: 0.8341
+Epoch 29/200
+02:30:20 train - loss: 3.2414, acc: 0.4675
+02:30:34 valid - loss: 2.2226, acc: 0.6102, acc5: 0.8348
+Epoch 30/200
+02:34:27 train - loss: 3.2343, acc: 0.4694
+02:34:45 valid - loss: 2.2251, acc: 0.5984, acc5: 0.8247
+Epoch 31/200
+02:38:34 train - loss: 3.2278, acc: 0.4705
+02:38:48 valid - loss: 2.2283, acc: 0.6017, acc5: 0.8244
+Epoch 32/200
+02:42:41 train - loss: 3.2205, acc: 0.4729
+02:42:58 valid - loss: 2.2248, acc: 0.6191, acc5: 0.8402
+Epoch 33/200
+02:46:48 train - loss: 3.2174, acc: 0.4731
+02:47:03 valid - loss: 2.1385, acc: 0.6136, acc5: 0.8371
+Epoch 34/200
+02:50:55 train - loss: 3.2087, acc: 0.4746
+02:51:12 valid - loss: 2.2818, acc: 0.6026, acc5: 0.8290
+Epoch 35/200
+02:55:01 train - loss: 3.2021, acc: 0.4762
+02:55:16 valid - loss: 2.3848, acc: 0.5816, acc5: 0.8108
+Epoch 36/200
+02:59:08 train - loss: 3.1968, acc: 0.4774
+02:59:25 valid - loss: 2.2366, acc: 0.6212, acc5: 0.8406
+Epoch 37/200
+03:03:15 train - loss: 3.1910, acc: 0.4790
+03:03:30 valid - loss: 2.2147, acc: 0.6266, acc5: 0.8458
+Epoch 38/200
+03:07:22 train - loss: 3.1892, acc: 0.4792
+03:07:39 valid - loss: 2.1785, acc: 0.6230, acc5: 0.8436
+Epoch 39/200
+03:11:29 train - loss: 3.1807, acc: 0.4815
+03:11:44 valid - loss: 2.2880, acc: 0.6090, acc5: 0.8328
+Epoch 40/200
+03:15:37 train - loss: 3.1752, acc: 0.4823
+03:15:53 valid - loss: 2.1900, acc: 0.6208, acc5: 0.8400
+Epoch 41/200
+03:19:43 train - loss: 3.1688, acc: 0.4834
+03:19:58 valid - loss: 2.1589, acc: 0.6154, acc5: 0.8385
+Epoch 42/200
+03:23:50 train - loss: 3.1651, acc: 0.4840
+03:24:07 valid - loss: 2.1519, acc: 0.6245, acc5: 0.8437
+Epoch 43/200
+03:27:57 train - loss: 3.1606, acc: 0.4857
+03:28:11 valid - loss: 2.2865, acc: 0.6110, acc5: 0.8330
+Epoch 44/200
+03:32:03 train - loss: 3.1561, acc: 0.4866
+03:32:21 valid - loss: 2.1722, acc: 0.6253, acc5: 0.8458
+Epoch 45/200
+03:36:10 train - loss: 3.1484, acc: 0.4881
+03:36:24 valid - loss: 2.1908, acc: 0.6195, acc5: 0.8420
+Epoch 46/200
+03:40:17 train - loss: 3.1446, acc: 0.4887
+03:40:34 valid - loss: 2.1557, acc: 0.6263, acc5: 0.8452
+Epoch 47/200
+03:44:23 train - loss: 3.1402, acc: 0.4899
+03:44:38 valid - loss: 2.1398, acc: 0.6401, acc5: 0.8535
+Epoch 48/200
+03:48:28 train - loss: 3.1377, acc: 0.4903
+03:48:46 valid - loss: 2.1682, acc: 0.6307, acc5: 0.8495
+Epoch 49/200
+03:52:34 train - loss: 3.1305, acc: 0.4920
+03:52:49 valid - loss: 2.1582, acc: 0.6332, acc5: 0.8488
+Epoch 50/200
+03:56:40 train - loss: 3.1254, acc: 0.4932
+03:56:57 valid - loss: 2.3457, acc: 0.6111, acc5: 0.8321
+Epoch 51/200
+04:00:47 train - loss: 3.1205, acc: 0.4940
+04:01:01 valid - loss: 2.1982, acc: 0.6251, acc5: 0.8434
+Epoch 52/200
+04:04:53 train - loss: 3.1167, acc: 0.4948
+04:05:10 valid - loss: 2.2051, acc: 0.6163, acc5: 0.8380
+Epoch 53/200
+04:08:59 train - loss: 3.1120, acc: 0.4964
+04:09:15 valid - loss: 2.1470, acc: 0.6326, acc5: 0.8491
+Epoch 54/200
+04:13:05 train - loss: 3.1063, acc: 0.4975
+04:13:23 valid - loss: 2.0685, acc: 0.6386, acc5: 0.8515
+Epoch 55/200
+04:17:12 train - loss: 3.1052, acc: 0.4973
+04:17:26 valid - loss: 2.1278, acc: 0.6390, acc5: 0.8522
+Epoch 56/200
+04:21:18 train - loss: 3.0987, acc: 0.4985
+04:21:35 valid - loss: 2.1053, acc: 0.6394, acc5: 0.8542
+Epoch 57/200
+04:25:24 train - loss: 3.0951, acc: 0.4993
+04:25:39 valid - loss: 2.1297, acc: 0.6435, acc5: 0.8549
+Epoch 58/200
+04:29:30 train - loss: 3.0901, acc: 0.5004
+04:29:47 valid - loss: 2.1522, acc: 0.6350, acc5: 0.8471
+Epoch 59/200
+04:33:37 train - loss: 3.0873, acc: 0.5010
+04:33:51 valid - loss: 2.1817, acc: 0.6315, acc5: 0.8500
+Epoch 60/200
+04:37:43 train - loss: 3.0836, acc: 0.5016
+04:38:00 valid - loss: 2.1746, acc: 0.6349, acc5: 0.8522
+Epoch 61/200
+04:41:49 train - loss: 3.0769, acc: 0.5034
+04:42:04 valid - loss: 2.1272, acc: 0.6480, acc5: 0.8571
+Epoch 62/200
+04:45:56 train - loss: 3.0767, acc: 0.5036
+04:46:13 valid - loss: 2.1732, acc: 0.6234, acc5: 0.8439
+Epoch 63/200
+04:50:02 train - loss: 3.0722, acc: 0.5042
+04:50:17 valid - loss: 2.1141, acc: 0.6426, acc5: 0.8552
+Epoch 64/200
+04:54:09 train - loss: 3.0660, acc: 0.5054
+04:54:26 valid - loss: 2.1507, acc: 0.6471, acc5: 0.8545
+Epoch 65/200
+04:58:16 train - loss: 3.0601, acc: 0.5072
+04:58:30 valid - loss: 2.0666, acc: 0.6381, acc5: 0.8526
+Epoch 66/200
+05:02:23 train - loss: 3.0570, acc: 0.5081
+05:02:40 valid - loss: 2.0916, acc: 0.6525, acc5: 0.8626
+Epoch 67/200
+05:06:29 train - loss: 3.0522, acc: 0.5086
+05:06:43 valid - loss: 2.1852, acc: 0.6397, acc5: 0.8530
+Epoch 68/200
+05:10:35 train - loss: 3.0512, acc: 0.5095
+05:10:53 valid - loss: 2.0776, acc: 0.6414, acc5: 0.8556
+09:57:14 Start training
+Epoch 69/200
+10:04:45 train - loss: 3.0452, acc: 0.5104
+10:05:24 valid - loss: 2.1188, acc: 0.6428, acc5: 0.8685
+Epoch 70/200
+10:09:25 train - loss: 3.0396, acc: 0.5116
+10:09:38 valid - loss: 2.0814, acc: 0.6493, acc5: 0.8702
+Epoch 71/200
+10:13:35 train - loss: 3.0376, acc: 0.5124
+10:13:46 valid - loss: 2.1638, acc: 0.6327, acc5: 0.8593
+Epoch 72/200
+10:17:42 train - loss: 3.0320, acc: 0.5127
+10:17:56 valid - loss: 2.0897, acc: 0.6468, acc5: 0.8704
+Epoch 73/200
+10:21:49 train - loss: 3.0286, acc: 0.5144
+10:22:03 valid - loss: 2.1488, acc: 0.6512, acc5: 0.8727
+Epoch 74/200
+10:25:55 train - loss: 3.0234, acc: 0.5154
+10:26:12 valid - loss: 2.0811, acc: 0.6550, acc5: 0.8747
+Epoch 75/200
+10:30:01 train - loss: 3.0180, acc: 0.5165
+10:30:15 valid - loss: 2.1530, acc: 0.6590, acc5: 0.8777
+Epoch 76/200
+10:34:06 train - loss: 3.0128, acc: 0.5177
+10:34:24 valid - loss: 1.9915, acc: 0.6529, acc5: 0.8725
+Epoch 77/200
+10:38:13 train - loss: 3.0106, acc: 0.5178
+10:38:27 valid - loss: 2.0438, acc: 0.6538, acc5: 0.8728
+Epoch 78/200
+10:42:18 train - loss: 3.0042, acc: 0.5195
+10:42:36 valid - loss: 2.1464, acc: 0.6617, acc5: 0.8771
+Epoch 79/200
+10:46:24 train - loss: 2.9992, acc: 0.5204
+10:46:39 valid - loss: 2.0702, acc: 0.6484, acc5: 0.8664
+Epoch 80/200
+10:50:30 train - loss: 2.9948, acc: 0.5220
+10:50:47 valid - loss: 2.1900, acc: 0.6469, acc5: 0.8680
+Epoch 81/200
+10:54:36 train - loss: 2.9902, acc: 0.5222
+10:54:51 valid - loss: 2.1252, acc: 0.6575, acc5: 0.8747
+Epoch 82/200
+10:58:42 train - loss: 2.9858, acc: 0.5236
+10:58:59 valid - loss: 1.9630, acc: 0.6671, acc5: 0.8827
+Epoch 83/200
+11:02:48 train - loss: 2.9843, acc: 0.5236
+11:03:02 valid - loss: 2.0546, acc: 0.6615, acc5: 0.8783
+Epoch 84/200
+11:06:53 train - loss: 2.9757, acc: 0.5255
+11:07:11 valid - loss: 2.1226, acc: 0.6448, acc5: 0.8676
+Epoch 85/200
+11:11:04 train - loss: 2.9718, acc: 0.5264
+11:11:18 valid - loss: 1.9813, acc: 0.6728, acc5: 0.8842
+Epoch 86/200
+11:15:10 train - loss: 2.9686, acc: 0.5271
+11:15:27 valid - loss: 2.0805, acc: 0.6637, acc5: 0.8790
+Epoch 87/200
+11:19:16 train - loss: 2.9621, acc: 0.5288
+11:19:30 valid - loss: 2.0675, acc: 0.6651, acc5: 0.8804
+Epoch 88/200
+11:23:21 train - loss: 2.9584, acc: 0.5298
+11:23:39 valid - loss: 2.0412, acc: 0.6701, acc5: 0.8848
+Epoch 89/200
+Traceback (most recent call last):
+  File "102.py", line 77, in <module>
+    save_freq=2)
+  File "/content/hanser/hanser/train/learner.py", line 218, in fit
+    self._run_epoch(self._train_it, steps_per_epoch, cbks, 'train')
+  File "/content/hanser/hanser/train/learner.py", line 347, in _run_epoch
+    state['metrics'][name] = metric.result().numpy()
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/framework/ops.py", line 1063, in numpy
+2021-06-27 03:31:01.009045: W tensorflow/core/distributed_runtime/eager/remote_tensor_handle_data.cc:76] Unable to destroy remote tensor handles. If you are running a tf.function, it usually indicates some op in the graph gets an error: Socket closed
+    maybe_arr = self._numpy()  # pylint: disable=protected-access
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/framework/ops.py", line 1031, in _numpy
+    six.raise_from(core._status_to_exception(e.code, e.message), None)  # pylint: disable=protected-access
+  File "<string>", line 3, in raise_from
+tensorflow.python.framework.errors_impl.UnavailableError: Socket closed
+Error in atexit._run_exitfuncs:
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/distribute/tpu_strategy.py", line 540, in async_wait
+    context.async_wait()
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/eager/context.py", line 2319, in async_wait
+    context().sync_executors()
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/eager/context.py", line 658, in sync_executors
+    pywrap_tfe.TFE_ContextSyncExecutors(self._context_handle)
+tensorflow.python.framework.errors_impl.UnavailableError: 2 root error(s) found.
+  (0) Unavailable: Socket closed
+  (1) Unavailable: Unable to find a context_id matching the specified one (8275926071964445677). Perhaps the worker was restarted, or the context was GC'd?
+0 successful operations.
+0 derived errors ignored.
+11:33:05 Start training
+Epoch 89/200
+11:40:39 train - loss: 2.9521, acc: 0.5311
+11:41:19 valid - loss: 1.9960, acc: 0.6703, acc5: 0.8821
+Epoch 90/200
+11:45:18 train - loss: 2.9485, acc: 0.5312
+11:45:30 valid - loss: 1.9669, acc: 0.6743, acc5: 0.8872
+Epoch 91/200
+11:49:26 train - loss: 2.9425, acc: 0.5326
+11:49:41 valid - loss: 2.0321, acc: 0.6732, acc5: 0.8853
+Epoch 92/200
+11:53:34 train - loss: 2.9395, acc: 0.5334
+11:53:51 valid - loss: 1.9845, acc: 0.6729, acc5: 0.8850
+Epoch 93/200
+11:57:40 train - loss: 2.9323, acc: 0.5354
+11:57:55 valid - loss: 1.9849, acc: 0.6725, acc5: 0.8858
+Epoch 94/200
+12:01:49 train - loss: 2.9294, acc: 0.5366
+12:02:05 valid - loss: 1.9708, acc: 0.6764, acc5: 0.8870
+Epoch 95/200
+12:05:55 train - loss: 2.9245, acc: 0.5371
+12:06:10 valid - loss: 1.9536, acc: 0.6794, acc5: 0.8889
+Epoch 96/200
+12:10:02 train - loss: 2.9155, acc: 0.5388
+12:10:19 valid - loss: 1.9081, acc: 0.6810, acc5: 0.8904
+Epoch 97/200
+12:14:09 train - loss: 2.9141, acc: 0.5391
+12:14:23 valid - loss: 1.9435, acc: 0.6784, acc5: 0.8875
+Epoch 98/200
+12:18:15 train - loss: 2.9077, acc: 0.5405
+12:18:33 valid - loss: 2.0672, acc: 0.6690, acc5: 0.8826
+Epoch 99/200
+Traceback (most recent call last):
+  File "102.py", line 77, in <module>
+    save_freq=2)
+  File "/content/hanser/hanser/train/learner.py", line 218, in fit
+    self._run_epoch(self._train_it, steps_per_epoch, cbks, 'train')
+  File "/content/hanser/hanser/train/learner.py", line 347, in _run_epoch
+    state['metrics'][name] = metric.result().numpy()
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/framework/ops.py", line 1063, in numpy
+    maybe_arr = self._numpy()  # pylint: disable=protected-access
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/framework/ops.py", line 1031, in _numpy
+    six.raise_from(core._status_to_exception(e.code, e.message), None)  # pylint: disable=protected-access
+  File "<string>", line 3, in raise_from
+tensorflow.python.framework.errors_impl.UnavailableError: Socket closed
+2021-06-27 04:21:48.312799: W tensorflow/core/distributed_runtime/eager/remote_tensor_handle_data.cc:76] Unable to destroy remote tensor handles. If you are running a tf.function, it usually indicates some op in the graph gets an error: Socket closed
+Error in atexit._run_exitfuncs:
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/distribute/tpu_strategy.py", line 540, in async_wait
+    context.async_wait()
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/eager/context.py", line 2319, in async_wait
+    context().sync_executors()
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/eager/context.py", line 658, in sync_executors
+    pywrap_tfe.TFE_ContextSyncExecutors(self._context_handle)
+tensorflow.python.framework.errors_impl.UnavailableError: 2 root error(s) found.
+  (0) Unavailable: Socket closed
+  (1) Unavailable: Unable to find a context_id matching the specified one (6967202611017797982). Perhaps the worker was restarted, or the context was GC'd?
+0 successful operations.
+0 derived errors ignored.
+12:23:48 Start training
+Epoch 99/200
+12:31:13 train - loss: 2.9047, acc: 0.5415
+12:31:53 valid - loss: 2.0182, acc: 0.6747, acc5: 0.8864
+Epoch 100/200
+12:35:53 train - loss: 2.8992, acc: 0.5425
+12:36:05 valid - loss: 2.0307, acc: 0.6737, acc5: 0.8851
+Epoch 101/200
+12:40:04 train - loss: 2.8904, acc: 0.5449
+12:40:16 valid - loss: 1.9094, acc: 0.6854, acc5: 0.8904
+Epoch 102/200
+12:44:14 train - loss: 2.8864, acc: 0.5453
+12:44:28 valid - loss: 1.9142, acc: 0.6891, acc5: 0.8940
+Epoch 103/200
+12:48:24 train - loss: 2.8798, acc: 0.5472
+12:48:38 valid - loss: 1.9389, acc: 0.6788, acc5: 0.8894
+Epoch 104/200
+12:52:32 train - loss: 2.8722, acc: 0.5483
+12:52:49 valid - loss: 1.9706, acc: 0.6881, acc5: 0.8934
+Epoch 105/200
+12:56:40 train - loss: 2.8698, acc: 0.5491
+12:56:54 valid - loss: 1.9723, acc: 0.6843, acc5: 0.8903
+Epoch 106/200
+13:00:49 train - loss: 2.8629, acc: 0.5509
+13:01:07 valid - loss: 2.0485, acc: 0.6863, acc5: 0.8926
+Epoch 107/200
+13:04:57 train - loss: 2.8584, acc: 0.5517
+13:05:12 valid - loss: 1.9269, acc: 0.6872, acc5: 0.8955
+Epoch 108/200
+13:09:05 train - loss: 2.8506, acc: 0.5537
+13:09:22 valid - loss: 1.8912, acc: 0.6912, acc5: 0.8929
+Epoch 109/200
+13:13:13 train - loss: 2.8464, acc: 0.5545
+13:13:28 valid - loss: 1.9643, acc: 0.6857, acc5: 0.8921
+Epoch 110/200
+13:17:21 train - loss: 2.8413, acc: 0.5552
+13:17:38 valid - loss: 1.9697, acc: 0.6922, acc5: 0.8942
+Epoch 111/200
+13:21:29 train - loss: 2.8345, acc: 0.5569
+13:21:43 valid - loss: 1.9141, acc: 0.6900, acc5: 0.8953
+Epoch 112/200
+13:25:37 train - loss: 2.8292, acc: 0.5579
+13:25:54 valid - loss: 1.9678, acc: 0.6971, acc5: 0.8983
+Epoch 113/200
+13:29:44 train - loss: 2.8224, acc: 0.5599
+13:29:59 valid - loss: 1.9649, acc: 0.6916, acc5: 0.8952
+Epoch 114/200
+13:33:52 train - loss: 2.8179, acc: 0.5603
+13:34:09 valid - loss: 1.9745, acc: 0.6947, acc5: 0.8970
+Epoch 115/200
+13:38:00 train - loss: 2.8103, acc: 0.5630
+13:38:14 valid - loss: 1.9560, acc: 0.6906, acc5: 0.8946
+Epoch 116/200
+13:42:07 train - loss: 2.8021, acc: 0.5648
+13:42:24 valid - loss: 1.9466, acc: 0.6936, acc5: 0.8953
+Epoch 117/200
+13:46:15 train - loss: 2.7962, acc: 0.5661
+13:46:29 valid - loss: 1.8486, acc: 0.7039, acc5: 0.9018
+Epoch 118/200
+13:50:23 train - loss: 2.7900, acc: 0.5672
+13:50:39 valid - loss: 1.9071, acc: 0.7023, acc5: 0.9021
+Epoch 119/200
+13:54:31 train - loss: 2.7845, acc: 0.5689
+13:54:45 valid - loss: 1.9250, acc: 0.7039, acc5: 0.9026
+Epoch 120/200
+13:58:38 train - loss: 2.7776, acc: 0.5697
+13:58:56 valid - loss: 1.9424, acc: 0.6986, acc5: 0.8981
+Epoch 121/200
+14:02:46 train - loss: 2.7733, acc: 0.5706
+14:03:00 valid - loss: 1.9137, acc: 0.7074, acc5: 0.9033
+Epoch 122/200
+14:06:54 train - loss: 2.7666, acc: 0.5731
+14:07:11 valid - loss: 1.8765, acc: 0.6972, acc5: 0.8989
+Epoch 123/200
+14:11:02 train - loss: 2.7584, acc: 0.5739
+14:11:16 valid - loss: 1.9264, acc: 0.7045, acc5: 0.9003
+Epoch 124/200
+14:15:10 train - loss: 2.7544, acc: 0.5752
+14:15:26 valid - loss: 1.9319, acc: 0.7022, acc5: 0.8996
+Epoch 125/200
+14:19:17 train - loss: 2.7468, acc: 0.5769
+14:19:31 valid - loss: 1.8370, acc: 0.7139, acc5: 0.9060
+Epoch 126/200
+14:23:25 train - loss: 2.7399, acc: 0.5784
+14:23:42 valid - loss: 1.8062, acc: 0.7151, acc5: 0.9094
+Epoch 127/200
+14:27:32 train - loss: 2.7308, acc: 0.5802
+14:27:47 valid - loss: 1.8222, acc: 0.7105, acc5: 0.9045
+Epoch 128/200
+14:31:40 train - loss: 2.7237, acc: 0.5824
+14:31:57 valid - loss: 1.8356, acc: 0.7171, acc5: 0.9082
+Epoch 129/200
+14:35:48 train - loss: 2.7157, acc: 0.5840
+14:36:02 valid - loss: 1.8336, acc: 0.7115, acc5: 0.9070
+Epoch 130/200
+14:39:55 train - loss: 2.7108, acc: 0.5849
+14:40:12 valid - loss: 1.8411, acc: 0.7158, acc5: 0.9090
+Epoch 131/200
+14:44:03 train - loss: 2.7038, acc: 0.5871
+14:44:17 valid - loss: 1.8902, acc: 0.7167, acc5: 0.9088
+Epoch 132/200
+14:48:10 train - loss: 2.6968, acc: 0.5883
+14:48:28 valid - loss: 1.8603, acc: 0.7198, acc5: 0.9098
+Epoch 133/200
+14:52:18 train - loss: 2.6887, acc: 0.5904
+14:52:33 valid - loss: 1.7907, acc: 0.7216, acc5: 0.9117
+Epoch 134/200
+14:56:26 train - loss: 2.6802, acc: 0.5925
+14:56:43 valid - loss: 1.8692, acc: 0.7192, acc5: 0.9080
+Epoch 135/200
+15:00:34 train - loss: 2.6739, acc: 0.5936
+15:00:48 valid - loss: 1.9302, acc: 0.7223, acc5: 0.9108
+Epoch 136/200
+15:04:42 train - loss: 2.6660, acc: 0.5948
+15:04:59 valid - loss: 1.8127, acc: 0.7263, acc5: 0.9140
+Epoch 137/200
+15:08:49 train - loss: 2.6594, acc: 0.5968
+15:09:04 valid - loss: 1.8826, acc: 0.7250, acc5: 0.9115
+Epoch 138/200
+15:12:57 train - loss: 2.6477, acc: 0.5994
+15:13:14 valid - loss: 1.8238, acc: 0.7298, acc5: 0.9164
+Epoch 139/200
+15:17:07 train - loss: 2.6428, acc: 0.6007
+15:17:22 valid - loss: 1.7818, acc: 0.7290, acc5: 0.9157
+Epoch 140/200
+15:21:14 train - loss: 2.6346, acc: 0.6027
+15:21:31 valid - loss: 1.8675, acc: 0.7327, acc5: 0.9184
+Epoch 141/200
+15:25:21 train - loss: 2.6272, acc: 0.6044
+15:25:36 valid - loss: 1.8545, acc: 0.7251, acc5: 0.9136
+Epoch 142/200
+15:29:28 train - loss: 2.6179, acc: 0.6067
+15:29:45 valid - loss: 1.7609, acc: 0.7329, acc5: 0.9168
+Epoch 143/200
+15:33:36 train - loss: 2.6093, acc: 0.6087
+15:33:50 valid - loss: 1.8061, acc: 0.7358, acc5: 0.9187
+Epoch 144/200
+15:37:43 train - loss: 2.6038, acc: 0.6102
+15:38:00 valid - loss: 1.8135, acc: 0.7370, acc5: 0.9190
+Epoch 145/200
+Traceback (most recent call last):
+  File "102.py", line 77, in <module>
+    save_freq=2)
+  File "/content/hanser/hanser/train/learner.py", line 218, in fit
+    self._run_epoch(self._train_it, steps_per_epoch, cbks, 'train')
+  File "/content/hanser/hanser/train/learner.py", line 347, in _run_epoch
+    state['metrics'][name] = metric.result().numpy()
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/framework/ops.py", line 1063, in numpy
+    maybe_arr = self._numpy()  # pylint: disable=protected-access
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/framework/ops.py", line 1031, in _numpy
+2021-06-27 07:38:23.984448: W tensorflow/core/distributed_runtime/eager/remote_tensor_handle_data.cc:76] Unable to destroy remote tensor handles. If you are running a tf.function, it usually indicates some op in the graph gets an error: Socket closed
+Additional GRPC error information from remote target /job:worker/replica:0/task:0:
+:{"created":"@1624779503.977890877","description":"Error received from peer ipv4:10.0.137.234:8470","file":"external/com_github_grpc_grpc/src/core/lib/surface/call.cc","file_line":1056,"grpc_message":"Socket closed","grpc_status":14}
+    six.raise_from(core._status_to_exception(e.code, e.message), None)  # pylint: disable=protected-access
+  File "<string>", line 3, in raise_from
+tensorflow.python.framework.errors_impl.UnavailableError: Socket closed
+Additional GRPC error information from remote target /job:worker/replica:0/task:0:
+:{"created":"@1624779503.977890877","description":"Error received from peer ipv4:10.0.137.234:8470","file":"external/com_github_grpc_grpc/src/core/lib/surface/call.cc","file_line":1056,"grpc_message":"Socket closed","grpc_status":14}
+Error in atexit._run_exitfuncs:
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/distribute/tpu_strategy.py", line 540, in async_wait
+    context.async_wait()
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/eager/context.py", line 2319, in async_wait
+    context().sync_executors()
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/eager/context.py", line 658, in sync_executors
+    pywrap_tfe.TFE_ContextSyncExecutors(self._context_handle)
+tensorflow.python.framework.errors_impl.UnavailableError: 2 root error(s) found.
+  (0) Unavailable: Socket closed
+Additional GRPC error information from remote target /job:worker/replica:0/task:0:
+:{"created":"@1624779503.977890877","description":"Error received from peer ipv4:10.0.137.234:8470","file":"external/com_github_grpc_grpc/src/core/lib/surface/call.cc","file_line":1056,"grpc_message":"Socket closed","grpc_status":14}
+  (1) Unavailable: Unable to find a context_id matching the specified one (5031300432425555387). Perhaps the worker was restarted, or the context was GC'd?
+0 successful operations.
+0 derived errors ignored.
+15:40:34 Start training
+Epoch 145/200
+15:47:32 train - loss: 2.5930, acc: 0.6126
+15:48:31 valid - loss: 1.7869, acc: 0.7355, acc5: 0.9182
+Epoch 146/200
+15:52:30 train - loss: 2.5862, acc: 0.6141
+15:52:43 valid - loss: 1.8288, acc: 0.7370, acc5: 0.9193
+Epoch 147/200
+15:56:42 train - loss: 2.5771, acc: 0.6162
+15:56:53 valid - loss: 1.7875, acc: 0.7371, acc5: 0.9195
+Epoch 148/200
+16:00:50 train - loss: 2.5677, acc: 0.6185
+16:01:15 valid - loss: 1.7871, acc: 0.7418, acc5: 0.9231
+Epoch 149/200
+16:05:08 train - loss: 2.5589, acc: 0.6197
+16:05:23 valid - loss: 1.7716, acc: 0.7430, acc5: 0.9246
+Epoch 150/200
+16:09:16 train - loss: 2.5495, acc: 0.6223
+16:09:33 valid - loss: 1.8124, acc: 0.7433, acc5: 0.9225
+Epoch 151/200
+16:13:23 train - loss: 2.5417, acc: 0.6242
+16:13:38 valid - loss: 1.8368, acc: 0.7457, acc5: 0.9263
+Epoch 152/200
+16:17:32 train - loss: 2.5322, acc: 0.6270
+16:17:49 valid - loss: 1.7585, acc: 0.7501, acc5: 0.9268
+Epoch 153/200
+16:21:39 train - loss: 2.5267, acc: 0.6283
+16:21:54 valid - loss: 1.8209, acc: 0.7465, acc5: 0.9245
+Epoch 154/200
+16:25:46 train - loss: 2.5175, acc: 0.6301
+16:26:03 valid - loss: 1.7728, acc: 0.7499, acc5: 0.9262
+Epoch 155/200
+16:29:54 train - loss: 2.5046, acc: 0.6332
+16:30:08 valid - loss: 1.7608, acc: 0.7516, acc5: 0.9274
+Epoch 156/200
+16:34:01 train - loss: 2.4964, acc: 0.6349
+16:34:19 valid - loss: 1.7822, acc: 0.7520, acc5: 0.9267
+Epoch 157/200
+16:38:09 train - loss: 2.4881, acc: 0.6370
+16:38:23 valid - loss: 1.7691, acc: 0.7545, acc5: 0.9298
+Epoch 158/200
+16:42:16 train - loss: 2.4756, acc: 0.6398
+16:42:34 valid - loss: 1.7751, acc: 0.7571, acc5: 0.9306
+Epoch 159/200
+Traceback (most recent call last):
+  File "102.py", line 77, in <module>
+    save_freq=2)
+  File "/content/hanser/hanser/train/learner.py", line 218, in fit
+    self._run_epoch(self._train_it, steps_per_epoch, cbks, 'train')
+  File "/content/hanser/hanser/train/learner.py", line 347, in _run_epoch
+    state['metrics'][name] = metric.result().numpy()
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/framework/ops.py", line 1063, in numpy
+    maybe_arr = self._numpy()  # pylint: disable=protected-access
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/framework/ops.py", line 1031, in _numpy
+    six.raise_from(core._status_to_exception(e.code, e.message), None)  # pylint: disable=protected-access
+  File "<string>", line 3, in raise_from
+tensorflow.python.framework.errors_impl.UnavailableError: Socket closed
+Additional GRPC error information from remote target /job:worker/replica:0/task:0:
+:{"created":"@1624783394.265044410","description":"Error received from peer ipv4:10.0.137.234:8470","file":"external/com_github_grpc_grpc/src/core/lib/surface/call.cc","file_line":1056,"grpc_message":"Socket closed","grpc_status":14}
+2021-06-27 08:43:14.270081: W tensorflow/core/distributed_runtime/eager/remote_tensor_handle_data.cc:76] Unable to destroy remote tensor handles. If you are running a tf.function, it usually indicates some op in the graph gets an error: Socket closed
+Additional GRPC error information from remote target /job:worker/replica:0/task:0:
+:{"created":"@1624783394.265044410","description":"Error received from peer ipv4:10.0.137.234:8470","file":"external/com_github_grpc_grpc/src/core/lib/surface/call.cc","file_line":1056,"grpc_message":"Socket closed","grpc_status":14}
+Error in atexit._run_exitfuncs:
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/distribute/tpu_strategy.py", line 540, in async_wait
+    context.async_wait()
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/eager/context.py", line 2319, in async_wait
+    context().sync_executors()
+  File "/usr/local/lib/python3.7/dist-packages/tensorflow/python/eager/context.py", line 658, in sync_executors
+    pywrap_tfe.TFE_ContextSyncExecutors(self._context_handle)
+tensorflow.python.framework.errors_impl.UnavailableError: 2 root error(s) found.
+  (0) Unavailable: Socket closed
+Additional GRPC error information from remote target /job:worker/replica:0/task:0:
+:{"created":"@1624783394.265044410","description":"Error received from peer ipv4:10.0.137.234:8470","file":"external/com_github_grpc_grpc/src/core/lib/surface/call.cc","file_line":1056,"grpc_message":"Socket closed","grpc_status":14}
+  (1) Unavailable: Unable to find a context_id matching the specified one (5332935722302150984). Perhaps the worker was restarted, or the context was GC'd?
+0 successful operations.
+0 derived errors ignored.
+16:45:18 Start training
+Epoch 159/200
+16:52:12 train - loss: 2.4691, acc: 0.6420
+16:52:54 valid - loss: 1.7434, acc: 0.7533, acc5: 0.9301
+Epoch 160/200
+16:56:52 train - loss: 2.4588, acc: 0.6442
+16:57:04 valid - loss: 1.7562, acc: 0.7578, acc5: 0.9314
+Epoch 161/200
+17:01:01 train - loss: 2.4489, acc: 0.6466
+17:01:13 valid - loss: 1.7986, acc: 0.7612, acc5: 0.9306
+Epoch 162/200
+17:05:08 train - loss: 2.4417, acc: 0.6480
+17:05:22 valid - loss: 1.7633, acc: 0.7578, acc5: 0.9300
+Epoch 163/200
+17:09:14 train - loss: 2.4294, acc: 0.6510
+17:09:31 valid - loss: 1.7798, acc: 0.7633, acc5: 0.9347
+Epoch 164/200
+17:13:20 train - loss: 2.4191, acc: 0.6533
+17:13:37 valid - loss: 1.8108, acc: 0.7629, acc5: 0.9335
+Epoch 165/200
+17:17:26 train - loss: 2.4080, acc: 0.6564
+17:17:40 valid - loss: 1.7492, acc: 0.7623, acc5: 0.9343
+Epoch 166/200
+17:21:33 train - loss: 2.4001, acc: 0.6579
+17:21:50 valid - loss: 1.7383, acc: 0.7653, acc5: 0.9342
+Epoch 167/200
+17:25:38 train - loss: 2.3879, acc: 0.6614
+17:25:53 valid - loss: 1.7694, acc: 0.7680, acc5: 0.9359
+Epoch 168/200
+17:29:44 train - loss: 2.3762, acc: 0.6638
+17:30:01 valid - loss: 1.7244, acc: 0.7706, acc5: 0.9369
+Epoch 169/200
+17:33:50 train - loss: 2.3663, acc: 0.6663
+17:34:04 valid - loss: 1.7998, acc: 0.7675, acc5: 0.9368
+Epoch 170/200
+17:37:55 train - loss: 2.3569, acc: 0.6684
+17:38:12 valid - loss: 1.7533, acc: 0.7723, acc5: 0.9382
+Epoch 171/200
+17:42:00 train - loss: 2.3467, acc: 0.6712
+17:42:15 valid - loss: 1.7768, acc: 0.7738, acc5: 0.9391
+Epoch 172/200
+17:46:06 train - loss: 2.3383, acc: 0.6735
+17:46:23 valid - loss: 1.7432, acc: 0.7721, acc5: 0.9385
+Epoch 173/200
+17:50:11 train - loss: 2.3266, acc: 0.6761
+17:50:25 valid - loss: 1.8009, acc: 0.7743, acc5: 0.9388
+Epoch 174/200
+17:54:17 train - loss: 2.3165, acc: 0.6784
+17:54:34 valid - loss: 1.7562, acc: 0.7764, acc5: 0.9401
+Epoch 175/200
+17:58:22 train - loss: 2.3048, acc: 0.6818
+17:58:37 valid - loss: 1.7502, acc: 0.7786, acc5: 0.9408
+Epoch 176/200
+18:02:28 train - loss: 2.2955, acc: 0.6837
+18:02:45 valid - loss: 1.7589, acc: 0.7799, acc5: 0.9405
+Epoch 177/200
+18:06:33 train - loss: 2.2841, acc: 0.6863
+18:06:47 valid - loss: 1.7891, acc: 0.7811, acc5: 0.9417
+Epoch 178/200
+18:10:38 train - loss: 2.2758, acc: 0.6883
+18:10:55 valid - loss: 1.7633, acc: 0.7816, acc5: 0.9429
+Epoch 179/200
+18:14:43 train - loss: 2.2660, acc: 0.6908
+18:14:57 valid - loss: 1.7861, acc: 0.7821, acc5: 0.9424
+Epoch 180/200
+18:18:47 train - loss: 2.2557, acc: 0.6932
+18:19:05 valid - loss: 1.7700, acc: 0.7832, acc5: 0.9434
+Epoch 181/200
+18:22:53 train - loss: 2.2459, acc: 0.6959
+18:23:07 valid - loss: 1.7713, acc: 0.7853, acc5: 0.9442
+Epoch 182/200
+18:26:58 train - loss: 2.2373, acc: 0.6981
+18:27:16 valid - loss: 1.7810, acc: 0.7861, acc5: 0.9438
+Epoch 183/200
+18:31:04 train - loss: 2.2291, acc: 0.7003
+18:31:19 valid - loss: 1.7724, acc: 0.7869, acc5: 0.9446
+Epoch 184/200
+18:35:09 train - loss: 2.2180, acc: 0.7031
+18:35:26 valid - loss: 1.7668, acc: 0.7865, acc5: 0.9446
+Epoch 185/200
+18:39:15 train - loss: 2.2138, acc: 0.7044
+18:39:29 valid - loss: 1.7958, acc: 0.7876, acc5: 0.9453
+Epoch 186/200
+18:43:21 train - loss: 2.2044, acc: 0.7061
+18:43:38 valid - loss: 1.7852, acc: 0.7876, acc5: 0.9450
+Epoch 187/200
+18:47:26 train - loss: 2.1984, acc: 0.7078
+18:47:40 valid - loss: 1.7784, acc: 0.7886, acc5: 0.9456
+Epoch 188/200
+18:51:31 train - loss: 2.1935, acc: 0.7096
+18:51:49 valid - loss: 1.7844, acc: 0.7904, acc5: 0.9468
+Epoch 189/200
+18:55:36 train - loss: 2.1814, acc: 0.7118
+18:55:50 valid - loss: 1.7673, acc: 0.7913, acc5: 0.9463
+Epoch 190/200
+18:59:42 train - loss: 2.1820, acc: 0.7122
+18:59:59 valid - loss: 1.7769, acc: 0.7911, acc5: 0.9457
+Epoch 191/200
+19:03:47 train - loss: 2.1722, acc: 0.7144
+19:04:01 valid - loss: 1.7699, acc: 0.7914, acc5: 0.9460
+Epoch 192/200
+19:07:52 train - loss: 2.1717, acc: 0.7148
+19:08:10 valid - loss: 1.7967, acc: 0.7921, acc5: 0.9471
+Epoch 193/200
+19:11:57 train - loss: 2.1668, acc: 0.7159
+19:12:12 valid - loss: 1.7873, acc: 0.7924, acc5: 0.9470
+Epoch 194/200
+19:16:03 train - loss: 2.1612, acc: 0.7175
+19:16:20 valid - loss: 1.7858, acc: 0.7933, acc5: 0.9472
+Epoch 195/200
+19:20:08 train - loss: 2.1605, acc: 0.7177
+19:20:23 valid - loss: 1.7921, acc: 0.7925, acc5: 0.9467
+Epoch 196/200
+19:24:14 train - loss: 2.1578, acc: 0.7186
+19:24:31 valid - loss: 1.7871, acc: 0.7926, acc5: 0.9467
+Epoch 197/200
+19:28:19 train - loss: 2.1552, acc: 0.7189
+19:28:34 valid - loss: 1.7900, acc: 0.7939, acc5: 0.9470
+Epoch 198/200
+19:32:25 train - loss: 2.1541, acc: 0.7196
+19:32:42 valid - loss: 1.7887, acc: 0.7934, acc5: 0.9473
+Epoch 199/200
+19:36:30 train - loss: 2.1564, acc: 0.7188
+19:36:44 valid - loss: 1.7953, acc: 0.7940, acc5: 0.9472
+Epoch 200/200
+19:40:35 train - loss: 2.1551, acc: 0.7191
+19:40:52 valid - loss: 1.7870, acc: 0.7936, acc5: 0.9471
