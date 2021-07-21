@@ -2,7 +2,7 @@ import os
 import tensorflow as tf
 from tensorflow.keras.metrics import CategoricalAccuracy, Mean, CategoricalCrossentropy, TopKCategoricalAccuracy
 
-from hanser.tpu import setup
+from hanser.distribute import setup_runtime, distribute_datasets
 from hanser.datasets.imagenet import make_imagenet_dataset
 from hanser.transform import random_resized_crop, resize, center_crop, normalize, to_tensor, mixup_batch
 
@@ -39,7 +39,9 @@ eval_files = ["validation-%05d-of-00128" % i for i in range(128)]
 ds_train, ds_eval, steps_per_epoch, eval_steps = make_imagenet_dataset(
     batch_size, eval_batch_size, transform, train_files=train_files, eval_files=eval_files,
     cache_decoded_image=False)
-ds_train, ds_eval = setup([ds_train, ds_eval], fp16=True)
+
+setup_runtime(fp16=True)
+ds_train, ds_eval = distribute_datasets(ds_train, ds_eval)
 
 model = resnet50()
 model.build((None, TRAIN_RES, TRAIN_RES, 3))

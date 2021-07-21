@@ -43,6 +43,7 @@ DEFAULTS = {
         'fused': True,
         'sync': False,
         'eval': False,
+        'virtual_batch_size': None,
     },
     'gn': {
         'groups': 32,
@@ -87,6 +88,7 @@ _defaults_schema = {
         'fused': {'type': 'boolean'},
         'sync': {'type': 'boolean'},
         'eval': {'type': 'boolean'},
+        'virtual_batch_size': {'type': 'integer', 'nullable': True},
     },
     'gn': {
         'eps': {'type': 'float', 'min': 0.0},
@@ -292,7 +294,7 @@ def Norm(channels=None, type='default', affine=None, track_running_stats=None, g
             bn = BatchNormalization(
                 momentum=cfg['momentum'], epsilon=cfg['eps'], center=affine, scale=affine,
                 gamma_initializer=gamma_init, fused=fused, track_running_stats=track_running_stats,
-                eval_mode=cfg['eval'])
+                eval_mode=cfg['eval'], virtual_batch_size=cfg['virtual_batch_size'])
         return bn
     elif type == 'gn':
         cfg = DEFAULTS['gn']
