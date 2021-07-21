@@ -276,7 +276,7 @@ class DropBlockSchedule(Callback):
                     keep_prob = 1. - 1 / epochs * (1. - l.keep_prob)
                 else:
                     keep_prob = 1. - (epoch + 1) / epoch * (1. - l.keep_prob)
-                l.rate.assign(keep_prob)
+                l.keep_prob.assign(keep_prob)
 
 
 class EvalEveryAfter(Callback):
