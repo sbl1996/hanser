@@ -8,6 +8,7 @@
 | ResNet_vd-50  |  224 |   Standard   |  120  | 78.22 | 93.99 |   358.6  | [83](/configs/ImageNet/83.py) | [1](/configs/ImageNet/log/83.log) |
 | ResNet_vd-50  |  224 |     Mixup    |  200  | 78.91 | 94.54 |   357.5  | [91](/configs/ImageNet/91.py) | [1](/configs/ImageNet/log/91.log) |
 
+- [Bag of Tricks for Image Classification with Convolutional Neural Networks](https://arxiv.org/abs/1812.01187)
 
 ## RegNet
 | Model         | Size | Augmentation | Epoch | Top 1 | Top 5 |  Time | Code |  Log  |
@@ -16,3 +17,5 @@
 | RegNetY-4.0GF |  160 |   Standard   |  100  | 79.59 | 94.82 | 246.5 | [37](/configs/ImageNet/37.py) | [1](/configs/ImageNet/log/37.log) |
 | RegNetY-1.6GF |  160 |     Mixup    |  200  | 78.38 | 94.27 | 164.0 | [36](/configs/ImageNet/36.py) | [1](/configs/ImageNet/log/36.log) |
 | RegNetY-4.0GF |  160 |     Mixup    |  200  | 80.28 | 95.29 | 247.0 | [41](/configs/ImageNet/41.py) | [1](/configs/ImageNet/log/41.log) |
+
+- [Designing Network Design Spaces](https://arxiv.org/abs/2003.13678)
