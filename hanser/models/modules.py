@@ -7,6 +7,7 @@ from tensorflow.keras.layers import InputSpec, Softmax, Dropout, Layer
 from hanser.models.layers import Conv2d, Norm, Act, GlobalAvgPool
 from hanser.models.smart_module import smart_cond
 
+
 class PadChannel(Layer):
 
     def __init__(self, c, **kwargs):
