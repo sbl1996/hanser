@@ -13,6 +13,7 @@
 | ResNet_vd-50  |  160 |   Standard   |  120  | 79.24 | 94.67 |   203.1  |   24   |
 | RegNetY-1.6GF (C) |  160 |   Standard   |  100  | 77.27 | 93.46 |   160.9  |   35   |
 | RegNetY-1.6GF (F) |  160 |   Standard   |  100  | 77.55 | 93.83 |   159.7  |   38   |
+
 Notes:
 - ECA-Net seems to not work well in RegNet, no matter put it at the middle conv or at the final of block.
 
