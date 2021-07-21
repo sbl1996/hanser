@@ -463,6 +463,8 @@ class DropBlock(Layer):
             experimental_autocast=False,
         )
 
+        self._max_pool = MaxPool2D((block_size, block_size), strides=(1, 1), padding='same')
+
     def call(self, x, training=None):
         if training:
             br = (self.block_size - 1) // 2
@@ -479,7 +481,7 @@ class DropBlock(Layer):
                 tf.random.uniform(sampling_mask_shape) < gamma, tf.float32)
             mask = tf.pad(mask, pad_shape)
 
-            mask = tf.nn.max_pool2d(mask, self.block_size, strides=1, padding='SAME')
+            mask = self._max_pool(mask)
             mask = 1. - mask
             mask_reduce_sum = tf.reduce_sum(mask, axis=[1, 2, 3], keepdims=True)
             normalize_factor = tf.cast(h * w, dtype=tf.float32) / (mask_reduce_sum + 1e-8)
