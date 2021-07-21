@@ -1,12 +1,12 @@
 import math
 from difflib import get_close_matches
-from typing import Union, Tuple, Optional, Sequence, Mapping
+from typing import Union, Tuple, Optional, Sequence, Mapping, Dict, Any
 
 from cerberus import Validator
 
 import tensorflow as tf
 from tensorflow.keras import Sequential
-from tensorflow.keras.initializers import VarianceScaling, RandomUniform, Initializer
+from tensorflow.keras.initializers import VarianceScaling, RandomUniform, Initializer, Constant
 from tensorflow.keras.layers import Dense, Activation, Layer, Conv2D, ZeroPadding2D, LeakyReLU, \
     DepthwiseConv2D, MaxPooling2D as KerasMaxPool2D, AveragePooling2D as KerasAvgPool2D, LayerNormalization, Flatten
 import tensorflow_addons as tfa
@@ -59,6 +59,11 @@ DEFAULTS = {
         'alpha': 0.1,
     },
     'norm': 'bn',
+    'dropblock': {
+        'keep_prob': 0.9,
+        'block_size': 7,
+        'gamma_scale': 1.0,
+    }
 }
 
 _defaults_schema = {
@@ -101,6 +106,11 @@ _defaults_schema = {
     },
     'norm': {'type': 'string', 'allowed': ['bn', 'gn', 'none']},
     'seed': {'type': 'integer'},
+    'dropblock': {
+        'keep_prob': {'type': 'float', 'min': 0.0, 'max': 1.0},
+        'block_size': {'type': 'integer'},
+        'gamma_scale': {'type': 'float', 'min': 0.0},
+    }
 }
 
 
@@ -157,6 +167,14 @@ def flip_mode(m):
         return 'fan_in'
 
 
+def _get_dropblock(config: Dict[str, Any]):
+    return DropBlock(
+        keep_prob=config['keep_prob'],
+        block_size=config['block_size'],
+        gamma_scale=config['gamma_scale'],
+    )
+
+
 def Conv2d(in_channels: int,
            out_channels: int,
            kernel_size: Union[int, Tuple[int, int], Tuple[Tuple[int, int], Tuple[int, int]]],
@@ -168,7 +186,9 @@ def Conv2d(in_channels: int,
            norm: Optional[str] = None,
            act: Optional[str] = None,
            kernel_init: Optional[Initializer] = None,
-           bias_init: Optional[Initializer] = None):
+           bias_init: Optional[Initializer] = None,
+           gamma_init: Union[str, Initializer] = 'ones',
+           dropblock: Union[bool, Dict[str, Any]] = False):
     if isinstance(kernel_size, int):
         kernel_size = (kernel_size, kernel_size)
     if isinstance(stride, int):
@@ -254,7 +274,12 @@ def Conv2d(in_channels: int,
 
     layers = [conv]
     if norm:
-        layers.append(Norm(out_channels, norm))
+        layers.append(Norm(out_channels, norm, gamma_init=gamma_init))
+    if dropblock:
+        config = DEFAULTS['dropblock']
+        if isinstance(dropblock, dict):
+            config = {**config, **dropblock}
+        layers.append(_get_dropblock(config))
     if act:
         layers.append(Act(act))
 
@@ -423,3 +448,52 @@ class NaiveGroupConv2D(Layer):
         ]
         x = tf.concat(xs, axis=-1)
         return x
+
+
+class DropBlock(Layer):
+
+    def __init__(self, keep_prob, block_size, gamma_scale=1., **kwargs):
+        super().__init__(**kwargs)
+        self.block_size = block_size
+        self.gamma_scale = gamma_scale
+
+        self.keep_prob = self.add_weight(
+            name="keep_prob", shape=(), dtype=tf.float32,
+            initializer=Constant(keep_prob), trainable=False,
+        )
+
+    def call(self, x, training=None):
+        if training:
+            br = (self.block_size - 1) // 2
+            tl = (self.block_size - 1) - br
+
+            n = tf.shape(x)[0]
+            h, w, c = x.shape[1:]
+            sampling_mask_shape = [n, h - self.block_size + 1, w - self.block_size + 1, 1]
+            pad_shape = [[0, 0], [tl, br], [tl, br], [0, 0]]
+
+            ratio = (w * h) / (self.block_size ** 2) / ((w - self.block_size + 1) * (h - self.block_size + 1))
+            gamma = (1. - self.keep_prob) * ratio * self.gamma_scale
+            mask = tf.cast(
+                tf.random.uniform(sampling_mask_shape) < gamma, tf.float32)
+            mask = tf.pad(mask, pad_shape)
+
+            mask = tf.nn.max_pool2d(mask, self.block_size, strides=1, padding='SAME')
+            mask = 1. - mask
+            mask_reduce_sum = tf.reduce_sum(mask, axis=[1, 2, 3], keepdims=True)
+            normalize_factor = tf.cast(h * w, dtype=tf.float32) / (mask_reduce_sum + 1e-8)
+
+            x = x * tf.cast(mask, x.dtype) * tf.cast(normalize_factor, x.dtype)
+            return x
+        return x
+
+    def compute_output_shape(self, input_shape):
+        return input_shape
+
+    def get_config(self):
+        return {
+            **super().get_config(),
+            'keep_prob': self.keep_prob,
+            "block_size": self.block_size,
+            "gamma_scale": self.gamma_scale,
+        }

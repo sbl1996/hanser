@@ -9,10 +9,10 @@ from tensorflow.keras import initializers
 
 class DropBlock(Layer):
 
-    def __init__(self, keep_prob, block_size, gamma_mul=1., **kwargs):
+    def __init__(self, keep_prob, block_size, gamma_scale=1., **kwargs):
         super().__init__(**kwargs)
         self.block_size = block_size
-        self.gamma_mul = gamma_mul
+        self.gamma_scale = gamma_scale
 
         self.keep_prob = self.add_weight(
             name="keep_prob", shape=(), dtype=tf.float32,
@@ -30,7 +30,7 @@ class DropBlock(Layer):
             pad_shape = [[0, 0], [tl, br], [tl, br], [0, 0]]
 
             ratio = (w * h) / (self.block_size ** 2) / ((w - self.block_size + 1) * (h - self.block_size + 1))
-            gamma = (1. - self.keep_prob) * ratio * self.gamma_mul
+            gamma = (1. - self.keep_prob) * ratio * self.gamma_scale
             mask = tf.cast(
                 tf.random.uniform(sampling_mask_shape) < gamma, tf.float32)
             mask = tf.pad(mask, pad_shape)
@@ -52,7 +52,7 @@ class DropBlock(Layer):
             **super().get_config(),
             'keep_prob': self.keep_prob,
             "block_size": self.block_size,
-            "gamma_mul": self.gamma_mul,
+            "gamma_scale": self.gamma_scale,
         }
 
 dp = DropBlock(0.9, block_size=14)

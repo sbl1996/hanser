@@ -1,9 +1,11 @@
 import warnings
+
 from toolz import curry
 import numpy as np
 from hhutil.io import time_now
 from tensorflow_addons.optimizers import MovingAverage
 from hanser.models.modules import DropPath
+from hanser.models.layers import DropBlock
 
 
 @curry
@@ -258,6 +260,23 @@ class DropPathRateScheduleV2(Callback):
                 else:
                     rate = (epoch + 1) / epoch * l.rate
                 l.rate.assign(rate)
+
+
+class DropBlockSchedule(Callback):
+
+    def __init__(self):
+        super().__init__()
+
+    def begin_epoch(self, state):
+        epoch = self.learner.epoch
+        epochs = state['epochs']
+        for l in self.learner.model.submodules:
+            if isinstance(l, DropBlock):
+                if epoch == 0:
+                    keep_prob = 1. - 1 / epochs * (1. - l.keep_prob)
+                else:
+                    keep_prob = 1. - (epoch + 1) / epoch * (1. - l.keep_prob)
+                l.rate.assign(keep_prob)
 
 
 class EvalEveryAfter(Callback):
