@@ -6,8 +6,7 @@ from hanser.models.imagenet.stem import ResNetvdStem
 
 class ResNet(Model):
 
-    def __init__(self, block, layers, zero_init_residual=False,
-                 avd=False, stages=(64, 64, 128, 256, 512),
+    def __init__(self, block, layers, stages=(64, 64, 128, 256, 512),
                  output_stride=32, multi_grad=(1, 1, 1)):
         super().__init__()
         self.stages = stages
@@ -31,8 +30,7 @@ class ResNet(Model):
                 dilations = [m * d for m, d in zip(multi_grad, dilations)]
 
             layer = self._make_layer(
-                block, channels=c, blocks=n, stride=s, dilations=dilations,
-                zero_init_residual=zero_init_residual, avd=avd)
+                block, channels=c, blocks=n, stride=s, dilations=dilations)
             setattr(self, "layer%d" % (i + 1), layer)
 
         self.feat_channels = [c * block.expansion for c in stages]
