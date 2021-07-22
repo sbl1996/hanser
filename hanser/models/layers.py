@@ -64,6 +64,7 @@ DEFAULTS = {
         'keep_prob': 0.9,
         'block_size': 7,
         'gamma_scale': 1.0,
+        'per_channel': False,
     }
 }
 
@@ -111,6 +112,7 @@ _defaults_schema = {
         'keep_prob': {'type': 'float', 'min': 0.0, 'max': 1.0},
         'block_size': {'type': 'integer'},
         'gamma_scale': {'type': 'float', 'min': 0.0},
+        'per_channel': {'type': 'boolean'},
     }
 }
 

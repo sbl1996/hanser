@@ -306,12 +306,13 @@ class Slice(Layer):
 
 class DropBlock(Layer):
 
-    def __init__(self, keep_prob, block_size, gamma_scale=1., **kwargs):
+    def __init__(self, keep_prob, block_size, gamma_scale=1., per_channel=False, **kwargs):
         super().__init__(**kwargs)
         if isinstance(block_size, int):
             block_size = (block_size, block_size)
         self.block_size = block_size
         self.gamma_scale = gamma_scale
+        self.per_channel = per_channel
 
         self.keep_prob = self.add_weight(
             name="keep_prob", shape=(), dtype=tf.float32,
@@ -332,7 +333,8 @@ class DropBlock(Layer):
             b = (by - 1) - t
             r = (bx - 1) - l
 
-            sampling_mask_shape = [n, h - by + 1, w - bx + 1, 1]
+            c = c if self.per_channel else 1
+            sampling_mask_shape = [n, h - by + 1, w - bx + 1, c]
             pad_shape = [[0, 0], [t, b], [l, r], [0, 0]]
 
             ratio = (w * h) / (bx * by) / ((w - bx + 1) * (h - by + 1))
@@ -343,7 +345,9 @@ class DropBlock(Layer):
 
             mask = tf.nn.max_pool2d(mask, (by, bx), strides=1, padding='SAME')
             mask = 1. - mask
-            mask_reduce_sum = tf.reduce_sum(mask, axis=[1, 2, 3], keepdims=True)
+
+            axis = [1, 2] if self.per_channel else [1, 2, 3]
+            mask_reduce_sum = tf.reduce_sum(mask, axis=axis, keepdims=True)
             normalize_factor = tf.cast(h * w, dtype=tf.float32) / (mask_reduce_sum + 1e-8)
 
             x = x * tf.cast(mask, x.dtype) * tf.cast(normalize_factor, x.dtype)
@@ -359,4 +363,5 @@ class DropBlock(Layer):
             'keep_prob': self.keep_prob,
             "block_size": self.block_size,
             "gamma_scale": self.gamma_scale,
+            "per_channel": self.per_channel,
         }
