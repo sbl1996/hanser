@@ -11,22 +11,23 @@ def run_tf(fn, *args):
     if strategy is None:
         return fn(*args)
     else:
-        strategy.run(fn, args)
+        return strategy.run(fn, args)
 
 
-l_tf = tf.keras.Sequential([
+model = tf.keras.Sequential([
     Conv2d(2, 3, kernel_size=3, padding='same', norm='def', act='def'),
     DropBlock(0.9, block_size=7),
 ])
-l_tf.build((None, 28, 28, 2))
+model.build((None, 28, 28, 2))
+optimizer = tf.keras
 
 
 @tf.function
 def test_train_tf(x):
     with tf.GradientTape() as tape:
-        y = l_tf(x, training=True)
+        y = model(x, training=True)
         loss = tf.reduce_mean(y)
-    grads = tape.gradient(loss, l_tf.trainable_variables)
+    grads = tape.gradient(loss, model.trainable_variables)
     return y, loss, grads
 
 x_tf = tf.random.normal((2, 28, 28, 2))

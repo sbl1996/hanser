@@ -308,6 +308,8 @@ class DropBlock(Layer):
 
     def __init__(self, keep_prob, block_size, gamma_scale=1., **kwargs):
         super().__init__(**kwargs)
+        if isinstance(block_size, int):
+            block_size = (block_size, block_size)
         self.block_size = block_size
         self.gamma_scale = gamma_scale
 
@@ -317,26 +319,29 @@ class DropBlock(Layer):
             experimental_autocast=False,
         )
 
-        self._max_pool = MaxPool2D(
-            (block_size, block_size), strides=(1, 1), padding='same', dtype=tf.float32)
-
     def call(self, x, training=None):
         if training:
-            br = (self.block_size - 1) // 2
-            tl = (self.block_size - 1) - br
-
             n = tf.shape(x)[0]
             h, w, c = x.shape[1:]
-            sampling_mask_shape = [n, h - self.block_size + 1, w - self.block_size + 1, 1]
-            pad_shape = [[0, 0], [tl, br], [tl, br], [0, 0]]
+            by, bx = self.block_size
+            # by = min(h, by)
+            # bx = min(w, bx)
 
-            ratio = (w * h) / (self.block_size ** 2) / ((w - self.block_size + 1) * (h - self.block_size + 1))
+            t = (by - 1) // 2
+            l = (bx - 1) // 2
+            b = (by - 1) - t
+            r = (bx - 1) - l
+
+            sampling_mask_shape = [n, h - by + 1, w - bx + 1, 1]
+            pad_shape = [[0, 0], [t, b], [l, r], [0, 0]]
+
+            ratio = (w * h) / (bx * by) / ((w - bx + 1) * (h - by + 1))
             gamma = (1. - self.keep_prob) * ratio * self.gamma_scale
             mask = tf.cast(
                 tf.random.uniform(sampling_mask_shape) < gamma, tf.float32)
             mask = tf.pad(mask, pad_shape)
 
-            mask = self._max_pool(mask)
+            mask = tf.nn.max_pool2d(mask, (by, bx), strides=1, padding='SAME')
             mask = 1. - mask
             mask_reduce_sum = tf.reduce_sum(mask, axis=[1, 2, 3], keepdims=True)
             normalize_factor = tf.cast(h * w, dtype=tf.float32) / (mask_reduce_sum + 1e-8)
