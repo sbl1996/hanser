@@ -2,7 +2,7 @@ import math
 from tensorflow.keras import Sequential, Model
 from tensorflow.keras.layers import Layer
 
-from hanser.models.modules import SELayer
+from hanser.models.attention import SELayer
 from hanser.models.layers import Conv2d, Act, Identity, GlobalAvgPool, Linear
 
 

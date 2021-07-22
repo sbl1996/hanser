@@ -1,10 +1,9 @@
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras import initializers
-from tensorflow.keras import Sequential
-from tensorflow.keras.layers import InputSpec, Softmax, Dropout, Layer
+from tensorflow.keras.layers import InputSpec, Dropout, Layer, MaxPool2D
+from tensorflow.keras.initializers import Constant
 
-from hanser.models.layers import Conv2d, Norm, Act, GlobalAvgPool
 from hanser.models.smart_module import smart_cond
 
 
@@ -26,39 +25,6 @@ class PadChannel(Layer):
             **super().get_config(),
             'c': self.c,
         }
-
-
-class SELayer(Layer):
-
-    def __init__(self, in_channels, reduction=None, groups=1, se_channels=None,
-                 min_se_channels=32, act='def', mode=0, **kwargs):
-        super().__init__(**kwargs)
-        self.pool = GlobalAvgPool(keep_dim=True)
-        if mode == 0:
-            # σ(f_{W1, W2}(y))
-            channels = se_channels or min(max(in_channels // reduction, min_se_channels), in_channels)
-            if groups != 1:
-                channels = round_channels(channels, groups)
-            self.fc = Sequential([
-                Conv2d(in_channels, channels, kernel_size=1, bias=False, act=act),
-                Conv2d(channels, in_channels, 1, groups=groups, act='sigmoid'),
-            ])
-        elif mode == 1:
-            # σ(w ⊙ y)
-            assert groups == 1
-            self.fc = Conv2d(in_channels, in_channels, 1,
-                             groups=in_channels, bias=False, act='sigmoid')
-        elif mode == 2:
-            # σ(Wy)
-            assert groups == 1
-            self.fc = Conv2d(in_channels, in_channels, 1, bias=False, act='sigmoid')
-        else:
-            raise ValueError("Not supported mode: {}" % mode)
-
-    def call(self, x):
-        s = self.pool(x)
-        s = self.fc(s)
-        return x * s
 
 
 class DropPath(Dropout):
@@ -92,94 +58,6 @@ class DropPath(Dropout):
             **super().get_config(),
             'rate': self.rate,
         }
-
-
-class rSoftMax(Layer):
-
-    def __init__(self, radix, cardinality, **kwargs):
-        super().__init__(**kwargs)
-        self.radix = radix
-        self.cardinality = cardinality
-        self.input_spec = InputSpec(ndim=4)
-        if self.radix > 1:
-            self.softmax = Softmax(axis=1, dtype='float32')
-
-    def compute_output_shape(self, input_shape):
-        return tf.TensorShape(input_shape)
-
-    def call(self, x):
-        if self.radix > 1:
-            b = tf.shape(x)[0]
-            c = x.shape[-1]
-            ic = c // self.cardinality // self.radix
-            x = tf.reshape(x, [b, self.cardinality, self.radix, ic])
-            x = tf.transpose(x, [0, 2, 1, 3])
-            xs = self.softmax(x)
-            if xs.dtype != x.dtype:
-                x = tf.cast(xs, x.dtype)
-            else:
-                x = xs
-            # x = tf.nn.softmax(x, axis=1)
-            x = tf.reshape(x, [b, 1, 1, c])
-        else:
-            x = tf.sigmoid(x)
-        return x
-
-    def get_config(self):
-        config = {'radix': self.radix, 'cardinality': self.cardinality}
-        base_config = super().get_config()
-        return dict(list(base_config.items()) + list(config.items()))
-
-
-def round_channels(channels, divisor=8, min_depth=None):
-    min_depth = min_depth or divisor
-    new_channels = max(min_depth, int(channels + divisor / 2) // divisor * divisor)
-    if new_channels < 0.9 * channels:
-        new_channels += divisor
-    return int(new_channels)
-
-
-class SplAtConv2d(Layer):
-
-    def __init__(self, in_channels, channels, kernel_size, stride=1, padding='same',
-                 dilation=1, groups=1, bias=None, radix=2, reduction=4, name=None):
-        super().__init__()
-        inter_channels = min(max(in_channels * radix // reduction, 32), in_channels)
-        inter_channels = round_channels(inter_channels, groups * radix)
-        self.radix = radix
-        self.cardinality = groups
-        self.channels = channels
-
-        self.conv = Conv2d(in_channels, channels * radix, kernel_size, stride, padding, groups=groups * radix,
-                           dilation=dilation, bias=bias)
-        self.bn = Norm(channels * radix)
-        self.act = Act()
-        self.attn = Sequential([
-            GlobalAvgPool(keep_dim=True),
-            Conv2d(channels, inter_channels, 1, groups=groups, norm='default', act='default'),
-            Conv2d(inter_channels, channels * radix, 1, groups=groups),
-            rSoftMax(radix, groups),
-        ])
-
-    def call(self, x):
-        x = self.conv(x)
-        x = self.bn(x)
-        x = self.act(x)
-
-        if self.radix > 1:
-            splited = tf.split(x, self.radix, axis=-1)
-            gap = sum(splited)
-        else:
-            gap = x
-
-        gap = self.attn(gap)
-
-        if self.radix > 1:
-            attns = tf.split(gap, self.radix, axis=-1)
-            out = sum([attn * split for (attn, split) in zip(attns, splited)])
-        else:
-            out = gap * x
-        return out
 
 
 class ReZero(Layer):
@@ -424,3 +302,56 @@ class Slice(Layer):
 
     def call(self, x):
         return tf.slice(x, (0, *self.begin), (-1, *self.size))
+
+
+class DropBlock(Layer):
+
+    def __init__(self, keep_prob, block_size, gamma_scale=1., **kwargs):
+        super().__init__(**kwargs)
+        self.block_size = block_size
+        self.gamma_scale = gamma_scale
+
+        self.keep_prob = self.add_weight(
+            name="keep_prob", shape=(), dtype=tf.float32,
+            initializer=Constant(keep_prob), trainable=False,
+            experimental_autocast=False,
+        )
+
+        self._max_pool = MaxPool2D(
+            (block_size, block_size), strides=(1, 1), padding='same', dtype=tf.float32)
+
+    def call(self, x, training=None):
+        if training:
+            br = (self.block_size - 1) // 2
+            tl = (self.block_size - 1) - br
+
+            n = tf.shape(x)[0]
+            h, w, c = x.shape[1:]
+            sampling_mask_shape = [n, h - self.block_size + 1, w - self.block_size + 1, 1]
+            pad_shape = [[0, 0], [tl, br], [tl, br], [0, 0]]
+
+            ratio = (w * h) / (self.block_size ** 2) / ((w - self.block_size + 1) * (h - self.block_size + 1))
+            gamma = (1. - self.keep_prob) * ratio * self.gamma_scale
+            mask = tf.cast(
+                tf.random.uniform(sampling_mask_shape) < gamma, tf.float32)
+            mask = tf.pad(mask, pad_shape)
+
+            mask = self._max_pool(mask)
+            mask = 1. - mask
+            mask_reduce_sum = tf.reduce_sum(mask, axis=[1, 2, 3], keepdims=True)
+            normalize_factor = tf.cast(h * w, dtype=tf.float32) / (mask_reduce_sum + 1e-8)
+
+            x = x * tf.cast(mask, x.dtype) * tf.cast(normalize_factor, x.dtype)
+            return x
+        return x
+
+    def compute_output_shape(self, input_shape):
+        return input_shape
+
+    def get_config(self):
+        return {
+            **super().get_config(),
+            'keep_prob': self.keep_prob,
+            "block_size": self.block_size,
+            "gamma_scale": self.gamma_scale,
+        }

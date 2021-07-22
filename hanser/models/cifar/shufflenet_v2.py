@@ -4,8 +4,7 @@ from tensorflow.keras import Sequential, Model
 from tensorflow.keras.layers import Layer, Dropout
 
 from hanser.models.layers import Conv2d, GlobalAvgPool, Linear
-from hanser.models.modules import SELayer
-
+from hanser.models.attention import SELayer
 
 __all__ = [
     'ShuffleNetV2'

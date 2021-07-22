@@ -2,7 +2,8 @@ import math
 from functools import partial
 import tensorflow as tf
 from tensorflow.keras import Model, Sequential
-from hanser.models.modules import SELayer, DropPath
+from hanser.models.modules import DropPath
+from hanser.models.attention import SELayer
 from tensorflow.keras.layers import Layer, Dropout
 from hanser.models.layers import Conv2d, Identity, GlobalAvgPool, Linear
 

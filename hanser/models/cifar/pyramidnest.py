@@ -2,7 +2,8 @@ from tensorflow.keras import Model, Sequential
 from tensorflow.keras.layers import Layer
 
 from hanser.models.layers import Pool2d, Conv2d, Norm, Act, GlobalAvgPool, Linear
-from hanser.models.modules import PadChannel, SplAtConv2d, DropPath
+from hanser.models.modules import PadChannel, DropPath
+from hanser.models.attention import SplAtConv2d
 
 __all__ = [
     "PyramidNeSt"

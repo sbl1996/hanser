@@ -14,6 +14,7 @@ from tensorflow_addons.activations import mish
 
 from hanser.models.pooling import MaxPooling2D as MaxPool2D, AveragePooling2D as AvgPool2D
 from hanser.models.bn import BatchNormalization, SyncBatchNormalization
+from hanser.models.modules import DropBlock
 
 __all__ = ["set_default", "set_defaults", "Act", "Conv2d", "Norm", "Linear", "GlobalAvgPool", "Pool2d", "Identity"]
 
@@ -448,56 +449,3 @@ class NaiveGroupConv2D(Layer):
         ]
         x = tf.concat(xs, axis=-1)
         return x
-
-
-class DropBlock(Layer):
-
-    def __init__(self, keep_prob, block_size, gamma_scale=1., **kwargs):
-        super().__init__(**kwargs)
-        self.block_size = block_size
-        self.gamma_scale = gamma_scale
-
-        self.keep_prob = self.add_weight(
-            name="keep_prob", shape=(), dtype=tf.float32,
-            initializer=Constant(keep_prob), trainable=False,
-            experimental_autocast=False,
-        )
-
-        self._max_pool = MaxPool2D(
-            (block_size, block_size), strides=(1, 1), padding='same', dtype=tf.float32)
-
-    def call(self, x, training=None):
-        if training:
-            br = (self.block_size - 1) // 2
-            tl = (self.block_size - 1) - br
-
-            n = tf.shape(x)[0]
-            h, w, c = x.shape[1:]
-            sampling_mask_shape = [n, h - self.block_size + 1, w - self.block_size + 1, 1]
-            pad_shape = [[0, 0], [tl, br], [tl, br], [0, 0]]
-
-            ratio = (w * h) / (self.block_size ** 2) / ((w - self.block_size + 1) * (h - self.block_size + 1))
-            gamma = (1. - self.keep_prob) * ratio * self.gamma_scale
-            mask = tf.cast(
-                tf.random.uniform(sampling_mask_shape) < gamma, tf.float32)
-            mask = tf.pad(mask, pad_shape)
-
-            mask = self._max_pool(mask)
-            mask = 1. - mask
-            mask_reduce_sum = tf.reduce_sum(mask, axis=[1, 2, 3], keepdims=True)
-            normalize_factor = tf.cast(h * w, dtype=tf.float32) / (mask_reduce_sum + 1e-8)
-
-            x = x * tf.cast(mask, x.dtype) * tf.cast(normalize_factor, x.dtype)
-            return x
-        return x
-
-    def compute_output_shape(self, input_shape):
-        return input_shape
-
-    def get_config(self):
-        return {
-            **super().get_config(),
-            'keep_prob': self.keep_prob,
-            "block_size": self.block_size,
-            "gamma_scale": self.gamma_scale,
-        }

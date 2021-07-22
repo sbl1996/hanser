@@ -1,4 +1,4 @@
-from hanser.models.modules import SELayer
+from hanser.models.attention import SELayer
 from tensorflow.keras import Sequential
 from tensorflow.keras.layers import Layer
 

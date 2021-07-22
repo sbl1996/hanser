@@ -2,7 +2,8 @@ from tensorflow.keras import Model, Sequential
 from tensorflow.keras.layers import Layer, Flatten
 
 from hanser.models.layers import Pool2d, Conv2d, Norm, Act, GlobalAvgPool, Linear
-from hanser.models.modules import PadChannel, DropPath, SELayer
+from hanser.models.modules import PadChannel, DropPath
+from hanser.models.attention import SELayer
 
 __all__ = [
     "PyramidNeXt"

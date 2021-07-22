@@ -1,7 +1,7 @@
 from tensorflow.keras import Model, Sequential
 from tensorflow.keras.layers import Layer
 
-from hanser.models.modules import SELayer
+from hanser.models.attention import SELayer
 from hanser.models.layers import Conv2d, Norm, Act, Identity, GlobalAvgPool, Linear
 
 
