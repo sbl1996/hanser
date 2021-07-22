@@ -175,6 +175,7 @@ def _get_dropblock(config: Dict[str, Any]):
         keep_prob=config['keep_prob'],
         block_size=config['block_size'],
         gamma_scale=config['gamma_scale'],
+        per_channel=config['per_channel'],
     )
 
 
