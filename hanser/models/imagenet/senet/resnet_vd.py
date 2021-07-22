@@ -1,7 +1,8 @@
-from hanser.models.attention import SELayer
 from tensorflow.keras import Sequential, Model
 from tensorflow.keras.layers import Layer, Dropout
 
+from hanser.models.attention import SELayer
+from hanser.models.modules import DropPath
 from hanser.models.layers import Conv2d, Act, Identity, GlobalAvgPool, Linear, Pool2d, Norm
 from hanser.models.imagenet.stem import ResNetvdStem
 
@@ -9,7 +10,7 @@ from hanser.models.imagenet.stem import ResNetvdStem
 class BasicBlock(Layer):
     expansion = 1
 
-    def __init__(self, in_channels, channels, stride, reduction=16, se_mode=0):
+    def __init__(self, in_channels, channels, stride, reduction=16, se_mode=0, drop_path=0):
         super().__init__()
         out_channels = channels * self.expansion
         self.conv1 = Conv2d(in_channels, out_channels, kernel_size=3, stride=stride,
@@ -17,6 +18,7 @@ class BasicBlock(Layer):
         self.conv2 = Conv2d(out_channels, out_channels, kernel_size=3)
         self.bn2 = Norm(out_channels)
         self.se = SELayer(out_channels, reduction=reduction, mode=se_mode)
+        self.drop_path = DropPath(drop_path) if drop_path else Identity()
 
         if stride != 1 or in_channels != out_channels:
             shortcut = []
@@ -36,6 +38,7 @@ class BasicBlock(Layer):
         x = self.conv2(x)
         x = self.bn2(x)
         x = self.se(x)
+        x = self.drop_path(x)
         x = x + identity
         x = self.act(x)
         return x
@@ -44,7 +47,7 @@ class BasicBlock(Layer):
 class Bottleneck(Layer):
     expansion = 4
 
-    def __init__(self, in_channels, channels, stride, reduction=16, se_mode=0):
+    def __init__(self, in_channels, channels, stride, reduction=16, se_mode=0, drop_path=0):
         super().__init__()
         out_channels = channels * self.expansion
         self.conv1 = Conv2d(in_channels, channels, kernel_size=1,
@@ -54,6 +57,7 @@ class Bottleneck(Layer):
         self.conv3 = Conv2d(channels, out_channels, kernel_size=1)
         self.bn3 = Norm(out_channels)
         self.se = SELayer(out_channels, reduction=reduction, mode=se_mode)
+        self.drop_path = DropPath(drop_path) if drop_path else Identity()
 
         if stride != 1 or in_channels != out_channels:
             shortcut = []
@@ -74,6 +78,7 @@ class Bottleneck(Layer):
         x = self.conv3(x)
         x = self.bn3(x)
         x = self.se(x)
+        x = self.drop_path(x)
         x = x + identity
         x = self.act(x)
         return x
@@ -82,25 +87,19 @@ class Bottleneck(Layer):
 class ResNet(Model):
 
     def __init__(self, block, layers, num_classes=1000, stages=(64, 64, 128, 256, 512),
-                 reduction=16, se_mode=0, dropout=0):
+                 reduction=16, se_mode=0, dropout=0, drop_path=0):
         super().__init__()
         self.stages = stages
 
         self.stem = ResNetvdStem(self.stages[0])
         self.in_channels = self.stages[0]
 
-        self.layer1 = self._make_layer(
-            block, self.stages[1], layers[0], stride=1,
-            reduction=reduction, se_mode=se_mode)
-        self.layer2 = self._make_layer(
-            block, self.stages[2], layers[1], stride=2,
-            reduction=reduction, se_mode=se_mode)
-        self.layer3 = self._make_layer(
-            block, self.stages[3], layers[2], stride=2,
-            reduction=reduction, se_mode=se_mode)
-        self.layer4 = self._make_layer(
-            block, self.stages[4], layers[3], stride=2,
-            reduction=reduction, se_mode=se_mode)
+        strides = [1, 2, 2, 2]
+        for i in range(4):
+            layer = self._make_layer(
+                block, self.stages[i+1], layers[i], stride=strides[i],
+                reduction=reduction, se_mode=se_mode, drop_path=drop_path)
+            setattr(self, "layer%d" % (i + 1), layer)
 
         self.avgpool = GlobalAvgPool()
         self.dropout = Dropout(dropout) if dropout else None
