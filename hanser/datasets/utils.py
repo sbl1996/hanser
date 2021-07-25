@@ -7,13 +7,7 @@ def make_repeat_fn(n):
 
 def prepare(ds, batch_size, transform=None, training=True, buffer_size=1024,
             drop_remainder=None, cache=True, repeat=True, prefetch=True,
-            zip_transform=None, batch_transform=None, datasets_num_private_threads=None,
-            aug_repeats=None):
-    if datasets_num_private_threads:
-        options = tf.data.Options()
-        options.experimental_threading.private_threadpool_size = (
-            datasets_num_private_threads)
-        ds = ds.with_options(options)
+            zip_transform=None, batch_transform=None, aug_repeats=None):
 
     if drop_remainder is None:
         drop_remainder = training

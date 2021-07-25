@@ -1,10 +1,9 @@
+from functools import partial
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras import initializers
-from tensorflow.keras.layers import InputSpec, Dropout, Layer, MaxPool2D
+from tensorflow.keras.layers import InputSpec, Dropout, Layer, Conv2D
 from tensorflow.keras.initializers import Constant
-
-from hanser.models.smart_module import smart_cond
 
 
 class PadChannel(Layer):
@@ -13,7 +12,7 @@ class PadChannel(Layer):
         super().__init__(**kwargs)
         self.c = c
 
-    def call(self, x, training=None):
+    def call(self, x):
         return tf.pad(x, [(0, 0), (0, 0), (0, 0), (0, self.c)])
 
     def compute_output_shape(self, input_shape):
@@ -27,28 +26,55 @@ class PadChannel(Layer):
         }
 
 
+class StochDepth(Layer):
+
+    def __init__(self, drop_rate, scale_by_keep=False, **kwargs):
+        super().__init__(**kwargs)
+        self.drop_rate = self.add_weight(
+            name="drop_rate", shape=(), dtype=tf.float32,
+            initializer=initializers.Constant(drop_rate), trainable=False)
+        self.scale_by_keep = scale_by_keep
+
+    def call(self, x, training=None):
+        if not training:
+            return x
+        noise_shape = (tf.shape(x)[0], 1, 1, 1)
+        r = tf.random.uniform(noise_shape, dtype=x.dtype)
+        keep_prob = 1. - self.drop_rate
+        binary_tensor = tf.floor(keep_prob + r)
+        if self.scale_by_keep:
+            x = x / keep_prob
+        return x * binary_tensor
+
+    def compute_output_shape(self, input_shape):
+        return input_shape
+
+    def get_config(self):
+        return {
+            **super().get_config(),
+            'drop_rate': self.drop_rate,
+            'scale_by_keep': self.scale_by_keep,
+        }
+
+
 class DropPath(Dropout):
 
     def __init__(self, rate, **kwargs):
-        super(Dropout, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.rate = self.add_weight(
             name="drop_rate", shape=(), dtype=tf.float32,
             initializer=initializers.Constant(rate), trainable=False)
 
     def call(self, inputs, training=None):
-        if training is None:
-            training = tf.keras.backend.learning_phase()
 
-        noise_shape = (tf.shape(inputs)[0], 1, 1, 1)
-
-        def dropped_inputs():
+        if training:
+            noise_shape = (tf.shape(inputs)[0], 1, 1, 1)
             return tf.nn.dropout(
                 inputs,
                 noise_shape=noise_shape,
                 rate=self.rate)
 
-        output = smart_cond(training, dropped_inputs, lambda: tf.identity(inputs))
-        return output
+        return inputs
 
     def compute_output_shape(self, input_shape):
         return input_shape
@@ -365,3 +391,77 @@ class DropBlock(Layer):
             "gamma_scale": self.gamma_scale,
             "per_channel": self.per_channel,
         }
+
+
+class ScaledWSConv2D(Conv2D):
+
+    def build(self, input_shape):
+        input_shape = tf.TensorShape(input_shape)
+        input_channel = self._get_input_channel(input_shape)
+        if input_channel % self.groups != 0:
+            raise ValueError(
+                'The number of input channels must be evenly divisible by the number '
+                'of groups. Received groups={}, but the input has {} channels '
+                '(full input shape is {}).'.format(self.groups, input_channel,
+                                                   input_shape))
+        kernel_shape = self.kernel_size + (input_channel // self.groups,
+                                           self.filters)
+
+        self.kernel = self.add_weight(
+            name='kernel',
+            shape=kernel_shape,
+            initializer=self.kernel_initializer,
+            regularizer=self.kernel_regularizer,
+            constraint=self.kernel_constraint,
+            trainable=True,
+            dtype=self.dtype,
+            experimental_autocast=False)
+        if self.use_bias:
+            self.bias = self.add_weight(
+                name='bias',
+                shape=(self.filters,),
+                initializer=self.bias_initializer,
+                regularizer=self.bias_regularizer,
+                constraint=self.bias_constraint,
+                trainable=True,
+                dtype=self.dtype)
+        else:
+            self.bias = None
+        channel_axis = self._get_channel_axis()
+        self.input_spec = InputSpec(min_ndim=self.rank + 2,
+                                    axes={channel_axis: input_channel})
+
+        # Convert Keras formats to TF native formats.
+        if self.padding == 'causal':
+            tf_padding = 'VALID'  # Causal padding handled in `call`.
+        elif isinstance(self.padding, str):
+            tf_padding = self.padding.upper()
+        else:
+            tf_padding = self.padding
+        tf_dilations = list(self.dilation_rate)
+        tf_strides = list(self.strides)
+
+        tf_op_name = self.__class__.__name__
+
+        default_conv_op = partial(
+            tf.nn.convolution,
+            strides=tf_strides,
+            padding=tf_padding,
+            dilations=tf_dilations,
+            data_format=self._tf_data_format,
+            name=tf_op_name)
+
+        self.gain = self.add_weight(
+            "gain", shape=(self.filters,), dtype=tf.float32,
+            trainable=True, initializer='ones', experimental_autocast=False)
+
+        def standardized_conv_op(inputs, kernel):
+            fan_in = tf.constant(np.prod(kernel.shape[:3]), kernel.dtype)
+            mean, var = tf.nn.moments(kernel, axes=[0, 1, 2], keepdims=True)
+            kernel = (kernel - mean) / tf.sqrt(var * fan_in + 1e-4)
+            kernel = kernel * self.gain
+            kernel = tf.cast(kernel, inputs.dtype)
+            return default_conv_op(inputs, kernel)
+
+        self._convolution_op = standardized_conv_op
+        self.built = True

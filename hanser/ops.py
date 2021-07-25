@@ -7,7 +7,6 @@ import tensorflow_probability as tfp
 
 
 def gumbel_softmax(logits, tau=1.0, hard=False, axis=-1, return_index=False):
-    # gumbels = tfp.distributions.Gumbel(0, 1).sample(tf.shape(logits))
     u = tf.random.uniform(tf.shape(logits), dtype=logits.dtype)
     gumbels = -tf.math.log(-tf.math.log(u))
     gumbels = (logits + gumbels) / tau

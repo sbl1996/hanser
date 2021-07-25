@@ -8,8 +8,9 @@ from hanser.models.layers import GlobalAvgPool, Conv2d, Norm, Act
 class SELayer(Layer):
 
     def __init__(self, in_channels, reduction=None, groups=1, se_channels=None,
-                 min_se_channels=32, act='def', mode=0, **kwargs):
+                 min_se_channels=32, act='def', mode=0, scale=None, **kwargs):
         super().__init__(**kwargs)
+        self.scale = scale
         self.pool = GlobalAvgPool(keep_dim=True)
         if mode == 0:
             # σ(f_{W1, W2}(y))
@@ -35,6 +36,8 @@ class SELayer(Layer):
     def call(self, x):
         s = self.pool(x)
         s = self.fc(s)
+        if self.scale is not None:
+            s = s * tf.constant(self.scale, s.dtype)
         return x * s
 
 

@@ -1,6 +1,7 @@
 import math
 from difflib import get_close_matches
 from typing import Union, Tuple, Optional, Sequence, Mapping, Dict, Any
+from toolz import curry
 
 from cerberus import Validator
 
@@ -14,7 +15,7 @@ from tensorflow_addons.activations import mish
 
 from hanser.models.pooling import MaxPooling2D as MaxPool2D, AveragePooling2D as AvgPool2D
 from hanser.models.bn import BatchNormalization, SyncBatchNormalization
-from hanser.models.modules import DropBlock
+from hanser.models.modules import DropBlock, ScaledWSConv2D
 
 __all__ = ["set_default", "set_defaults", "Act", "Conv2d", "Norm", "Linear", "GlobalAvgPool", "Pool2d", "Identity"]
 
@@ -179,6 +180,7 @@ def _get_dropblock(config: Dict[str, Any]):
     )
 
 
+@curry
 def Conv2d(in_channels: int,
            out_channels: int,
            kernel_size: Union[int, Tuple[int, int], Tuple[Tuple[int, int], Tuple[int, int]]],
@@ -192,7 +194,9 @@ def Conv2d(in_channels: int,
            kernel_init: Optional[Initializer] = None,
            bias_init: Optional[Initializer] = None,
            gamma_init: Union[str, Initializer] = 'ones',
-           dropblock: Union[bool, Dict[str, Any]] = False):
+           dropblock: Union[bool, Dict[str, Any]] = False,
+           scaled_ws: bool = False):
+
     if isinstance(kernel_size, int):
         kernel_size = (kernel_size, kernel_size)
     if isinstance(stride, int):
@@ -210,7 +214,7 @@ def Conv2d(in_channels: int,
     init_cfg = conv_cfg['init']
     naive_padding = DEFAULTS['naive_padding'] or padding == 'SAME'
 
-    if naive_padding:
+    if naive_padding and stride != (2, 2):
         conv_padding = padding
     else:
         conv_padding = 'valid'
@@ -265,12 +269,17 @@ def Conv2d(in_channels: int,
         conv = NaiveGroupConv2D(
             in_channels, out_channels, kernel_size=kernel_size, stride=stride,
             padding=conv_padding, groups=groups)
+    elif scaled_ws:
+        conv = ScaledWSConv2D(
+            out_channels, kernel_size=kernel_size, strides=stride,
+            padding=conv_padding, dilation_rate=dilation, use_bias=use_bias, groups=groups,
+            kernel_initializer=kernel_initializer, bias_initializer=bias_initializer)
     else:
         conv = Conv2D(out_channels, kernel_size=kernel_size, strides=stride,
                       padding=conv_padding, dilation_rate=dilation, use_bias=use_bias, groups=groups,
                       kernel_initializer=kernel_initializer, bias_initializer=bias_initializer)
 
-    if not naive_padding and padding != ((0, 0), (0, 0)):
+    if (not naive_padding and padding != ((0, 0), (0, 0))) or (naive_padding and stride == (2, 2)):
         conv = Sequential([
             ZeroPadding2D(padding),
             conv,
@@ -344,11 +353,16 @@ def Norm(channels=None, type='default', affine=None, track_running_stats=None, g
     else:
         raise ValueError("Unsupported normalization type: %s" % type)
 
+
 def Act(type='default', **kwargs):
     if type in ['default', 'def']:
         return Act(DEFAULTS['activation'], **kwargs)
     if type == 'mish':
         return Mish()
+    elif type == 'scaled_relu':
+        return ScaledReLU()
+    elif type == 'scaled_swish':
+        return ScaledSwish()
     elif type == 'leaky_relu':
         if 'alpha' not in kwargs:
             kwargs = {**kwargs, 'alpha': DEFAULTS['leaky_relu']['alpha']}
@@ -396,11 +410,6 @@ class GlobalAvgPool(Layer):
 
 
 class Identity(Layer):
-    """Abstract class for different global pooling 2D layers.
-  """
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
 
     def call(self, inputs):
         return tf.identity(inputs)
@@ -415,17 +424,32 @@ def Linear(in_channels, out_channels, act=None, kernel_init=None, bias_init=None
                  bias_initializer=bias_initializer)
 
 
+def gelu(x):
+    return tf.nn.sigmoid(x * 1.702) * x
+
+
 class Mish(Layer):
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
-    def call(self, x, training=None):
+    def call(self, x):
         return mish(x)
 
-    def get_config(self):
-        base_config = super().get_config()
-        return base_config
+
+class ScaledReLU(Layer):
+
+    def call(self, x):
+        return tf.nn.relu(x) * 1.7139588594436646
+
+
+class ScaledSwish(Layer):
+
+    def call(self, x):
+        return tf.nn.swish(x) * 1.7881293296813965
+
+
+class ScaledGELU(Layer):
+
+    def call(self, x):
+        return gelu(x) * 1.7015043497085571
 
 
 class NaiveGroupConv2D(Layer):
@@ -441,11 +465,6 @@ class NaiveGroupConv2D(Layer):
         ]
 
     def call(self, x):
-        # C = self.in_channels // self.groups
-        # x = tf.concat([
-        #     conv(x[:, :, :, i * C: (i + 1) * C])
-        #     for i, conv in enumerate(self.convs)
-        # ], axis=-1)
         xs = tf.split(x, self.groups, axis=-1)
         xs = [
             conv(x) for conv, x in zip(self.convs, xs)

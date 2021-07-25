@@ -5,29 +5,29 @@ from tensorflow.keras.layers import Conv2D
 
 
 def conv_output_length(input_length, filter_size, padding, stride, dilation=1):
-  """Determines output length of a convolution given input length.
+    """Determines output length of a convolution given input length.
 
-  Arguments:
-      input_length: integer.
-      filter_size: integer.
-      padding: one of "same", "valid", "full", "causal"
-      stride: integer.
-      dilation: dilation rate, integer.
+    Arguments:
+        input_length: integer.
+        filter_size: integer.
+        padding: one of "same", "valid", "full", "causal"
+        stride: integer.
+        dilation: dilation rate, integer.
 
-  Returns:
-      The output length (integer).
-  """
-  if input_length is None:
-    return None
-  assert padding in {'same', 'valid', 'full', 'causal'}
-  dilated_filter_size = filter_size + (filter_size - 1) * (dilation - 1)
-  if padding in ['same', 'causal']:
-    output_length = input_length
-  elif padding == 'valid':
-    output_length = input_length - dilated_filter_size + 1
-  elif padding == 'full':
-    output_length = input_length + dilated_filter_size - 1
-  return (output_length + stride - 1) // stride
+    Returns:
+        The output length (integer).
+    """
+    if input_length is None:
+        return None
+    assert padding in {'same', 'valid', 'full', 'causal'}
+    dilated_filter_size = filter_size + (filter_size - 1) * (dilation - 1)
+    if padding in ['same', 'causal']:
+        output_length = input_length
+    elif padding == 'valid':
+        output_length = input_length - dilated_filter_size + 1
+    elif padding == 'full':
+        output_length = input_length + dilated_filter_size - 1
+    return (output_length + stride - 1) // stride
 
 
 def calc_same_padding(kernel_size, dilation):
@@ -169,13 +169,13 @@ class DepthwiseConv2D(Conv2D):
             out_filters = input_shape[3] * self.depth_multiplier
 
         rows = conv_output_length(rows, self.kernel_size[0],
-                                             self.padding,
-                                             self.strides[0],
-                                             self.dilation_rate[0])
+                                  self.padding,
+                                  self.strides[0],
+                                  self.dilation_rate[0])
         cols = conv_output_length(cols, self.kernel_size[1],
-                                             self.padding,
-                                             self.strides[1],
-                                             self.dilation_rate[1])
+                                  self.padding,
+                                  self.strides[1],
+                                  self.dilation_rate[1])
         if self.data_format == 'channels_first':
             return (input_shape[0], out_filters, rows, cols)
         elif self.data_format == 'channels_last':

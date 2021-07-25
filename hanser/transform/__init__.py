@@ -6,9 +6,8 @@ import tensorflow as tf
 from tensorflow.python.ops import gen_image_ops
 
 import tensorflow_addons as tfa
-from tensorflow_addons.image.translate_ops import translations_to_projective_transforms
-from tensorflow_addons.image import shear_x
 import tensorflow_probability as tfp
+from tensorflow_addons.image.translate_ops import translations_to_projective_transforms
 
 from hanser.ops import beta_mc, log_uniform, prepend_dims
 from hanser.transform.fmix import sample_mask
@@ -134,13 +133,35 @@ def cutmix_batch(image, label, alpha, hard=False, **gen_lam_kwargs):
 
 @curry
 def mixup_or_cutmix_batch(
-    image, label, mixup_alpha, cutmix_alpha, prob, switch_prob, hard=False, **gen_lam_kwargs):
-    if tf.random.uniform(()) < prob:
-        return image, label
+    image, label, mixup_alpha=0.2, cutmix_alpha=1.0, switch_prob=0.5, hard=False, **gen_lam_kwargs):
     if tf.random.uniform(()) < switch_prob:
         return mixup_batch(image, label, mixup_alpha, hard=hard, **gen_lam_kwargs)
     else:
         return cutmix_batch(image, label, cutmix_alpha, hard=hard, **gen_lam_kwargs)
+
+
+@curry
+def mixup_cutmix_batch(
+    image, label, mixup_alpha=0.2, cutmix_alpha=1.0, hard=False, **gen_lam_kwargs):
+    image1, label1 = mixup_batch(image, label, mixup_alpha, hard=hard, **gen_lam_kwargs)
+    image2, label2 = cutmix_batch(image, label, cutmix_alpha, hard=hard, **gen_lam_kwargs)
+    image = tf.concat((image1, image2), axis=0)
+    label = tf.concat((label1, label2), axis=0)
+    return image, label
+
+
+@curry
+def mixup_cutmix_batch2(
+    image, label, mixup_alpha=0.2, cutmix_alpha=1.0, hard=False, **gen_lam_kwargs):
+    n = _image_dimensions(image, 4)[0] // 2
+    image1, image2 = image[:n], image[n:]
+    label1, label2 = label[:n], label[n:]
+    data1, data2 = (image1, label1), (image2, label2)
+    image1, label1 = mixup(data1, data2, mixup_alpha, hard=hard, **gen_lam_kwargs)
+    image2, label2 = cutmix(data1, data2, cutmix_alpha, hard=hard, **gen_lam_kwargs)
+    image = tf.concat((image1, image2), axis=0)
+    label = tf.concat((label1, label2), axis=0)
+    return image, label
 
 
 @curry
@@ -212,10 +233,8 @@ def get_ndims(image):
 
 def to_4D_image(image):
     """Convert 2/3/4D image to 4D image.
-
     Args:
       image: 2/3/4D tensor.
-
     Returns:
       4D tensor with the same type.
     """
@@ -269,11 +288,9 @@ def _dynamic_from_4D_image(image, original_rank):
 
 def from_4D_image(image, ndims):
     """Convert back to an image with `ndims` rank.
-
     Args:
       image: 4D tensor.
       ndims: The original rank of the image.
-
     Returns:
       `ndims`-D tensor with the same type.
     """
@@ -355,11 +372,9 @@ def random_choice(funcs, image):
 
 def _image_dimensions(image, rank):
     """Returns the dimensions of an image tensor.
-
     Args:
         image: A rank-D Tensor. For 3-D  of shape: `[height, width, channels]`.
         rank: The expected rank of the image
-
     Returns:
         A list of corresponding to the dimensions of the input image. Dimensions
         that are statically known are python integers, otherwise they are integer
@@ -485,12 +500,10 @@ def _fill_region(shape, value, dtype):
 @curry
 def cutout(images, length, fill=0):
     r"""Cutout, support batch input.
-
     Args:
         images: (N?, H, W, C) single image or a batch of images.
         length: length of the cutout region.
         fill: value to be filled in cutout region, maybe scalar, tensor, 'normal' and 'uniform'.
-
     Notes:
         Set `fill` to 'normal' only if pixel values are in [0, 1], and 'uniform' if in [0, 255].
     """
@@ -578,7 +591,6 @@ def cutout3(image, length, fill=0):
 @curry
 def random_erasing(image, p=0.5, s_l=0.02, s_h=0.4, r_1=0.3, r_2=None, fill='normal'):
     r"""Random Erasing.
-
     Args:
         image: the input image with shape (H, W, C), C may be 1, 3, 4.
         p: probabilty to apply this augmentation.
@@ -629,19 +641,16 @@ def invert(image):
 
 def blend(image1, image2, factor):
     """Blend image1 and image2 using 'factor'.
-
     Factor can be above 0.0.  A value of 0.0 means only image1 is used.
     A value of 1.0 means only image2 is used.  A value between 0.0 and
     1.0 means we linearly interpolate the pixel values between the two
     images.  A value greater than 1.0 "extrapolates" the difference
     between the two pixel values, and we clip the results to values
     between 0 and 255.
-
     Args:
       image1: An image Tensor of type uint8.
       image2: An image Tensor of type uint8.
       factor: A floating point value above 0.0.
-
     Returns:
       A blended image Tensor of type uint8.
     """
@@ -726,7 +735,6 @@ def posterize(image, bits):
 
 def rotate(image, degrees, replace):
     """Rotates the image by degrees either clockwise or counterclockwise.
-
     Args:
         image: An image Tensor of type uint8.
         degrees: Float, a scalar angle in degrees to rotate all images by. If
@@ -762,7 +770,6 @@ def wrap(image):
 
 def unwrap(image, replace):
     """Unwraps an image produced by wrap.
-
     Where there is a 0 in the last channel for every spatial position,
     the rest of the three channels in that spatial dimension are grayed
     (set to 128).  Operations like translate and shear on a wrapped
@@ -801,7 +808,6 @@ def unwrap(image, replace):
 
 def autocontrast(image):
     """Implements Autocontrast function from PIL using TF ops.
-
     Args:
         image: A 3D uint8 tensor.
     Returns:

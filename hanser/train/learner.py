@@ -458,7 +458,6 @@ class Learner(metaclass=ABCMeta):
     def recover_log(self):
         train_start = self._train_start
         self._print(f"{train_start} Start training")
-        history = self.metric_history
         max_epochs = self._max_epochs
         train_metric_keys = self.train_metrics.keys()
         eval_metric_keys = self.eval_metrics.keys()
