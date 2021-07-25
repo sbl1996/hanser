@@ -143,8 +143,11 @@ def mixup_or_cutmix_batch(
 @curry
 def mixup_cutmix_batch(
     image, label, mixup_alpha=0.2, cutmix_alpha=1.0, hard=False, **gen_lam_kwargs):
-    image1, label1 = mixup_batch(image, label, mixup_alpha, hard=hard, **gen_lam_kwargs)
-    image2, label2 = cutmix_batch(image, label, cutmix_alpha, hard=hard, **gen_lam_kwargs)
+    n = _image_dimensions(image, 4)[0] // 2
+    image1, image2 = image[:n], image[n:]
+    label1, label2 = label[:n], label[n:]
+    image1, label1 = mixup_batch(image1, label1, mixup_alpha, hard=hard, **gen_lam_kwargs)
+    image2, label2 = cutmix_batch(image2, label2, cutmix_alpha, hard=hard, **gen_lam_kwargs)
     image = tf.concat((image1, image2), axis=0)
     label = tf.concat((label1, label2), axis=0)
     return image, label
