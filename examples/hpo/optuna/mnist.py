@@ -114,6 +114,8 @@ def study_fn():
             n_startup_trials=5, n_warmup_steps=5, interval_steps=2),
         storage="sqlite:///mnist1.db"
     )
+study = study_fn()
+study.optimize()
 
 import multiprocessing
 while True:
