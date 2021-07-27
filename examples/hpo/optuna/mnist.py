@@ -1,3 +1,7 @@
+import logging, os
+logging.disable(logging.WARNING)
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+
 from toolz import curry
 
 import tensorflow as tf
@@ -61,7 +65,7 @@ def objective(trial: optuna.Trial):
         model, criterion, optimizer,
         train_metrics=train_metrics, eval_metrics=eval_metrics,
         work_dir=f"./MNIST", multiple_steps=True)
-
+    learner._verbose = False
     callbacks = [OptunaReportIntermediateResult('acc', trial)]
     # if ema == 'true':
     #     callbacks.append(EMA(ema_decay))
@@ -72,13 +76,48 @@ def objective(trial: optuna.Trial):
 
     return learner.metric_history.get_metric('acc', "eval")[-1]
 
-study = optuna.create_study(
-    direction="maximize",
-    study_name="mnist1",
-    load_if_exists=True,
-    pruner=optuna.pruners.MedianPruner(
-        n_startup_trials=5, n_warmup_steps=5, interval_steps=2
-    ),
-)
 
-study.optimize(objective, n_trials=20)
+from hhutil.datetime import datetime_now
+from termcolor import colored
+def info(msg):
+    dt = datetime_now(format=True)
+    print(colored(f"[I {dt}]", "green") + " " + msg)
+
+
+def run(study_fn):
+    study = study_fn()
+    trial = study.ask()
+    try:
+        score = objective(trial)
+        study.tell(trial, score)
+        info(
+            "Trial {} finished with value: {} and parameters: {}. "
+            "Best is trial {} with value: {}.".format(
+                trial.number,
+                score,
+                trial.params,
+                study.best_trial.number,
+                study.best_value,
+            )
+        )
+    except optuna.TrialPruned:
+        study.tell(trial, state=optuna.trial.TrialState.PRUNED)
+        info("Trial {} pruned.".format(trial.number))
+
+
+def study_fn():
+    return optuna.create_study(
+        direction="maximize",
+        study_name="mnist1",
+        load_if_exists=True,
+        pruner=optuna.pruners.MedianPruner(
+            n_startup_trials=5, n_warmup_steps=5, interval_steps=2),
+        storage="sqlite:///mnist1.db"
+    )
+
+import multiprocessing
+while True:
+    p = multiprocessing.Process(target=run, args=(study_fn,))
+    p.start()
+    p.join()
+    p.close()
