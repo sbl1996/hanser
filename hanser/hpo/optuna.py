@@ -66,12 +66,16 @@ def optimize_mp(
     objective: optuna.study.ObjectiveFuncType,
     n_trials: Optional[int] = None,
     catch: Tuple[Type[Exception], ...] = (),
+    timeout: int = None,
 ):
     i_trial = 0
     while True:
         p = multiprocessing.Process(target=run_trial, args=(study, objective, catch))
         p.start()
-        p.join()
+        p.join(timeout=timeout)
+        if p.is_alive():
+            warn("Maybe connection timeout for TPU")
+            p.kill()
         exitcode = p.exitcode
         p.close()
 
