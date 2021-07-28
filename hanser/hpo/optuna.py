@@ -13,17 +13,17 @@ def get_tpu_errors():
         tf.errors.UnavailableError,
     )
 
+def _time_now():
+    dt = datetime_now()
+    dt = dt.strftime('%Y-%m-%d %H:%M:%S,%f')[:-3]
+    return dt
 
 def info(msg):
-    dt = datetime_now()
-    dt = dt.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
-    print(colored(f"[I {dt}]", "green") + " " + msg)
+    print(colored(f"[I {_time_now()}]", "green") + " " + msg)
 
 
 def warn(msg):
-    dt = datetime_now()
-    dt = dt.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
-    print(colored(f"[I {dt}]", "red") + " " + msg)
+    print(colored(f"[I {_time_now()}]", "red") + " " + msg)
 
 
 def run_trial(
