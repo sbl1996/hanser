@@ -1,5 +1,5 @@
 import tensorflow as tf
-from typing import Optional, Tuple, Type
+from typing import Optional, Tuple, Type, Union, Callable
 from termcolor import colored
 import multiprocessing
 
@@ -13,10 +13,12 @@ def get_tpu_errors():
         tf.errors.UnavailableError,
     )
 
+
 def _time_now():
     dt = datetime_now()
     dt = dt.strftime('%Y-%m-%d %H:%M:%S,%f')[:-3]
     return dt
+
 
 def info(msg):
     print(colored(f"[I {_time_now()}]", "green") + " " + msg)
@@ -27,11 +29,12 @@ def warn(msg):
 
 
 def run_trial(
-    study_fn,
-    objective,
+    study: Union[optuna.Study, Callable[[], optuna.Study]],
+    objective: optuna.study.ObjectiveFuncType,
     catch: Tuple[Type[Exception], ...] = (),
 ):
-    study = study_fn()
+    if not isinstance(study, optuna.Study):
+        study = study()
     trial = study.ask()
     try:
         score = objective(trial)
@@ -59,14 +62,14 @@ def run_trial(
 
 
 def optimize_mp(
-    study_fn: optuna.Study,
+    study: Union[optuna.Study, Callable[[], optuna.Study]],
     objective: optuna.study.ObjectiveFuncType,
     n_trials: Optional[int] = None,
     catch: Tuple[Type[Exception], ...] = (),
 ):
     i_trial = 0
     while True:
-        p = multiprocessing.Process(target=run_trial, args=(study_fn, objective, catch))
+        p = multiprocessing.Process(target=run_trial, args=(study, objective, catch))
         p.start()
         p.join()
         exitcode = p.exitcode
