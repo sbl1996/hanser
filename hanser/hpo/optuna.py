@@ -15,12 +15,14 @@ def get_tpu_errors():
 
 
 def info(msg):
-    dt = datetime_now(format=True)
+    dt = datetime_now()
+    dt = dt.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
     print(colored(f"[I {dt}]", "green") + " " + msg)
 
 
 def warn(msg):
-    dt = datetime_now(format=True)
+    dt = datetime_now()
+    dt = dt.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
     print(colored(f"[I {dt}]", "red") + " " + msg)
 
 
