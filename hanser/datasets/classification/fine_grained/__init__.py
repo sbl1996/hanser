@@ -2,4 +2,4 @@ from hanser.datasets.classification.fine_grained.fgvc_aircraft import FGVCAircra
 from hanser.datasets.classification.fine_grained.flowers102 import Flowers102
 from hanser.datasets.classification.fine_grained.oxford_pet import OxfordPet
 from hanser.datasets.classification.fine_grained.stanford_cars import StanfordCars
-from hanser.datasets.classification.fine_grained.utils import make_fg_dataset
+from hanser.datasets.classification.fine_grained.utils import make_fg_dataset, make_fg_dataset_sub
