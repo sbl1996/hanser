@@ -74,3 +74,7 @@ class ImageListBuilder(HGeneratorBasedBuilder):
                 "file_name": file_name,
             }
             yield file_name, record
+
+    @classmethod
+    def num_classes(cls):
+        return cls.NUM_CLASSES or len(cls.NAMES)
