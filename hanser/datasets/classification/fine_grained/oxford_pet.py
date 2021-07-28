@@ -24,7 +24,7 @@ class OxfordPet(ImageListBuilder):
 
     VERSION = tfds.core.Version("1.0.0")
     SPLITS = {
-        'train': 8144,
-        'test': 8041,
+        'train': 3680,
+        'test': 3369,
     }
     NAMES = _LABEL_CLASSES
