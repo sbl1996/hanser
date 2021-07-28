@@ -15,6 +15,8 @@ _model_path = {
     "res2netvd50_nlb": "https://github.com/sbl1996/hanser/releases/download/0.1.2/res2netvd50_nlb-a4c28fd9.zip",
     "ppresnet50": "https://github.com/sbl1996/hanser/releases/download/0.1.2/ppresnet-14c86ae2.zip",
     "ppresnet50_nlb": "https://github.com/sbl1996/hanser/releases/download/0.1.2/ppresnet50_nlb-167cdde6.zip",
+    "ppresnet50_g2": "https://github.com/sbl1996/hanser/releases/download/0.1.2/ppresnet50_g2-d62fce29.zip",
+    "ppresnet50_g2_aug": "https://github.com/sbl1996/hanser/releases/download/0.1.2/ppresnet50_g2_aug-577b470c.zip",
     "legacy_res2netvd50": "https://github.com/sbl1996/hanser/releases/download/0.1.1/res2netvd50-f7ab3d99.zip",
     "legacy_res2netvd50_nlb": "https://github.com/sbl1996/hanser/releases/download/0.1.1/res2netvd50_nlb-8958f30f.zip",
     "legacy_ppresnet50": "https://github.com/sbl1996/hanser/releases/download/0.1.1/ppresnet50-7c0adb0b.zip",
