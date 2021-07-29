@@ -20,6 +20,10 @@ def _time_now():
     return dt
 
 
+def info(msg):
+    print(colored(f"[I {_time_now()}]", "green") + " " + msg)
+
+
 def warn(msg):
     print(colored(f"[I {_time_now()}]", "red") + " " + msg)
 
@@ -48,6 +52,7 @@ def repeat(
     while True:
         p = multiprocessing.Process(target=run_trial, args=(train_fn, catch))
         p.start()
+        print("Experiment {} started".format(i + 1))
         p.join(timeout=timeout)
         if p.is_alive():
             warn("Maybe connection timeout in TPU")
