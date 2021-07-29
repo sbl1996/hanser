@@ -52,7 +52,7 @@ def repeat(
     while True:
         p = multiprocessing.Process(target=run_trial, args=(train_fn, catch))
         p.start()
-        print("Experiment {} started".format(i + 1))
+        info("Experiment {} started".format(i + 1))
         p.join(timeout=timeout)
         if p.is_alive():
             warn("Maybe connection timeout in TPU")
