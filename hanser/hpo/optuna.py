@@ -76,7 +76,7 @@ def optimize_mp(
         p.start()
         p.join(timeout=timeout)
         if p.is_alive():
-            warn("Maybe connection timeout for TPU")
+            warn("Maybe connection timeout in TPU")
             while p.is_alive():
                 p.kill()
                 time.sleep(1)

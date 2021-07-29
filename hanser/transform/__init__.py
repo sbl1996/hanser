@@ -85,6 +85,9 @@ def mixup(data1, data2, alpha, hard=False, **gen_lam_kwargs):
 
 
 def rand_bbox(h, w, lam):
+    r"""
+    Note: lam may be (1,) or (n,)
+    """
     cut_rat = tf.sqrt(1. - lam)
     cut_w = tf.cast(tf.cast(w, lam.dtype) * cut_rat, tf.int32)
     cut_h = tf.cast(tf.cast(h, lam.dtype) * cut_rat, tf.int32)
