@@ -33,6 +33,7 @@ REQUIRED = [
     "tensorflow_datasets>=4.3.0",
     "hhutil",
     "lark",
+    "pendulum",
 ]
 
 DEPENDENCY_LINKS = [

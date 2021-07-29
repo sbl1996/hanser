@@ -1,31 +1,16 @@
 import time
 from typing import Optional, Tuple, Type, Union, Callable
-from termcolor import colored
 import multiprocessing
+from hanser.hpo.common import get_logger
+logger = get_logger()
 
 import tensorflow as tf
-
-from hhutil.datetime import datetime_now
 
 
 def get_tpu_errors():
     return (
         tf.errors.UnavailableError,
     )
-
-
-def _time_now():
-    dt = datetime_now()
-    dt = dt.strftime('%Y-%m-%d %H:%M:%S,%f')[:-3]
-    return dt
-
-
-def info(msg):
-    print(colored(f"[I {_time_now()}]", "green") + " " + msg)
-
-
-def warn(msg):
-    print(colored(f"[I {_time_now()}]", "red") + " " + msg)
 
 
 def run_trial(
@@ -36,7 +21,7 @@ def run_trial(
         train_fn()
     except Exception as e:
         func_err = e
-        warn(
+        logger.warning(
             "Experiment failed because of the following error: {}".format(repr(func_err)))
         if not isinstance(func_err, catch):
             raise e
@@ -52,10 +37,10 @@ def repeat(
     while True:
         p = multiprocessing.Process(target=run_trial, args=(train_fn, catch))
         p.start()
-        info("Experiment {} started".format(i + 1))
+        logger.info("Experiment {} started".format(i + 1))
         p.join(timeout=timeout)
         if p.is_alive():
-            warn("Maybe connection timeout in TPU")
+            logger.warning("Maybe connection timeout in TPU")
             while p.is_alive():
                 p.kill()
                 time.sleep(1)

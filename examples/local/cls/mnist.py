@@ -29,9 +29,7 @@ def transform(image, label, training):
 def batch_transform(image, label):
     return mixup_or_cutmix_batch(
         image, label,
-        mixup_alpha=0.8, cutmix_alpha=1.0,
-        prob=0.5, switch_prob=0.5,
-    )
+        mixup_alpha=0.8, cutmix_alpha=1.0, switch_prob=0.5)
 
 batch_size = 128
 eval_batch_size = 256
