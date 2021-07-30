@@ -6,8 +6,8 @@ import numpy as np
 from tensorflow.keras.utils import get_file
 from hanser.datasets.classification.numpy import make_numpy_dataset
 
-def load_batch(fpath, label_key='labels'):
 
+def load_batch(fpath, label_key='labels'):
     with open(fpath, 'rb') as f:
         d = pickle.load(f, encoding='bytes')
         d_decoded = {}
@@ -22,7 +22,6 @@ def load_batch(fpath, label_key='labels'):
 
 
 def load_cifar10(cache_dir=None):
-
     dirname = 'cifar-10-batches-py'
     origin = 'https://www.cs.toronto.edu/~kriz/cifar-10-python.tar.gz'
     path = get_file(
@@ -56,7 +55,6 @@ def load_cifar10(cache_dir=None):
 
 
 def load_cifar100(label_mode='fine', cache_dir=None):
-
     dirname = 'cifar-100-python'
     origin = 'https://www.cs.toronto.edu/~kriz/cifar-100-python.tar.gz'
     path = get_file(

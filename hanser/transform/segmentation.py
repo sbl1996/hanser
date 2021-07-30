@@ -1,5 +1,5 @@
 import tensorflow as tf
-from hanser.transform import _image_dimensions
+from hanser.transform import image_dimensions
 
 
 def get_random_scale(min_scale_factor, max_scale_factor, step_size):
@@ -30,7 +30,7 @@ def random_scale(image, label, scale_factor_range=(0.5, 2.0), step_size=0.25):
 
 def random_crop(image_list, size):
     crop_height, crop_width = size
-    height, width, c = _image_dimensions(image_list[0], 3)
+    height, width, c = image_dimensions(image_list[0], 3)
     max_offset_height = height - crop_height + 1
     max_offset_width = width - crop_width + 1
     offset_height = tf.random.uniform(
@@ -54,7 +54,7 @@ def pad(image, label, size, image_pad_value, label_pad_value):
         image_pad_value: Pad values to use for `image`.
         label_pad_value: Scalar pad values to use for `label`.
     """
-    height, width, depth = _image_dimensions(image, rank=3)
+    height, width, depth = image_dimensions(image, rank=3)
 
     offset_height, offset_width = 0, 0
     target_height = tf.maximum(size[0], height)

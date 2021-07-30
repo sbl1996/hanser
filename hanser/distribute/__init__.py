@@ -6,6 +6,9 @@ from hanser.distribute.gpu import has_gpu, setup_gpu
 from hanser.distribute.tpu import has_tpu, setup_tpu, local_results
 
 
+__all__ = ["setup_runtime", "distribute_datasets"]
+
+
 def discover_device():
     if has_tpu():
         return 'TPU'

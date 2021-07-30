@@ -1,5 +1,5 @@
 import tensorflow as tf
-from tensorflow.keras import InputSpec
+from tensorflow.keras.layers import InputSpec
 from tensorflow.keras import initializers, regularizers, constraints, backend
 from tensorflow.keras.layers import Conv2D
 
@@ -57,22 +57,16 @@ class DepthwiseConv2D(Conv2D):
                  activity_regularizer=None,
                  depthwise_constraint=None,
                  bias_constraint=None,
-                 **kwargs) -> object:
+                 **kwargs):
         if isinstance(kernel_size, int):
             kernel_size = (kernel_size, kernel_size)
         if isinstance(strides, int):
             strides = (strides, strides)
         if isinstance(dilation_rate, int):
             dilation_rate = (dilation_rate, dilation_rate)
-        _horch_impl = False
-        if strides[0] != 1:
-            assert dilation_rate[0] in [1, 2]
-            if dilation_rate[0] == 2:
-                assert kernel_size[0] == kernel_size[1]
-                assert strides[0] == strides[1]
-                assert dilation_rate[0] == dilation_rate[1]
-                assert padding.upper() == 'VALID'
-                _horch_impl = True
+        if not (strides == (2, 2) and dilation_rate == (2, 2)):
+            raise ValueError("Use DepthwiseConv2D from keras directly.")
+
         super().__init__(
             filters=None,
             kernel_size=kernel_size,
@@ -86,7 +80,6 @@ class DepthwiseConv2D(Conv2D):
             activity_regularizer=activity_regularizer,
             bias_constraint=bias_constraint,
             **kwargs)
-        self._horch_impl = _horch_impl
         self.depth_multiplier = depth_multiplier
         self.depthwise_initializer = initializers.get(depthwise_initializer)
         self.depthwise_regularizer = regularizers.get(depthwise_regularizer)
@@ -129,23 +122,14 @@ class DepthwiseConv2D(Conv2D):
         self.built = True
 
     def call(self, inputs):
-        if self._horch_impl:
-            inputs = inputs[:, ::2, ::2, :]
-            outputs = backend.depthwise_conv2d(
-                inputs,
-                self.depthwise_kernel,
-                strides=(1, 1),
-                padding='valid',
-                dilation_rate=(1, 1),
-                data_format=self.data_format)
-        else:
-            outputs = backend.depthwise_conv2d(
-                inputs,
-                self.depthwise_kernel,
-                strides=self.strides,
-                padding=self.padding,
-                dilation_rate=self.dilation_rate,
-                data_format=self.data_format)
+        inputs = inputs[:, ::2, ::2, :]
+        outputs = backend.depthwise_conv2d(
+            inputs,
+            self.depthwise_kernel,
+            strides=(1, 1),
+            padding='valid',
+            dilation_rate=(1, 1),
+            data_format=self.data_format)
 
         if self.use_bias:
             outputs = backend.bias_add(

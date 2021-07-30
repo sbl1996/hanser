@@ -3,7 +3,6 @@ from typing import Tuple, Iterable
 
 import numpy as np
 import tensorflow as tf
-import tensorflow_probability as tfp
 
 
 def gumbel_softmax(logits, tau=1.0, hard=False, axis=-1, return_index=False):
@@ -102,6 +101,7 @@ def get_shape(tensor, axis):
     else:
         return shape
 
+
 def triu(x, diag=True):
     y = tf.linalg.band_part(x, 0, -1)
     if not diag:
@@ -133,8 +133,10 @@ def all_reduce(tensor, op):
         return tensor
     return replica_context.all_reduce(op, tensor)
 
+
 def all_reduce_mean(tensor):
     return all_reduce(tensor, tf.distribute.ReduceOp.MEAN)
+
 
 def all_reduce_sum(tensor):
     return all_reduce(tensor, tf.distribute.ReduceOp.SUM)
@@ -155,6 +157,8 @@ def prepend_dims(x, n):
     for i in range(n):
         x = tf.expand_dims(x, 0)
     return x
+
+
 # def top_k(x, k):
 #     NINF = tf.cast(-100000000, x.dtype)
 #     results = []
@@ -186,7 +190,18 @@ def top_k(x, k):
     return tf.concat(out_values, -1)
 
 
-def cpu_variable(value, dtype):
-    with tf.device("/device:CPU:0"):
-        v = tf.Variable(value, trainable=False, dtype=dtype)
-    return v
+def confusion_matrix(y_true, y_pred, num_classes):
+    # Not work on TPU because of tf.math.bincount
+    y_true = tf.cast(y_true, tf.int32)
+    y_pred = tf.cast(y_pred, tf.int32)
+    c = num_classes
+    return tf.reshape(tf.math.bincount(y_true * c + y_pred, minlength=c * c), (c, c))
+
+
+def confusion_matrix_tpu(y_true, y_pred, num_classes, dtype=tf.int32):
+    class_indices = tf.range(num_classes)
+    tm = tf.equal(y_true[:, None], class_indices[None, :])
+    pm = tf.equal(y_pred[:, None], class_indices[None, :])
+    cm = tf.logical_and(tm[:, :, None], pm[:, None, :])
+    cm = tf.reduce_sum(tf.cast(cm, dtype), axis=0)
+    return cm

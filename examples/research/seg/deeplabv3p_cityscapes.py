@@ -7,7 +7,7 @@ from hanser.datasets import prepare
 from hanser.datasets.segmentation import decode
 from hanser.datasets.segmentation.cityscapes import map_label
 
-from hanser.transform import pad_to_bounding_box, _image_dimensions
+from hanser.transform import pad_to_bounding_box, image_dimensions
 from hanser.transform.segmentation import random_crop, flip_dim, get_random_scale, random_scale
 
 from hanser.models.layers import set_defaults
@@ -39,7 +39,7 @@ def preprocess(example, crop_h=HEIGHT, crop_w=WIDTH, ignore_label=IGNORE_LABEL, 
         scale = get_random_scale(0.5, 2.0, 0.25)
         image, label = random_scale(image, label, scale)
 
-        img_h, img_w, c = _image_dimensions(image, 3)
+        img_h, img_w, c = image_dimensions(image, 3)
         target_h = tf.maximum(img_h, crop_h)
         target_w = tf.maximum(img_w, crop_w)
 

@@ -24,7 +24,7 @@ DEFAULTS = {
     'conv': {
         'depthwise': {
             'use_group': False,
-            'horch': False,
+            'fix_stride_with_dilation': True,
         },
         'group': {
             'smart_naive': False,
@@ -74,7 +74,7 @@ _defaults_schema = {
     'conv': {
         'depthwise': {
             'use_group': {'type': 'boolean'},
-            'horch': {'type': 'boolean'},
+            'fix_stride_with_dilation': {'type': 'boolean'},
         },
         'group': {
             'smart_naive': {'type': 'boolean'},
@@ -257,9 +257,9 @@ def Conv2d(in_channels: int,
                           kernel_initializer=kernel_initializer, bias_initializer=bias_initializer)
         else:
             depth_multiplier = out_channels // in_channels
-            if conv_cfg['depthwise']['horch']:
-                from hanser.models.conv import DepthwiseConv2D as HorchDepthwiseConv2D
-                depth_conv = HorchDepthwiseConv2D
+            if conv_cfg['depthwise']['fix_stride_with_dilation'] and stride == (2, 2) and dilation == (2, 2):
+                from hanser.models.conv import DepthwiseConv2D as FixedDepthwiseConv2D
+                depth_conv = FixedDepthwiseConv2D
             else:
                 depth_conv = DepthwiseConv2D
             conv = depth_conv(kernel_size=kernel_size, strides=stride, padding=conv_padding,

@@ -1,7 +1,21 @@
+from toolz import curry
 import numpy as np
 
 import tensorflow as tf
 import tensorflow_probability as tfp
+
+
+@curry
+def fmix(data1, data2, alpha, decay_power):
+    image1, label1 = data1
+    image2, label2 = data2
+    shape = image1.shape[:2]
+    lam, mask = sample_mask(alpha, decay_power, shape)
+    image = mask * image1 + (1 - mask) * image2
+
+    lam = tf.cast(lam, label1.dtype)
+    label = lam * label1 + (1 - lam) * label2
+    return image, label
 
 
 def sample_mask(alpha, decay_power, shape):

@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 from hanser.ops import to_float, to_int
-from hanser.transform import pad_to_bounding_box as pad_to_bounding_box_image, _image_dimensions
+from hanser.transform import pad_to_bounding_box as pad_to_bounding_box_image, image_dimensions
 
 
 def random_apply(func, p, *args):
@@ -58,7 +58,7 @@ def map_bbox(objects, map_fn):
 
 
 def random_crop(image, objects, size):
-    h, w = _image_dimensions(image, 3)[:2]
+    h, w = image_dimensions(image, 3)[:2]
     im_size = tf.shape(image)[:2]
     crop_size = tf.minimum(im_size, size)
     max_offset = tf.maximum(crop_size - im_size, 0) + 1

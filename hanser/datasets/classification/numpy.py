@@ -5,6 +5,7 @@ import tensorflow as tf
 
 from hanser.datasets.utils import prepare
 
+
 def subsample(*arrays, ratio):
     lens = [len(a) for a in arrays]
     assert len(set(lens)) == 1
@@ -13,11 +14,11 @@ def subsample(*arrays, ratio):
     sub_arrays = tuple(a[indices] for a in arrays)
     return sub_arrays
 
+
 def make_numpy_dataset(
     x_train, y_train, x_test, y_test,
     batch_size, eval_batch_size, transform,
     sub_ratio=None, aug_repeats=None, **kwargs):
-
     if sub_ratio is not None:
         x_train, y_train = subsample(x_train, y_train, ratio=sub_ratio)
         x_test, y_test = subsample(x_test, y_test, ratio=sub_ratio)

@@ -3,314 +3,17 @@ import math
 from toolz import curry
 
 import tensorflow as tf
-from tensorflow.python.ops import gen_image_ops
 
 import tensorflow_addons as tfa
-import tensorflow_probability as tfp
 from tensorflow_addons.image.translate_ops import translations_to_projective_transforms
 
-from hanser.ops import beta_mc, log_uniform, prepend_dims
-from hanser.transform.fmix import sample_mask
+from hanser.ops import log_uniform, prepend_dims
+from hanser.transform.common import image_dimensions, to_4D_image, get_ndims, from_4D_image
+from hanser.transform.mix import mixup, mixup_in_batch, mixup_batch, cutmix, cutmix_in_batch, cutmix_batch, fmix, mixup_cutmix_batch, mixup_or_cutmix_batch, mixup_cutmix_batch2
+
 
 IMAGENET_MEAN = [123.675, 116.28, 103.53]
 IMAGENET_STD = [58.395, 57.120, 57.375]
-
-
-def _mixup(image1, label1, image2, label2, lam):
-
-    lam_image = tf.cast(lam, image1.dtype)[:, None, None, None]
-    image = lam_image * image1 + (1 - lam_image) * image2
-
-    lam_label = tf.cast(lam, label1.dtype)[:, None]
-    label = lam_label * label1 + (1 - lam_label) * label2
-    return image, label
-
-
-def _get_lam(shape, alpha, uniform=False, mc=False):
-    if uniform:
-        lam = tf.random.uniform(shape)
-    elif mc:
-        lam = beta_mc(alpha, alpha, shape, mc_size=10000)
-    else:
-        lam = tfp.distributions.Beta(alpha, alpha).sample(shape)
-    return lam
-
-
-@curry
-def mixup_batch(image, label, alpha, hard=False, **gen_lam_kwargs):
-    n = tf.shape(image)[0]
-    lam_shape = (n,) if hard else (1,)
-    lam = _get_lam(lam_shape, alpha, **gen_lam_kwargs)
-
-    indices = tf.random.shuffle(tf.range(n))
-    image2 = tf.gather(image, indices)
-    label2 = tf.gather(label, indices)
-
-    lam_image = tf.cast(lam, image.dtype)[:, None, None, None]
-    image = lam_image * image + (1 - lam_image) * image2
-
-    lam_label = tf.cast(lam, label.dtype)[:, None]
-    label = lam_label * label + (1 - lam_label) * label2
-    return image, label
-
-
-@curry
-def mixup_in_batch(image, label, alpha, hard=False, **gen_lam_kwargs):
-    n = tf.shape(image)[0] // 2
-    lam_shape = (n,) if hard else (1,)
-    lam = _get_lam(lam_shape, alpha, **gen_lam_kwargs)
-    image1, image2 = image[:n], image[n:]
-    label1, label2 = label[:n], label[n:]
-    return _mixup(image1, label1, image2, label2, lam)
-
-
-@curry
-def mixup(data1, data2, alpha, hard=False, **gen_lam_kwargs):
-    image1, label1 = data1
-    image2, label2 = data2
-
-    is_batch = _is_batch(image1)
-    image1, label1, image2, label2 = wrap_batch([
-        image1, label1, image2, label2
-    ], is_batch)
-
-    n = _image_dimensions(image1, 4)[0]
-    lam_shape = (n,) if hard else (1,)
-    lam = _get_lam(lam_shape, alpha, **gen_lam_kwargs)
-
-    image, label = _mixup(image1, label1, image2, label2, lam)
-
-    image, label = unwrap_batch([image, label], is_batch)
-    return image, label
-
-
-def rand_bbox(h, w, lam):
-    r"""
-    Note: lam may be (1,) or (n,)
-    """
-    cut_rat = tf.sqrt(1. - lam)
-    cut_w = tf.cast(tf.cast(w, lam.dtype) * cut_rat, tf.int32)
-    cut_h = tf.cast(tf.cast(h, lam.dtype) * cut_rat, tf.int32)
-
-    cx = tf.random.uniform(tf.shape(lam), 0, w, dtype=tf.int32)
-    cy = tf.random.uniform(tf.shape(lam), 0, h, dtype=tf.int32)
-
-    l = tf.clip_by_value(cx - cut_w // 2, 0, w)
-    t = tf.clip_by_value(cy - cut_h // 2, 0, h)
-    r = tf.clip_by_value(cx + cut_w // 2, 0, w)
-    b = tf.clip_by_value(cy + cut_h // 2, 0, h)
-
-    return l, t, r, b
-
-
-def rand_mask(image, lam):
-    n, h, w = _image_dimensions(image, 4)[:3]
-    l, t, r, b = rand_bbox(h, w, lam)
-    hi = tf.range(h)[None, :, None, None]
-    mh = (hi >= t[:, None, None, None]) & (hi < b[:, None, None, None])
-    wi = tf.range(w)[None, None, :, None]
-    mw = (wi >= l[:, None, None, None]) & (wi < r[:, None, None, None])
-    masks = tf.cast(tf.logical_not(mh & mw), image.dtype)
-    lam = 1 - (b - t) * (r - l) / (h * w)
-    return masks, lam
-
-
-@curry
-def cutmix_batch(image, label, alpha, hard=False, **gen_lam_kwargs):
-    n = _image_dimensions(image, 4)[0]
-    lam_shape = (n,) if hard else (1,)
-    lam = _get_lam(lam_shape, alpha, **gen_lam_kwargs)
-
-    masks, lam = rand_mask(image, lam)
-
-    indices = tf.random.shuffle(tf.range(n))
-    image2 = tf.gather(image, indices)
-    label2 = tf.gather(label, indices)
-
-    image = image * masks + image2 * (1. - masks)
-
-    lam = tf.cast(lam, label.dtype)[:, None]
-    label = label * lam + label2 * (1. - lam)
-    return image, label
-
-
-@curry
-def mixup_or_cutmix_batch(
-    image, label, mixup_alpha=0.2, cutmix_alpha=1.0, switch_prob=0.5, hard=False, **gen_lam_kwargs):
-    if tf.random.uniform(()) < switch_prob:
-        return mixup_batch(image, label, mixup_alpha, hard=hard, **gen_lam_kwargs)
-    else:
-        return cutmix_batch(image, label, cutmix_alpha, hard=hard, **gen_lam_kwargs)
-
-
-@curry
-def mixup_cutmix_batch(
-    image, label, mixup_alpha=0.2, cutmix_alpha=1.0, hard=False, **gen_lam_kwargs):
-    n = _image_dimensions(image, 4)[0] // 2
-    image1, image2 = image[:n], image[n:]
-    label1, label2 = label[:n], label[n:]
-    image1, label1 = mixup_batch(image1, label1, mixup_alpha, hard=hard, **gen_lam_kwargs)
-    image2, label2 = cutmix_batch(image2, label2, cutmix_alpha, hard=hard, **gen_lam_kwargs)
-    image = tf.concat((image1, image2), axis=0)
-    label = tf.concat((label1, label2), axis=0)
-    return image, label
-
-
-@curry
-def mixup_cutmix_batch2(
-    image, label, mixup_alpha=0.2, cutmix_alpha=1.0, hard=False, **gen_lam_kwargs):
-    n = _image_dimensions(image, 4)[0] // 2
-    image1, image2 = image[:n], image[n:]
-    label1, label2 = label[:n], label[n:]
-    data1, data2 = (image1, label1), (image2, label2)
-    image1, label1 = mixup(data1, data2, mixup_alpha, hard=hard, **gen_lam_kwargs)
-    image2, label2 = cutmix(data1, data2, cutmix_alpha, hard=hard, **gen_lam_kwargs)
-    image = tf.concat((image1, image2), axis=0)
-    label = tf.concat((label1, label2), axis=0)
-    return image, label
-
-
-@curry
-def cutmix_in_batch(image, label, alpha, hard=False, **gen_lam_kwargs):
-    n = tf.shape(image)[0] // 2
-    lam_shape = (n,) if hard else ()
-    lam = _get_lam(lam_shape, alpha, **gen_lam_kwargs)
-
-    image1, image2 = image[:n], image[n:]
-    label1, label2 = label[:n], label[n:]
-    masks, lam = rand_mask(image1, lam)
-
-    image = image1 * masks + image2 * (1. - masks)
-
-    lam = tf.cast(lam, label.dtype)[:, None]
-    label = label1 * lam + label2 * (1. - lam)
-    return image, label
-
-
-def wrap_batch(tensors, is_batch):
-    return tuple(t if is_batch else t[None] for t in tensors)
-
-
-def unwrap_batch(tensors, is_batch):
-    return tuple(t if is_batch else t[0] for t in tensors)
-
-
-@curry
-def cutmix(data1, data2, alpha, hard=False, **gen_lam_kwargs):
-    image1, label1 = data1
-    image2, label2 = data2
-
-    is_batch = _is_batch(image1)
-    image1, label1, image2, label2 = wrap_batch([
-        image1, label1, image2, label2
-    ], is_batch)
-
-    n = _image_dimensions(image1, 4)[0]
-    lam_shape = (n,) if hard else (1,)
-    lam = _get_lam(lam_shape, alpha, **gen_lam_kwargs)
-
-    masks, lam = rand_mask(image1, lam)
-
-    image = image1 * masks + image2 * (1. - masks)
-
-    lam = tf.cast(lam, label1.dtype)[:, None]
-    label = label1 * lam + label2 * (1. - lam)
-
-    image, label = unwrap_batch([image, label], is_batch)
-    return image, label
-
-
-@curry
-def fmix(data1, data2, alpha, decay_power):
-    image1, label1 = data1
-    image2, label2 = data2
-    shape = image1.shape[:2]
-    lam, mask = sample_mask(alpha, decay_power, shape)
-    image = mask * image1 + (1 - mask) * image2
-
-    lam = tf.cast(lam, label1.dtype)
-    label = lam * label1 + (1 - lam) * label2
-    return image, label
-
-
-def get_ndims(image):
-    return image.get_shape().ndims or tf.rank(image)
-
-
-def to_4D_image(image):
-    """Convert 2/3/4D image to 4D image.
-    Args:
-      image: 2/3/4D tensor.
-    Returns:
-      4D tensor with the same type.
-    """
-    with tf.control_dependencies(
-        [
-            tf.debugging.assert_rank_in(
-                image, [2, 3, 4], message="`image` must be 2/3/4D tensor"
-            )
-        ]
-    ):
-        ndims = image.get_shape().ndims
-        if ndims is None:
-            return _dynamic_to_4D_image(image)
-        elif ndims == 2:
-            return image[None, :, :, None]
-        elif ndims == 3:
-            return image[None, :, :, :]
-        else:
-            return image
-
-
-def _dynamic_to_4D_image(image):
-    shape = tf.shape(image)
-    original_rank = tf.rank(image)
-    # 4D image => [N, H, W, C] or [N, C, H, W]
-    # 3D image => [1, H, W, C] or [1, C, H, W]
-    # 2D image => [1, H, W, 1]
-    left_pad = tf.cast(tf.less_equal(original_rank, 3), dtype=tf.int32)
-    right_pad = tf.cast(tf.equal(original_rank, 2), dtype=tf.int32)
-    new_shape = tf.concat(
-        [
-            tf.ones(shape=left_pad, dtype=tf.int32),
-            shape,
-            tf.ones(shape=right_pad, dtype=tf.int32),
-        ],
-        axis=0,
-    )
-    return tf.reshape(image, new_shape)
-
-
-def _dynamic_from_4D_image(image, original_rank):
-    shape = tf.shape(image)
-    # 4D image <= [N, H, W, C] or [N, C, H, W]
-    # 3D image <= [1, H, W, C] or [1, C, H, W]
-    # 2D image <= [1, H, W, 1]
-    begin = tf.cast(tf.less_equal(original_rank, 3), dtype=tf.int32)
-    end = 4 - tf.cast(tf.equal(original_rank, 2), dtype=tf.int32)
-    new_shape = shape[begin:end]
-    return tf.reshape(image, new_shape)
-
-
-def from_4D_image(image, ndims):
-    """Convert back to an image with `ndims` rank.
-    Args:
-      image: 4D tensor.
-      ndims: The original rank of the image.
-    Returns:
-      `ndims`-D tensor with the same type.
-    """
-    with tf.control_dependencies(
-        [tf.debugging.assert_rank(image, 4, message="`image` must be 4D tensor")]
-    ):
-        if isinstance(ndims, tf.Tensor):
-            return _dynamic_from_4D_image(image, ndims)
-        elif ndims == 2:
-            return tf.squeeze(image, [0, 3])
-        elif ndims == 3:
-            return tf.squeeze(image, [0])
-        else:
-            return image
 
 
 def transform(images, transforms, interpolation="BILINEAR", output_shape=None):
@@ -337,10 +40,10 @@ def transform(images, transforms, interpolation="BILINEAR", output_shape=None):
             % len(transforms.get_shape())
         )
 
-    output = gen_image_ops.image_projective_transform_v2(
+    output = tf.raw_ops.ImageProjectiveTransformV2(
         images,
-        output_shape=output_shape,
         transforms=transforms,
+        output_shape=output_shape,
         interpolation=interpolation.upper(),
     )
     return from_4D_image(output, original_ndims)
@@ -374,26 +77,6 @@ def random_choice(funcs, image):
             lambda: policy(image),
             lambda: image)
     return image
-
-
-def _image_dimensions(image, rank):
-    """Returns the dimensions of an image tensor.
-    Args:
-        image: A rank-D Tensor. For 3-D  of shape: `[height, width, channels]`.
-        rank: The expected rank of the image
-    Returns:
-        A list of corresponding to the dimensions of the input image. Dimensions
-        that are statically known are python integers, otherwise they are integer
-        scalar tensors.
-    """
-    if image.get_shape().is_fully_defined():
-        return image.get_shape().as_list()
-    else:
-        static_shape = image.get_shape().with_rank(rank).as_list()
-        dynamic_shape = tf.unstack(tf.shape(image), rank)
-        return [
-            s if s is not None else d for s, d in zip(static_shape, dynamic_shape)
-        ]
 
 
 def resize(img, size, method='bilinear'):
@@ -449,29 +132,28 @@ def random_resized_crop(image, size, scale=(0.05, 1.0), ratio=(0.75, 1.33)):
     return image
 
 
-def _is_batch(x):
-    return len(x.shape) == 4
-
-
-def pad(x, padding, fill=0):
+def pad(image, padding, fill=0):
     if isinstance(padding, int):
         padding = (padding, padding)
     ph, pw = padding
-    paddings = [(ph, ph), (pw, pw), (0, 0)]
-    if _is_batch(x):
-        paddings = [(0, 0), *paddings]
-    x = tf.pad(x, paddings, constant_values=fill)
-    return x
+    original_ndims = get_ndims(image)
+    image = to_4D_image(image)
+
+    paddings = [(0, 0), (ph, ph), (pw, pw), (0, 0)]
+    image = tf.pad(image, paddings, constant_values=fill)
+    return from_4D_image(image, original_ndims)
 
 
-def random_crop(x, size, padding, fill=0):
+def random_crop(image, size, padding, fill=0):
     height, width = size
-    x = pad(x, padding, fill)
-    crop_size = [height, width, x.shape[-1]]
-    if _is_batch(x):
-        crop_size = [tf.shape(x)[0], *crop_size]
-    x = tf.image.random_crop(x, crop_size)
-    return x
+    original_ndims = get_ndims(image)
+    image = to_4D_image(image)
+    n, _h, _w, c = image_dimensions(image, 4)
+
+    image = pad(image, padding, fill)
+    crop_size = [n, height, width, c]
+    image = tf.image.random_crop(image, crop_size)
+    return from_4D_image(image, original_ndims)
 
 
 def center_crop(image, size):
@@ -504,20 +186,19 @@ def _fill_region(shape, value, dtype):
 
 
 @curry
-def cutout(images, length, fill=0):
+def cutout(image, length, fill=0):
     r"""Cutout, support batch input.
     Args:
-        images: (N?, H, W, C) single image or a batch of images.
+        image: (N?, H, W, C) single image or a batch of images.
         length: length of the cutout region.
         fill: value to be filled in cutout region, maybe scalar, tensor, 'normal' and 'uniform'.
     Notes:
         Set `fill` to 'normal' only if pixel values are in [0, 1], and 'uniform' if in [0, 255].
     """
-    is_batch = _is_batch(images)
-    if not is_batch:
-        images = images[None]
+    original_ndims = get_ndims(image)
+    image = to_4D_image(image)
 
-    bs, h, w, c = _image_dimensions(images, 4)
+    bs, h, w, c = image_dimensions(image, 4)
     cy = tf.random.uniform((bs,), 0, h, dtype=tf.int32)
     cx = tf.random.uniform((bs,), 0, w, dtype=tf.int32)
 
@@ -531,20 +212,17 @@ def cutout(images, length, fill=0):
     mh = (hi >= t[:, None, None, None]) & (hi < b[:, None, None, None])
     wi = tf.range(w)[None, None, :, None]
     mw = (wi >= l[:, None, None, None]) & (wi < r[:, None, None, None])
-    masks = tf.cast(tf.logical_not(mh & mw), images.dtype)
+    masks = tf.cast(tf.logical_not(mh & mw), image.dtype)
 
-    fill = _fill_region((bs, h, w, c), fill, images.dtype)
-    images = tf.where(tf.equal(masks, 0), fill, images)
-
-    if not is_batch:
-        images = images[0]
-    return images
+    fill = _fill_region((bs, h, w, c), fill, image.dtype)
+    image = tf.where(tf.equal(masks, 0), fill, image)
+    image = from_4D_image(image, original_ndims)
+    return image
 
 
 @curry
 def cutout2(image, length, fill=0):
-    shape = tf.shape(image)
-    height, width, channels = shape[0], shape[1], shape[2]
+    height, width, channels = image_dimensions(image, 3)
 
     center_y = tf.random.uniform((), 0, height, dtype=tf.int32)
     center_x = tf.random.uniform((), 0, width, dtype=tf.int32)
@@ -569,8 +247,7 @@ def cutout2(image, length, fill=0):
 
 @curry
 def cutout3(image, length, fill=0):
-    shape = tf.shape(image)
-    h, w, c = shape[0], shape[1], shape[2]
+    h, w, c = image_dimensions(image, 3)
 
     cy = tf.random.uniform((), 0, h, dtype=tf.int32)
     cx = tf.random.uniform((), 0, w, dtype=tf.int32)
@@ -613,8 +290,7 @@ def random_erasing(image, p=0.5, s_l=0.02, s_h=0.4, r_1=0.3, r_2=None, fill='nor
 
     if r_2 is None:
         r_2 = 1 / r_1
-    shape = tf.shape(image)
-    height, width, c = shape[0], shape[1], shape[2]
+    height, width, c = image_dimensions(image, 3)
     area = tf.cast(height * width, tf.float32)
 
     while tf.constant(True):
@@ -1062,12 +738,11 @@ def lighting(x, alpha_std, eig_val=_EIG_VALS, eig_vec=_EIG_VECS, vmax=255):
     return x
 
 
-def pad_to_bounding_box(image, offset_height, offset_width, target_height,
-                        target_width, pad_value):
-    is_batch = _is_batch(image)
-    image, = wrap_batch([image], is_batch)
-
-    batch, height, width, depth = _image_dimensions(image, rank=4)
+def pad_to_bounding_box(
+    image, offset_height, offset_width, target_height, target_width, pad_value):
+    original_ndims = get_ndims(image)
+    image = to_4D_image(image)
+    batch, height, width, depth = image_dimensions(image, rank=4)
 
     ph1, ph2 = offset_height, target_height - offset_height - height
     pw1, pw2 = offset_width, target_width - offset_width - width
@@ -1079,12 +754,12 @@ def pad_to_bounding_box(image, offset_height, offset_width, target_height,
 
     if isinstance(target_height, int):
         outputs.set_shape([outputs.shape[0], target_height, target_width, outputs.shape[-1]])
-    outputs, = unwrap_batch([outputs,], is_batch)
+    outputs = from_4D_image(outputs, original_ndims)
     return outputs
 
 
 def resize_longer(img, size, method='bilinear'):
-    h, w, c = _image_dimensions(img, 3)
+    h, w, c = image_dimensions(img, 3)
     h = tf.cast(h, tf.float32)
     w = tf.cast(w, tf.float32)
     longer = tf.maximum(h, w)

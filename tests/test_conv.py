@@ -10,7 +10,7 @@ from hanser.models.layers import Conv2d, set_defaults
 set_defaults({
     'conv': {
         'depthwise': {
-            'horch': True,
+            'horch': False,
         }
     }
 })
@@ -52,6 +52,8 @@ for d in dilations:
     for size in sizes:
         for k in kernel_sizes:
             for s in strides:
+                if d == 2 and s == 2:
+                    continue
                 try:
                     print(size, k, s, d)
                     test_impl(size, channels, k, s, d)
