@@ -1,4 +1,4 @@
-from hanser.models.cifar.iresnet.resnet_vd import BasicBlock, Bottleneck
+from hanser.models.cifar.iresnet.resnet import BasicBlock, Bottleneck
 from hanser.models.imagenet.iresnet.resnet import ResNet
 
 
