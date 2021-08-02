@@ -2,6 +2,7 @@ from hanser.models.modules import SpaceToDepth
 from tensorflow.keras import Sequential
 from hanser.models.layers import Conv2d, Pool2d
 
+
 def SimpleStem(channels=64):
     return Conv2d(3, channels, kernel_size=3, stride=2, norm='def', act='def')
 

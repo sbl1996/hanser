@@ -8,8 +8,9 @@ from hanser.models.layers import Conv2d, Act, Identity, GlobalAvgPool, Linear, N
 class BasicBlock(Layer):
     expansion = 1
 
-    def __init__(self, in_channels, channels, stride, dropout, drop_path,
-                 start_block=False, end_block=False, exclude_bn0=False):
+    def __init__(self, in_channels, channels, stride,
+                 start_block=False, end_block=False, exclude_bn0=False,
+                 pool_type='max', dropout=0, drop_path=0):
         super().__init__()
         out_channels = channels * self.expansion
         if not start_block and not exclude_bn0:
@@ -36,7 +37,7 @@ class BasicBlock(Layer):
         if stride != 1 or in_channels != out_channels:
             shortcut = []
             if stride != 1:
-                shortcut.append(Pool2d(3, 2, type='max'))
+                shortcut.append(Pool2d(3, 2, type=pool_type))
             if in_channels != out_channels:
                 shortcut.append(
                     Conv2d(in_channels, out_channels, kernel_size=1, norm='def'))
@@ -74,8 +75,9 @@ class BasicBlock(Layer):
 class Bottleneck(Layer):
     expansion = 4
 
-    def __init__(self, in_channels, channels, stride, drop_path=0,
-                 start_block=False, end_block=False, exclude_bn0=False):
+    def __init__(self, in_channels, channels, stride,
+                 start_block=False, end_block=False, exclude_bn0=False,
+                 pool_type='max', drop_path=0):
         super().__init__()
         out_channels = channels * self.expansion
 
@@ -103,7 +105,7 @@ class Bottleneck(Layer):
         if stride != 1 or in_channels != out_channels:
             shortcut = []
             if stride != 1:
-                shortcut.append(Pool2d(3, 2, type='max'))
+                shortcut.append(Pool2d(3, 2, type=pool_type))
             if in_channels != out_channels:
                 shortcut.append(
                     Conv2d(in_channels, out_channels, kernel_size=1, norm='def'))
@@ -177,10 +179,14 @@ class ResNet(Model):
         layers = [block(self.in_channels, channels, stride=stride, start_block=True,
                         **kwargs)]
         self.in_channels = channels * block.expansion
-        for i in range(1, blocks):
+
+        for i in range(1, blocks - 1):
             layers.append(block(self.in_channels, channels, stride=1,
-                                exclude_bn0=i == 1, end_block=i == blocks - 1,
-                                **kwargs))
+                                exclude_bn0=i == 1, **kwargs))
+
+        layers.append(block(self.in_channels, channels, stride=1,
+                            end_block=True, **kwargs))
+
         return Sequential(layers)
 
     def call(self, x):

@@ -49,6 +49,51 @@ class SELayer(Layer):
         return x * s
 
 
+# class CBAMChannelAttention(Layer):
+#     def __init__(self, in_channels, reduction=8):
+#         super().__init__()
+#         channels = in_channels // reduction
+#         self.mlp = nn.Sequential(
+#             nn.Linear(in_channels, channels),
+#             nn.ReLU(True),
+#             nn.Linear(channels, in_channels),
+#         )
+#
+#     def forward(self, x):
+#         b, c = x.size()[:2]
+#         aa = F.adaptive_avg_pool2d(x, 1).view(b, c)
+#         aa = self.mlp(aa)
+#         am = F.adaptive_max_pool2d(x, 1).view(b, c)
+#         am = self.mlp(am)
+#         a = torch.sigmoid(aa + am).view(b, c, 1, 1)
+#         return x * a
+#
+#
+# class CBAMSpatialAttention(nn.Module):
+#     def __init__(self):
+#         super().__init__()
+#         self.conv = Conv2d(2, 1, kernel_size=7, norm='bn')
+#
+#     def forward(self, x):
+#         aa = x.mean(dim=1, keepdim=True)
+#         am = x.max(dim=1, keepdim=True)[0]
+#         a = torch.cat([aa, am], dim=1)
+#         a = torch.sigmoid(self.conv(a))
+#         return x * a
+#
+#
+# class CBAM(nn.Module):
+#     def __init__(self, in_channels, reduction=4):
+#         super().__init__()
+#         self.channel = CBAMChannelAttention(in_channels, reduction)
+#         self.spatial = CBAMSpatialAttention()
+#
+#     def forward(self, x):
+#         x = self.channel(x)
+#         x = self.spatial(x)
+#         return x
+
+
 # class rSoftMax(Layer):
 #
 #     def __init__(self, radix, cardinality, **kwargs):

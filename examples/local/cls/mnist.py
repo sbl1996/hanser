@@ -3,7 +3,6 @@ from toolz import curry
 import tensorflow as tf
 from tensorflow.keras.metrics import CategoricalAccuracy, Mean, CategoricalCrossentropy
 
-from hanser.tpu import setup
 from hanser.datasets.mnist import make_mnist_dataset
 
 from hanser.transform import pad, to_tensor, normalize, mixup_or_cutmix_batch
