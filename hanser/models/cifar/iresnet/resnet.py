@@ -5,6 +5,24 @@ from hanser.models.modules import DropPath
 from hanser.models.layers import Conv2d, Act, Identity, GlobalAvgPool, Linear, Norm, Pool2d
 
 
+def get_shortcut(in_channels, out_channels, stride, pool_type):
+    if stride != 1 or in_channels != out_channels:
+        shortcut = []
+        if stride != 1:
+            if pool_type == 'max':
+                pool = Pool2d(3, 2, type='max')
+            elif pool_type == 'avg':
+                pool = Pool2d(2, 2, type='avg')
+            # noinspection PyUnboundLocalVariable
+            shortcut.append(pool)
+        if in_channels != out_channels:
+            shortcut.append(
+                Conv2d(in_channels, out_channels, kernel_size=1, norm='def'))
+        return Sequential(shortcut)
+    else:
+        return Identity()
+
+
 class BasicBlock(Layer):
     expansion = 1
 
@@ -34,16 +52,8 @@ class BasicBlock(Layer):
             self.bn2 = Norm(out_channels)
             self.act2 = Act()
 
-        if stride != 1 or in_channels != out_channels:
-            shortcut = []
-            if stride != 1:
-                shortcut.append(Pool2d(3, 2, type=pool_type))
-            if in_channels != out_channels:
-                shortcut.append(
-                    Conv2d(in_channels, out_channels, kernel_size=1, norm='def'))
-            self.shortcut = Sequential(shortcut)
-        else:
-            self.shortcut = Identity()
+        self.shortcut = get_shortcut(in_channels, out_channels, stride, pool_type)
+
         self.start_block = start_block
         self.end_block = end_block
         self.exclude_bn0 = exclude_bn0
@@ -102,16 +112,8 @@ class Bottleneck(Layer):
             self.bn3 = Norm(out_channels)
             self.act3 = Act()
 
-        if stride != 1 or in_channels != out_channels:
-            shortcut = []
-            if stride != 1:
-                shortcut.append(Pool2d(3, 2, type=pool_type))
-            if in_channels != out_channels:
-                shortcut.append(
-                    Conv2d(in_channels, out_channels, kernel_size=1, norm='def'))
-            self.shortcut = Sequential(shortcut)
-        else:
-            self.shortcut = Identity()
+        self.shortcut = get_shortcut(in_channels, out_channels, stride, pool_type)
+
         self.start_block = start_block
         self.end_block = end_block
         self.exclude_bn0 = exclude_bn0
