@@ -15,6 +15,7 @@ from tensorflow_addons.activations import mish
 
 from hanser.models.pooling import MaxPooling2D as MaxPool2D, AveragePooling2D as AvgPool2D
 from hanser.models.bn import BatchNormalization, SyncBatchNormalization
+from hanser.models.bn2 import BatchNormalizationTest
 from hanser.models.modules import DropBlock, ScaledWSConv2D
 
 __all__ = ["set_default", "set_defaults", "Act", "Conv2d", "Norm", "Linear", "GlobalAvgPool", "Pool2d", "Identity"]
@@ -46,6 +47,7 @@ DEFAULTS = {
         'sync': False,
         'eval': False,
         'virtual_batch_size': None,
+        'test': False,
     },
     'gn': {
         'groups': 32,
@@ -323,7 +325,11 @@ def Norm(channels=None, type='default', affine=None, track_running_stats=None, g
             track_running_stats = cfg['track_running_stats']
         if fused is None:
             fused = cfg['fused']
-        if cfg['sync']:
+        if cfg['test']:
+            bn = BatchNormalizationTest(
+                momentum=cfg['momentum'], epsilon=cfg['eps'], center=affine, scale=affine,
+                gamma_initializer=gamma_init)
+        elif cfg['sync']:
             bn = SyncBatchNormalization(
                 momentum=cfg['momentum'], epsilon=cfg['eps'], center=affine, scale=affine,
                 gamma_initializer=gamma_init, track_running_stats=track_running_stats,
