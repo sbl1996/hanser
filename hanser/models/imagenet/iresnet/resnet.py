@@ -3,7 +3,7 @@ from tensorflow.keras.layers import Dropout
 
 from hanser.models.layers import GlobalAvgPool, Linear
 from hanser.models.cifar.iresnet.resnet import BasicBlock, Bottleneck
-from hanser.models.imagenet.stem import ResNetStem, ResNetvdStem
+from hanser.models.imagenet.common import ResNetStem, ResNetvdStem
 
 
 class ResNet(Model):

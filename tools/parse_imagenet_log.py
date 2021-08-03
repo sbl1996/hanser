@@ -73,7 +73,7 @@ log_file = args.log
 
 epoch_p = re.compile(r"""Epoch \d+/\d+""")
 dt_p = "\d{2}:\d{2}:\d{2}"
-m_p = "\d+\.\d{4}"
+m_p = "\d+\.\d{4}|nan"
 
 total_epochs, train_start, train_losses, valid_ends, valid_accs, valid_acc5s = parse_log(log_file)
 epoch_cost = estimate_epoch_cost(valid_ends)

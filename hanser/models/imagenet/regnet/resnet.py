@@ -2,7 +2,7 @@ from tensorflow.keras import Model, Sequential
 from tensorflow.keras.layers import Layer
 
 from hanser.models.layers import Conv2d, Norm, Act, Identity, GlobalAvgPool, Linear
-from hanser.models.imagenet.stem import SimpleStem
+from hanser.models.imagenet.common import SimpleStem
 
 
 class SELayer(Layer):

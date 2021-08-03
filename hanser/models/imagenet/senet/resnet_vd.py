@@ -4,7 +4,7 @@ from tensorflow.keras.layers import Layer, Dropout
 from hanser.models.attention import SELayer
 from hanser.models.modules import DropPath
 from hanser.models.layers import Conv2d, Act, Identity, GlobalAvgPool, Linear, Pool2d, Norm
-from hanser.models.imagenet.stem import ResNetvdStem
+from hanser.models.imagenet.common import ResNetvdStem
 
 
 class BasicBlock(Layer):

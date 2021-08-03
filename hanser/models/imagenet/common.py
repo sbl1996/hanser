@@ -1,6 +1,6 @@
 from hanser.models.modules import SpaceToDepth
 from tensorflow.keras import Sequential
-from hanser.models.layers import Conv2d, Pool2d
+from hanser.models.layers import Conv2d, Pool2d, Identity
 
 
 def SimpleStem(channels=64):
@@ -36,3 +36,16 @@ def SpaceToDepthStem(channels=64):
         Conv2d(3 * 16, channels, 3, stride=1, norm='def', act='def')
     ]
     return Sequential(layers)
+
+
+def get_shortcut_vd(in_channels, out_channels, stride):
+    if stride != 1 or in_channels != out_channels:
+        shortcut = []
+        if stride != 1:
+            shortcut.append(Pool2d(2, 2, type='avg'))
+        shortcut.append(
+            Conv2d(in_channels, out_channels, kernel_size=1, norm='def'))
+        shortcut = Sequential(shortcut)
+    else:
+        shortcut = Identity()
+    return shortcut
