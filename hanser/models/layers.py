@@ -99,6 +99,7 @@ _defaults_schema = {
         'sync': {'type': 'boolean'},
         'eval': {'type': 'boolean'},
         'virtual_batch_size': {'type': 'integer', 'nullable': True},
+        'test': {'type': 'boolean'},
     },
     'gn': {
         'eps': {'type': 'float', 'min': 0.0},

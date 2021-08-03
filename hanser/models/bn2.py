@@ -122,7 +122,6 @@ class BatchNormalizationTest(Layer):
         self.gamma_regularizer = regularizers.get(gamma_regularizer)
         self.supports_masking = True
 
-        self._bessels_correction_test_only = True
         self.trainable = trainable
 
     @property
