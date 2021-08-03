@@ -236,16 +236,13 @@ class BatchNormalizationTest(Layer):
         self.built = True
 
     # noinspection PyMethodMayBeStatic
-    def _assign_moving_average(self, variable, value, momentum, inputs_size):
+    def _assign_moving_average(self, variable, value, momentum):
 
         def calculate_update_delta():
             decay = tf.convert_to_tensor(1.0 - momentum, name='decay')
             if decay.dtype != variable.dtype.base_dtype:
                 decay = tf.cast(decay, variable.dtype.base_dtype)
             update_delta = (variable - tf.cast(value, variable.dtype)) * decay
-            if inputs_size is not None:
-                update_delta = tf.where(inputs_size > 0, update_delta,
-                                        tf.zeros_like(update_delta))
             return update_delta
 
         with tf.name_scope('AssignMovingAvg') as scope:
@@ -292,7 +289,7 @@ class BatchNormalizationTest(Layer):
             new_mean, new_variance = mean, variance
 
             def _do_update(var, value):
-                return self._assign_moving_average(var, value, self.momentum, input_batch_size=None)
+                return self._assign_moving_average(var, value, self.momentum)
 
             def mean_update():
                 return _do_update(self.moving_mean, new_mean)
