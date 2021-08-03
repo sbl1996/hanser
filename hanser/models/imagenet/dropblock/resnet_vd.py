@@ -2,7 +2,7 @@ from tensorflow.keras import Sequential, Model
 from tensorflow.keras.layers import Dropout, Layer
 
 from hanser.models.layers import GlobalAvgPool, Linear, Conv2d, Pool2d, Identity, Act
-from hanser.models.imagenet.common import ResNetvdStem
+from hanser.models.imagenet.stem import ResNetvdStem
 
 
 class BasicBlock(Layer):

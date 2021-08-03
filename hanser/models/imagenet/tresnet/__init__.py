@@ -3,7 +3,8 @@ from tensorflow.keras.layers import Dropout, Layer
 
 from hanser.models.layers import GlobalAvgPool, Linear, Conv2d, Act
 from hanser.models.attention import SELayer
-from hanser.models.imagenet.common import  SpaceToDepthStem, get_shortcut_vd
+from hanser.models.common.modules import get_shortcut_vd
+from hanser.models.imagenet.stem import  SpaceToDepthStem
 
 from hanser.models.modules import AntiAliasing
 
@@ -82,7 +83,7 @@ class Bottleneck(Layer):
 
 class TResNet(Model):
     # TResNet use leaky_relu with 1e-3 or 1e-6. We found it the same with ReLU.
-    
+
     def __init__(self, layers, num_classes=1000, stages=(64, 64, 128, 256, 512),
                  zero_init_residual=True, dropout=0.0, act='leaky_relu'):
         super().__init__()

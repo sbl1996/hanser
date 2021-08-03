@@ -2,26 +2,24 @@ import math
 from tensorflow.keras import Sequential, Model
 from tensorflow.keras.layers import Layer
 
-from hanser.models.layers import Conv2d, Act, Identity, GlobalAvgPool, Linear, Pool2d, Norm
+from hanser.models.layers import Conv2d, Identity, GlobalAvgPool, Linear, Act, Pool2d, Norm
+from hanser.models.cifar.res2net.layers import Res2Conv
 
 
-class Bottleneck(Layer):
+class Bottle2neck(Layer):
     expansion = 4
 
-    def __init__(self, in_channels, channels, stride, cardinality, base_width, zero_init_residual=True):
+    def __init__(self, in_channels, channels, stride, dilation=1, base_width=26, scale=4,
+                 zero_init_residual=False):
         super().__init__()
         out_channels = channels * self.expansion
-
-        D = math.floor(channels * (base_width / 64))
-        C = cardinality
-
-        self.conv1 = Conv2d(in_channels, D * C, kernel_size=1,
+        start_block = stride != 1 or in_channels != out_channels
+        width = math.floor(channels * (base_width / 64)) * scale
+        self.conv1 = Conv2d(in_channels, width, kernel_size=1,
                             norm='def', act='def')
-        self.conv2 = Conv2d(D * C, D * C, kernel_size=3, stride=stride, groups=cardinality,
-                            norm='def', act='def')
-        self.conv3 = Conv2d(D * C, out_channels, kernel_size=1,
-                            norm='def')
-        self.conv3 = Conv2d(D * C, out_channels, kernel_size=1)
+        self.conv2 = Res2Conv(width, width, kernel_size=3, stride=stride, dilation=dilation,
+                              scale=scale, groups=1, start_block=start_block, norm='def', act='def')
+        self.conv3 = Conv2d(width, out_channels, kernel_size=1)
         self.bn3 = Norm(out_channels, gamma_init='zeros' if zero_init_residual else 'ones')
 
         if stride != 1 or in_channels != out_channels:
@@ -47,36 +45,32 @@ class Bottleneck(Layer):
         return x
 
 
-class ResNeXt(Model):
+class ResNet(Model):
 
-    def __init__(self, depth, cardinality, base_width,
-                 zero_init_residual=True, num_classes=10, stages=(64, 64, 128, 256)):
+    def __init__(self, depth, base_width=26, scale=4, avd=False,
+                 num_classes=10, stages=(64, 64, 128, 256)):
         super().__init__()
         self.stages = stages
-        block = Bottleneck
+        block = Bottle2neck
         layers = [(depth - 2) // 9] * 3
 
-        self.stem = Conv2d(3, self.stages[0], kernel_size=3,
-                           norm='def', act='def')
+        self.stem = Conv2d(3, self.stages[0], kernel_size=3, norm='def', act='def')
         self.in_channels = self.stages[0]
 
         self.layer1 = self._make_layer(
             block, self.stages[1], layers[0], stride=1,
-            cardinality=cardinality, base_width=base_width,
-            zero_init_residual=zero_init_residual)
+            base_width=base_width, scale=scale, avd=avd)
         self.layer2 = self._make_layer(
             block, self.stages[2], layers[1], stride=2,
-            cardinality=cardinality, base_width=base_width,
-            zero_init_residual=zero_init_residual)
+            base_width=base_width, scale=scale, avd=avd)
         self.layer3 = self._make_layer(
             block, self.stages[3], layers[2], stride=2,
-            cardinality=cardinality, base_width=base_width,
-            zero_init_residual=zero_init_residual)
+            base_width=base_width, scale=scale, avd=avd)
 
         self.avgpool = GlobalAvgPool()
         self.fc = Linear(self.in_channels, num_classes)
 
-    def _make_layer(self, block, channels, blocks, stride=1, **kwargs):
+    def _make_layer(self, block, channels, blocks, stride, **kwargs):
         layers = [block(self.in_channels, channels, stride=stride,
                         **kwargs)]
         self.in_channels = channels * block.expansion

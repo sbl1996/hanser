@@ -3,7 +3,7 @@ from tensorflow.keras import Model
 from tensorflow.keras.layers import Layer
 
 from hanser.models.layers import Conv2d
-from hanser.models.cifar.resnet_vd import Bottleneck
+from hanser.models.common.resnet_vd import Bottleneck
 
 
 class SSD(Model):

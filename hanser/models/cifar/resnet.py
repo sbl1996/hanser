@@ -1,103 +1,36 @@
 from tensorflow.keras import Model
-from tensorflow.keras.layers import Layer
 
-from hanser.models.layers import Conv2d, Act, Identity, GlobalAvgPool, Linear, Sequential
+from hanser.models.common.resnet import Bottleneck
+from hanser.models.common.modules import make_layer
+from hanser.models.layers import Conv2d, GlobalAvgPool, Linear
 
 
-class BasicBlock(Layer):
-    expansion = 1
+class _ResNet(Model):
 
-    def __init__(self, in_channels, channels, stride, erase_relu):
+    def __init__(self, depth, block, num_classes=10,
+                 channels=(16, 16, 32, 64), **kwargs):
         super().__init__()
-        out_channels = channels * self.expansion
-        self.conv1 = Conv2d(in_channels, out_channels, kernel_size=3,
-                            stride=stride, norm='def', act='def')
-        self.conv2 = Conv2d(out_channels, out_channels, kernel_size=3,
-                            norm='def')
-
-        if stride != 1 or in_channels != out_channels:
-            self.shortcut = Conv2d(in_channels, out_channels, kernel_size=1,
-                                   stride=stride, norm='def')
-        else:
-            self.shortcut = Identity()
-        self.act = Act() if not erase_relu else Identity()
-
-    def call(self, x):
-        identity = self.shortcut(x)
-        x = self.conv1(x)
-        x = self.conv2(x)
-        x = x + identity
-        x = self.act(x)
-        return x
-
-
-class Bottleneck(Layer):
-    expansion = 4
-
-    def __init__(self, in_channels, channels, stride, erase_relu=False):
-        super().__init__()
-        out_channels = channels * self.expansion
-        self.conv1 = Conv2d(in_channels, channels, kernel_size=1,
-                            norm='def', act='def')
-        self.conv2 = Conv2d(channels, channels, kernel_size=3, stride=stride,
-                            norm='def', act='def')
-        self.conv3 = Conv2d(channels, out_channels, kernel_size=1,
-                            norm='def')
-        if stride != 1 or in_channels != out_channels:
-            self.shortcut = Conv2d(in_channels, out_channels, kernel_size=1,
-                                   stride=stride, norm='def')
-        else:
-            self.shortcut = Identity()
-        self.act = Act() if not erase_relu else Identity()
-
-    def call(self, x):
-        identity = self.shortcut(x)
-        x = self.conv1(x)
-        x = self.conv2(x)
-        x = self.conv3(x)
-        x = x + identity
-        x = self.act(x)
-        return x
-
-
-class ResNet(Model):
-
-    def __init__(self, depth, block='basic', erase_relu=False, num_classes=10, stages=(16, 16, 32, 64)):
-        super().__init__()
-        self.stages = stages
-        if block == 'basic':
-            block = BasicBlock
+        block_name = block.__name__
+        assert 'Basic' in block_name or 'Bottle' in block_name
+        if 'Basic' in block_name:
             layers = [(depth - 2) // 6] * 3
-        elif block == 'bottleneck':
-            block = Bottleneck
+        else: # 'Bottle' in block_name
             layers = [(depth - 2) // 9] * 3
-        else:
-            raise ValueError("Not supported block: %s" % block)
 
-        self.stem = Conv2d(3, self.stages[0], kernel_size=3, norm='def', act='def')
-        self.in_channels = self.stages[0]
+        stem_channels, *channels = channels
 
-        self.layer1 = self._make_layer(
-            block, self.stages[1], layers[0], stride=1,
-            erase_relu=erase_relu)
-        self.layer2 = self._make_layer(
-            block, self.stages[2], layers[1], stride=2,
-            erase_relu=erase_relu)
-        self.layer3 = self._make_layer(
-            block, self.stages[3], layers[2], stride=2,
-            erase_relu=erase_relu)
+        self.stem = Conv2d(3, stem_channels, kernel_size=3, norm='def', act='def')
+        c_in = stem_channels
+
+        strides = [1, 2, 2]
+        for i, (c, n, s) in enumerate(zip(channels, layers, strides)):
+            layer = make_layer(
+                block, c_in, c, n, s, **kwargs)
+            c_in = c * block.expansion
+            setattr(self, "layer" + str(i + 1), layer)
 
         self.avgpool = GlobalAvgPool()
-        self.fc = Linear(self.in_channels, num_classes)
-
-    def _make_layer(self, block, channels, blocks, stride=1, **kwargs):
-        layers = [block(self.in_channels, channels, stride=stride,
-                        **kwargs)]
-        self.in_channels = channels * block.expansion
-        for i in range(1, blocks):
-            layers.append(block(self.in_channels, channels, stride=1,
-                                **kwargs))
-        return Sequential(layers)
+        self.fc = Linear(c_in, num_classes)
 
     def call(self, x):
         x = self.stem(x)
@@ -111,5 +44,13 @@ class ResNet(Model):
         return x
 
 
+class ResNet(_ResNet):
+
+    def __init__(self, depth, block, num_classes=10, channels=(16, 16, 32, 64),
+                 zero_init_residual=False):
+        super().__init__(depth, block, num_classes, channels,
+                         zero_init_residual=zero_init_residual)
+
+
 def resnet110(**kwargs):
-    return ResNet(depth=110, block='bottleneck', **kwargs)
+    return ResNet(depth=110, block=Bottleneck, **kwargs)

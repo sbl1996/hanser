@@ -16,10 +16,12 @@ from tensorflow_addons.activations import mish
 from hanser.models.pooling import MaxPooling2D as MaxPool2D, AveragePooling2D as AvgPool2D
 from hanser.models.bn import BatchNormalization, SyncBatchNormalization
 from hanser.models.bn2 import BatchNormalizationTest
-from hanser.models.evonorm import EvoNormB0
+from hanser.models.evonorm import EvoNormB0, EvoNormS0
 from hanser.models.modules import DropBlock, ScaledWSConv2D
 
-__all__ = ["set_default", "set_defaults", "Act", "Conv2d", "Norm", "Linear", "GlobalAvgPool", "Pool2d", "Identity"]
+__all__ = [
+    "set_default", "set_defaults", "Act", "Conv2d", "Norm",
+    "Linear", "GlobalAvgPool", "Pool2d", "Identity", "NormAct"]
 
 DEFAULTS = {
     'naive_padding': False,
@@ -75,6 +77,7 @@ DEFAULTS = {
         'type': 'B0',
         'momentum': 0.9,
         'eps': 1e-5,
+        'groups': 32,
     }
 }
 
@@ -130,6 +133,7 @@ _defaults_schema = {
         'type': {'type': 'string', 'allowed': ['B0', 'S0']},
         'momentum': {'type': 'float', 'min': 0.0, 'max': 1.0},
         'eps': {'type': 'float', 'min': 0.0},
+        'groups': {'type': 'integer'},
     }
 }
 
@@ -325,15 +329,22 @@ def Conv2d(in_channels: int,
 
 def evonorm(gamma_init: Union[str, Initializer] = 'ones'):
     cfg = DEFAULTS['evonorm']
-    norm_act = EvoNormB0(
-        momentum=cfg['momentum'], epsilon=cfg['eps'], gamma_initializer=gamma_init)
+    if cfg['type'] == 'B0':
+        norm_act = EvoNormB0(
+            momentum=cfg['momentum'], epsilon=cfg['eps'], gamma_initializer=gamma_init)
+    elif cfg['type'] == 'S0':
+        norm_act = EvoNormS0(
+            num_groups=cfg['groups'],
+            momentum=cfg['momentum'], epsilon=cfg['eps'], gamma_initializer=gamma_init)
+    else:
+        raise ValueError("Not reachable")
     return norm_act
 
 
 def NormAct(
     channels: int,
-    norm: Optional[str] = None,
-    act: Optional[str] = None,
+    norm: Optional[str] = 'def',
+    act: Optional[str] = 'def',
     gamma_init: Union[str, Initializer] = 'ones'):
     if DEFAULTS['evonorm']['enabled'] and norm is not None and act is not None:
         return evonorm(gamma_init)

@@ -1,5 +1,5 @@
-from hanser.models.cifar.res2net.resnet_vd import Bottle2neck
-from hanser.models.imagenet.stem import ResNetvdStem
+from hanser.models.cifar.res2net.resnet import Bottle2neck
+from hanser.models.imagenet.stem import ResNetStem
 from hanser.models.imagenet.resnet import _ResNet
 
 
@@ -9,7 +9,7 @@ class Res2Net(_ResNet):
                  num_classes=1000, channels=(64, 64, 128, 256, 512),
                  zero_init_residual=False, dropout=0):
         stem_channels, *channels = channels
-        stem = ResNetvdStem(stem_channels)
+        stem = ResNetStem(stem_channels)
         super().__init__(stem, block, layers, num_classes, channels, dropout=dropout,
                          base_width=base_width, scale=scale,
                          zero_init_residual=zero_init_residual)

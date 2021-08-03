@@ -1,7 +1,7 @@
 from tensorflow.keras import Model, Sequential
 
 from hanser.models.layers import GlobalAvgPool, Linear
-from hanser.models.imagenet.common import SimpleStem
+from hanser.models.imagenet.stem import SimpleStem
 
 
 class GenRegNet(Model):

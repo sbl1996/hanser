@@ -1,8 +1,8 @@
 from tensorflow.keras import Sequential, Model
 
 from hanser.models.layers import GlobalAvgPool, Linear
-from hanser.models.cifar.resnet_vd import BasicBlock, Bottleneck
-from hanser.models.imagenet.common import ResNetvdStem
+from hanser.models.common.resnet_vd import BasicBlock, Bottleneck
+from hanser.models.imagenet.stem import ResNetvdStem
 
 
 class ResNet(Model):

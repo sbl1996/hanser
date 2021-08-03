@@ -1,4 +1,4 @@
-from hanser.models.cifar.resnet_vd import Bottleneck
+from hanser.models.common.resnet_vd import Bottleneck
 from hanser.models.backbone.resnet_vd import ResNet
 
 def resnet50(output_stride=16, multi_grad=(1, 2, 4), **kwargs):

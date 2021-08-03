@@ -2,7 +2,7 @@ from tensorflow.keras import Model, Sequential
 from hanser.models.layers import Linear, GlobalAvgPool
 
 from hanser.models.cifar.ppnas.resnet_vd_fair import Bottleneck
-from hanser.models.imagenet.common import ResNetvdStem
+from hanser.models.imagenet.stem import ResNetvdStem
 
 
 class ResNet(Model):

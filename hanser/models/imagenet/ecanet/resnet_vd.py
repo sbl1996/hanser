@@ -3,7 +3,7 @@ from tensorflow.keras import Sequential, Model
 from tensorflow.keras.layers import Layer, Conv1D, Dropout
 
 from hanser.models.layers import Conv2d, Act, Identity, GlobalAvgPool, Linear, Pool2d, Norm
-from hanser.models.imagenet.common import ResNetvdStem
+from hanser.models.imagenet.stem import ResNetvdStem
 
 
 class ECALayer(Layer):

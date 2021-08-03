@@ -3,7 +3,7 @@ from tensorflow.keras.layers import Layer
 
 from hanser.models.layers import Conv2d, Norm, Act, Identity, GlobalAvgPool, Linear, Pool2d
 from hanser.models.imagenet.regnet.resnet import SELayer
-from hanser.models.imagenet.common import SimpleStem
+from hanser.models.imagenet.stem import SimpleStem
 
 
 class Bottleneck(Layer):
