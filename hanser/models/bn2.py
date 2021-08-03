@@ -287,7 +287,7 @@ class BatchNormalizationTest(Layer):
             mean, variance = tf.nn.moments(
                 tf.cast(inputs, self._param_dtype),
                 reduction_axes,
-                keep_dims=keep_dims)
+                keepdims=keep_dims)
 
             new_mean, new_variance = mean, variance
 
