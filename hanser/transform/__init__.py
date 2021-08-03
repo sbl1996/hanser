@@ -247,6 +247,7 @@ def cutout2(image, length, fill=0):
 
 @curry
 def cutout3(image, length, fill=0):
+    # Fastest version, recommended
     h, w, c = image_dimensions(image, 3)
 
     cy = tf.random.uniform((), 0, h, dtype=tf.int32)
@@ -272,7 +273,7 @@ def cutout3(image, length, fill=0):
 
 # noinspection PyUnboundLocalVariable
 @curry
-def random_erasing(image, p=0.5, s_l=0.02, s_h=0.4, r_1=0.3, r_2=None, fill='normal'):
+def random_erasing(image, p=0.5, s_l=0.02, s_h=1/3, r_1=0.3, r_2=None, fill='normal'):
     r"""Random Erasing.
     Args:
         image: the input image with shape (H, W, C), C may be 1, 3, 4.

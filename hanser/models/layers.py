@@ -16,6 +16,7 @@ from tensorflow_addons.activations import mish
 from hanser.models.pooling import MaxPooling2D as MaxPool2D, AveragePooling2D as AvgPool2D
 from hanser.models.bn import BatchNormalization, SyncBatchNormalization
 from hanser.models.bn2 import BatchNormalizationTest
+from hanser.models.evonorm import EvoNormB0
 from hanser.models.modules import DropBlock, ScaledWSConv2D
 
 __all__ = ["set_default", "set_defaults", "Act", "Conv2d", "Norm", "Linear", "GlobalAvgPool", "Pool2d", "Identity"]
@@ -68,6 +69,12 @@ DEFAULTS = {
         'block_size': 7,
         'gamma_scale': 1.0,
         'per_channel': False,
+    },
+    'evonorm': {
+        'enabled': False,
+        'type': 'B0',
+        'momentum': 0.9,
+        'eps': 1e-5,
     }
 }
 
@@ -117,6 +124,12 @@ _defaults_schema = {
         'block_size': {'type': 'integer'},
         'gamma_scale': {'type': 'float', 'min': 0.0},
         'per_channel': {'type': 'boolean'},
+    },
+    'evonorm': {
+        'enabled': {'type': 'boolean'},
+        'type': {'type': 'string', 'allowed': ['B0', 'S0']},
+        'momentum': {'type': 'float', 'min': 0.0, 'max': 1.0},
+        'eps': {'type': 'float', 'min': 0.0},
     }
 }
 
@@ -289,6 +302,11 @@ def Conv2d(in_channels: int,
         ])
 
     layers = [conv]
+
+    if DEFAULTS['evonorm']['enabled'] and norm is not None and act is not None:
+        layers.append(evonorm(gamma_init))
+        return Sequential(layers)
+
     if norm:
         layers.append(Norm(out_channels, norm, gamma_init=gamma_init))
     if dropblock:
@@ -303,6 +321,33 @@ def Conv2d(in_channels: int,
         return layers[0]
     else:
         return Sequential(layers)
+
+
+def evonorm(gamma_init: Union[str, Initializer] = 'ones'):
+    cfg = DEFAULTS['evonorm']
+    norm_act = EvoNormB0(
+        momentum=cfg['momentum'], epsilon=cfg['eps'], gamma_initializer=gamma_init)
+    return norm_act
+
+
+def NormAct(
+    channels: int,
+    norm: Optional[str] = None,
+    act: Optional[str] = None,
+    gamma_init: Union[str, Initializer] = 'ones'):
+    if DEFAULTS['evonorm']['enabled'] and norm is not None and act is not None:
+        return evonorm(gamma_init)
+
+    layers = []
+    if norm:
+        layers.append(Norm(channels, norm, gamma_init=gamma_init))
+    if act:
+        layers.append(Act(act))
+    if len(layers) == 1:
+        return layers[0]
+    else:
+        return Sequential(layers)
+
 
 
 def get_groups(channels, ref=32):

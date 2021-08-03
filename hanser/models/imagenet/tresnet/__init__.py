@@ -11,15 +11,16 @@ from hanser.models.modules import AntiAliasing
 class BasicBlock(Layer):
     expansion = 1
 
-    def __init__(self, in_channels, channels, stride, reduction=4, zero_init_residual=True):
+    def __init__(self, in_channels, channels, stride, reduction=4,
+                 zero_init_residual=True, act='leaky_relu'):
         super().__init__()
         out_channels = channels * self.expansion
         if stride == 1:
             self.conv1 = Conv2d(
-                in_channels, out_channels, kernel_size=3, norm='def', act='leaky_relu')
+                in_channels, out_channels, kernel_size=3, norm='def', act=act)
         else:
             self.conv1 = Sequential([
-                Conv2d(in_channels, out_channels, kernel_size=3, norm='def', act='leaky_relu'),
+                Conv2d(in_channels, out_channels, kernel_size=3, norm='def', act=act),
                 AntiAliasing()
             ])
         self.conv2 = Conv2d(out_channels, out_channels, kernel_size=3,
@@ -43,16 +44,17 @@ class BasicBlock(Layer):
 class Bottleneck(Layer):
     expansion = 4
 
-    def __init__(self, in_channels, channels, stride, use_se=True, reduction=8, zero_init_residual=True):
+    def __init__(self, in_channels, channels, stride, use_se=True, reduction=8,
+                 zero_init_residual=True, act='leaky_relu'):
         super().__init__()
         out_channels = channels * self.expansion
         self.conv1 = Conv2d(in_channels, channels, kernel_size=1,
-                            norm='def', act='leaky_relu')
+                            norm='def', act=act)
         if stride == 1:
-            self.conv2 = Conv2d(channels, channels, kernel_size=3, norm='def', act='leaky_relu')
+            self.conv2 = Conv2d(channels, channels, kernel_size=3, norm='def', act=act)
         else:
             self.conv2 = Sequential([
-                Conv2d(channels, channels, kernel_size=3, norm='def', act='leaky_relu'),
+                Conv2d(channels, channels, kernel_size=3, norm='def', act=act),
                 AntiAliasing()
             ])
 
@@ -79,9 +81,10 @@ class Bottleneck(Layer):
 
 
 class TResNet(Model):
-
+    # TResNet use leaky_relu with 1e-3 or 1e-6. We found it the same with ReLU.
+    
     def __init__(self, layers, num_classes=1000, stages=(64, 64, 128, 256, 512),
-                 zero_init_residual=True, dropout=0.0):
+                 zero_init_residual=True, dropout=0.0, act='leaky_relu'):
         super().__init__()
         self.stages = stages
 
@@ -94,16 +97,20 @@ class TResNet(Model):
 
         self.layer1 = self._make_layer(
             BasicBlock, self.stages[1], layers[0], stride=1,
-            reduction=4, zero_init_residual=zero_init_residual)
+            reduction=4, zero_init_residual=zero_init_residual,
+            act=act)
         self.layer2 = self._make_layer(
             BasicBlock, self.stages[2], layers[1], stride=2,
-            reduction=4, zero_init_residual=zero_init_residual)
+            reduction=4, zero_init_residual=zero_init_residual,
+            act=act)
         self.layer3 = self._make_layer(
             Bottleneck, self.stages[3], layers[2], stride=2,
-            reduction=8, zero_init_residual=zero_init_residual)
+            reduction=8, zero_init_residual=zero_init_residual,
+            act=act)
         self.layer4 = self._make_layer(
             Bottleneck, self.stages[4], layers[3], stride=2,
-            use_se=False, zero_init_residual=zero_init_residual)
+            use_se=False, zero_init_residual=zero_init_residual,
+            act=act)
 
         self.avgpool = GlobalAvgPool()
         self.dropout = Dropout(dropout) if dropout else None
