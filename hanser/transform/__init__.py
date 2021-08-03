@@ -41,7 +41,7 @@ def transform(images, transforms, interpolation="BILINEAR", output_shape=None):
         )
 
     output = tf.raw_ops.ImageProjectiveTransformV2(
-        images,
+        images=images,
         transforms=transforms,
         output_shape=output_shape,
         interpolation=interpolation.upper(),
