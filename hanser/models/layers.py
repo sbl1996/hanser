@@ -17,7 +17,7 @@ from hanser.models.pooling import MaxPooling2D as MaxPool2D, AveragePooling2D as
 from hanser.models.bn import BatchNormalization, SyncBatchNormalization
 from hanser.models.bn2 import BatchNormalizationTest
 from hanser.models.evonorm import EvoNormB0, EvoNormS0
-from hanser.models.modules import DropBlock, ScaledWSConv2D
+from hanser.models.modules import DropBlock, ScaledWSConv2D, AntiAliasing
 
 __all__ = [
     "set_default", "set_defaults", "Act", "Conv2d", "Norm",
@@ -215,7 +215,8 @@ def Conv2d(in_channels: int,
            bias_init: Optional[Initializer] = None,
            gamma_init: Union[str, Initializer] = 'ones',
            dropblock: Union[bool, Dict[str, Any]] = False,
-           scaled_ws: bool = False):
+           scaled_ws: bool = False,
+           anti_alias: bool = False):
 
     if isinstance(kernel_size, int):
         kernel_size = (kernel_size, kernel_size)
@@ -229,6 +230,10 @@ def Conv2d(in_channels: int,
         assert len(padding) == 2
         ph, pw = padding
         padding = ((ph, ph), (pw, pw))
+
+    if anti_alias:
+        assert stride == (2, 2)
+        stride = (1, 1)
 
     conv_cfg = DEFAULTS['conv']
     init_cfg = conv_cfg['init']
@@ -305,7 +310,10 @@ def Conv2d(in_channels: int,
             conv,
         ])
 
-    layers = [conv]
+    layers = []
+    if anti_alias:
+        layers.append(AntiAliasing(kernel_size=3, stride=2))
+    layers.append(conv)
 
     if DEFAULTS['evonorm']['enabled'] and norm is not None and act is not None:
         layers.append(evonorm(gamma_init))

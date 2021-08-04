@@ -85,7 +85,7 @@ class TResNet(Model):
     # TResNet use leaky_relu with 1e-3 or 1e-6. We found it the same with ReLU.
 
     def __init__(self, layers, num_classes=1000, stages=(64, 64, 128, 256, 512),
-                 zero_init_residual=True, dropout=0.0, act='leaky_relu'):
+                 zero_init_residual=False, dropout=0.0, act='relu'):
         super().__init__()
         self.stages = stages
 

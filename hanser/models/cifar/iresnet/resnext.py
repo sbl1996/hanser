@@ -1,1 +1,0 @@
-from hanser.models.cifar.resnext.iresnet import ResNeXt
