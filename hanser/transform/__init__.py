@@ -242,6 +242,7 @@ def cutout2(image, length, fill=0):
     mask = tf.tile(mask[:, :, None], [1, 1, channels])
     fill = _fill_region((height, width, channels), fill, image.dtype)
     image = tf.where(tf.equal(mask, 0), fill, image)
+    image.set_shape((height, width, channels))
     return image
 
 
@@ -268,6 +269,7 @@ def cutout3(image, length, fill=0):
 
     mid = tf.concat([mid_left, fill, mid_right], 1)  # along x axis
     image = tf.concat([top, mid, bottem], 0)  # along y axis
+    image.set_shape((h, w, c))
     return image
 
 
@@ -316,6 +318,7 @@ def random_erasing(image, p=0.5, s_l=0.02, s_h=1/3, r_1=0.3, r_2=None, fill='nor
     fill = _fill_region((h, w, c), fill, image.dtype)
     mid = tf.concat([mid_left, fill, mid_right], 1)
     image = tf.concat([top, mid, bottem], 0)
+    image.set_shape((height, width, c))
     return image
 
 
