@@ -1,4 +1,4 @@
-from hanser.models.imagenet.preactresnet import resnet50
+from hanser.models.imagenet.resnet_vd import resnet50
 from hanser.models.utils import load_pretrained_model
 
 net = resnet50()

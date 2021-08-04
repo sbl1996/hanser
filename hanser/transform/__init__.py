@@ -294,6 +294,8 @@ def random_erasing(image, p=0.5, s_l=0.02, s_h=1/3, r_1=0.3, r_2=None, fill='nor
     height, width, c = image_dimensions(image, 3)
     area = tf.cast(height * width, tf.float32)
 
+    h = tf.zeros((), dtype=tf.int32)
+    w = tf.zeros((), dtype=tf.int32)
     while tf.constant(True):
         target_area = tf.random.uniform((), s_l, s_h) * area
         aspect_ratio = log_uniform((), r_1, r_2)
