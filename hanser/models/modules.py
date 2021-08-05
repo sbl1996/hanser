@@ -275,7 +275,7 @@ class AntiAliasing(Layer):
         stride = self.stride
 
         if self.kernel_size == 1:
-            return inputs[:, :, ::stride, ::stride]
+            return inputs[:, ::stride, ::stride, :]
         else:
             inputs = tf.pad(inputs, self.paddings, "REFLECT")
             strides = (1, stride, stride, 1)

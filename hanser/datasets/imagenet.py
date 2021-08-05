@@ -53,13 +53,14 @@ def parse_and_transform(transform, training):
 
 def make_imagenet_dataset_split(
     batch_size, transform, filenames, split, training=None,
-    cache_decoded_image=False, cache_parsed=False, **kwargs):
+    cache_parsed=False, drop_remainder=None, **kwargs):
     assert split in NUM_IMAGES.keys()
 
     if training is None:
         training = split == 'train'
 
-    drop_remainder = training
+    if drop_remainder is None:
+        drop_remainder = training
 
     dataset = tf.data.Dataset.from_tensor_slices(filenames)
 
@@ -77,7 +78,7 @@ def make_imagenet_dataset_split(
     else:
         transform = parse_and_transform(transform, training)
     ds = prepare(dataset, batch_size, transform, training=training, buffer_size=_SHUFFLE_BUFFER,
-                 cache=True, prefetch=True, repeat=training, **kwargs)
+                 cache=True, prefetch=True, repeat=training, drop_remainder=drop_remainder, **kwargs)
 
     n = NUM_IMAGES[split]
     chunksize = math.ceil(n / NUM_FILES[split])
@@ -96,7 +97,7 @@ def make_imagenet_dataset_split(
 
 def make_imagenet_dataset(
     batch_size, eval_batch_size, transform, data_dir=None, train_files=None, eval_files=None,
-    zip_transform=None, batch_transform=None, aug_repeats=None, **kwargs):
+    zip_transform=None, batch_transform=None, aug_repeats=None, drop_remainder=None, **kwargs):
 
     if train_files is None:
         train_files = get_filenames(data_dir, training=True)
@@ -108,5 +109,6 @@ def make_imagenet_dataset(
         zip_transform=zip_transform, batch_transform=batch_transform,
         aug_repeats=aug_repeats, **kwargs)
     ds_eval, eval_steps = make_imagenet_dataset_split(
-        eval_batch_size, transform, eval_files, 'validation', training=False, **kwargs)
+        eval_batch_size, transform, eval_files, 'validation', training=False,
+        drop_remainder=drop_remainder, **kwargs)
     return ds_train, ds_eval, steps_per_epoch, eval_steps
