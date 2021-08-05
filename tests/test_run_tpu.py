@@ -19,12 +19,12 @@ model = tf.keras.Sequential([
     DropBlock(0.9, block_size=7),
 ])
 model.build((None, 28, 28, 2))
-optimizer = tf.keras
 
 
 @tf.function
 def test_train_tf(x):
     with tf.GradientTape() as tape:
+        x = tf.pad(x, paddings=[(0, 0), (1, 1,), (1, 1), (0, 0)], mode='REFLECT'),
         y = model(x, training=True)
         loss = tf.reduce_mean(y)
     grads = tape.gradient(loss, model.trainable_variables)

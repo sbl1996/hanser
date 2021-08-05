@@ -310,10 +310,9 @@ def Conv2d(in_channels: int,
             conv,
         ])
 
-    layers = []
+    layers = [conv]
     if anti_alias:
         layers.append(AntiAliasing(kernel_size=3, stride=2))
-    layers.append(conv)
 
     if DEFAULTS['evonorm']['enabled'] and norm is not None and act is not None:
         layers.append(evonorm(gamma_init))

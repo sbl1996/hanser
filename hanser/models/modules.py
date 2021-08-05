@@ -271,14 +271,13 @@ class AntiAliasing(Layer):
             name="kernel", shape=kernel.shape, dtype=self.dtype,
             initializer=initializers.Constant(kernel), trainable=False)
 
-    def call(self, inputs, training=None):
+    def call(self, inputs):
         stride = self.stride
 
         if self.kernel_size == 1:
             return inputs[:, :, ::stride, ::stride]
         else:
-            # inputs = tf.pad(inputs, self.paddings, "REFLECT")
-            inputs = tf.pad(inputs, self.paddings)
+            inputs = tf.pad(inputs, self.paddings, "REFLECT")
             strides = (1, stride, stride, 1)
             output = tf.nn.depthwise_conv2d(
                 inputs, self.kernel, strides=strides, padding='VALID')
