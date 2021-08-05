@@ -311,22 +311,22 @@ def Conv2d(in_channels: int,
         ])
 
     layers = [conv]
-    if anti_alias:
-        layers.append(AntiAliasing(kernel_size=3, stride=2))
 
     if DEFAULTS['evonorm']['enabled'] and norm is not None and act is not None:
         layers.append(evonorm(gamma_init))
-        return Sequential(layers)
+    else:
+        if norm:
+            layers.append(Norm(out_channels, norm, gamma_init=gamma_init))
+        if dropblock:
+            config = DEFAULTS['dropblock']
+            if isinstance(dropblock, dict):
+                config = {**config, **dropblock}
+            layers.append(_get_dropblock(config))
+        if act:
+            layers.append(Act(act))
 
-    if norm:
-        layers.append(Norm(out_channels, norm, gamma_init=gamma_init))
-    if dropblock:
-        config = DEFAULTS['dropblock']
-        if isinstance(dropblock, dict):
-            config = {**config, **dropblock}
-        layers.append(_get_dropblock(config))
-    if act:
-        layers.append(Act(act))
+    if anti_alias:
+        layers.append(AntiAliasing(kernel_size=3, stride=2))
 
     if len(layers) == 1:
         return layers[0]
