@@ -18,6 +18,15 @@ def _make_layer(block, in_channels, channels, blocks, stride, **kwargs):
     return Sequential(layers)
 
 
+def _get_kwargs(kwargs, i):
+    d = {}
+    for k, v in kwargs.items():
+        if isinstance(v, tuple) and len(v) == 4:
+            d[k] = v[i]
+        else:
+            d[k] = v
+    return d
+
 
 class _IResNet(Model):
 
@@ -30,7 +39,7 @@ class _IResNet(Model):
 
         for i, (c, n, s) in enumerate(zip(channels, layers, strides)):
             layer = _make_layer(
-                block, c_in, c, n, s, **kwargs)
+                block, c_in, c, n, s, **_get_kwargs(kwargs, i))
             c_in = c * block.expansion
             setattr(self, "layer" + str(i+1), layer)
 
