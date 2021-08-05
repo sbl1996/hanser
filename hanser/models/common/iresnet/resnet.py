@@ -96,7 +96,7 @@ class Bottleneck(Layer):
                             stride=1 if anti_alias and stride == 2 else stride)
         self.bn2 = Norm(channels)
         self.act2 = Act()
-        self.anti_alias = AntiAliasing() if anti_alias and stride == 2 else None
+        self.anti_alias = AntiAliasing(mode='CONSTANT') if anti_alias and stride == 2 else None
 
         self.conv3 = Conv2d(channels, out_channels, kernel_size=1)
 

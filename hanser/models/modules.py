@@ -1,4 +1,3 @@
-import math
 from functools import partial
 import numpy as np
 import tensorflow as tf
@@ -232,10 +231,11 @@ class Affine(Layer):
 
 class AntiAliasing(Layer):
 
-    def __init__(self, kernel_size=3, stride=2, **kwargs):
+    def __init__(self, kernel_size=3, stride=2, mode="REFLECT", **kwargs):
         super().__init__(**kwargs)
         self.kernel_size = kernel_size
         self.stride = stride
+        self.mode = mode
 
     def build(self, input_shape):
         kernel_size = self.kernel_size
@@ -277,7 +277,7 @@ class AntiAliasing(Layer):
         if self.kernel_size == 1:
             return inputs[:, ::stride, ::stride, :]
         else:
-            inputs = tf.pad(inputs, self.paddings, "REFLECT")
+            inputs = tf.pad(inputs, self.paddings, self.mode)
             strides = (1, stride, stride, 1)
             output = tf.nn.depthwise_conv2d(
                 inputs, self.kernel, strides=strides, padding='VALID')
@@ -286,9 +286,10 @@ class AntiAliasing(Layer):
     def get_config(self):
         base_config = super().get_config()
         base_config = {
+            **base_config,
             "kernel_size": self.kernel_size,
             "stride": self.stride,
-            **base_config
+            "mode": self.mode,
         }
         return base_config
 
