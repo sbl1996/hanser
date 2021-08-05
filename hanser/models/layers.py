@@ -215,8 +215,7 @@ def Conv2d(in_channels: int,
            bias_init: Optional[Initializer] = None,
            gamma_init: Union[str, Initializer] = 'ones',
            dropblock: Union[bool, Dict[str, Any]] = False,
-           scaled_ws: bool = False,
-           anti_alias: bool = False):
+           scaled_ws: bool = False):
 
     if isinstance(kernel_size, int):
         kernel_size = (kernel_size, kernel_size)
@@ -230,10 +229,6 @@ def Conv2d(in_channels: int,
         assert len(padding) == 2
         ph, pw = padding
         padding = ((ph, ph), (pw, pw))
-
-    if anti_alias:
-        assert stride == (2, 2)
-        stride = (1, 1)
 
     conv_cfg = DEFAULTS['conv']
     init_cfg = conv_cfg['init']
@@ -324,9 +319,6 @@ def Conv2d(in_channels: int,
             layers.append(_get_dropblock(config))
         if act:
             layers.append(Act(act))
-
-    if anti_alias:
-        layers.append(AntiAliasing(kernel_size=3, stride=2))
 
     if len(layers) == 1:
         return layers[0]
