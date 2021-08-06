@@ -75,5 +75,6 @@ def train_fn():
     i = np.argmax(accs)
     print(accs[i], losses[i])
 
-from hanser.hpo.reprod import repeat
+
+from hanser.hpo.repeat import repeat
 repeat(train_fn, times=3)

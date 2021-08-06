@@ -230,8 +230,10 @@ class Affine(Layer):
 
 
 class AntiAliasing(Layer):
+    # Although REFLECT padding is the original way, we find CONSTANT padding
+    # performs similarly and is faster.
 
-    def __init__(self, kernel_size=3, stride=2, mode="REFLECT", **kwargs):
+    def __init__(self, kernel_size=3, stride=2, mode="CONSTANT", **kwargs):
         super().__init__(**kwargs)
         self.kernel_size = kernel_size
         self.stride = stride

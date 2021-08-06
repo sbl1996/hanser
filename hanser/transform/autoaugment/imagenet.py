@@ -6,6 +6,7 @@
 import tensorflow as tf
 from hanser.transform import sharpness, shear_x, shear_y, solarize, solarize_add, autocontrast, translate_x, \
     translate_y, rotate, color, posterize, contrast, brightness, equalize, invert, cutout2 as cutout, random_apply
+from hanser.transform.common import image_dimensions
 
 __all__ = [
     "autoaugment", "randaugment", "rand_or_auto_augment", "trival_augment"]
@@ -13,8 +14,8 @@ __all__ = [
 H_PARAMS = {
     "max_level": 10,
     "fill_color": (128, 128, 128),
-    'cutout_max': 40.,
-    'translate_max': 250.,
+    'cutout_max': 0.2,
+    'translate_max': 150 / 331.,
     'rotate_max': 30.,
     'enhance_min': 0.1,
     'enhance_max': 1.9,
@@ -66,7 +67,7 @@ def _solarize_add_level_to_arg(level, max_level, max_val):
 
 
 def _cutout_level_to_arg(level, max_level, max_val):
-    return tf.cast((level / max_level) * max_val, tf.int32)
+    return (level / max_level) * max_val
 
 
 def _shear_level_to_arg(level, max_level, max_val):
@@ -90,12 +91,14 @@ def _shear_y(img, level, hparams):
 def _translate_x(img, level, hparams):
     fill_color = hparams['fill_color']
     magnitude = _translate_level_to_arg(level, hparams['max_level'], hparams['translate_max'])
+    magnitude = tf.cast(tf.shape(img)[1], magnitude.dtype) * magnitude
     return translate_x(img, magnitude, fill_color)
 
 
 def _translate_y(img, level, hparams):
     fill_color = hparams['fill_color']
     magnitude = _translate_level_to_arg(level, hparams['max_level'], hparams['translate_max'])
+    magnitude = tf.cast(tf.shape(img)[0], magnitude.dtype) * magnitude
     return translate_y(img, magnitude, fill_color)
 
 
@@ -163,6 +166,8 @@ def _invert(img, level, hparams):
 def _cutout(img, level, hparams):
     fill_color = hparams['fill_color']
     magnitude = _cutout_level_to_arg(level, hparams['max_level'], hparams['cutout_max'])
+    h, w = image_dimensions(img, 2)[:2]
+    magnitude = tf.cast(tf.cast(tf.maximum(h, w), tf.float32) * magnitude, tf.int32)
     return cutout(img, magnitude, fill_color)
 
 
@@ -250,8 +255,8 @@ def imagenet_policy_v0():
 def autoaugment(image):
     hparams = {
         **H_PARAMS,
-        'cutout_max': 100,
-        'translate_max': 250,
+        # 'cutout_max': 100, # No cutout in autoaugment
+        # 'translate_max': 250, # Use 150 / 331
     }
 
     policies = imagenet_policy_v0()
@@ -266,13 +271,14 @@ def autoaugment(image):
     return image
 
 
+# official
 def randaugment(image, num_layers=2, magnitude=10.):
     magnitude = tf.cast(magnitude, tf.float32)
 
     hparams = {
         **H_PARAMS,
-        'cutout_max': 40,
-        'translate_max': 100,
+        # 'cutout_max': 0.2, default
+        # 'translate_max': 150 / 331, default
     }
 
     available_ops = [
@@ -297,6 +303,34 @@ def randaugment(image, num_layers=2, magnitude=10.):
     return image
 
 
+# timm
+def randaugment_t(image, num_layers=2, magnitude=10.):
+    magnitude = tf.cast(magnitude, tf.float32)
+
+    hparams = {**H_PARAMS}
+
+    available_ops = [
+        'autocontrast', 'equalize', 'invert', 'rotate', 'posterize',
+        'solarize', 'color', 'contrast', 'brightness', 'sharpness',
+        'shearX', 'shearY', 'translateX', 'translateY', 'solarize_add',
+        # Don't use cutout, use RE-M
+    ]
+
+    op_funcs = [
+        NAME_TO_FUNC[op_name] for op_name in available_ops
+    ]
+
+    for layer_num in range(num_layers):
+        op_to_select = tf.random.uniform((), 0, maxval=len(available_ops), dtype=tf.int32)
+        for (i, op_func) in enumerate(op_funcs):
+            selected_func = lambda im: op_func(im, magnitude, hparams)
+            image = tf.cond(
+                tf.equal(i, op_to_select),
+                lambda: random_apply(selected_func, 0.5, image),
+                lambda: image)
+    return image
+
+
 def rand_or_auto_augment(image, num_layers=2, magnitude=10.):
     i = tf.random.uniform((), maxval=2, dtype=tf.int32)
     image = tf.cond(
@@ -317,7 +351,6 @@ def trival_augment(image):
     hparams = {
         **H_PARAMS,
         'max_level': 30,
-        'translate_max': 10,
     }
 
     available_ops = [

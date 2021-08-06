@@ -16,9 +16,10 @@ def get_tpu_errors():
 def run_trial(
     train_fn: Callable,
     catch: Tuple[Type[Exception], ...] = (),
+    i: int = 0,
 ):
     try:
-        train_fn()
+        train_fn(i)
     except Exception as e:
         func_err = e
         logger.warning(
@@ -35,7 +36,7 @@ def repeat(
 ):
     i = 0
     while True:
-        p = multiprocessing.Process(target=run_trial, args=(train_fn, catch))
+        p = multiprocessing.Process(target=run_trial, args=(train_fn, catch, i))
         p.start()
         logger.info("Experiment {} started".format(i + 1))
         p.join(timeout=timeout)

@@ -89,12 +89,8 @@ class TResNet(Model):
         super().__init__()
         self.stages = stages
 
-        self.block_1 = BasicBlock
-        self.block_2 = Bottleneck
-
         self.stem = SpaceToDepthStem(channels=stages[0])
         self.in_channels = self.stages[0]
-
 
         self.layer1 = self._make_layer(
             BasicBlock, self.stages[1], layers[0], stride=1,

@@ -215,7 +215,8 @@ def Conv2d(in_channels: int,
            bias_init: Optional[Initializer] = None,
            gamma_init: Union[str, Initializer] = 'ones',
            dropblock: Union[bool, Dict[str, Any]] = False,
-           scaled_ws: bool = False):
+           scaled_ws: bool = False,
+           avd=False, avd_first=True):
 
     if isinstance(kernel_size, int):
         kernel_size = (kernel_size, kernel_size)
@@ -229,6 +230,12 @@ def Conv2d(in_channels: int,
         assert len(padding) == 2
         ph, pw = padding
         padding = ((ph, ph), (pw, pw))
+
+    assert stride in [(1, 1), (2, 2)]
+
+    avd = avd and stride == (2, 2)
+
+    if avd: stride = (1, 1)
 
     conv_cfg = DEFAULTS['conv']
     init_cfg = conv_cfg['init']
@@ -306,6 +313,8 @@ def Conv2d(in_channels: int,
         ])
 
     layers = [conv]
+    if avd and avd_first:
+        layers.insert(0, Pool2d(kernel_size=3, stride=2, type='avg'))
 
     if DEFAULTS['evonorm']['enabled'] and norm is not None and act is not None:
         layers.append(evonorm(gamma_init))
@@ -319,6 +328,9 @@ def Conv2d(in_channels: int,
             layers.append(_get_dropblock(config))
         if act:
             layers.append(Act(act))
+
+    if avd and not avd_first:
+        layers.append(Pool2d(kernel_size=3, stride=2, type='avg'))
 
     if len(layers) == 1:
         return layers[0]

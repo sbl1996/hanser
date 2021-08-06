@@ -3,7 +3,6 @@ from tensorflow.keras.layers import Layer, Dropout
 from hanser.models.modules import DropPath
 from hanser.models.layers import Conv2d, Act, Identity, Norm
 from hanser.models.common.modules import get_shortcut_vd
-from hanser.models.modules import AntiAliasing
 
 
 class BasicBlock(Layer):
@@ -11,13 +10,10 @@ class BasicBlock(Layer):
 
     def __init__(self, in_channels, channels, stride,
                  start_block=False, end_block=False, exclude_bn0=False,
-                 pool_type='max', dropout=0, drop_path=0, anti_alias=False):
+                 pool_type='avg', dropout=0, drop_path=0, avd=False,
+                 avd_first=True):
         super().__init__()
-
-        if anti_alias and stride == 2:
-            stride = 1
-        else:
-            anti_alias = False
+        self.avd_first = avd_first
 
         out_channels = channels * self.expansion
         if not start_block and not exclude_bn0:
@@ -26,10 +22,10 @@ class BasicBlock(Layer):
         if not start_block:
             self.act0 = Act()
 
-        self.conv1 = Conv2d(in_channels, out_channels, kernel_size=3, stride=stride)
-        self.bn1 = Norm(out_channels)
-        self.act1 = Act()
-        self.anti_alias = AntiAliasing() if anti_alias else None
+        self.conv1 = Conv2d(in_channels, out_channels, kernel_size=3,
+                            stride=stride, norm='def', act='def',
+                            avd=avd, avd_first=avd_first)
+
         self.dropout = Dropout(dropout) if dropout else Identity()
         self.conv2 = Conv2d(out_channels, out_channels, kernel_size=3)
 
@@ -52,22 +48,19 @@ class BasicBlock(Layer):
     def call(self, x):
         identity = self.shortcut(x)
 
-        if self.start_block:
-            x = self.conv1(x)
-        else:
+        if not self.start_block:
             if not self.exclude_bn0:
                 x = self.bn0(x)
             x = self.act0(x)
-            x = self.conv1(x)
-        x = self.bn1(x)
-        x = self.act1(x)
-        if self.anti_alias is not None:
-            x = self.anti_alias(x)
+
+        x = self.conv1(x)
         x = self.dropout(x)
 
         x = self.conv2(x)
+
         if self.start_block:
             x = self.bn2(x)
+
         x = self.drop_path(x)
         x = x + identity
         if self.end_block:
@@ -81,8 +74,9 @@ class Bottleneck(Layer):
 
     def __init__(self, in_channels, channels, stride,
                  start_block=False, end_block=False, exclude_bn0=False,
-                 pool_type='max', drop_path=0, anti_alias=False):
+                 drop_path=0, avd=False, avd_first=True):
         super().__init__()
+        self.avd_first = avd_first
 
         out_channels = channels * self.expansion
 
@@ -90,14 +84,13 @@ class Bottleneck(Layer):
             self.bn0 = Norm(in_channels)
         if not start_block:
             self.act0 = Act()
-        self.conv1 = Conv2d(in_channels, channels, kernel_size=1)
-        self.bn1 = Norm(channels)
-        self.act1 = Act()
+
+        self.conv1 = Conv2d(in_channels, channels, kernel_size=1,
+                            norm='def', act='def')
+
         self.conv2 = Conv2d(channels, channels, kernel_size=3,
-                            stride=1 if anti_alias and stride == 2 else stride)
-        self.bn2 = Norm(channels)
-        self.act2 = Act()
-        self.anti_alias = AntiAliasing() if anti_alias and stride == 2 else None
+                            stride=stride, norm='def', act='def',
+                            avd=avd, avd_first=avd_first)
 
         self.conv3 = Conv2d(channels, out_channels, kernel_size=1)
 
@@ -110,8 +103,7 @@ class Bottleneck(Layer):
             self.bn3 = Norm(out_channels)
             self.act3 = Act()
 
-        self.shortcut = get_shortcut_vd(in_channels, out_channels, stride,
-                                        pool_type=pool_type)
+        self.shortcut = get_shortcut_vd(in_channels, out_channels, stride)
 
         self.start_block = start_block
         self.end_block = end_block
@@ -119,22 +111,15 @@ class Bottleneck(Layer):
 
     def call(self, x):
         identity = self.shortcut(x)
-        if self.start_block:
-            x = self.conv1(x)
-        else:
+
+        if not self.start_block:
             if not self.exclude_bn0:
                 x = self.bn0(x)
             x = self.act0(x)
-            x = self.conv1(x)
 
-        x = self.bn1(x)
-        x = self.act1(x)
+        x = self.conv1(x)
 
         x = self.conv2(x)
-        x = self.bn2(x)
-        x = self.act2(x)
-        if self.anti_alias is not None:
-            x = self.anti_alias(x)
 
         x = self.conv3(x)
 
