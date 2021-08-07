@@ -10,8 +10,7 @@ class BasicBlock(Layer):
 
     def __init__(self, in_channels, channels, stride,
                  start_block=False, end_block=False, exclude_bn0=False,
-                 pool_type='avg', dropout=0, drop_path=0, avd=False,
-                 avd_first=True):
+                 drop_path=0, avd=False, avd_first=True):
         super().__init__()
         self.avd_first = avd_first
 
@@ -26,7 +25,6 @@ class BasicBlock(Layer):
                             stride=stride, norm='def', act='def',
                             avd=avd, avd_first=avd_first)
 
-        self.dropout = Dropout(dropout) if dropout else Identity()
         self.conv2 = Conv2d(out_channels, out_channels, kernel_size=3)
 
         if start_block:
@@ -38,8 +36,7 @@ class BasicBlock(Layer):
             self.bn2 = Norm(out_channels)
             self.act2 = Act()
 
-        self.shortcut = get_shortcut_vd(in_channels, out_channels, stride,
-                                        pool_type=pool_type)
+        self.shortcut = get_shortcut_vd(in_channels, out_channels, stride)
 
         self.start_block = start_block
         self.end_block = end_block
