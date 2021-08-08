@@ -4,6 +4,7 @@ import tensorflow as tf
 from tensorflow.keras import initializers
 from tensorflow.keras.layers import InputSpec, Dropout, Layer, Conv2D
 from tensorflow.keras.initializers import Constant
+from hanser.models.defaults import DEFAULTS
 
 
 class PadChannel(Layer):
@@ -12,6 +13,7 @@ class PadChannel(Layer):
         super().__init__(**kwargs)
         self.c = c
 
+    # noinspection PyMethodOverriding
     def call(self, x):
         return tf.pad(x, [(0, 0), (0, 0), (0, 0), (0, self.c)])
 
@@ -35,6 +37,7 @@ class StochDepth(Layer):
             initializer=initializers.Constant(drop_rate), trainable=False)
         self.scale_by_keep = scale_by_keep
 
+    # noinspection PyMethodOverriding
     def call(self, x, training=None):
         if not training:
             return x
@@ -95,6 +98,7 @@ class ReZero(Layer):
             name='res_weight', shape=(), dtype=tf.float32,
             trainable=True, initializer=initializers.Constant(init_val))
 
+    # noinspection PyMethodOverriding
     def call(self, x):
         return x * self.res_weight
 
@@ -127,6 +131,7 @@ class Affine(Layer):
         self.gamma_initializer = initializers.get(gamma_initializer)
         self.beta_initializer = initializers.get(beta_initializer)
 
+    # noinspection PyMethodOverriding
     def call(self, inputs):
         inputs_dtype = inputs.dtype.base_dtype
         if inputs_dtype in (tf.float16, tf.bfloat16):
@@ -233,11 +238,12 @@ class AntiAliasing(Layer):
     # Although REFLECT padding is the original way, we find CONSTANT padding
     # performs similarly and is faster.
 
-    def __init__(self, kernel_size=3, stride=2, mode="CONSTANT", **kwargs):
+    def __init__(self, kernel_size=3, stride=2, mode=None, **kwargs):
         super().__init__(**kwargs)
+        cfg = DEFAULTS['anti_aliasing']
         self.kernel_size = kernel_size
         self.stride = stride
-        self.mode = mode
+        self.mode = mode or cfg['mode']
 
     def build(self, input_shape):
         kernel_size = self.kernel_size
@@ -273,6 +279,7 @@ class AntiAliasing(Layer):
             name="kernel", shape=kernel.shape, dtype=self.dtype,
             initializer=initializers.Constant(kernel), trainable=False)
 
+    # noinspection PyMethodOverriding
     def call(self, inputs):
         stride = self.stride
 
@@ -302,6 +309,7 @@ class SpaceToDepth(Layer):
         super().__init__(**kwargs)
         self.block_size = block_size
 
+    # noinspection PyMethodOverriding
     def call(self, inputs):
         return tf.nn.space_to_depth(inputs, self.block_size)
 
@@ -329,6 +337,7 @@ class Slice(Layer):
         output_shape = (input_shape[0], *sizes)
         return output_shape
 
+    # noinspection PyMethodOverriding
     def call(self, x):
         return tf.slice(x, (0, *self.begin), (-1, *self.size))
 
@@ -349,6 +358,7 @@ class DropBlock(Layer):
             experimental_autocast=False,
         )
 
+    # noinspection PyMethodOverriding
     def call(self, x, training=None):
         if training:
             n = tf.shape(x)[0]

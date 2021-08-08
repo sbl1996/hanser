@@ -1,13 +1,10 @@
 import math
-from difflib import get_close_matches
-from typing import Union, Tuple, Optional, Sequence, Mapping, Dict, Any
+from typing import Union, Tuple, Optional, Dict, Any
 from toolz import curry
-
-from cerberus import Validator
 
 import tensorflow as tf
 from tensorflow.keras import Sequential
-from tensorflow.keras.initializers import VarianceScaling, RandomUniform, Initializer, Constant
+from tensorflow.keras.initializers import VarianceScaling, RandomUniform, Initializer
 from tensorflow.keras.layers import Dense, Activation, Layer, Conv2D, ZeroPadding2D, LeakyReLU, \
     DepthwiseConv2D, MaxPooling2D as KerasMaxPool2D, AveragePooling2D as KerasAvgPool2D, LayerNormalization, Flatten
 import tensorflow_addons as tfa
@@ -18,161 +15,12 @@ from hanser.models.bn import BatchNormalization, SyncBatchNormalization
 from hanser.models.bn2 import BatchNormalizationTest
 from hanser.models.evonorm import EvoNormB0, EvoNormS0
 from hanser.models.modules import DropBlock, ScaledWSConv2D, AntiAliasing
+from hanser.models.defaults import DEFAULTS, set_defaults, set_default
+
 
 __all__ = [
     "set_default", "set_defaults", "Act", "Conv2d", "Norm",
     "Linear", "GlobalAvgPool", "Pool2d", "Identity", "NormAct"]
-
-DEFAULTS = {
-    'naive_padding': False,
-    'conv': {
-        'depthwise': {
-            'use_group': False,
-            'fix_stride_with_dilation': True,
-        },
-        'group': {
-            'smart_naive': False,
-            'max_naive_groups': 8,
-        },
-        'init': {
-            'type': 'msra',
-            'mode': 'fan_out',
-            'distribution': 'untruncated_normal',
-            'fix': True,
-        },
-    },
-    'bn': {
-        'momentum': 0.9,
-        'eps': 1e-5,
-        'affine': True,
-        'track_running_stats': True,
-        'fused': True,
-        'sync': False,
-        'eval': False,
-        'virtual_batch_size': None,
-        'test': False,
-    },
-    'gn': {
-        'groups': 32,
-        'channels_per_group': 16,
-        'eps': 1e-5,
-        'affine': True,
-    },
-    'ln': {
-        'eps': 1e-5,
-    },
-    'activation': 'relu',
-    'leaky_relu': {
-        'alpha': 0.1,
-    },
-    'norm': 'bn',
-    'dropblock': {
-        'keep_prob': 0.9,
-        'block_size': 7,
-        'gamma_scale': 1.0,
-        'per_channel': False,
-    },
-    'evonorm': {
-        'enabled': False,
-        'type': 'B0',
-        'momentum': 0.9,
-        'eps': 1e-5,
-        'groups': 32,
-    }
-}
-
-_defaults_schema = {
-    'naive_padding': {'type': 'boolean'},
-    'conv': {
-        'depthwise': {
-            'use_group': {'type': 'boolean'},
-            'fix_stride_with_dilation': {'type': 'boolean'},
-        },
-        'group': {
-            'smart_naive': {'type': 'boolean'},
-            'max_naive_groups': {'type': 'integer'},
-        },
-        'init': {
-            'type': {'type': 'string', 'allowed': ['msra', 'normal']},
-            'mode': {'type': 'string', 'allowed': ['fan_in', 'fan_out']},
-            'distribution': {'type': 'string', 'allowed': ['uniform', 'truncated_normal', 'untruncated_normal']},
-            'fix': {'type': 'boolean'},
-        },
-
-    },
-    'bn': {
-        'momentum': {'type': 'float', 'min': 0.0, 'max': 1.0},
-        'eps': {'type': 'float', 'min': 0.0},
-        'affine': {'type': 'boolean'},
-        'track_running_stats': {'type': 'boolean'},
-        'fused': {'type': 'boolean'},
-        'sync': {'type': 'boolean'},
-        'eval': {'type': 'boolean'},
-        'virtual_batch_size': {'type': 'integer', 'nullable': True},
-        'test': {'type': 'boolean'},
-    },
-    'gn': {
-        'eps': {'type': 'float', 'min': 0.0},
-        'affine': {'type': 'boolean'},
-        'groups': {'type': 'integer'},
-        'channels_per_group': {'type': 'integer'},
-    },
-    'leaky_relu': {
-        'alpha': {'type': 'float', 'min': 0.0, 'max': 1.0},
-    },
-    'norm': {'type': 'string', 'allowed': ['bn', 'gn', 'none']},
-    'seed': {'type': 'integer'},
-    'dropblock': {
-        'keep_prob': {'type': 'float', 'min': 0.0, 'max': 1.0},
-        'block_size': {'type': 'integer'},
-        'gamma_scale': {'type': 'float', 'min': 0.0},
-        'per_channel': {'type': 'boolean'},
-    },
-    'evonorm': {
-        'enabled': {'type': 'boolean'},
-        'type': {'type': 'string', 'allowed': ['B0', 'S0']},
-        'momentum': {'type': 'float', 'min': 0.0, 'max': 1.0},
-        'eps': {'type': 'float', 'min': 0.0},
-        'groups': {'type': 'integer'},
-    }
-}
-
-
-def set_defaults(kvs: Mapping):
-    def _set_defaults(kvs, prefix):
-        for k, v in kvs.items():
-            if isinstance(v, dict):
-                _set_defaults(v, prefix + (k,))
-            else:
-                set_default(prefix + (k,), v)
-
-    return _set_defaults(kvs, ())
-
-
-def set_default(keys: Union[str, Sequence[str]], value):
-    def loop(d, keys, schema):
-        k = keys[0]
-        if k not in d:
-            match = get_close_matches(k, d.keys())
-            if match:
-                raise KeyError("No such key `%s`, maybe you mean `%s`" % (k, match[0]))
-            else:
-                raise KeyError("No key `%s` in %s" % (k, d))
-        if len(keys) == 1:
-            v = Validator({k: schema[k]})
-            if not v.validate({k: value}):
-                raise ValueError(v.errors)
-            d[k] = value
-        else:
-            loop(d[k], keys[1:], schema[k])
-
-    if isinstance(keys, str):
-        keys = [keys]
-
-    if len(keys) == 1 and keys[0] == 'activation':
-        DEFAULTS['activation'] = value
-        return
-    loop(DEFAULTS, keys, _defaults_schema)
 
 
 def calc_same_padding(kernel_size, dilation):
@@ -216,7 +64,10 @@ def Conv2d(in_channels: int,
            gamma_init: Union[str, Initializer] = 'ones',
            dropblock: Union[bool, Dict[str, Any]] = False,
            scaled_ws: bool = False,
-           avd=False, avd_first=True):
+           avd=False, avd_first=True,
+           anti_alias: bool = False):
+
+    assert not (avd and anti_alias)
 
     if isinstance(kernel_size, int):
         kernel_size = (kernel_size, kernel_size)
@@ -234,8 +85,11 @@ def Conv2d(in_channels: int,
     assert stride in [(1, 1), (2, 2)]
 
     avd = avd and stride == (2, 2)
+    anti_alias = anti_alias and stride == (2, 2)
 
-    if avd: stride = (1, 1)
+    if avd or anti_alias:
+        assert norm is not None and act is not None
+        stride = (1, 1)
 
     conv_cfg = DEFAULTS['conv']
     init_cfg = conv_cfg['init']
@@ -331,6 +185,9 @@ def Conv2d(in_channels: int,
 
     if avd and not avd_first:
         layers.append(Pool2d(kernel_size=3, stride=2, type='avg'))
+
+    if anti_alias:
+        layers.append(AntiAliasing(kernel_size=3, stride=2))
 
     if len(layers) == 1:
         return layers[0]
@@ -485,6 +342,7 @@ class GlobalAvgPool(Layer):
 
 class Identity(Layer):
 
+    # noinspection PyMethodOverriding
     def call(self, inputs):
         return tf.identity(inputs)
 
@@ -504,24 +362,28 @@ def gelu(x):
 
 class Mish(Layer):
 
+    # noinspection PyMethodOverriding
     def call(self, x):
         return mish(x)
 
 
 class ScaledReLU(Layer):
 
+    # noinspection PyMethodOverriding
     def call(self, x):
         return tf.nn.relu(x) * 1.7139588594436646
 
 
 class ScaledSwish(Layer):
 
+    # noinspection PyMethodOverriding
     def call(self, x):
         return tf.nn.swish(x) * 1.7881293296813965
 
 
 class ScaledGELU(Layer):
 
+    # noinspection PyMethodOverriding
     def call(self, x):
         return gelu(x) * 1.7015043497085571
 
@@ -538,6 +400,7 @@ class NaiveGroupConv2D(Layer):
             for _ in range(groups)
         ]
 
+    # noinspection PyMethodOverriding
     def call(self, x):
         xs = tf.split(x, self.groups, axis=-1)
         xs = [

@@ -37,7 +37,8 @@ class _IResNet(Model):
         self.stem = stem
         c_in = stem.out_channels
 
-        for i, (c, n, s) in enumerate(zip(channels, layers, strides)):
+        blocks = (block,) * 4 if not isinstance(block, tuple) else block
+        for i, (block, c, n, s) in enumerate(zip(blocks, channels, layers, strides)):
             layer = _make_layer(
                 block, c_in, c, n, s, **_get_kwargs(kwargs, i))
             c_in = c * block.expansion

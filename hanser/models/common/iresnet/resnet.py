@@ -14,11 +14,6 @@ class BasicBlock(Layer):
                  pool_type='max', dropout=0, drop_path=0, anti_alias=False):
         super().__init__()
 
-        if anti_alias and stride == 2:
-            stride = 1
-        else:
-            anti_alias = False
-
         out_channels = channels * self.expansion
         if not start_block and not exclude_bn0:
             self.bn0 = Norm(in_channels)
@@ -26,10 +21,9 @@ class BasicBlock(Layer):
         if not start_block:
             self.act0 = Act()
 
-        self.conv1 = Conv2d(in_channels, out_channels, kernel_size=3, stride=stride)
-        self.bn1 = Norm(out_channels)
-        self.act1 = Act()
-        self.anti_alias = AntiAliasing() if anti_alias else None
+        self.conv1 = Conv2d(in_channels, out_channels, kernel_size=3, stride=stride,
+                            norm='def', act='def', anti_alias=anti_alias)
+
         self.dropout = Dropout(dropout) if dropout else Identity()
         self.conv2 = Conv2d(out_channels, out_channels, kernel_size=3)
 
@@ -52,17 +46,12 @@ class BasicBlock(Layer):
     def call(self, x):
         identity = self.shortcut(x)
 
-        if self.start_block:
-            x = self.conv1(x)
-        else:
+        if not self.start_block:
             if not self.exclude_bn0:
                 x = self.bn0(x)
             x = self.act0(x)
-            x = self.conv1(x)
-        x = self.bn1(x)
-        x = self.act1(x)
-        if self.anti_alias is not None:
-            x = self.anti_alias(x)
+
+        x = self.conv1(x)
         x = self.dropout(x)
 
         x = self.conv2(x)
@@ -90,14 +79,10 @@ class Bottleneck(Layer):
             self.bn0 = Norm(in_channels)
         if not start_block:
             self.act0 = Act()
-        self.conv1 = Conv2d(in_channels, channels, kernel_size=1)
-        self.bn1 = Norm(channels)
-        self.act1 = Act()
-        self.conv2 = Conv2d(channels, channels, kernel_size=3,
-                            stride=1 if anti_alias and stride == 2 else stride)
-        self.bn2 = Norm(channels)
-        self.act2 = Act()
-        self.anti_alias = AntiAliasing() if anti_alias and stride == 2 else None
+        self.conv1 = Conv2d(in_channels, channels, kernel_size=1,
+                            norm='def', act='def')
+        self.conv2 = Conv2d(channels, channels, kernel_size=3, stride=stride,
+                            norm='def', act='def', anti_alias=anti_alias)
 
         self.conv3 = Conv2d(channels, out_channels, kernel_size=1)
 
@@ -119,22 +104,15 @@ class Bottleneck(Layer):
 
     def call(self, x):
         identity = self.shortcut(x)
-        if self.start_block:
-            x = self.conv1(x)
-        else:
+
+        if not self.start_block:
             if not self.exclude_bn0:
                 x = self.bn0(x)
             x = self.act0(x)
-            x = self.conv1(x)
 
-        x = self.bn1(x)
-        x = self.act1(x)
+        x = self.conv1(x)
 
         x = self.conv2(x)
-        x = self.bn2(x)
-        x = self.act2(x)
-        if self.anti_alias is not None:
-            x = self.anti_alias(x)
 
         x = self.conv3(x)
 

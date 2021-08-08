@@ -40,4 +40,6 @@ def SpaceToDepthStem(channels=64):
         SpaceToDepth(4),
         Conv2d(3 * 16, channels, 3, stride=1, norm='def', act='def')
     ]
-    return Sequential(layers)
+    stem = Sequential(layers)
+    stem.out_channels = channels
+    return stem
