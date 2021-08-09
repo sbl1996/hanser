@@ -3,7 +3,7 @@ from tensorflow.keras.layers import Layer, Dropout
 from hanser.models.modules import DropPath
 from hanser.models.layers import Conv2d, Act, Identity, Norm
 from hanser.models.common.modules import get_shortcut_vd
-from hanser.models.modules import AntiAliasing
+from hanser.models.attention import SELayer
 
 
 class BasicBlock(Layer):
@@ -11,7 +11,8 @@ class BasicBlock(Layer):
 
     def __init__(self, in_channels, channels, stride,
                  start_block=False, end_block=False, exclude_bn0=False,
-                 pool_type='max', dropout=0, drop_path=0, anti_alias=False):
+                 pool_type='max', dropout=0, drop_path=0, anti_alias=False,
+                 se_reduction=None):
         super().__init__()
 
         out_channels = channels * self.expansion
@@ -70,7 +71,8 @@ class Bottleneck(Layer):
 
     def __init__(self, in_channels, channels, stride,
                  start_block=False, end_block=False, exclude_bn0=False,
-                 pool_type='max', drop_path=0, anti_alias=False):
+                 pool_type='max', drop_path=0, anti_alias=False,
+                 se_reduction=None):
         super().__init__()
 
         out_channels = channels * self.expansion
@@ -79,10 +81,14 @@ class Bottleneck(Layer):
             self.bn0 = Norm(in_channels)
         if not start_block:
             self.act0 = Act()
+
         self.conv1 = Conv2d(in_channels, channels, kernel_size=1,
                             norm='def', act='def')
+
         self.conv2 = Conv2d(channels, channels, kernel_size=3, stride=stride,
                             norm='def', act='def', anti_alias=anti_alias)
+        self.se = SELayer(channels, se_channels=in_channels // se_reduction) \
+            if se_reduction is not None else None
 
         self.conv3 = Conv2d(channels, out_channels, kernel_size=1)
 
@@ -113,6 +119,8 @@ class Bottleneck(Layer):
         x = self.conv1(x)
 
         x = self.conv2(x)
+        if self.se is not None:
+            x = self.se(x)
 
         x = self.conv3(x)
 
