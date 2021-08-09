@@ -25,7 +25,7 @@ def conv_output_length(input_length, filter_size, padding, stride, dilation=1):
         output_length = input_length
     elif padding == 'valid':
         output_length = input_length - dilated_filter_size + 1
-    elif padding == 'full':
+    else: # padding == 'full'
         output_length = input_length + dilated_filter_size - 1
     return (output_length + stride - 1) // stride
 
@@ -147,7 +147,7 @@ class DepthwiseConv2D(Conv2D):
             rows = input_shape[2]
             cols = input_shape[3]
             out_filters = input_shape[1] * self.depth_multiplier
-        elif self.data_format == 'channels_last':
+        else: # self.data_format == 'channels_last'
             rows = input_shape[1]
             cols = input_shape[2]
             out_filters = input_shape[3] * self.depth_multiplier
@@ -161,9 +161,9 @@ class DepthwiseConv2D(Conv2D):
                                   self.strides[1],
                                   self.dilation_rate[1])
         if self.data_format == 'channels_first':
-            return (input_shape[0], out_filters, rows, cols)
+            return input_shape[0], out_filters, rows, cols
         elif self.data_format == 'channels_last':
-            return (input_shape[0], rows, cols, out_filters)
+            return input_shape[0], rows, cols, out_filters
 
     def get_config(self):
         config = super().get_config()

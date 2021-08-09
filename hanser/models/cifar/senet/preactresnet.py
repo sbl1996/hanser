@@ -1,7 +1,6 @@
 from tensorflow.keras import Sequential, Model
-from tensorflow.keras.layers import Layer
+from tensorflow.keras.layers import Layer, Dropout
 
-from hanser.models.modules import Dropout
 from hanser.models.attention import SELayer
 from hanser.models.layers import Act, Conv2d, Norm, GlobalAvgPool, Linear, Identity
 

@@ -4,8 +4,8 @@ from toolz import curry
 
 import tensorflow as tf
 
-import tensorflow_addons as tfa
 from tensorflow_addons.image.translate_ops import translations_to_projective_transforms
+from tensorflow_addons.image.transform_ops import angles_to_projective_transforms
 
 from hanser.ops import log_uniform, prepend_dims
 from hanser.transform.common import image_dimensions, to_4D_image, get_ndims, from_4D_image
@@ -442,7 +442,7 @@ def rotate(image, degrees, replace):
     # of the function.
     image_height = tf.cast(tf.shape(image)[0], tf.float32)
     image_width = tf.cast(tf.shape(image)[1], tf.float32)
-    transforms = tfa.image.transform_ops.angles_to_projective_transforms(
+    transforms = angles_to_projective_transforms(
         radians, image_height, image_width)
     image = transform(wrap(image), transforms)
     return unwrap(image, replace)

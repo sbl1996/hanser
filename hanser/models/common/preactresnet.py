@@ -1,6 +1,5 @@
-from tensorflow.keras.layers import Layer
+from tensorflow.keras.layers import Layer, Dropout
 
-from hanser.models.modules import Dropout
 from hanser.models.layers import NormAct, Conv2d, Identity
 
 

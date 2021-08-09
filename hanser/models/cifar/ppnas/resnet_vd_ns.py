@@ -1,8 +1,8 @@
 import math
 import tensorflow as tf
-from tensorflow.keras import Model
+from tensorflow.keras import Model, Sequential
 from tensorflow.keras.layers import Layer
-from hanser.models.layers import Conv2d, Norm, Act, Linear, Pool2d, Sequential, Identity, GlobalAvgPool
+from hanser.models.layers import Conv2d, Norm, Act, Linear, Pool2d, Identity, GlobalAvgPool
 
 from hanser.models.cifar.ppnas.operations import OPS
 

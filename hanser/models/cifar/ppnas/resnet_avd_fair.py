@@ -1,10 +1,12 @@
 import math
-import tensorflow as tf
-from hanser.models.cifar.res2net.layers import Res2Conv
-from tensorflow.keras import Model
-from tensorflow.keras.layers import Layer
-from hanser.models.layers import Conv2d, Norm, Act, Linear, Pool2d, Sequential, Identity, GlobalAvgPool
 
+import tensorflow as tf
+from tensorflow.keras import Model, Sequential
+from tensorflow.keras.layers import Layer
+
+from hanser.models.layers import Conv2d, Norm, Act, Linear, Pool2d, Identity, GlobalAvgPool
+
+from hanser.models.cifar.res2net.layers import Res2Conv
 from hanser.models.cifar.ppnas.operations import OPS
 
 def parse_genotype(genotype):

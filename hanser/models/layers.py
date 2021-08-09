@@ -2,19 +2,17 @@ import math
 from typing import Union, Tuple, Optional, Dict, Any
 from toolz import curry
 
-import tensorflow as tf
 from tensorflow.keras import Sequential
 from tensorflow.keras.initializers import VarianceScaling, RandomUniform, Initializer
-from tensorflow.keras.layers import Dense, Activation, Layer, Conv2D, ZeroPadding2D, LeakyReLU, \
-    DepthwiseConv2D, MaxPooling2D as KerasMaxPool2D, AveragePooling2D as KerasAvgPool2D, LayerNormalization, Flatten
-import tensorflow_addons as tfa
-from tensorflow_addons.activations import mish
+from tensorflow.keras.layers import Dense, Activation, Conv2D, ZeroPadding2D, LeakyReLU, \
+    DepthwiseConv2D, MaxPooling2D as KerasMaxPool2D, AveragePooling2D as KerasAvgPool2D, LayerNormalization
 
 from hanser.models.pooling import MaxPooling2D as MaxPool2D, AveragePooling2D as AvgPool2D
 from hanser.models.bn import BatchNormalization, SyncBatchNormalization
 from hanser.models.bn2 import BatchNormalizationTest
 from hanser.models.evonorm import EvoNormB0, EvoNormS0
-from hanser.models.modules import DropBlock, ScaledWSConv2D, AntiAliasing
+from hanser.models.modules import DropBlock, ScaledWSConv2D, AntiAliasing, GlobalAvgPool, Identity, NaiveGroupConv2D, \
+    GELU, Mish, ScaledSwish, ScaledGELU, ScaledReLU
 from hanser.models.defaults import DEFAULTS, set_defaults, set_default
 
 
@@ -273,7 +271,8 @@ def Norm(channels=None, type='default', affine=None, track_running_stats=None, g
             groups = get_groups(channels, cfg['channels_per_group'])
         else:
             groups = cfg['groups']
-        gn = tfa.layers.GroupNormalization(
+        from tensorflow_addons.layers import GroupNormalization
+        gn = GroupNormalization(
             groups=groups, epsilon=cfg['eps'], center=affine, scale=affine)
         return gn
     elif type == 'ln':
@@ -290,10 +289,14 @@ def Act(type='default', **kwargs):
         return Act(DEFAULTS['activation'], **kwargs)
     if type == 'mish':
         return Mish()
+    elif type == 'gelu':
+        return GELU()
     elif type == 'scaled_relu':
         return ScaledReLU()
     elif type == 'scaled_swish':
         return ScaledSwish()
+    elif type == 'scaled_gelu':
+        return ScaledGELU()
     elif type == 'leaky_relu':
         if 'alpha' not in kwargs:
             kwargs = {**kwargs, 'alpha': DEFAULTS['leaky_relu']['alpha']}
@@ -322,31 +325,6 @@ def Pool2d(kernel_size, stride, padding='same', type='avg', ceil_mode=True):
     return pool(kernel_size, stride, padding)
 
 
-class GlobalAvgPool(Layer):
-    """Abstract class for different global pooling 2D layers.
-  """
-
-    def __init__(self, keep_dim=False, **kwargs):
-        super().__init__(**kwargs)
-        self.keep_dim = keep_dim
-
-    # noinspection PyMethodOverriding
-    def call(self, inputs):
-        return tf.reduce_mean(inputs, axis=[1, 2], keepdims=self.keep_dim)
-
-    def get_config(self):
-        config = {'keep_dim': self.keep_dim}
-        base_config = super().get_config()
-        return {**base_config, **config}
-
-
-class Identity(Layer):
-
-    # noinspection PyMethodOverriding
-    def call(self, inputs):
-        return tf.identity(inputs)
-
-
 def Linear(in_channels, out_channels, act=None, kernel_init=None, bias_init=None):
     kernel_initializer = kernel_init or VarianceScaling(1.0 / 3, 'fan_in', 'uniform')
     bound = math.sqrt(1 / in_channels)
@@ -354,57 +332,3 @@ def Linear(in_channels, out_channels, act=None, kernel_init=None, bias_init=None
     return Dense(out_channels, activation=act,
                  kernel_initializer=kernel_initializer,
                  bias_initializer=bias_initializer)
-
-
-def gelu(x):
-    return tf.nn.sigmoid(x * 1.702) * x
-
-
-class Mish(Layer):
-
-    # noinspection PyMethodOverriding
-    def call(self, x):
-        return mish(x)
-
-
-class ScaledReLU(Layer):
-
-    # noinspection PyMethodOverriding
-    def call(self, x):
-        return tf.nn.relu(x) * 1.7139588594436646
-
-
-class ScaledSwish(Layer):
-
-    # noinspection PyMethodOverriding
-    def call(self, x):
-        return tf.nn.swish(x) * 1.7881293296813965
-
-
-class ScaledGELU(Layer):
-
-    # noinspection PyMethodOverriding
-    def call(self, x):
-        return gelu(x) * 1.7015043497085571
-
-
-class NaiveGroupConv2D(Layer):
-
-    def __init__(self, in_channels, out_channels, kernel_size, stride, padding, groups):
-        super().__init__()
-        self.in_channels = in_channels
-        self.groups = groups
-        D_out = out_channels // groups
-        self.convs = [
-            Conv2D(D_out, kernel_size=kernel_size, strides=stride, padding=padding)
-            for _ in range(groups)
-        ]
-
-    # noinspection PyMethodOverriding
-    def call(self, x):
-        xs = tf.split(x, self.groups, axis=-1)
-        xs = [
-            conv(x) for conv, x in zip(self.convs, xs)
-        ]
-        x = tf.concat(xs, axis=-1)
-        return x

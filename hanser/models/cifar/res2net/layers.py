@@ -19,7 +19,7 @@ class Res2Conv(Layer):
         self.convs = [
             Conv2d(width, width, kernel_size=kernel_size, stride=stride,
                    dilation=dilation, groups=groups, norm=norm, act=act)
-            for i in range(scale - 1)
+            for _i in range(scale - 1)
         ]
 
     def call(self, x):

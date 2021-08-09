@@ -2,8 +2,8 @@ import numpy as np
 
 import tensorflow as tf
 from tensorflow.keras import Sequential
-from tensorflow_addons.layers import GELU
 from tensorflow.keras.layers import Layer, Dense, Dropout, Activation
+from hanser.models.modules import GELU
 
 
 def safe_softmax(logits, axis):

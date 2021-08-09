@@ -7,6 +7,15 @@ from tensorflow.keras.initializers import Constant
 from hanser.models.defaults import DEFAULTS
 
 
+__all__ = [
+    "PadChannel", "StochDepth", "DropPath", "ReZero",
+    "Affine", "AntiAliasing", "SpaceToDepth", "Slice",
+    "DropBlock", "ScaledWSConv2D", "GELU", "Mish",
+    "ScaledReLU", "ScaledSwish", "ScaledGELU",
+    "NaiveGroupConv2D", "GlobalAvgPool", "Identity"
+]
+
+
 class PadChannel(Layer):
 
     def __init__(self, c, **kwargs):
@@ -85,7 +94,7 @@ class DropPath(Dropout):
     def get_config(self):
         return {
             **super().get_config(),
-            'rate': self.rate,
+            'rate': self.rate.numpy(),
         }
 
 
@@ -478,3 +487,110 @@ class ScaledWSConv2D(Conv2D):
 
         self._convolution_op = standardized_conv_op
         self.built = True
+
+
+class GELU(Layer):
+
+    def __init__(self, approximate: bool = True, **kwargs):
+        super().__init__(**kwargs)
+        self.approximate = approximate
+        self.supports_masking = True
+
+    # noinspection PyMethodOverriding
+    def call(self, inputs):
+        return gelu(inputs, approximate=self.approximate)
+
+    def get_config(self):
+        config = {"approximate": self.approximate}
+        base_config = super().get_config()
+        return {**base_config, **config}
+
+    def compute_output_shape(self, input_shape):
+        return input_shape
+
+
+def gelu(x, approximate=False):
+    if approximate:
+        coeff = tf.cast(0.044715, x.dtype)
+        return 0.5 * x * (1.0 + tf.tanh(0.7978845608028654 * (x + coeff * tf.pow(x, 3))))
+    else:
+        return 0.5 * x * (1.0 + tf.math.erf(x / tf.cast(1.4142135623730951, x.dtype)))
+
+
+def mish(x):
+    return x * tf.math.tanh(tf.math.softplus(x))
+
+
+class Mish(Layer):
+
+    # noinspection PyMethodOverriding
+    def call(self, x):
+        return mish(x)
+
+
+class ScaledReLU(Layer):
+
+    # noinspection PyMethodOverriding
+    def call(self, x):
+        return tf.nn.relu(x) * 1.7139588594436646
+
+
+class ScaledSwish(Layer):
+
+    # noinspection PyMethodOverriding
+    def call(self, x):
+        return tf.nn.swish(x) * 1.7881293296813965
+
+
+class ScaledGELU(Layer):
+
+    # noinspection PyMethodOverriding
+    def call(self, x):
+        return x * tf.nn.sigmoid(x * 1.702) * 1.7015043497085571
+
+
+class NaiveGroupConv2D(Layer):
+
+    def __init__(self, in_channels, out_channels, kernel_size, stride, padding, groups):
+        super().__init__()
+        self.in_channels = in_channels
+        self.groups = groups
+        D_out = out_channels // groups
+        self.convs = [
+            Conv2D(D_out, kernel_size=kernel_size, strides=stride, padding=padding)
+            for _ in range(groups)
+        ]
+
+    # noinspection PyMethodOverriding
+    def call(self, x):
+        xs = tf.split(x, self.groups, axis=-1)
+        xs = [
+            conv(x) for conv, x in zip(self.convs, xs)
+        ]
+        x = tf.concat(xs, axis=-1)
+        return x
+
+
+class GlobalAvgPool(Layer):
+    """Abstract class for different global pooling 2D layers.
+  """
+
+    def __init__(self, keep_dim=False, **kwargs):
+        super().__init__(**kwargs)
+        self.keep_dim = keep_dim
+
+    # noinspection PyMethodOverriding
+    def call(self, inputs):
+        return tf.reduce_mean(inputs, axis=[1, 2], keepdims=self.keep_dim)
+
+    def get_config(self):
+        config = {'keep_dim': self.keep_dim}
+        base_config = super().get_config()
+        return {**base_config, **config}
+
+
+class Identity(Layer):
+
+    # noinspection PyMethodOverriding
+    def call(self, inputs):
+        return tf.identity(inputs)

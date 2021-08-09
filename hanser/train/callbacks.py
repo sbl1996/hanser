@@ -4,8 +4,7 @@ from toolz import curry
 import numpy as np
 from hhutil.io import time_now
 from tensorflow_addons.optimizers import MovingAverage
-from hanser.models.modules import DropPath
-from hanser.models.layers import DropBlock
+from hanser.models.modules import DropPath, DropBlock
 
 
 @curry

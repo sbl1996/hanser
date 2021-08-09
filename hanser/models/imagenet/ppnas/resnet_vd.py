@@ -1,5 +1,5 @@
-from tensorflow.keras import Model
-from hanser.models.layers import Linear, Sequential, GlobalAvgPool
+from tensorflow.keras import Model, Sequential
+from hanser.models.layers import Linear, GlobalAvgPool
 
 from hanser.models.cifar.ppnas.resnet_vd import Bottleneck
 from hanser.models.imagenet.stem import ResNetvdStem
