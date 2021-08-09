@@ -149,6 +149,7 @@ class Affine(Layer):
         ndims = len(input_shape)
         reduction_axes = [i for i in range(ndims) if i not in self.axis]
         broadcast_shape = [1] * ndims
+        # noinspection PyUnresolvedReferences
         broadcast_shape[self.axis[0]] = input_shape.dims[self.axis[0]].value
 
         def _broadcast(v):

@@ -7,7 +7,6 @@ class ResNet(_ResNet):
 
     def __init__(self, block, layers, num_classes=1000, channels=(64, 64, 128, 256, 512),
                  reduction=16, se_mode=0, drop_path=0, dropout=0):
-        super().__init__()
         stem_channels, *channels = channels
         stem = ResNetvdStem(stem_channels)
         super().__init__(stem, block, layers, num_classes, channels, dropout=dropout,
