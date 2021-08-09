@@ -87,7 +87,8 @@ class Bottleneck(Layer):
 
         self.conv2 = Conv2d(channels, channels, kernel_size=3, stride=stride,
                             norm='def', act='def', anti_alias=anti_alias)
-        self.se = SELayer(channels, se_channels=in_channels // se_reduction) \
+
+        self.se = SELayer(channels, se_channels=out_channels // se_reduction) \
             if se_reduction is not None else None
 
         self.conv3 = Conv2d(channels, out_channels, kernel_size=1)
