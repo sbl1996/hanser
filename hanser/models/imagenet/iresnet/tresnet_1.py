@@ -9,7 +9,6 @@ class IResNet(_IResNet):
                  drop_path=0, anti_alias=True, dropout=0, use_se=False):
         stem_channels, *channels = channels
         stem = SpaceToDepthStem(stem_channels)
-        anti_alias = (False,) + (anti_alias,) * 3
         se_reduction = (4, 8, 8, 8) if use_se else None
         super().__init__(stem, block, layers, num_classes, channels,
                          strides=(1, 2, 2, 2), dropout=dropout,
