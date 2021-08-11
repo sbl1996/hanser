@@ -308,7 +308,7 @@ class Learner(metaclass=ABCMeta):
     @tf.function
     def _local_eval_step(self, batch):
         return local_results(
-            strategy_run(self._strategy, self._local_eval_step, (batch,)), self._strategy)
+            strategy_run(self._strategy, self.local_eval_batch, (batch,)), self._strategy)
 
     def _run_steps(self, step_fn, iterator, n_batches_per_step, n_steps, callbacks, state):
         state['step'].assign(-1)
