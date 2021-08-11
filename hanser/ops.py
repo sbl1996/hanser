@@ -207,7 +207,7 @@ def confusion_matrix_tpu(y_true, y_pred, num_classes, dtype=tf.int32):
     return cm
 
 
-def in_top_k(targets, predictions, k):
+def in_top_k(predictions, targets, k):
     indices = tf.math.top_k(predictions, k=k, sorted=False).indices
     eq = tf.equal(targets[:, None], tf.cast(indices, targets.dtype))
     return tf.reduce_any(eq, axis=1)
