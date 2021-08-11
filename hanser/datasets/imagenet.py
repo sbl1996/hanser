@@ -70,7 +70,7 @@ def make_imagenet_dataset_split(
         tf.data.TFRecordDataset,
         cycle_length=16,
         num_parallel_calls=tf.data.experimental.AUTOTUNE,
-        deterministic=False)
+        deterministic=training)
 
     if cache_parsed:
         dataset = dataset.map(parse_example_proto, num_parallel_calls=tf.data.experimental.AUTOTUNE)
