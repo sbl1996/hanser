@@ -248,13 +248,13 @@ class MultiStepLR(LearningRateSchedule):
         def step_decay(step):
             pred_fn_pairs = [
                 (step <= boundaries[0], lambda: values[0]),
-                (step > boundaries[-1], lambda: values[-1])
             ]
             for low, high, v in zip(boundaries[:-1], boundaries[1:], values[1:-1]):
                 pred = (step > low) & (step <= high)
                 pred_fn_pairs.append((pred, lambda v=v: v))
+            pred_fn_pairs.append((step > boundaries[-1], lambda: values[-1]))
             default = lambda: values[0]
-            return tf.case(pred_fn_pairs, default, exclusive=True)
+            return tf.case(pred_fn_pairs, default)
 
         decayed_lr = tf.cond(
             tf.less(step, warmup_steps),
