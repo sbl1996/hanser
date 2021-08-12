@@ -5,6 +5,7 @@ from tensorflow.keras.layers import Layer
 
 from hanser.models.layers import Conv2d, Act, Identity, GlobalAvgPool, Linear
 
+
 class SKLayer(Layer):
     def __init__(self, in_channels, num_paths, reduction):
         super().__init__()

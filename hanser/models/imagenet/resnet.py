@@ -7,6 +7,16 @@ from hanser.models.imagenet.stem import ResNetStem
 from hanser.models.common.modules import make_layer
 
 
+def _get_kwargs(kwargs, i):
+    d = {}
+    for k, v in kwargs.items():
+        if isinstance(v, tuple) and len(v) == 4:
+            d[k] = v[i]
+        else:
+            d[k] = v
+    return d
+
+
 class _ResNet(Model):
 
     def __init__(self, stem, block, layers, num_classes=1000, channels=(64, 128, 256, 512),
@@ -16,9 +26,10 @@ class _ResNet(Model):
         self.stem = stem
         c_in = stem.out_channels
 
-        for i, (c, n, s) in enumerate(zip(channels, layers, strides)):
+        blocks = (block,) * 4 if not isinstance(block, tuple) else block
+        for i, (block, c, n, s) in enumerate(zip(blocks, channels, layers, strides)):
             layer = make_layer(
-                block, c_in, c, n, s, **kwargs)
+                block, c_in, c, n, s, **_get_kwargs(kwargs, i))
             c_in = c * block.expansion
             setattr(self, "layer" + str(i + 1), layer)
 
