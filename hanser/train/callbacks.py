@@ -33,16 +33,17 @@ def config_callbacks(
 ):
     cbks = callbacks or []
     cbks = cbks if isinstance(cbks, (list, tuple)) else [cbks]
+    cbks = [*cbks]
 
     if mode == 'train':
         if not any(isinstance(k, TrainEvalLogger) for k in cbks):
-            cbks = [TrainEvalLogger(print_fn=learner._print)] + cbks
+            cbks.insert(0, TrainEvalLogger(print_fn=learner._print))
         if not any(isinstance(k, ModelCheckpoint) for k in cbks) and save_freq:
-            cbks = cbks + [ModelCheckpoint(save_freq)]
+            cbks.append(ModelCheckpoint(save_freq))
     else:
         if not any(isinstance(k, EvalLogger) for k in cbks):
-            cbks = [EvalLogger()] + cbks
-
+            cbks.insert(EvalLogger())
+    cbks = sorted(cbks, key=lambda c: -c.priority)
     cbk_list = CallbackList(learner, cbks)
     return cbk_list
 
@@ -113,6 +114,8 @@ class CallbackList(object):
 
 
 class Callback(object):
+
+    priority = 0
 
     def __init__(self):
         self.learner = None
