@@ -1,7 +1,7 @@
 from tensorflow.keras import Sequential, Model
-from tensorflow.keras.layers import Dropout, Layer
+from tensorflow.keras.layers import Layer
 
-from hanser.models.layers import GlobalAvgPool, Linear, Conv2d, Pool2d, Identity, Act
+from hanser.models.layers import GlobalAvgPool, Linear, Conv2d, Pool2d, Identity, Act, Dropout
 from hanser.models.imagenet.stem import ResNetvdStem
 
 

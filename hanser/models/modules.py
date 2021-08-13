@@ -2,7 +2,7 @@ from functools import partial
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras import initializers
-from tensorflow.keras.layers import InputSpec, Dropout, Layer, Conv2D
+from tensorflow.keras.layers import InputSpec, Dropout as KerasDropout, Layer, Conv2D
 from tensorflow.keras.initializers import Constant
 from hanser.models.defaults import DEFAULTS
 
@@ -69,7 +69,7 @@ class StochDepth(Layer):
         }
 
 
-class DropPath(Dropout):
+class DropPath(KerasDropout):
 
     def __init__(self, rate, **kwargs):
         super().__init__(**kwargs)
@@ -85,6 +85,31 @@ class DropPath(Dropout):
                 inputs,
                 noise_shape=noise_shape,
                 rate=self.rate)
+
+        return inputs
+
+    def compute_output_shape(self, input_shape):
+        return input_shape
+
+    def get_config(self):
+        return {
+            **super().get_config(),
+            'rate': self.rate.numpy(),
+        }
+
+
+class Dropout(KerasDropout):
+
+    def __init__(self, rate, **kwargs):
+        super().__init__(**kwargs)
+        self.rate = self.add_weight(
+            name="drop_rate", shape=(), dtype=tf.float32,
+            initializer=initializers.Constant(rate), trainable=False)
+
+    def call(self, inputs, training=None):
+
+        if training:
+            return tf.nn.dropout(inputs, rate=self.rate)
 
         return inputs
 

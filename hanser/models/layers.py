@@ -12,13 +12,13 @@ from hanser.models.bn import BatchNormalization, SyncBatchNormalization
 from hanser.models.bn2 import BatchNormalizationTest
 from hanser.models.evonorm import EvoNormB0, EvoNormS0
 from hanser.models.modules import DropBlock, ScaledWSConv2D, AntiAliasing, GlobalAvgPool, Identity, NaiveGroupConv2D, \
-    GELU, Mish, ScaledSwish, ScaledGELU, ScaledReLU
+    GELU, Mish, ScaledSwish, ScaledGELU, ScaledReLU, Dropout
 from hanser.models.defaults import DEFAULTS, set_defaults, set_default
 
 
 __all__ = [
     "set_default", "set_defaults", "Act", "Conv2d", "Norm",
-    "Linear", "GlobalAvgPool", "Pool2d", "Identity", "NormAct"]
+    "Linear", "GlobalAvgPool", "Pool2d", "Identity", "NormAct", "Dropout"]
 
 
 def calc_same_padding(kernel_size, dilation):
@@ -129,7 +129,7 @@ def Conv2d(in_channels: int,
     else:
         use_bias = bias
 
-    if in_channels == groups:
+    if in_channels == groups and in_channels != 1:
         if conv_cfg['depthwise']['use_group']:
             conv = Conv2D(out_channels, kernel_size=kernel_size, strides=stride,
                           padding=conv_padding, dilation_rate=dilation, use_bias=use_bias, groups=groups,

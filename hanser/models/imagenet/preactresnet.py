@@ -1,7 +1,6 @@
 from tensorflow.keras import Model
-from tensorflow.keras.layers import Dropout
 
-from hanser.models.layers import GlobalAvgPool, Linear
+from hanser.models.layers import GlobalAvgPool, Linear, Dropout
 from hanser.models.common.preactresnet import BasicBlock, Bottleneck
 from hanser.models.common.modules import make_layer
 from hanser.models.layers import NormAct

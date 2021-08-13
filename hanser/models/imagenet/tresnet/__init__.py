@@ -1,7 +1,7 @@
 from tensorflow.keras import Sequential, Model
-from tensorflow.keras.layers import Dropout, Layer
+from tensorflow.keras.layers import Layer
 
-from hanser.models.layers import GlobalAvgPool, Linear, Conv2d, Act
+from hanser.models.layers import GlobalAvgPool, Linear, Conv2d, Act, Dropout
 from hanser.models.attention import SELayer
 from hanser.models.common.modules import get_shortcut_vd
 from hanser.models.imagenet.stem import  SpaceToDepthStem

@@ -10,6 +10,7 @@ from hanser.transform import pad, to_tensor, normalize, mixup_or_cutmix_batch
 from hanser.models.mnist import LeNet5
 from hanser.train.optimizers import SGD
 from hanser.train.cls import SuperLearner
+from hanser.train.callbacks import Callback
 from hanser.train.lr_schedule import CosineLR
 from hanser.losses import CrossEntropy
 
@@ -61,6 +62,5 @@ learner = SuperLearner(
     train_metrics=train_metrics, eval_metrics=eval_metrics,
     work_dir=f"./MNIST")
 
-learner.fit(ds_train, epochs, ds_test, val_freq=2,
-            steps_per_epoch=steps_per_epoch, val_steps=test_steps,
-            save_freq=2)
+
+learner.fit(ds_train, epochs, steps_per_epoch=steps_per_epoch)

@@ -1,6 +1,6 @@
-from tensorflow.keras.layers import Layer, Dropout
+from tensorflow.keras.layers import Layer
 
-from hanser.models.modules import DropPath
+from hanser.models.modules import DropPath, Dropout
 from hanser.models.layers import Conv2d, Act, Identity, Norm
 from hanser.models.common.modules import get_shortcut_vd
 from hanser.models.attention import SELayer

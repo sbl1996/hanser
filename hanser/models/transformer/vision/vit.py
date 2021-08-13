@@ -2,10 +2,9 @@ import numpy as np
 
 import tensorflow as tf
 from tensorflow.keras import Model
-from tensorflow.keras.layers import Dropout
 from tensorflow.keras.initializers import TruncatedNormal
 
-from hanser.models.layers import Norm, Conv2d, Linear, Identity
+from hanser.models.layers import Norm, Conv2d, Linear, Identity, Dropout
 
 from hanser.models.transformer.pre_ln import TransformerEncoderLayer
 

@@ -1,4 +1,4 @@
-from tensorflow.keras.layers import Layer, Dropout
+from tensorflow.keras.layers import Layer
 
 from hanser.models.modules import DropPath
 from hanser.models.layers import Conv2d, Act, Identity, Norm
