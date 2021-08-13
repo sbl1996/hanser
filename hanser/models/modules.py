@@ -2,7 +2,7 @@ from functools import partial
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras import initializers
-from tensorflow.keras.layers import InputSpec, Dropout as KerasDropout, Layer, Conv2D
+from tensorflow.keras.layers import InputSpec, Layer, Conv2D
 from tensorflow.keras.initializers import Constant
 from hanser.models.defaults import DEFAULTS
 
@@ -69,7 +69,7 @@ class StochDepth(Layer):
         }
 
 
-class DropPath(KerasDropout):
+class DropPath(Layer):
 
     def __init__(self, rate, **kwargs):
         super().__init__(**kwargs)
@@ -77,6 +77,7 @@ class DropPath(KerasDropout):
             name="drop_rate", shape=(), dtype=tf.float32,
             initializer=initializers.Constant(rate), trainable=False)
 
+    # noinspection PyMethodOverriding
     def call(self, inputs, training=None):
 
         if training:
@@ -98,7 +99,7 @@ class DropPath(KerasDropout):
         }
 
 
-class Dropout(KerasDropout):
+class Dropout(Layer):
 
     def __init__(self, rate, **kwargs):
         super().__init__(**kwargs)
@@ -106,6 +107,7 @@ class Dropout(KerasDropout):
             name="drop_rate", shape=(), dtype=tf.float32,
             initializer=initializers.Constant(rate), trainable=False)
 
+    # noinspection PyMethodOverriding
     def call(self, inputs, training=None):
 
         if training:
