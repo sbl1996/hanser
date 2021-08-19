@@ -45,8 +45,9 @@ criterion = CrossEntropy()
 epochs = 20
 
 base_lr = 0.05
-lr_shcedule = CosineLR(base_lr, steps_per_epoch, epochs=epochs, min_lr=0)
-optimizer = SGDW(lr_shcedule, momentum=0.9, nesterov=True, weight_decay=1e-4)
+lr_shcedule = CosineLR(base_lr, steps_per_epoch, epochs=epochs,
+                       min_lr=0, warmup_epoch=5)
+optimizer = SGDW(lr_shcedule, momentum=0.9, nesterov=True, weight_decay=1e-4, base_lr=base_lr)
 
 train_metrics = {
     'loss': Mean(),

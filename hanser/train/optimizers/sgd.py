@@ -134,9 +134,10 @@ class SGDW(tf.keras.optimizers.Optimizer):
     @typechecked
     def __init__(
         self,
-        learning_rate: Union[FloatTensorLike, Callable] = 0.001,
+        learning_rate: Union[FloatTensorLike, Callable],
         momentum: FloatTensorLike = 0.9,
         dampening: FloatTensorLike = 0.0,
+        base_lr: Optional[FloatTensorLike] = None,
         weight_decay: FloatTensorLike = 0,
         nesterov: bool = False,
         exclude_from_weight_decay: Optional[List[str]] = None,
@@ -147,14 +148,17 @@ class SGDW(tf.keras.optimizers.Optimizer):
         super().__init__(name, **kwargs)
 
         self._set_hyper("learning_rate", kwargs.get("lr", learning_rate))
-        self._set_hyper("initial_lr", self._get_initial_lr(learning_rate))
+        self._set_hyper("base_lr", self._get_base_lr(learning_rate, base_lr))
         self._set_hyper("momentum", momentum)
         self._set_hyper("dampening", dampening)
         self._set_hyper("weight_decay", weight_decay)
         self.nesterov = nesterov
         self.exclude_from_weight_decay = exclude_from_weight_decay
 
-    def _get_initial_lr(self, learning_rate: Union[FloatTensorLike, Callable]):
+    def _get_base_lr(
+        self, learning_rate: Union[FloatTensorLike, Callable], base_lr: Optional[FloatTensorLike]):
+        if base_lr is not None:
+            return float(base_lr)
         if isinstance(learning_rate, Callable):
             learning_rate = learning_rate(0)
         return float(learning_rate)
@@ -173,13 +177,13 @@ class SGDW(tf.keras.optimizers.Optimizer):
     def _prepare_local(self, var_device, var_dtype, apply_state):
         super()._prepare_local(var_device, var_dtype, apply_state)
 
-        initial_lr = tf.identity(self._get_hyper("initial_lr", var_dtype))
+        base_lr = tf.identity(self._get_hyper("base_lr", var_dtype))
         momentum = tf.identity(self._get_hyper("momentum", var_dtype))
         dampening = tf.identity(self._get_hyper("dampening", var_dtype))
         weight_decay = tf.identity(self._get_hyper("weight_decay", var_dtype))
         apply_state[(var_device, var_dtype)].update(
             dict(
-                initial_lr=initial_lr,
+                base_lr=base_lr,
                 momentum=momentum,
                 one_minus_dampening=1 - dampening,
                 weight_decay=weight_decay,
@@ -207,7 +211,7 @@ class SGDW(tf.keras.optimizers.Optimizer):
 
         var_name = self._get_variable_name(var.name)
         if self._do_use_weight_decay(var_name):
-            weight_decay = coefficients["lr_t"] / coefficients['initial_lr'] * coefficients["weight_decay"]
+            weight_decay = coefficients["lr_t"] / coefficients['base_lr'] * coefficients["weight_decay"]
             var_update = var_update - weight_decay * var
 
         return var.assign(var_update, use_locking=self._use_locking)
