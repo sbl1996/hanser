@@ -65,7 +65,7 @@ def objective(trial: optuna.Trial):
         model, criterion, optimizer,
         train_metrics=train_metrics, eval_metrics=eval_metrics,
         work_dir=f"./MNIST", multiple_steps=True)
-    learner._verbose = False
+    learner._verbose = True
     callbacks = [OptunaReportIntermediateResult('acc', trial)]
     # if ema == 'true':
     #     callbacks.append(EMA(ema_decay))
@@ -114,12 +114,14 @@ def study_fn():
             n_startup_trials=5, n_warmup_steps=5, interval_steps=2),
         storage="sqlite:///mnist1.db"
     )
-study = study_fn()
-study.optimize()
 
-import multiprocessing
-while True:
-    p = multiprocessing.Process(target=run, args=(study_fn,))
-    p.start()
-    p.join()
-    p.close()
+from hanser.hpo.optuna import optimize_mp
+study = optuna.create_study(
+    direction="maximize",
+    study_name="mnist1",
+    load_if_exists=True,
+    pruner=optuna.pruners.MedianPruner(
+        n_startup_trials=5, n_warmup_steps=5, interval_steps=2),
+    storage="sqlite:///mnist1.db"
+)
+optimize_mp(study, objective, n_trials=10)

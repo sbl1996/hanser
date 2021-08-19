@@ -7,7 +7,7 @@ def make_repeat_fn(n):
     return fn
 
 
-def prepare(ds, batch_size, transform=None, training=True, buffer_size=1024,
+def prepare(ds: tf.data.Dataset, batch_size, transform=None, training=True, buffer_size=1024,
             drop_remainder=None, cache=True, repeat=True, prefetch=True,
             zip_transform=None, batch_transform=None, aug_repeats=None):
 
