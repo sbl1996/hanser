@@ -77,44 +77,6 @@ def objective(trial: optuna.Trial):
     return learner.metric_history.get_metric('acc', "eval")[-1]
 
 
-from hhutil.datetime import datetime_now
-from termcolor import colored
-def info(msg):
-    dt = datetime_now(format=True)
-    print(colored(f"[I {dt}]", "green") + " " + msg)
-
-
-def run(study_fn):
-    study = study_fn()
-    trial = study.ask()
-    try:
-        score = objective(trial)
-        study.tell(trial, score)
-        info(
-            "Trial {} finished with value: {} and parameters: {}. "
-            "Best is trial {} with value: {}.".format(
-                trial.number,
-                score,
-                trial.params,
-                study.best_trial.number,
-                study.best_value,
-            )
-        )
-    except optuna.TrialPruned:
-        study.tell(trial, state=optuna.trial.TrialState.PRUNED)
-        info("Trial {} pruned.".format(trial.number))
-
-
-def study_fn():
-    return optuna.create_study(
-        direction="maximize",
-        study_name="mnist1",
-        load_if_exists=True,
-        pruner=optuna.pruners.MedianPruner(
-            n_startup_trials=5, n_warmup_steps=5, interval_steps=2),
-        storage="sqlite:///mnist1.db"
-    )
-
 from hanser.hpo.optuna import optimize_mp
 study = optuna.create_study(
     direction="maximize",
