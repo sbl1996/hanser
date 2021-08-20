@@ -12,7 +12,7 @@ class CosineAnnealingLR(LearningRateSchedule):
         learning_rate,
         steps_per_epoch,
         epochs,
-        min_lr,
+        min_lr=0,
         warmup_epoch=0,
         warmup_min_lr=0,
         epoch_annealing=False,
