@@ -1,6 +1,6 @@
 from tensorflow.keras import Model
 
-from hanser.models.common.resnet import Bottleneck
+from hanser.models.common.resnet import BasicBlock, Bottleneck
 from hanser.models.common.modules import make_layer
 from hanser.models.layers import Conv2d, GlobalAvgPool, Linear
 
@@ -48,6 +48,11 @@ class ResNet(_ResNet):
 
     def __init__(self, depth, block, num_classes=10, channels=(16, 16, 32, 64),
                  zero_init_residual=False):
+        if isinstance(block, str):
+            if block == 'basic':
+                block = BasicBlock
+            else:
+                block = Bottleneck
         super().__init__(depth, block, num_classes, channels,
                          zero_init_residual=zero_init_residual)
 
