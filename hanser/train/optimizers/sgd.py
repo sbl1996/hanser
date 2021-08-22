@@ -204,31 +204,6 @@ class SGDS(tf.keras.optimizers.Optimizer):
 
         return var.assign(var_update, use_locking=self._use_locking)
 
-    def _resource_apply_sparse(self, grad, var, indices, apply_state=None):
-        # TODO: not implemented
-        var_device, var_dtype = var.device, var.dtype.base_dtype
-        coefficients = (apply_state or {}).get(
-            (var_device, var_dtype)
-        ) or self._fallback_apply_state(var_device, var_dtype)
-
-        m = self.get_slot(var, "m")
-
-        var_name = self._get_variable_name(var.name)
-        if self._do_use_weight_decay(var_name):
-            grad = grad + coefficients["weight_decay"] * var
-
-        m_scaled_g_values = grad * coefficients["one_minus_dampening"]
-        m_t = m.assign(m * coefficients["momentum"], use_locking=self._use_locking)
-        with tf.control_dependencies([m_t]):
-            m_t = self._resource_scatter_add(m, indices, m_scaled_g_values)
-
-        update = m_t
-
-        var_update = var.assign_sub(
-            coefficients["lr_t"] * update, use_locking=self._use_locking
-        )
-        return tf.group(*[var_update, m_t])
-
     def get_config(self):
         return {
             **super().get_config(),
@@ -285,13 +260,15 @@ class PNM(tf.keras.optimizers.Optimizer):
         beta1 = tf.identity(self._get_hyper("beta1", var_dtype))
         beta2 = tf.identity(self._get_hyper("beta2", var_dtype))
         weight_decay = tf.identity(self._get_hyper("weight_decay", var_dtype))
-        step = tf.cast(self.iterations, var_dtype)
+        is_even = tf.cast(self.iterations, tf.int32) % 2 == 0
+        noise_norm = tf.sqrt((1 + beta2) ** 2 + beta2 ** 2)
         apply_state[(var_device, var_dtype)].update(
             dict(
-                step=step,
+                is_even=is_even,
                 beta1=beta1,
                 beta2=beta2,
                 weight_decay=weight_decay,
+                noise_norm=noise_norm,
             )
         )
 
@@ -309,7 +286,7 @@ class PNM(tf.keras.optimizers.Optimizer):
         def momentum(m):
             return m * (beta1 ** 2) + grad * (1 - beta1 ** 2)
 
-        is_even = tf.cast(coefficients['step'], tf.int32) % 2 == 0
+        is_even = coefficients['is_even']
         pos_m_t, neg_m_t = tf.cond(
             is_even,
             lambda: [momentum(pos_m), neg_m],
@@ -318,17 +295,14 @@ class PNM(tf.keras.optimizers.Optimizer):
         pos_m = pos_m.assign(pos_m_t, use_locking=self._use_locking)
         neg_m = neg_m.assign(neg_m_t, use_locking=self._use_locking)
 
-        pos_m_t, neg_m_t = tf.cond(is_even, lambda: [pos_m, neg_m], lambda: [neg_m, pos_m])
-
-        noise_norm = tf.sqrt((1 + beta2) ** 2 + beta2 ** 2)
-        update = (pos_m_t * (1 + beta2) - beta2 * neg_m_t) / noise_norm
+        pos_m_t, neg_m_t = tf.cond(is_even, lambda: [pos_m_t, neg_m_t], lambda: [neg_m_t, pos_m_t])
+        update = ((1 + beta2) * pos_m_t - beta2 * neg_m_t) / coefficients['noise_norm']
 
         var_update = var - coefficients["lr_t"] * update
 
         var_name = self._get_variable_name(var.name)
         if self._do_use_weight_decay(var_name):
-            bias_correction = 1 / (1 - beta1)
-            weight_decay = bias_correction * coefficients["lr_t"] * coefficients["weight_decay"]
+            weight_decay = coefficients["lr_t"] * coefficients["weight_decay"]
             var_update = var_update - weight_decay * var
 
         return var.assign(var_update, use_locking=self._use_locking)

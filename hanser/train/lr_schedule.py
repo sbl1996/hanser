@@ -502,3 +502,73 @@ class OneCycleLR(LearningRateSchedule):
             "warmup_min_lr": self.warmup_min_lr,
             "warmup_epoch": self.warmup_epoch,
         }
+
+
+class Knee(LearningRateSchedule):
+
+    def __init__(
+        self,
+        learning_rate,
+        steps_per_epoch,
+        epochs,
+        explore_epoch,
+        min_lr=0,
+        warmup_epoch=0,
+        warmup_min_lr=0,
+    ):
+        super().__init__()
+
+        self.base_lr = learning_rate
+        self.steps_per_epoch = steps_per_epoch
+        self.epochs = epochs
+        self.explore_epoch = explore_epoch
+        self.min_lr = min_lr
+        self.warmup_min_lr = warmup_min_lr
+        self.warmup_epoch = warmup_epoch
+
+        self.total_steps = epochs * steps_per_epoch
+        self.warmup_steps = warmup_epoch * steps_per_epoch
+        self.explore_steps = explore_epoch * steps_per_epoch
+
+    def __call__(self, step):
+        base_lr = tf.convert_to_tensor(self.base_lr)
+        dtype = base_lr.dtype
+        total_steps = tf.cast(self.total_steps, dtype)
+        min_lr = tf.cast(self.min_lr, dtype)
+        warmup_steps = tf.cast(self.warmup_steps, dtype)
+        warmup_min_lr = tf.cast(self.warmup_min_lr, dtype)
+        explore_steps = tf.cast(self.explore_steps, dtype)
+
+        def warmup(step):
+            return warmup_min_lr + (base_lr - warmup_min_lr) * step / warmup_steps
+
+        def linear_decay(step):
+            before_steps = warmup_steps + explore_steps
+            frac = 1 - (step - before_steps) / (total_steps - before_steps)
+            return min_lr + (base_lr - min_lr) * frac
+
+        step = tf.cast(step, dtype)
+        decayed_lr = tf.cond(
+            tf.less(step, warmup_steps),
+            lambda: warmup(step),
+            lambda: tf.cond(
+                tf.less(step, explore_steps + warmup_steps),
+                lambda: base_lr,
+                lambda: linear_decay(step),
+            ),
+        )
+        return decayed_lr
+
+    def get_config(self):
+        return {
+            "base_lr": self.base_lr,
+            "steps_per_epoch": self.steps_per_epoch,
+            "epochs": self.epochs,
+            "explore_epoch": self.explore_epoch,
+            "min_lr": self.min_lr,
+            "warmup_min_lr": self.warmup_min_lr,
+            "warmup_epoch": self.warmup_epoch,
+            "total_steps": self.total_steps,
+            "warmup_steps": self.warmup_steps,
+            "flat_steps": self.flat_steps,
+        }

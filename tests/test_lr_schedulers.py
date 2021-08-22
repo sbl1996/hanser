@@ -1,4 +1,4 @@
-from hanser.train.lr_schedule import FlatCosineLR, CosineLR, CosinePowerAnnealingLR, MultiStepLR, ExponentialDecay, OneCycleLR
+from hanser.train.lr_schedule import FlatCosineLR, CosineLR, CosinePowerAnnealingLR, MultiStepLR, ExponentialDecay, OneCycleLR, Knee
 
 steps_per_epoch = 20
 epochs = 100
@@ -22,5 +22,8 @@ xs5 = [lr_scheduler5(i).numpy() for i in range(total_steps)]
 lr_scheduler6 = OneCycleLR(0.4, steps_per_epoch, epochs, 0.3, div_factor=10, warmup_epoch=5, warmup_min_lr=0.01)
 xs6 = [lr_scheduler6(i).numpy() for i in range(total_steps)]
 
+lr_scheduler7 = Knee(0.1, steps_per_epoch, epochs, 75, 0.0001, 5, 0.01)
+xs7 = [lr_scheduler7(i).numpy() for i in range(total_steps)]
+
 import matplotlib.pyplot as plt
-plt.plot(xs6)
+plt.plot(xs7)
