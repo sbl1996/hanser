@@ -50,7 +50,7 @@ class ResNet(_ResNet):
                  zero_init_residual=False):
         if block == 'basic':
             block = BasicBlock
-        else:
+        elif block == 'bottleneck':
             block = Bottleneck
         super().__init__(depth, block, num_classes, channels,
                          zero_init_residual=zero_init_residual)
