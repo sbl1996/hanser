@@ -3,7 +3,7 @@ from toolz import curry
 
 import tensorflow as tf
 from hanser.datasets.cifar import make_cifar100_dataset
-from hanser.transform import random_crop, normalize, to_tensor, cutout, mixup, mixup_batch
+from hanser.transform import random_crop, normalize, to_tensor, cutout, mixup, mixup_batch, resizemix_batch
 from hanser.transform.autoaugment import autoaugment
 
 def get_memory_usage():
@@ -34,21 +34,20 @@ def zip_transform(data1, data2):
     return mixup(data1, data2, alpha=0.2)
 
 def batch_transform(image, label):
-    return mixup_batch(image, label, alpha=0.2)
+    return resizemix_batch(image, label, scale=(0.1, 0.8), hard=True)
 
 batch_size = 1024
 eval_batch_size = 2048
 
 ds_train, ds_test, steps_per_epoch, test_steps = make_cifar100_dataset(
-    batch_size, eval_batch_size, transform, repeat=False,
-    zip_transform=zip_transform)
+    batch_size, eval_batch_size, transform, batch_transform=batch_transform)
 
 used_mem = get_memory_usage()
 print("used memory: {} Mb".format(used_mem / 1024 / 1024))
 
+train_it = iter(ds_train)
 for epoch in range(100):
     print(epoch)
-    train_it = iter(ds_train)
     for i in range(steps_per_epoch):
         x, y = next(train_it)
         s = x.shape

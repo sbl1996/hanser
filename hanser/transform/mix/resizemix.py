@@ -42,8 +42,7 @@ def _resizemix_batch_hard(image, label, scale=(0.1, 0.8)):
     label2 = tf.gather(label, indices)
 
     image = tf.map_fn(
-        _resizemix,(image, image2, h_t, w_t, l, t, r, b),
-        back_prop=False, fn_output_signature=image.dtype)
+        _resizemix,(image, image2, h_t, w_t, l, t, r, b), fn_output_signature=image.dtype)
     lam = (tau ** 2)[:, None]
     label = label * lam + label2 * (1. - lam)
     return image, label
