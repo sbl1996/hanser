@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 
-from hanser.transform import mixup_batch, mixup_in_batch, cutmix_batch, cutmix_in_batch
+from hanser.transform import mixup_batch, mixup_in_batch, cutmix_batch, resizemix_batch
 
 # n = 16
 # image = tf.random.normal((n, 32, 32, 3))
@@ -18,16 +18,16 @@ from hanser.transform import mixup_batch, mixup_in_batch, cutmix_batch, cutmix_i
 
 from PIL import Image
 im = Image.open('/Users/hrvvi/Downloads/images/cat1.jpeg')
-im = im.crop((66, 0, 234, 168)).resize((224,224))
+im = im.crop((66, 0, 234, 168)).resize((224, 224))
 im2 = Image.open('/Users/hrvvi/Downloads/images/cat2.jpeg')
-im2 = im2.crop((0, 0, 224, 224)).resize((224,224))
+im2 = im2.crop((0, 0, 224, 224)).resize((224, 224))
 
 image = tf.convert_to_tensor([np.array(im), np.array(im2)], dtype=np.float32)
 label = tf.one_hot([0, 2], 3)
 
 lams = []
-for i in range(1000):
-    xt, yt = cutmix_batch(image, label, 1.0)
+for i in range(1):
+    xt, yt = resizemix_batch(image, label, hard=True)
     lams.append(yt[0, 0].numpy())
 print(yt)
 xt = xt.numpy()

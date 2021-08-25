@@ -9,7 +9,7 @@ from tensorflow_addons.image.transform_ops import angles_to_projective_transform
 
 from hanser.ops import log_uniform, prepend_dims
 from hanser.transform.common import image_dimensions, to_4D_image, get_ndims, from_4D_image
-from hanser.transform.mix import mixup, mixup_in_batch, mixup_batch, cutmix, cutmix_in_batch, cutmix_batch, fmix, mixup_cutmix_batch, mixup_or_cutmix_batch, mixup_cutmix_batch2
+from hanser.transform.mix import mixup, mixup_in_batch, mixup_batch, cutmix, cutmix_in_batch, cutmix_batch, fmix, mixup_cutmix_batch, mixup_or_cutmix_batch, mixup_cutmix_batch2, resizemix_batch
 
 
 IMAGENET_MEAN = [123.675, 116.28, 103.53]

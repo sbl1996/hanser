@@ -36,6 +36,27 @@ def _rand_mask(image, lam):
     return masks, lam
 
 
+# def _rand_bbox_pair(h, w, lam):
+#     r"""
+#     Note: lam may be (1,) or (n,)
+#     """
+#     cut_rat = tf.sqrt(1. - lam)
+#     cut_w = tf.cast(tf.cast(w, lam.dtype) * cut_rat, tf.int32)
+#     cut_w_1, cut_w_2 = cut_w // 2, cut_w - cut_w // 2
+#     cut_h = tf.cast(tf.cast(h, lam.dtype) * cut_rat, tf.int32)
+#     cut_h_1, cut_h_2 = cut_h // 2, cut_h - cut_h // 2
+#
+#     cx1 = tf.random.uniform(tf.shape(lam), cut_w_1, w - cut_w_2, dtype=tf.int32)
+#     cy1 = tf.random.uniform(tf.shape(lam), cut_h_1, h - cut_h_2, dtype=tf.int32)
+#     l1, t1, r1, b1 = cx1 - cut_w_1, cy1 - cut_h_1, cx1 + cut_w_2, cy1 + cut_h_2
+#
+#     cx2 = tf.random.uniform(tf.shape(lam), cut_w_1, w - cut_w_2, dtype=tf.int32)
+#     cy2 = tf.random.uniform(tf.shape(lam), cut_h_1, h - cut_h_2, dtype=tf.int32)
+#     l2, t2, r2, b2 = cx2 - cut_w_1, cy2 - cut_h_1, cx2 + cut_w_2, cy2 + cut_h_2
+#
+#     return l1, t1, r1, b1, l2, t2, r2, b2
+
+
 @curry
 def cutmix_batch(image, label, alpha, hard=False, **gen_lam_kwargs):
     n = image_dimensions(image, 4)[0]

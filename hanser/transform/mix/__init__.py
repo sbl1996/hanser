@@ -3,6 +3,7 @@ import tensorflow as tf
 
 from hanser.transform.mix.mixup import mixup, mixup_batch, mixup_in_batch
 from hanser.transform.mix.cutmix import cutmix, cutmix_batch, cutmix_in_batch
+from hanser.transform.mix.resizemix import resizemix_batch
 from hanser.transform.mix.fmix import fmix
 from hanser.transform.common import image_dimensions
 
