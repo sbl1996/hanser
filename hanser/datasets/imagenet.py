@@ -53,7 +53,7 @@ def parse_and_transform(transform, training):
 
 def make_imagenet_dataset_split(
     batch_size, transform, filenames, split, training=None,
-    cache_parsed=False, drop_remainder=None, **kwargs):
+    cache_parsed=False, drop_remainder=None, repeat=None, **kwargs):
     assert split in NUM_IMAGES.keys()
 
     if training is None:
@@ -61,6 +61,9 @@ def make_imagenet_dataset_split(
 
     if drop_remainder is None:
         drop_remainder = training
+
+    if repeat is None:
+        repeat = training
 
     dataset = tf.data.Dataset.from_tensor_slices(filenames)
 
@@ -78,7 +81,7 @@ def make_imagenet_dataset_split(
     else:
         transform = parse_and_transform(transform, training)
     ds = prepare(dataset, batch_size, transform, training=training, buffer_size=_SHUFFLE_BUFFER,
-                 cache=True, prefetch=True, repeat=training, drop_remainder=drop_remainder, **kwargs)
+                 cache=True, prefetch=True, repeat=repeat, drop_remainder=drop_remainder, **kwargs)
 
     n = NUM_IMAGES[split]
     chunksize = math.ceil(n / NUM_FILES[split])

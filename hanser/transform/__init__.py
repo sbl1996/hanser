@@ -263,12 +263,12 @@ def cutout3(image, length, fill=0):
     top = image[:t, :, :]
     mid_left = image[t:b, :l, :]
     mid_right = image[t:b, r:, :]
-    bottem = image[b:, :, :]
+    bottom = image[b:, :, :]
 
     fill = _fill_region((b - t, r - l, c), fill, image.dtype)
 
     mid = tf.concat([mid_left, fill, mid_right], 1)  # along x axis
-    image = tf.concat([top, mid, bottem], 0)  # along y axis
+    image = tf.concat([top, mid, bottom], 0)  # along y axis
     image.set_shape((h, w, c))
     return image
 
@@ -313,11 +313,11 @@ def random_erasing(image, p=0.5, s_l=0.02, s_h=0.4, r_1=0.3, r_2=None, fill='nor
     top = image[0:y, :, :]
     mid_left = image[y:y+h, 0:x, :]
     mid_right = image[y:y+h, x+w:width, :]
-    bottem = image[y+h:height, :, :]
+    bottom = image[y+h:height, :, :]
 
     fill = _fill_region((h, w, c), fill, image.dtype)
     mid = tf.concat([mid_left, fill, mid_right], 1)
-    image = tf.concat([top, mid, bottem], 0)
+    image = tf.concat([top, mid, bottom], 0)
     image.set_shape((height, width, c))
     return image
 

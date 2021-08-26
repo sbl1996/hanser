@@ -209,7 +209,8 @@ class Learner(metaclass=ABCMeta):
 
     def fit(self, ds_train, max_epochs, ds_val=None, val_freq=1,
             steps_per_epoch=None, val_steps=None, save_freq=None, callbacks=None,
-            reuse_train_iterator=True, local_eval_metrics=None, local_eval_freq=None):
+            reuse_train_iterator=True, reuse_eval_iterator=False,
+            local_eval_metrics=None, local_eval_freq=None):
         # It seems that reuse_train_iterator speed up the first epoch significantly
         self._max_epochs = max_epochs
 
@@ -234,6 +235,8 @@ class Learner(metaclass=ABCMeta):
 
         if reuse_train_iterator:
             self._train_it = iter(ds_train)
+        if ds_val is not None and reuse_eval_iterator:
+            self._eval_it = iter(ds_val)
 
         cbks.begin_train(self._state['train'])
         for epoch in range(start_epoch, max_epochs):
@@ -256,11 +259,13 @@ class Learner(metaclass=ABCMeta):
                 state = self._state['eval']
                 state['metrics'] = {}
                 cbks.begin_eval(state)
-                self._run_epoch(iter(ds_val), val_steps, cbks, 'eval')
+                eval_it = self._eval_it if reuse_eval_iterator else iter(ds_val)
+                self._run_epoch(eval_it, val_steps, cbks, 'eval')
                 cbks.after_eval(state)
 
             if do_local_eval:
-                self.evaluate_local(ds_val, val_steps, local_eval_metrics)
+                eval_it = self._eval_it if reuse_eval_iterator else iter(ds_val)
+                self.evaluate_local(eval_it, val_steps, local_eval_metrics)
 
             if self._terminated:
                 self._print("Terminated at epoch %d" % (epoch + 1))
@@ -282,9 +287,8 @@ class Learner(metaclass=ABCMeta):
     def evaluate_local(self, iterator, steps, metrics):
         for m in metrics.values():
             m.reset_states()
-        it = iter(iterator)
         for step in range(steps):
-            y_true, y_pred = self._local_eval_step(next(it))
+            y_true, y_pred = self._local_eval_step(next(iterator))
             for m in metrics.values():
                 m.update_state(y_true, y_pred, None)
         metric_results = {}

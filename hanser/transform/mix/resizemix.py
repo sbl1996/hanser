@@ -30,10 +30,10 @@ def _resizemix_batch_hard(image, label, scale=(0.1, 0.8)):
         top = image2[:t, :, :]
         mid_left = image2[t:b, :l, :]
         mid_right = image2[t:b, r:, :]
-        bottem = image2[b:, :, :]
+        bottom = image2[b:, :, :]
 
         mid = tf.concat([mid_left, image1, mid_right], 1)
-        image = tf.concat([top, mid, bottem], 0)
+        image = tf.concat([top, mid, bottom], 0)
         image.set_shape((h, w, c))
         return image
 
@@ -72,10 +72,10 @@ def resizemix_batch(image, label, scale=(0.1, 0.8), hard=False):
     top = image2[:, :t, :, :]
     mid_left = image2[:, t:b, :l, :]
     mid_right = image2[:, t:b, r:, :]
-    bottem = image2[:, b:, :, :]
+    bottom = image2[:, b:, :, :]
 
     mid = tf.concat([mid_left, image1, mid_right], 2)
-    image = tf.concat([top, mid, bottem], 1)
+    image = tf.concat([top, mid, bottom], 1)
     image.set_shape((n, h, w, c))
 
     lam = tau ** 2

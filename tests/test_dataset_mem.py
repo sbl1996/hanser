@@ -54,20 +54,3 @@ for epoch in range(100):
         if i == steps_per_epoch - 1:
             used_mem = get_memory_usage()
             print("used memory: {} Mb".format(used_mem / 1024 / 1024))
-
-# not reuse
-# 801 -> 1006 -> 1011
-# 802 -> 1006 -> 1011
-# 802 -> 1006 -> 1011
-# 802 -> 1007 -> 1010
-# 800 -> 1004 -> 1009
-
-# reuse
-# 801
-# 771
-# 771
-# 789
-# 802
-
-# mixup zip 548.8
-# mixup batch 552.3

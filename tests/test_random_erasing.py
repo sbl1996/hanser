@@ -65,12 +65,12 @@ def random_erasing2(image, p=0.5, s_l=0.02, s_h=0.4, r_1=0.3, r_2=1 / 0.3, max_r
     top = image[0:y, :, :]
     mid_left = image[y:y+h, 0:x, :]
     mid_right = image[y:y+h, x+w:width, :]
-    bottem = image[y+h:height, :, :]
+    bottom = image[y+h:height, :, :]
 
     shelter = tf.random.uniform((h, w, c), 0, max_random_value)
     shelter = tf.cast(shelter, image.dtype)
     mid = tf.concat([mid_left, shelter, mid_right], 1)  # along x axis
-    image = tf.concat([top, mid, bottem], 0)  # along y axis
+    image = tf.concat([top, mid, bottom], 0)  # along y axis
     return image
 
 
