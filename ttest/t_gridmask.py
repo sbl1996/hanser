@@ -7,7 +7,7 @@ import tensorflow_addons as tfa
 from hanser.tpu import setup
 from hanser.datasets.mnist import make_mnist_dataset
 
-from hanser.transform import pad, to_tensor, normalize, cutout, mixup_or_cutmix_batch
+from hanser.transform import pad, to_tensor, normalize, cutout, mixup_or_cutmix_batch, image_dimensions
 
 from hanser.models.mnist import LeNet5
 from hanser.losses import CrossEntropy
@@ -20,8 +20,7 @@ from hanser.train.callbacks import Callback
 def grid_mask_batch(images, d_min=24, d_max=32, rotate=0, ratio=0.4, p=0.8):
     # this is a must to rotate batched images, because xla does not support it currently
     tf.config.set_soft_device_placement(True)
-
-    n, h, w = tf.shape(images)[0], tf.shape(images)[1], tf.shape(images)[2]
+    n, h, w, c = image_dimensions(images, 4)
     hh = tf.cast(tf.math.sqrt(
         tf.cast(h * h + w * w, tf.float32)), tf.int32)  # to ensure coverage after rotation
 
@@ -38,7 +37,7 @@ def grid_mask_batch(images, d_min=24, d_max=32, rotate=0, ratio=0.4, p=0.8):
     masks = tf.matmul(tf.expand_dims(masks_y, -1), tf.expand_dims(masks_x, 1))
     masks = tf.cast(masks == 0, tf.float32)
 
-    masks = tf.repeat(tf.expand_dims(masks, -1), repeats=3, axis=-1)
+    masks = tf.repeat(tf.expand_dims(masks, -1), repeats=c, axis=-1)
 
     # rotate
     angles = tf.random.uniform((n,), 0, rotate, dtype=tf.float32)
@@ -51,7 +50,7 @@ def grid_mask_batch(images, d_min=24, d_max=32, rotate=0, ratio=0.4, p=0.8):
     masks = tf.where(tf.random.uniform((n, 1, 1, 1)) < p, masks, tf.ones_like(masks))
 
     images *= tf.cast(masks, images.dtype)
-
+    print(images.shape)
     return images
 
 
@@ -61,10 +60,14 @@ class GridMask:
         self.d_max = d_max
         self.rotate = rotate
         self.ratio = ratio
-        self.p = tf.Variable(p, tf.float32)
+        self.init_p = p
+        self.p = None
 
-    def __call__(self, inputs, targets):
-        return grid_mask_batch(inputs, self.d_min, self.d_max, self.rotate, self.ratio, self.p), targets
+    def __call__(self, images, labels):
+        if self.p is None:
+            self.p = tf.Variable(self.init_p, tf.float32)
+        images = grid_mask_batch(images, self.d_min, self.d_max, self.rotate, self.ratio, self.p)
+        return images, labels
 
 
 class GridMaskSchedule(Callback):
@@ -124,7 +127,7 @@ eval_metrics = {
 
 
 learner = SuperLearner(
-    model, criterion, optimizer, batch_transform=grid_mask,
+    model, criterion, optimizer,
     train_metrics=train_metrics, eval_metrics=eval_metrics,
     work_dir=f"./MNIST")
 

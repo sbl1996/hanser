@@ -91,7 +91,7 @@ class ResNet(Model):
             block, self.stages[2], layers[1], stride=2)
         self.layer3 = self._make_layer(
             block, self.stages[3], layers[2], stride=2,
-            dropblock=dropblock if 3 in dropblock_stage else False)
+            dropblock={**dropblock, "gamma_scale": 0.25} if 3 in dropblock_stage else False)
         self.layer4 = self._make_layer(
             block, self.stages[4], layers[3], stride=2,
             dropblock=dropblock if 4 in dropblock_stage else False)

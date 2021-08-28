@@ -15,7 +15,7 @@ label = tf.one_hot([0, 2], 3)
 
 lams = []
 for i in range(1):
-    xt, yt = resizemix_batch(image, label, hard=False)
+    xt, yt = resizemix_batch(image, label, scale=(0.01, 0.49), hard=True, sample_area=True)
     lams.append(yt[0, 0].numpy())
 print(yt)
 xt = xt.numpy()
