@@ -49,7 +49,7 @@ DEFAULTS = {
         'keep_prob': 0.9,
         'block_size': 7,
         'gamma_scale': 1.0,
-        'per_channel': False,
+        'per_channel': True,
     },
     'evonorm': {
         'enabled': False,
