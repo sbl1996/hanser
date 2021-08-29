@@ -291,7 +291,7 @@ PP_ResNet_CIFAR100_FAIR_AVD_2 = Genotype([
 ])
 
 
-PP_ResNet_CIFAR100_FAIR_AVD_R1 = Genotype([
+PP_ResNet_CIFAR_FAIR_AVD_R1 = Genotype([
     [
         (1, 2, 3, 'skip_connect'),
         (5, 'nor_conv_3x3'),
@@ -312,7 +312,7 @@ PP_ResNet_CIFAR100_FAIR_AVD_R1 = Genotype([
     ],
 ])
 
-PP_ResNet_CIFAR100_FAIR_AVD_R2 = Genotype([
+PP_ResNet_CIFAR_FAIR_AVD_R2 = Genotype([
     [
         (1, 2, 4, 'skip_connect'),
         (1, 2, 4, 5, 'nor_conv_3x3'),
@@ -333,7 +333,7 @@ PP_ResNet_CIFAR100_FAIR_AVD_R2 = Genotype([
     ]
 ])
 
-PP_ResNet_CIFAR100_FAIR_AVD_RC1 = Genotype([
+PP_ResNet_CIFAR_FAIR_AVD_RC1 = Genotype([
     [
         (1, 'skip_connect'),
         (1, 2, 3, 'nor_conv_3x3'),
@@ -354,7 +354,7 @@ PP_ResNet_CIFAR100_FAIR_AVD_RC1 = Genotype([
     ]
 ])
 
-PP_ResNet_CIFAR100_FAIR_AVD_RC2 = Genotype([
+PP_ResNet_CIFAR_FAIR_AVD_RC2 = Genotype([
     [
         (1, 2, 'skip_connect'),
         (2, 4, 'nor_conv_3x3'),
