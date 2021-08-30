@@ -7,7 +7,7 @@ from typing import Optional, Dict
 
 import tensorflow as tf
 from hanser.transform import sharpness, shear_x, shear_y, solarize, solarize_add, autocontrast, translate_x, \
-    translate_y, rotate, color, posterize, contrast, brightness, equalize, invert, cutout2 as cutout, random_apply
+    translate_y, rotate, color, posterize, contrast, brightness, equalize, invert, cutout3 as cutout, random_apply
 from hanser.transform.common import image_dimensions
 
 

@@ -15,7 +15,7 @@ x = tf.cast(x, dtype=tf.float32)
 # x2 = cutout2(x, 112, 'uniform')
 xs = tf.stack([x for _ in range(4)], axis=0)
 
-dp = DropBlock(0.9, block_size=3)
+dp = DropBlock(0.9, block_size=3, gamma_scale=0.25)
 xs2 = dp(xs, training=True)
 x2 = xs2[0]
 # x2 = shear_x(xt, 1, 0)

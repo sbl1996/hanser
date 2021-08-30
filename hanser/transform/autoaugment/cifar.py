@@ -1,5 +1,5 @@
 from hanser.transform.autoaugment.common import apply_autoaugment
-
+from hanser.transform.autoaugment.imagenet import randaugment, trival_augment
 
 def cifar10_policy():
     policies = [
@@ -36,7 +36,7 @@ def cifar10_policy():
     return policies
 
 
-def autoaugment(image, augmentation_name):
+def autoaugment(image, augmentation_name='CIFAR10'):
     available_policies = {'CIFAR10': cifar10_policy}
     policies = available_policies[augmentation_name]()
 
