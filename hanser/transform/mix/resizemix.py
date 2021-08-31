@@ -23,8 +23,11 @@ def _sample(shape, scale, sample_area):
 def _resize_and_mix(args):
     image, image2, h_t, w_t, l, t, r, b = args
     is_batch = len(image.shape) == 4
+    dtype = image.dtype
 
     image1 = tf.image.resize(image, (h_t, w_t), method='bilinear')
+    if dtype == tf.uint8:
+        image1 = tf.cast(image1, dtype)
 
     top = image2[..., :t, :, :]
     mid_left = image2[..., t:b, :l, :]
