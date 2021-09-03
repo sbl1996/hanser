@@ -259,7 +259,7 @@ def NormAct(
     gamma_init: Union[str, Initializer] = 'ones'):
     if DEFAULTS['evonorm']['enabled'] and norm is not None and act is not None:
         return evonorm(gamma_init)
-    elif DEFAULTS['inplace_abn'] and norm is not None and act is not None:
+    elif DEFAULTS['inplace_abn']['enabled'] and norm is not None and act is not None:
         return inplace_abn(gamma_init)
     layers = []
     if norm:
