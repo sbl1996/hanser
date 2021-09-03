@@ -10,6 +10,7 @@ from tensorflow.keras.layers import Dense, Activation, Conv2D, ZeroPadding2D, Le
 from hanser.models.pooling import MaxPooling2D as MaxPool2D, AveragePooling2D as AvgPool2D
 from hanser.models.bn import BatchNormalization, SyncBatchNormalization
 from hanser.models.bn2 import BatchNormalizationTest
+from hanser.models.inplace_abn import InplaceABN
 from hanser.models.evonorm import EvoNormB0, EvoNormS0
 from hanser.models.modules import DropBlock, ScaledWSConv2D, AntiAliasing, GlobalAvgPool, Identity, NaiveGroupConv2D, \
     GELU, Mish, ScaledSwish, ScaledGELU, ScaledReLU, Dropout
@@ -112,11 +113,14 @@ def Conv2d(in_channels: int,
         if DEFAULTS['fixed_padding']:
             if stride == (2, 2):
                 paddings = calc_fixed_padding(kernel_size, dilation)
-                pad = ZeroPadding2D(paddings)
+                pad = ZeroPadding2D(paddings) if paddings != ((0, 0), (0, 0)) else None
                 conv_padding = 'VALID'
             else:
                 pad = None
-                conv_padding = 'SAME'
+                if kernel_size == (1, 1):
+                    conv_padding = 'VALID'
+                else:
+                    conv_padding = 'SAME'
         # 2. naive padding
         elif DEFAULTS['naive_padding']:
             pad = None
@@ -202,6 +206,8 @@ def Conv2d(in_channels: int,
 
     if DEFAULTS['evonorm']['enabled'] and norm is not None and act is not None:
         layers.append(evonorm(gamma_init))
+    elif DEFAULTS['inplace_abn'] and norm is not None and act is not None:
+        layers.append(inplace_abn(gamma_init))
     else:
         if norm:
             layers.append(Norm(out_channels, norm, gamma_init=gamma_init))
@@ -236,6 +242,13 @@ def evonorm(gamma_init: Union[str, Initializer] = 'ones'):
             momentum=cfg['momentum'], epsilon=cfg['eps'], gamma_initializer=gamma_init)
     else:
         raise ValueError("Not reachable")
+    return norm_act
+
+
+def inplace_abn(gamma_init: Union[str, Initializer] = 'ones'):
+    cfg = DEFAULTS['inplace_abn']
+    norm_act = InplaceABN(
+        momentum=cfg['momentum'], epsilon=cfg['eps'], alpha=cfg['alpha'], gamma_initializer=gamma_init)
     return norm_act
 
 

@@ -3,6 +3,12 @@ from difflib import get_close_matches
 from cerberus import Validator
 
 DEFAULTS = {
+    'inplace_abn': {
+        'enabled': False,
+        'momentum': 0.9,
+        'eps': 1e-5,
+        'alpha': 0.01,
+    },
     'fixed_padding': False,
     'naive_padding': False,
     'conv': {
@@ -65,6 +71,12 @@ DEFAULTS = {
 }
 
 _defaults_schema = {
+    'inplace_abn': {
+        'enabled': {'type': 'boolean'},
+        'momentum': {'type': 'float', 'min': 0.0, 'max': 1.0},
+        'eps': {'type': 'float', 'min': 0.0},
+        'alpha': {'type': 'float', 'min': 0.0},
+    },
     'fixed_padding': {'type': 'boolean'},
     'naive_padding': {'type': 'boolean'},
     'conv': {
