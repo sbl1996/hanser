@@ -3,7 +3,7 @@ from difflib import get_close_matches
 from cerberus import Validator
 
 DEFAULTS = {
-    'fixed_padding': True,
+    'fixed_padding': False,
     'naive_padding': False,
     'conv': {
         'depthwise': {
