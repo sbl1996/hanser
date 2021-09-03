@@ -206,7 +206,7 @@ def Conv2d(in_channels: int,
 
     if DEFAULTS['evonorm']['enabled'] and norm is not None and act is not None:
         layers.append(evonorm(gamma_init))
-    elif DEFAULTS['inplace_abn'] and norm is not None and act is not None:
+    elif DEFAULTS['inplace_abn']['enabled'] and norm is not None and act is not None:
         layers.append(inplace_abn(gamma_init))
     else:
         if norm:
