@@ -4,14 +4,15 @@ import tensorflow as tf
 from tensorflow.keras.metrics import CategoricalAccuracy, Mean, CategoricalCrossentropy
 
 from hanser.datasets.cifar import make_cifar10_dataset
-from hanser.transform import random_crop, normalize, to_tensor, cutout, mixup_batch
+from hanser.transform import random_crop, normalize, to_tensor, cutout
 from hanser.transform.autoaugment import autoaugment
 
-from hanser.train.optimizers import SGD
+from hanser.train.optimizers import SGD, PNM
 from hanser.models.cifar.preactresnet import ResNet
 from hanser.train.cls import SuperLearner
 from hanser.train.lr_schedule import CosineLR
 from hanser.losses import CrossEntropy
+from hanser.models.defaults import set_defaults
 
 
 @curry
@@ -33,15 +34,18 @@ def transform(image, label, training):
     return image, label
 
 
-def batch_transform(image, label):
-    return mixup_batch(image, label, alpha=0.25)
-
 batch_size = 128
 eval_batch_size = 256
 
 ds_train, ds_test, steps_per_epoch, test_steps = make_cifar10_dataset(
-    batch_size, eval_batch_size, transform, sub_ratio=0.01,
-    batch_transform=batch_transform)
+    batch_size, eval_batch_size, transform, sub_ratio=0.01)
+
+set_defaults({
+    'fixed_padding': True,
+    'inplace_abn': {
+        'enabled': True,
+    }
+})
 
 model = ResNet(depth=16, k=2, num_classes=10)
 model.build((None, 32, 32, 3))
@@ -52,7 +56,8 @@ criterion = CrossEntropy()
 base_lr = 0.1
 epochs = 100
 lr_schedule = CosineLR(base_lr, steps_per_epoch, epochs=epochs, min_lr=0)
-optimizer = SGD(lr_schedule, momentum=0.9, weight_decay=5e-4, nesterov=True)
+# optimizer = SGD(lr_schedule, momentum=0.9, weight_decay=5e-4, nesterov=True)
+optimizer = PNM(lr_schedule, betas=(0.9, 1.0), weight_decay=5e-4)
 
 train_metrics = {
     'loss': Mean(),
@@ -64,7 +69,7 @@ eval_metrics = {
 }
 
 learner = SuperLearner(
-    model, criterion, optimizer,
+    model, criterion, optimizer, xla_compile=True,
     train_metrics=train_metrics, eval_metrics=eval_metrics,
     work_dir=f"./cifar10")
 

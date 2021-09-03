@@ -3,14 +3,14 @@ from toolz import curry
 import tensorflow as tf
 from tensorflow.keras.metrics import CategoricalAccuracy, Mean, CategoricalCrossentropy
 
-from hanser.distribute import setup_runtime, distribute_datasets
 from hanser.datasets.mnist import make_mnist_dataset
 
-from hanser.transform import pad, to_tensor, normalize
+from hanser.transform import pad, to_tensor, normalize, mixup_or_cutmix_batch
 
 from hanser.models.mnist import LeNet5
-from hanser.train.optimizers import SGD
+from hanser.train.optimizers import PNM, SGD
 from hanser.train.cls import SuperLearner
+from hanser.train.callbacks import Callback
 from hanser.train.lr_schedule import CosineLR
 from hanser.losses import CrossEntropy
 
@@ -26,13 +26,15 @@ def transform(image, label, training):
     return image, label
 
 
+def batch_transform(image, label):
+    return mixup_or_cutmix_batch(
+        image, label,
+        mixup_alpha=0.8, cutmix_alpha=1.0, switch_prob=0.5)
+
 batch_size = 128
 eval_batch_size = 256
 ds_train, ds_test, steps_per_epoch, test_steps = \
     make_mnist_dataset(batch_size, eval_batch_size, transform, sub_ratio=0.01)
-
-setup_runtime(fp16=True)
-ds_train, ds_test = distribute_datasets(ds_train, ds_test)
 
 model = LeNet5()
 model.build((None, 32, 32, 1))
@@ -42,8 +44,9 @@ criterion = CrossEntropy()
 epochs = 20
 
 base_lr = 0.05
-lr_shcedule = CosineLR(base_lr, steps_per_epoch, epochs=epochs, min_lr=0)
-optimizer = SGD(lr_shcedule, momentum=0.9, nesterov=True, weight_decay=1e-4)
+lr_shcedule = CosineLR(base_lr, steps_per_epoch, epochs=epochs)
+optimizer = SGD(lr_shcedule, momentum=0.9, weight_decay=1e-4, nesterov=False)
+# optimizer = PNM(lr_shcedule, betas=(0.9, 1.0), weight_decay=1e-4)
 
 train_metrics = {
     'loss': Mean(),
@@ -55,7 +58,7 @@ eval_metrics = {
 }
 
 learner = SuperLearner(
-    model, criterion, optimizer, xla_compile=True,
+    model, criterion, optimizer, xla_compile=False, multiple_steps=False,
     train_metrics=train_metrics, eval_metrics=eval_metrics,
     work_dir=f"./MNIST")
 
