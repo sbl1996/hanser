@@ -11,7 +11,7 @@ class ECALayer(Layer):
     def __init__(self, kernel_size=3):
         super().__init__()
         self.avg_pool = GlobalAvgPool(keep_dim=True)
-        self.conv = Conv1D(1, kernel_size=kernel_size, padding='SAME', use_bias=False)
+        self.conv = Conv1D(1, kernel_size=kernel_size, use_bias=False)
 
     def call(self, x):
         y = self.avg_pool(x)

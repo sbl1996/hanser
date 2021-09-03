@@ -3,6 +3,7 @@ from difflib import get_close_matches
 from cerberus import Validator
 
 DEFAULTS = {
+    'fixed_padding': True,
     'naive_padding': False,
     'conv': {
         'depthwise': {
@@ -64,6 +65,7 @@ DEFAULTS = {
 }
 
 _defaults_schema = {
+    'fixed_padding': {'type': 'boolean'},
     'naive_padding': {'type': 'boolean'},
     'conv': {
         'depthwise': {

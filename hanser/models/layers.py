@@ -30,6 +30,17 @@ def calc_same_padding(kernel_size, dilation):
     return padding
 
 
+def calc_fixed_padding(kernel_size, dilation):
+    kh, kw = kernel_size
+    dh, dw = dilation
+    ph = kh + (kh - 1) * (dh - 1) - 1
+    ph_1, ph_2 = ph // 2, ph - ph // 2
+    pw = kw + (kw - 1) * (dw - 1) - 1
+    pw_1, pw_2 = pw // 2, pw - pw // 2
+    padding = ((ph_1, ph_2), (pw_1, pw_2))
+    return padding
+
+
 def flip_mode(m):
     if m == 'fan_in':
         return 'fan_out'
@@ -79,6 +90,8 @@ def Conv2d(in_channels: int,
         assert len(padding) == 2
         ph, pw = padding
         padding = ((ph, ph), (pw, pw))
+    elif isinstance(padding, str):
+        assert padding == 'same'
 
     assert stride in [(1, 1), (2, 2)]
 
@@ -91,17 +104,39 @@ def Conv2d(in_channels: int,
 
     conv_cfg = DEFAULTS['conv']
     init_cfg = conv_cfg['init']
-    naive_padding = DEFAULTS['naive_padding'] or padding == 'SAME'
 
-    if naive_padding and stride != (2, 2):
-        conv_padding = padding
-    else:
-        conv_padding = 'valid'
 
-    if isinstance(padding, str):
-        assert padding in ['same', 'SAME']
+    # There are 4 types of padding mode:
     if padding == 'same':
-        padding = calc_same_padding(kernel_size, dilation)
+        # 1. fixed padding
+        if DEFAULTS['fixed_padding']:
+            if stride == (2, 2):
+                paddings = calc_fixed_padding(kernel_size, dilation)
+                pad = ZeroPadding2D(paddings)
+                conv_padding = 'VALID'
+            else:
+                pad = None
+                conv_padding = 'SAME'
+        # 2. naive padding
+        elif DEFAULTS['naive_padding']:
+            pad = None
+            if kernel_size == (1, 1):
+                conv_padding = 'VALID'
+            else:
+                conv_padding = 'SAME'
+        # 3. same padding (hanser previously used)
+        else:
+            paddings = calc_same_padding(kernel_size, dilation)
+            if paddings == ((0, 0), (0, 0)):
+                pad = None
+            else:
+                pad = ZeroPadding2D(paddings)
+            conv_padding = 'VALID'
+    else:
+        # 4. manual padding
+        pad = ZeroPadding2D(padding)
+        conv_padding = 'VALID'
+
 
     # Init
     if kernel_init:
@@ -158,11 +193,8 @@ def Conv2d(in_channels: int,
                       padding=conv_padding, dilation_rate=dilation, use_bias=use_bias, groups=groups,
                       kernel_initializer=kernel_initializer, bias_initializer=bias_initializer)
 
-    if (not naive_padding and padding != ((0, 0), (0, 0))) or (naive_padding and stride == (2, 2)):
-        conv = Sequential([
-            ZeroPadding2D(padding),
-            conv,
-        ])
+    if pad is not None:
+        conv = Sequential([pad, conv])
 
     layers = [conv]
     if avd and avd_first:
@@ -315,10 +347,12 @@ def Pool2d(kernel_size, stride, padding='same', type='avg', ceil_mode=True):
     if padding == 0:
         padding = 'valid'
 
+    horch_impl = not (DEFAULTS['naive_padding'] or DEFAULTS['fixed_padding'])
+
     if type == 'avg':
-        pool = KerasAvgPool2D if DEFAULTS['naive_padding'] else AvgPool2D
+        pool = AvgPool2D if horch_impl else KerasAvgPool2D
     elif type == 'max':
-        pool = KerasMaxPool2D if DEFAULTS['naive_padding'] else MaxPool2D
+        pool = MaxPool2D if horch_impl else KerasMaxPool2D
     else:
         raise ValueError("Unsupported pool type: %s" % type)
 

@@ -66,7 +66,7 @@ class MBConv(Layer):
         self.expand = Conv2d(in_channels, channels, 1,
                              norm='def', act='def') if expand_ratio != 1 else Identity()
 
-        self.depthwise = Conv2d(channels, channels, kernel_size, stride, groups=channels, padding='SAME',
+        self.depthwise = Conv2d(channels, channels, kernel_size, stride, groups=channels,
                                 norm='def', act='def')
 
         if self._has_se:
@@ -103,7 +103,7 @@ class EfficientNet(Model):
         round_channels_ = partial(
             round_channels, width_coefficient=width_coefficient, depth_divisor=depth_divisor)
         round_repeats_ = partial(round_repeats, depth_coefficient=depth_coefficient)
-        self.stem = Conv2d(3, round_channels_(32), 3, stride=2, padding='SAME',
+        self.stem = Conv2d(3, round_channels_(32), 3, stride=2,
                            norm='def', act='def')
 
         blocks = []
