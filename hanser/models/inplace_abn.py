@@ -8,14 +8,20 @@ def _remove_bessels_correction(sample_size, variance):
     factor = (sample_size - tf.cast(1.0, variance.dtype)) / sample_size
     return variance * factor
 
-
 @tf.custom_gradient
-def InplaceABNOp(x, scale, offset, epsilon, alpha):
+def InplaceABNOp(x, scale, offset):
+    # TODO: make this as argument
+    epsilon = 1.001e-5
+    alpha = 0.01
+
     shape = tf.shape(x)
     sample_size = tf.cast(shape[0] * shape[1] * shape[2], x.dtype)
 
     gamma, beta = scale, offset
-    y, mean, var = tf.compat.v1.nn.fused_batch_norm(x, gamma, beta, epsilon=epsilon)
+    y, mean, var, _, _, _ = tf.raw_ops.FusedBatchNormV3(
+        x=x, scale=gamma, offset=beta, mean=tf.constant([]), variance=tf.constant([]),
+        epsilon=epsilon, exponential_avg_factor=1, is_training=True)
+
     var = _remove_bessels_correction(sample_size, var)
     z = tf.nn.leaky_relu(y, alpha)
     def custom_grad(dz, _d1, _d2):
@@ -35,7 +41,7 @@ def InplaceABNOp(x, scale, offset, epsilon, alpha):
         dgamma = tf.reduce_sum(dy * x_, axis=(0, 1, 2))
         inv = tf.math.rsqrt(var + epsilon)
         dx = (dy - dgamma / m * x_ - dbeta / m) * gamma * inv
-        return dx, dgamma, dbeta, None, None
+        return dx, dgamma, dbeta
     return (z, mean, var), custom_grad
 
 
@@ -59,6 +65,10 @@ class InplaceABN(Layer):
         super().__init__(name=name, **kwargs)
         self.axis = -1
         self.momentum = momentum
+        # Set a minimum epsilon to 1.001e-5, which is a requirement by CUDNN to
+        # prevent exception (see cudnn.h).
+        min_epsilon = 1.001e-5
+        epsilon = epsilon if epsilon > min_epsilon else min_epsilon
         self.epsilon = epsilon
         self.center = center
         self.scale = scale
@@ -193,8 +203,7 @@ class InplaceABN(Layer):
                 offset = tf.cast(offset, inputs.dtype)
             if scale is not None:
                 scale = tf.cast(scale, inputs.dtype)
-            output, mean, variance = InplaceABNOp(
-                inputs, scale, offset, self.epsilon, self.alpha)
+            output, mean, variance = InplaceABNOp(inputs, scale, offset)
 
             def _do_update(var, value):
                 return self._assign_moving_average(var, value, self.momentum)
@@ -216,9 +225,13 @@ class InplaceABN(Layer):
                 offset = tf.cast(offset, inputs.dtype)
             if scale is not None:
                 scale = tf.cast(scale, inputs.dtype)
+
+            # # TODO: make this as argument
+            epsilon = 1.001e-5 # self.epsilon
+            alpha = 0.01 # self.alpha
             output, _mean, _var = tf.compat.v1.nn.fused_batch_norm(
-                inputs, scale, offset, mean, variance, self.epsilon, is_training=False)
-            output = tf.nn.leaky_relu(output, alpha=self.alpha)
+                inputs, scale, offset, mean, variance, epsilon, is_training=False)
+            output = tf.nn.leaky_relu(output, alpha=alpha)
 
         if inputs_dtype in (tf.float16, tf.bfloat16):
             output = tf.cast(output, inputs_dtype)
