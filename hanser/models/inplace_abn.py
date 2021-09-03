@@ -32,15 +32,18 @@ def InplaceABNOp(x, scale, offset):
         dy = tf.where(mask, 1.0, alpha) * dz
 
         dbeta = tf.reduce_sum(dy, axis=(0, 1, 2))
-        # dgamma = (tf.reduce_sum(dy * y, axis=(0, 1, 2)) - beta * dbeta) / gamma
-        #
-        # inv = tf.math.rsqrt(var + epsilon)
-        # d = dgamma / gamma
-        # dx = (dy - d / m * y - (dbeta - beta * d) / m) * gamma * inv
+
         x_ = (y - beta) / gamma
         dgamma = tf.reduce_sum(dy * x_, axis=(0, 1, 2))
-        inv = tf.math.rsqrt(var + epsilon)
-        dx = (dy - dgamma / m * x_ - dbeta / m) * gamma * inv
+        ginv = gamma * tf.math.rsqrt(var + epsilon)
+        dx = (dy - dgamma / m * x_ - dbeta / m) * ginv
+
+        # TODO: Inplace ABN-II
+        # Maybe computationally more efﬁcient, but encounter numeric instability
+        # dgamma = (tf.reduce_sum(dy * y, axis=(0, 1, 2)) - beta * dbeta) / gamma
+        # ginv = gamma * tf.math.rsqrt(var + epsilon)
+        # d_t = dgamma / gamma
+        # dx = (dy - d_t * y / m - (dbeta - beta * d_t) / m) * ginv
         return dx, dgamma, dbeta
     return (z, mean, var), custom_grad
 
@@ -49,7 +52,7 @@ class InplaceABN(Layer):
 
     def __init__(self,
                  momentum=0.99,
-                 epsilon=1e-3,
+                 epsilon=1.001e-5,
                  center=True,
                  scale=True,
                  alpha=0.01,
@@ -67,8 +70,8 @@ class InplaceABN(Layer):
         self.momentum = momentum
         # Set a minimum epsilon to 1.001e-5, which is a requirement by CUDNN to
         # prevent exception (see cudnn.h).
-        min_epsilon = 1.001e-5
-        epsilon = epsilon if epsilon > min_epsilon else min_epsilon
+        assert epsilon == 1.001e-5
+        assert alpha == 0.01
         self.epsilon = epsilon
         self.center = center
         self.scale = scale

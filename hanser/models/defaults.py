@@ -6,7 +6,7 @@ DEFAULTS = {
     'inplace_abn': {
         'enabled': False,
         'momentum': 0.9,
-        'eps': 1e-5,
+        'eps': 1.001e-5,
         'alpha': 0.01,
     },
     'fixed_padding': False,
