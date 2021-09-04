@@ -1,7 +1,7 @@
 from tensorflow.keras.layers import Layer
 
 from hanser.models.modules import DropPath
-from hanser.models.layers import Conv2d, Act, Identity, Norm
+from hanser.models.layers import Conv2d, Act, Identity, Norm, NormAct
 from hanser.models.common.modules import get_shortcut_vd
 from hanser.models.attention import SELayer
 
@@ -17,10 +17,11 @@ class Bottleneck(Layer):
 
         out_channels = channels * self.expansion
 
-        if not start_block and not exclude_bn0:
-            self.bn0 = Norm(in_channels)
         if not start_block:
-            self.act0 = Act()
+            if exclude_bn0:
+                self.act0 = Act()
+            else:
+                self.norm_act0 = NormAct(in_channels)
 
         self.conv1 = Conv2d(in_channels, channels, kernel_size=1,
                             norm='def', act='def')
@@ -42,8 +43,7 @@ class Bottleneck(Layer):
         self.drop_path = DropPath(drop_path) if drop_path else Identity()
 
         if end_block:
-            self.bn3 = Norm(out_channels)
-            self.act3 = Act()
+            self.norm_act3 = NormAct(out_channels)
 
         self.shortcut = get_shortcut_vd(in_channels, out_channels, stride)
 
@@ -55,9 +55,10 @@ class Bottleneck(Layer):
         identity = self.shortcut(x)
 
         if not self.start_block:
-            if not self.exclude_bn0:
-                x = self.bn0(x)
-            x = self.act0(x)
+            if self.exclude_bn0:
+                x = self.act0(x)
+            else:
+                x = self.norm_act0(x)
 
         x = self.conv1(x)
 
@@ -77,6 +78,5 @@ class Bottleneck(Layer):
         x = x + identity
 
         if self.end_block:
-            x = self.bn3(x)
-            x = self.act3(x)
+            x = self.norm_act3(x)
         return x
