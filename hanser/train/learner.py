@@ -79,7 +79,7 @@ class Learner(metaclass=ABCMeta):
                  train_metrics: Mapping[str, Metric], eval_metrics: Mapping[str, Metric],
                  work_dir: str, output_transform=default_metric_transform,
                  n_batches_per_step: Optional[int] = None, multiple_steps: Optional[bool] = None,
-                 xla_compile: Optional[bool] = None):
+                 xla_compile: bool = True):
         if not isinstance(optimizers, Sequence):
             optimizers = [optimizers]
         optimizers = list(optimizers)
@@ -105,8 +105,6 @@ class Learner(metaclass=ABCMeta):
         device = discover_device()
         if multiple_steps is None:
             multiple_steps = device == 'TPU'
-        if xla_compile is None:
-            xla_compile = device != 'TPU'
         self.multiple_steps = multiple_steps
         self.xla_compile = xla_compile
 
