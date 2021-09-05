@@ -21,7 +21,7 @@ def transform(image, label, training):
     if training:
         image = random_crop(image, (32, 32), (4, 4))
         image = tf.image.random_flip_left_right(image)
-        image = autoaugment(image, "CIFAR10")
+        # image = autoaugment(image, "CIFAR10")
 
     image, label = to_tensor(image, label)
     image = normalize(image, [0.491, 0.482, 0.447], [0.247, 0.243, 0.262])

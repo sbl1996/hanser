@@ -1,7 +1,7 @@
 # Conclusion
 # Type          ResNet  ResNet-β
-# InplaceABN    1856    
-# ReLU-BN
+# InplaceABN    2432    3072
+# ReLU-BN       1888    2048
 
 import tensorflow as tf
 from tensorflow.keras.metrics import CategoricalAccuracy, Mean, CategoricalCrossentropy
@@ -12,7 +12,8 @@ from hanser.transform import random_resized_crop, resize, center_crop, normalize
 from hanser.transform.autoaugment.imagenet import autoaugment
 
 from hanser.train.optimizers import SGD
-from hanser.models.imagenet.resnet_vd import resnet50
+# from hanser.models.imagenet.resnet_vd import resnet50
+from hanser.models.imagenet.resnetpp.beta import resnet50
 from hanser.train.cls import SuperLearner
 from hanser.train.metrics import TopKCategoricalAccuracy
 from hanser.train.lr_schedule import CosineLR

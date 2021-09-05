@@ -30,18 +30,18 @@ def test_inplace_abn():
 
     m1 = Sequential([
         Conv2D(6, kernel_size=1, strides=1, padding='VALID', use_bias=False),
-        BatchNormalization(momentum=0.9, epsilon=1.001e-5, fused=True),
-        LeakyReLU(alpha=0.01),
+        BatchNormalization(momentum=0.9, epsilon=1e-3, fused=True),
+        LeakyReLU(alpha=0.1),
         Conv2D(6, kernel_size=1, strides=1, padding='VALID', use_bias=False),
-        BatchNormalization(momentum=0.9, epsilon=1.001e-5, fused=True),
-        LeakyReLU(alpha=0.01),
+        BatchNormalization(momentum=0.9, epsilon=1e-3, fused=True),
+        LeakyReLU(alpha=0.1),
     ])
 
     m2 = Sequential([
         Conv2D(6, kernel_size=1, strides=1, padding='VALID', use_bias=False),
-        InplaceABN(momentum=0.9, epsilon=1.001e-5, alpha=0.01),
+        InplaceABN(momentum=0.9, epsilon=1e-3, alpha=0.1),
         Conv2D(6, kernel_size=1, strides=1, padding='VALID', use_bias=False),
-        InplaceABN(momentum=0.9, epsilon=1.001e-5, alpha=0.01),
+        InplaceABN(momentum=0.9, epsilon=1e-3, alpha=0.1),
     ])
 
     optimizer1 = SGD(0.01, momentum=0.9, weight_decay=1e-4)
