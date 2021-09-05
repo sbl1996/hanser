@@ -338,11 +338,15 @@ class Learner(metaclass=ABCMeta):
             }
         else:
             run_state = state
+
         if mode == 'train' and self.n_batches_per_step is not None:
             step_fn = self._train_step_on_batches
+            self._run_steps(
+                step_fn, iterator, self.n_batches_per_step, steps, callbacks, run_state)
+        else:
+            self._run_steps(
+                step_fn, iterator, None, steps, callbacks, run_state)
 
-        self._run_steps(
-            step_fn, iterator, self.n_batches_per_step, steps, callbacks, run_state)
 
         for name, metric in metrics.items():
             state['metrics'][name] = metric.result().numpy()
