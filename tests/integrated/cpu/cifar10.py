@@ -34,7 +34,7 @@ def transform(image, label, training):
     return image, label
 
 
-batch_size = 128
+batch_size = 64
 eval_batch_size = 256
 
 ds_train, ds_test, steps_per_epoch, test_steps = make_cifar10_dataset(
@@ -69,7 +69,7 @@ eval_metrics = {
 }
 
 learner = SuperLearner(
-    model, criterion, optimizer, xla_compile=True,
+    model, criterion, optimizer, xla_compile=True, n_batches_per_step=2,
     train_metrics=train_metrics, eval_metrics=eval_metrics,
     work_dir=f"./cifar10")
 

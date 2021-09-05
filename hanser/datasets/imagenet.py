@@ -53,7 +53,8 @@ def parse_and_transform(transform, training):
 
 def make_imagenet_dataset_split(
     batch_size, transform, filenames, split, training=None,
-    cache_parsed=False, drop_remainder=None, repeat=None, **kwargs):
+    cache_parsed=False, drop_remainder=None, repeat=None,
+    n_batches_per_step=1, **kwargs):
     assert split in NUM_IMAGES.keys()
 
     if training is None:
@@ -64,6 +65,11 @@ def make_imagenet_dataset_split(
 
     if repeat is None:
         repeat = training
+
+    if n_batches_per_step != 1:
+        assert training
+
+    batch_size = batch_size // n_batches_per_step
 
     dataset = tf.data.Dataset.from_tensor_slices(filenames)
 
@@ -91,7 +97,7 @@ def make_imagenet_dataset_split(
     if 'aug_repeats' in kwargs and type(kwargs['aug_repeats']) == int:
         n *= kwargs['aug_repeats']
     if drop_remainder:
-        steps = n // batch_size
+        steps = n // (batch_size * n_batches_per_step)
     else:
         steps = math.ceil(n / batch_size)
 
@@ -100,7 +106,8 @@ def make_imagenet_dataset_split(
 
 def make_imagenet_dataset(
     batch_size, eval_batch_size, transform, data_dir=None, train_files=None, eval_files=None,
-    zip_transform=None, batch_transform=None, aug_repeats=None, drop_remainder=None, **kwargs):
+    zip_transform=None, batch_transform=None, aug_repeats=None, drop_remainder=None,
+    n_batches_per_step=1, **kwargs):
 
     if train_files is None:
         train_files = get_filenames(data_dir, training=True)
@@ -110,8 +117,8 @@ def make_imagenet_dataset(
     ds_train, steps_per_epoch = make_imagenet_dataset_split(
         batch_size, transform, train_files, 'train', training=True,
         zip_transform=zip_transform, batch_transform=batch_transform,
-        aug_repeats=aug_repeats, **kwargs)
+        aug_repeats=aug_repeats, n_batches_per_step=n_batches_per_step, **kwargs)
     ds_eval, eval_steps = make_imagenet_dataset_split(
         eval_batch_size, transform, eval_files, 'validation', training=False,
-        drop_remainder=drop_remainder, **kwargs)
+        drop_remainder=drop_remainder, n_batches_per_step=1, **kwargs)
     return ds_train, ds_eval, steps_per_epoch, eval_steps

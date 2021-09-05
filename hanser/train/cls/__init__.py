@@ -6,11 +6,9 @@ from hanser.train.learner import Learner, cast
 class SuperLearner(Learner):
 
     def __init__(self, model, criterion, optimizer, grad_clip_norm=0.0,
-                 batch_transform=None, batches_transform=None,
-                 **kwargs):
+                 batch_transform=None, **kwargs):
         self.grad_clip_norm = grad_clip_norm
         self.batch_transform = batch_transform
-        self.batches_transform = batches_transform
         super().__init__(model, criterion, optimizer, **kwargs)
 
     def train_batch(self, batch):
@@ -30,10 +28,6 @@ class SuperLearner(Learner):
                 loss = optimizer.get_scaled_loss(loss)
         self.minimize(tape, optimizer, loss, model.trainable_variables, self.grad_clip_norm)
         self.update_metrics(self.train_metrics, target, preds, per_example_loss)
-
-    def train_batches(self, *batches):
-        batch = self.batches_transform(*batches)
-        return self.train_batch(batch)
 
     def _eval_batch(self, batch):
         inputs, target = batch
