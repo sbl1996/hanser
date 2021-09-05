@@ -306,8 +306,10 @@ class Learner(metaclass=ABCMeta):
             state['step'].assign_add(1)
             callbacks.begin_batch(state)
             if n_batches_per_step is not None:
-                batch = tuple(tf.concat(xs, axis=0) for xs in zip(
-                    *[next(iterator) for bi in range(n_batches_per_step)]))
+                batches = tuple(next(iterator) for bi in range(n_batches_per_step))
+                print(batches)
+                batch = tuple(tf.concat(xs, axis=0) for xs in zip(*batches))
+                print(batch)
                 step_fn(batch)
             else:
                 batch = next(iterator)
