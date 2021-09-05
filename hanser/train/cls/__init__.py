@@ -29,6 +29,10 @@ class SuperLearner(Learner):
         self.minimize(tape, optimizer, loss, model.trainable_variables, self.grad_clip_norm)
         self.update_metrics(self.train_metrics, target, preds, per_example_loss)
 
+    def train_batches(self, *batches):
+        batch = tuple(tf.concat(xs, axis=0) for xs in zip(*batches))
+        return self.train_batch(batch)
+
     def _eval_batch(self, batch):
         inputs, target = batch
         inputs = cast(inputs, self.dtype)

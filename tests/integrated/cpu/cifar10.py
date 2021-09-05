@@ -69,7 +69,7 @@ eval_metrics = {
 }
 
 learner = SuperLearner(
-    model, criterion, optimizer, xla_compile=True,
+    model, criterion, optimizer, xla_compile=False,
     n_batches_per_step=2, multiple_steps=True,
     train_metrics=train_metrics, eval_metrics=eval_metrics,
     work_dir=f"./cifar10")

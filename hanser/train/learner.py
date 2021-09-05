@@ -156,6 +156,9 @@ class Learner(metaclass=ABCMeta):
     def train_batch(self, batch):
         pass
 
+    def train_batches(self, *batches):
+        pass
+
     def eval_batch(self, batch):
         pass
 
@@ -292,6 +295,10 @@ class Learner(metaclass=ABCMeta):
         strategy_run(self._strategy, self.train_batch, (batch,))
 
     @tf.function
+    def _train_step_on_batches(self, batches):
+        strategy_run(self._strategy, self.train_batches, batches)
+
+    @tf.function
     def _eval_step(self, batch):
         strategy_run(self._strategy, self.eval_batch, (batch,))
 
@@ -307,10 +314,7 @@ class Learner(metaclass=ABCMeta):
             callbacks.begin_batch(state)
             if n_batches_per_step is not None:
                 batches = tuple(next(iterator) for bi in range(n_batches_per_step))
-                print(batches)
-                batch = tuple(tf.concat(xs, axis=0) for xs in zip(*batches))
-                print(batch)
-                step_fn(batch)
+                step_fn(batches)
             else:
                 batch = next(iterator)
                 step_fn(batch)
@@ -334,10 +338,11 @@ class Learner(metaclass=ABCMeta):
             }
         else:
             run_state = state
+        if mode == 'train' and self.n_batches_per_step is not None:
+            step_fn = self._train_step_on_batches
 
-        n_batches_per_step = self.n_batches_per_step if mode == 'train' else None
         self._run_steps(
-            step_fn, iterator, n_batches_per_step, steps, callbacks, run_state)
+            step_fn, iterator, self.n_batches_per_step, steps, callbacks, run_state)
 
         for name, metric in metrics.items():
             state['metrics'][name] = metric.result().numpy()
