@@ -280,8 +280,13 @@ class InplaceABN(Layer):
             if gamma is not None:
                 gamma = tf.cast(gamma, inputs.dtype)
 
-            output, _mean, _var = tf.compat.v1.nn.fused_batch_norm(
-                inputs, gamma, beta, mean, variance, self.epsilon, is_training=False)
+            if self.fused:
+                output, _mean, _var = tf.compat.v1.nn.fused_batch_norm(
+                    inputs, gamma, beta, mean, variance, self.epsilon, is_training=False)
+            else:
+                ginv = tf.math.rsqrt(variance + self.epsilon) * gamma
+                output = inputs * ginv + (beta - mean * ginv)
+
             output = tf.nn.leaky_relu(output, alpha=self.alpha)
 
         if inputs_dtype in (tf.float16, tf.bfloat16):
