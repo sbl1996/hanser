@@ -251,12 +251,13 @@ class InplaceABN(Layer):
         if inputs_dtype in (tf.float16, tf.bfloat16):
             inputs = tf.cast(inputs, tf.float32)
 
+        gamma, beta = self.gamma, self.beta
+        if beta is not None:
+            beta = tf.cast(beta, inputs.dtype)
+        if gamma is not None:
+            gamma = tf.cast(gamma, inputs.dtype) + self.epsilon
+
         if training:
-            gamma, beta = self.gamma, self.beta
-            if beta is not None:
-                beta = tf.cast(beta, inputs.dtype)
-            if gamma is not None:
-                gamma = tf.cast(gamma, inputs.dtype)
             output, mean, variance = self._op_func(inputs, gamma, beta)
 
             def _do_update(var, value):
@@ -272,13 +273,8 @@ class InplaceABN(Layer):
             self.add_update(variance_update)
         else:
             mean, variance = self.moving_mean, self.moving_variance
-            gamma, beta = self.gamma, self.beta
             mean = tf.cast(mean, inputs.dtype)
             variance = tf.cast(variance, inputs.dtype)
-            if beta is not None:
-                beta = tf.cast(beta, inputs.dtype)
-            if gamma is not None:
-                gamma = tf.cast(gamma, inputs.dtype)
 
             if self.fused:
                 output, _mean, _var = tf.compat.v1.nn.fused_batch_norm(
