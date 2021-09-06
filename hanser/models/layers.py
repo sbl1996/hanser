@@ -248,7 +248,8 @@ def evonorm(gamma_init: Union[str, Initializer] = 'ones'):
 def inplace_abn(gamma_init: Union[str, Initializer] = 'ones'):
     cfg = DEFAULTS['inplace_abn']
     norm_act = InplaceABN(
-        momentum=cfg['momentum'], epsilon=cfg['eps'], alpha=cfg['alpha'], gamma_initializer=gamma_init)
+        momentum=cfg['momentum'], epsilon=cfg['eps'], alpha=cfg['alpha'],
+        sync=cfg['sync'], fused=cfg['fused'], gamma_initializer=gamma_init)
     return norm_act
 
 

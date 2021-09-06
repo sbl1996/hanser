@@ -1,7 +1,7 @@
-# Conclusion
-# Telsa T4
+# Conclusion (Telsa T4)
+# Type          ResNet  ResNet-β
 # InplaceABN    360
-# BN-ReLU       288
+# ReLU-BN       288
 
 import tensorflow as tf
 from tensorflow.keras.metrics import CategoricalAccuracy, Mean, CategoricalCrossentropy

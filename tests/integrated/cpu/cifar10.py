@@ -44,6 +44,7 @@ set_defaults({
     'fixed_padding': True,
     'inplace_abn': {
         'enabled': True,
+        'sync': True,
     }
 })
 

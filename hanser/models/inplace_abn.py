@@ -8,22 +8,64 @@ def _remove_bessels_correction(sample_size, variance):
     factor = (sample_size - tf.cast(1.0, variance.dtype)) / sample_size
     return variance * factor
 
+# From tf.keras.layers.experimental.SyncBatchNormalization
+def global_moments(x, axes=(0, 1, 2), keepdims=False):
+    y = tf.cast(x, tf.float32) if x.dtype == tf.float16 else x
+    replica_ctx = tf.distribute.get_replica_context()
+    if replica_ctx:
+        shape = tf.shape(y)
+        local_sum = tf.reduce_sum(y, axis=axes, keepdims=True)
+        local_squared_sum = tf.reduce_sum(tf.square(y), axis=axes, keepdims=True)
+        batch_size = tf.cast(shape[axes[0]], tf.float32)
+        y_sum = replica_ctx.all_reduce(tf.distribute.ReduceOp.SUM, local_sum)
+        y_squared_sum = replica_ctx.all_reduce(tf.distribute.ReduceOp.SUM, local_squared_sum)
+        global_batch_size = replica_ctx.all_reduce(tf.distribute.ReduceOp.SUM, batch_size)
 
-def make_inplace_abn_op(epsilon, alpha):
+        axes_vals = [shape[axes[i]] for i in range(1, len(axes))]
+        multiplier = tf.cast(tf.reduce_prod(axes_vals), tf.float32)
+        multiplier = multiplier * global_batch_size
+
+        mean = y_sum / multiplier
+        y_squared_mean = y_squared_sum / multiplier
+        # var = E(x^2) - E(x)^2
+        variance = y_squared_mean - tf.square(mean)
+    else:
+        mean, variance = tf.nn.moments(x, axes=axes, keepdims=True)
+    if not keepdims:
+        mean = tf.squeeze(mean, axes)
+        variance = tf.squeeze(variance, axes)
+    if x.dtype == tf.float16:
+        return tf.cast(mean, tf.float16), tf.cast(variance, tf.float16)
+    else:
+        return mean, variance
+
+
+def make_inplace_abn_op(epsilon, alpha, fused=True, sync=False):
+    if sync: assert not fused
+
     @tf.custom_gradient
     def InplaceABNOp(x, scale, offset):
 
-        shape = tf.shape(x)
-        sample_size = tf.cast(shape[0] * shape[1] * shape[2], x.dtype)
-
         gamma, beta = scale, offset
-        y, mean, var, _, _, _ = tf.raw_ops.FusedBatchNormV3(
-            x=x, scale=gamma, offset=beta, mean=tf.constant([]), variance=tf.constant([]),
-            epsilon=epsilon, exponential_avg_factor=1, is_training=True)
+        if fused:
+            y, mean, var, _, _, _ = tf.raw_ops.FusedBatchNormV3(
+                x=x, scale=gamma, offset=beta, mean=tf.constant([]), variance=tf.constant([]),
+                epsilon=epsilon, exponential_avg_factor=1, is_training=True)
 
-        var = _remove_bessels_correction(sample_size, var)
+            shape = tf.shape(x)
+            sample_size = tf.cast(tf.reduce_prod([shape[i] for i in (0, 1, 2)]), x.dtype)
+            var = _remove_bessels_correction(sample_size, var)
+        else:
+            if sync:
+                mean, var = global_moments(x, axes=(0, 1, 2), keepdims=False)
+            else:
+                mean, var = tf.nn.moments(x, axes=(0, 1, 2), keepdims=False)
+            ginv = tf.math.rsqrt(var + epsilon) * gamma
+            y = x * tf.cast(ginv, x.dtype) + tf.cast(beta - mean * ginv, x.dtype)
+
         z = tf.nn.leaky_relu(y, alpha)
         def custom_grad(dz, _d1, _d2):
+            # depends on z, var, gamma, beta
             shape = tf.shape(dz)
             m = tf.cast(shape[0] * shape[1] * shape[2], dz.dtype)
             mask = z >= 0
@@ -56,6 +98,8 @@ class InplaceABN(Layer):
                  center=True,
                  scale=True,
                  alpha=0.01,
+                 fused=None,
+                 sync=False,
                  beta_initializer='zeros',
                  gamma_initializer='ones',
                  moving_mean_initializer='zeros',
@@ -66,6 +110,10 @@ class InplaceABN(Layer):
                  name=None,
                  **kwargs):
         super().__init__(name=name, **kwargs)
+        if fused is None:
+            fused = not sync
+        if sync:
+            assert not fused
         self.axis = -1
         self.momentum = momentum
         # Set a minimum epsilon to 1.001e-5, which is a requirement by CUDNN to
@@ -76,6 +124,8 @@ class InplaceABN(Layer):
         self.center = center
         self.scale = scale
         self.alpha = alpha
+        self.fused = fused
+        self.sync = sync
         self.beta_initializer = initializers.get(beta_initializer)
         self.gamma_initializer = initializers.get(gamma_initializer)
         self.moving_mean_initializer = initializers.get(moving_mean_initializer)
@@ -87,7 +137,7 @@ class InplaceABN(Layer):
 
         self.trainable = trainable
 
-        self._op_func = make_inplace_abn_op(self.epsilon, self.alpha)
+        self._op_func = make_inplace_abn_op(self.epsilon, self.alpha, fused=self.fused, sync=True)
 
     @property
     def trainable(self):
@@ -231,7 +281,6 @@ class InplaceABN(Layer):
             if scale is not None:
                 scale = tf.cast(scale, inputs.dtype)
 
-            # # TODO: make this as argument
             output, _mean, _var = tf.compat.v1.nn.fused_batch_norm(
                 inputs, scale, offset, mean, variance, self.epsilon, is_training=False)
             output = tf.nn.leaky_relu(output, alpha=self.alpha)
@@ -254,6 +303,8 @@ class InplaceABN(Layer):
             'center': self.center,
             'scale': self.scale,
             'alpha': self.alpha,
+            'fused': self.fused,
+            'sync': self.sync,
             'beta_initializer':
                 initializers.serialize(self.beta_initializer),
             'gamma_initializer':
