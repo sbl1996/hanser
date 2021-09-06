@@ -44,9 +44,8 @@ def make_inplace_abn_op(epsilon, alpha, fused=True, sync=False):
     if sync: assert not fused
 
     @tf.custom_gradient
-    def InplaceABNOp(x, scale, offset):
+    def InplaceABNOp(x, gamma, beta):
 
-        gamma, beta = scale, offset
         if fused:
             y, mean, var, _, _, _ = tf.raw_ops.FusedBatchNormV3(
                 x=x, scale=gamma, offset=beta, mean=tf.constant([]), variance=tf.constant([]),
@@ -137,7 +136,7 @@ class InplaceABN(Layer):
 
         self.trainable = trainable
 
-        self._op_func = make_inplace_abn_op(self.epsilon, self.alpha, fused=self.fused, sync=True)
+        self._op_func = make_inplace_abn_op(self.epsilon, self.alpha, fused=self.fused, sync=self.sync)
 
     @property
     def trainable(self):
@@ -253,12 +252,12 @@ class InplaceABN(Layer):
             inputs = tf.cast(inputs, tf.float32)
 
         if training:
-            scale, offset = self.gamma, self.beta
-            if offset is not None:
-                offset = tf.cast(offset, inputs.dtype)
-            if scale is not None:
-                scale = tf.cast(scale, inputs.dtype)
-            output, mean, variance = self._op_func(inputs, scale, offset)
+            gamma, beta = self.gamma, self.beta
+            if beta is not None:
+                beta = tf.cast(beta, inputs.dtype)
+            if gamma is not None:
+                gamma = tf.cast(gamma, inputs.dtype)
+            output, mean, variance = self._op_func(inputs, gamma, beta)
 
             def _do_update(var, value):
                 return self._assign_moving_average(var, value, self.momentum)
@@ -273,16 +272,16 @@ class InplaceABN(Layer):
             self.add_update(variance_update)
         else:
             mean, variance = self.moving_mean, self.moving_variance
-            scale, offset = self.gamma, self.beta
+            gamma, beta = self.gamma, self.beta
             mean = tf.cast(mean, inputs.dtype)
             variance = tf.cast(variance, inputs.dtype)
-            if offset is not None:
-                offset = tf.cast(offset, inputs.dtype)
-            if scale is not None:
-                scale = tf.cast(scale, inputs.dtype)
+            if beta is not None:
+                beta = tf.cast(beta, inputs.dtype)
+            if gamma is not None:
+                gamma = tf.cast(gamma, inputs.dtype)
 
             output, _mean, _var = tf.compat.v1.nn.fused_batch_norm(
-                inputs, scale, offset, mean, variance, self.epsilon, is_training=False)
+                inputs, gamma, beta, mean, variance, self.epsilon, is_training=False)
             output = tf.nn.leaky_relu(output, alpha=self.alpha)
 
         if inputs_dtype in (tf.float16, tf.bfloat16):
