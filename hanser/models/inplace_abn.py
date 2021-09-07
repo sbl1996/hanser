@@ -28,37 +28,14 @@ def global_moments(x, axes=(0, 1, 2), keepdims=False):
         return shard_mean, shard_variance
 
 
-# from tf.keras.layers.experimental.SyncBatchNormalization
-# numerical instability
-# def global_moments(x, axes=(0, 1, 2), keepdims=False):
-#     y = tf.cast(x, tf.float32) if x.dtype == tf.float16 else x
-#     replica_ctx = tf.distribute.get_replica_context()
-#     if replica_ctx:
-#         shape = tf.shape(y)
-#         local_sum = tf.reduce_sum(y, axis=axes, keepdims=True)
-#         local_squared_sum = tf.reduce_sum(tf.square(y), axis=axes, keepdims=True)
-#         batch_size = tf.cast(shape[axes[0]], tf.float32)
-#         y_sum = replica_ctx.all_reduce(tf.distribute.ReduceOp.SUM, local_sum)
-#         y_squared_sum = replica_ctx.all_reduce(tf.distribute.ReduceOp.SUM, local_squared_sum)
-#         global_batch_size = replica_ctx.all_reduce(tf.distribute.ReduceOp.SUM, batch_size)
-#
-#         axes_vals = [shape[axes[i]] for i in range(1, len(axes))]
-#         multiplier = tf.cast(tf.reduce_prod(axes_vals), tf.float32)
-#         multiplier = multiplier * global_batch_size
-#
-#         mean = y_sum / multiplier
-#         y_squared_mean = y_squared_sum / multiplier
-#         # var = E(x^2) - E(x)^2
-#         variance = y_squared_mean - tf.square(mean)
-#     else:
-#         mean, variance = tf.nn.moments(x, axes=axes, keepdims=True)
-#     if not keepdims:
-#         mean = tf.squeeze(mean, axes)
-#         variance = tf.squeeze(variance, axes)
-#     if x.dtype == tf.float16:
-#         return tf.cast(mean, tf.float16), tf.cast(variance, tf.float16)
-#     else:
-#         return mean, variance
+def _reduce_sum(*values):
+    replica_context = tf.distribute.get_replica_context()
+    num_shards = replica_context.num_replicas_in_sync or 1
+    if num_shards > 1:
+        return replica_context.all_reduce(
+            tf.distribute.ReduceOp.SUM, tuple(values))
+    else:
+        return tuple(values)
 
 
 def make_inplace_abn_op(epsilon, alpha, fused=True, sync=False):
@@ -86,18 +63,26 @@ def make_inplace_abn_op(epsilon, alpha, fused=True, sync=False):
         z = tf.nn.leaky_relu(y, alpha)
         def custom_grad(dz, _d1, _d2):
             # depends on z, var, gamma, beta
-            shape = tf.shape(dz)
-            m = tf.cast(shape[0] * shape[1] * shape[2], dz.dtype)
             mask = z >= 0
             y = tf.where(mask, z, z / alpha)
             dy = tf.where(mask, 1.0, alpha) * dz
 
-            dbeta = tf.reduce_sum(dy, axis=(0, 1, 2))
+            sum_dy_local = tf.reduce_sum(dy, axis=(0, 1, 2))
+            xhat = (y - beta) / gamma
+            sum_xhat_dy_local = tf.reduce_sum(xhat * dy, axis=(0, 1, 2))
 
-            x_ = (y - beta) / gamma
-            dgamma = tf.reduce_sum(dy * x_, axis=(0, 1, 2))
+            shape = tf.shape(dz)
+            count = tf.cast(shape[0] * shape[1] * shape[2], dz.dtype)
+            if sync:
+                sum_dy, sum_xhat_dy, count = _reduce_sum(sum_dy_local, sum_xhat_dy_local, count)
+            else:
+                sum_dy, sum_xhat_dy, count = sum_dy_local, sum_xhat_dy_local, count
+
             ginv = gamma * tf.math.rsqrt(var + epsilon)
-            dx = (dy - dgamma / m * x_ - dbeta / m) * ginv
+            dx = (dy - sum_xhat_dy / count * xhat - sum_dy / count) * ginv
+
+            dgamma = sum_xhat_dy_local
+            dbeta = sum_dy_local
 
             # TODO: Inplace ABN-II
             # Maybe computationally more efficient, but encounter numerical instability

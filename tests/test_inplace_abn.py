@@ -1,3 +1,4 @@
+import PIL.JpegImagePlugin
 import numpy as np
 
 import tensorflow as tf
@@ -88,4 +89,3 @@ def test_inplace_abn():
     y1 = eval_batch(x, m1)
     y2 = eval_batch(x, m2)
     np.testing.assert_allclose(y1.numpy(), y2.numpy(), rtol=1e-5, atol=1e-5)
-
