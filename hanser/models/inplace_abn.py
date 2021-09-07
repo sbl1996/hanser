@@ -29,7 +29,7 @@ def global_moments(x, axes=(0, 1, 2), keepdims=False):
 
 
 # from tf.keras.layers.experimental.SyncBatchNormalization
-# numerical instable
+# numerical instability
 # def global_moments(x, axes=(0, 1, 2), keepdims=False):
 #     y = tf.cast(x, tf.float32) if x.dtype == tf.float16 else x
 #     replica_ctx = tf.distribute.get_replica_context()
@@ -100,7 +100,7 @@ def make_inplace_abn_op(epsilon, alpha, fused=True, sync=False):
             dx = (dy - dgamma / m * x_ - dbeta / m) * ginv
 
             # TODO: Inplace ABN-II
-            # Maybe computationally more efﬁcient, but encounter numeric instability
+            # Maybe computationally more efficient, but encounter numerical instability
             # dgamma = (tf.reduce_sum(dy * y, axis=(0, 1, 2)) - beta * dbeta) / gamma
             # ginv = gamma * tf.math.rsqrt(var + epsilon)
             # d_t = dgamma / gamma

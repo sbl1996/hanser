@@ -308,9 +308,9 @@ class Learner(metaclass=ABCMeta):
             strategy_run(self._strategy, self.local_eval_batch, (batch,)), self._strategy)
 
     def _run_steps(self, step_fn, iterator, n_batches_per_step, n_steps, callbacks, state):
-        state['step'].assign(-1)
+        # state['step'].assign(-1)
         for i in tf.range(n_steps):
-            state['step'].assign_add(1)
+            # state['step'].assign_add(1)
             callbacks.begin_batch(state)
             if n_batches_per_step is not None:
                 batches = tuple(next(iterator) for bi in range(n_batches_per_step))
