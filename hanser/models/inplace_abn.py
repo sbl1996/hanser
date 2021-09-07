@@ -8,36 +8,57 @@ def _remove_bessels_correction(sample_size, variance):
     factor = (sample_size - tf.cast(1.0, variance.dtype)) / sample_size
     return variance * factor
 
-# From tf.keras.layers.experimental.SyncBatchNormalization
+
+# from https://github.com/google/automl/blob/master/efficientdet/utils.py#L216
 def global_moments(x, axes=(0, 1, 2), keepdims=False):
-    y = tf.cast(x, tf.float32) if x.dtype == tf.float16 else x
-    replica_ctx = tf.distribute.get_replica_context()
-    if replica_ctx:
-        shape = tf.shape(y)
-        local_sum = tf.reduce_sum(y, axis=axes, keepdims=True)
-        local_squared_sum = tf.reduce_sum(tf.square(y), axis=axes, keepdims=True)
-        batch_size = tf.cast(shape[axes[0]], tf.float32)
-        y_sum = replica_ctx.all_reduce(tf.distribute.ReduceOp.SUM, local_sum)
-        y_squared_sum = replica_ctx.all_reduce(tf.distribute.ReduceOp.SUM, local_squared_sum)
-        global_batch_size = replica_ctx.all_reduce(tf.distribute.ReduceOp.SUM, batch_size)
-
-        axes_vals = [shape[axes[i]] for i in range(1, len(axes))]
-        multiplier = tf.cast(tf.reduce_prod(axes_vals), tf.float32)
-        multiplier = multiplier * global_batch_size
-
-        mean = y_sum / multiplier
-        y_squared_mean = y_squared_sum / multiplier
-        # var = E(x^2) - E(x)^2
-        variance = y_squared_mean - tf.square(mean)
+    shard_mean, shard_variance = tf.nn.moments(x, axes, keepdims)
+    replica_context = tf.distribute.get_replica_context()
+    num_shards = replica_context.num_replicas_in_sync or 1
+    if num_shards > 1:
+        # Compute variance using: Var[X]= E[X^2] - E[X]^2.
+        shard_square_of_mean = tf.math.square(shard_mean)
+        shard_mean_of_square = shard_variance + shard_square_of_mean
+        group_mean = replica_context.all_reduce(
+            tf.distribute.ReduceOp.MEAN, shard_mean)
+        group_mean_of_square = replica_context.all_reduce(
+            tf.distribute.ReduceOp.MEAN, shard_mean_of_square)
+        group_variance = group_mean_of_square - tf.math.square(group_mean)
+        return group_mean, group_variance
     else:
-        mean, variance = tf.nn.moments(x, axes=axes, keepdims=True)
-    if not keepdims:
-        mean = tf.squeeze(mean, axes)
-        variance = tf.squeeze(variance, axes)
-    if x.dtype == tf.float16:
-        return tf.cast(mean, tf.float16), tf.cast(variance, tf.float16)
-    else:
-        return mean, variance
+        return shard_mean, shard_variance
+
+
+# from tf.keras.layers.experimental.SyncBatchNormalization
+# numerical instable
+# def global_moments(x, axes=(0, 1, 2), keepdims=False):
+#     y = tf.cast(x, tf.float32) if x.dtype == tf.float16 else x
+#     replica_ctx = tf.distribute.get_replica_context()
+#     if replica_ctx:
+#         shape = tf.shape(y)
+#         local_sum = tf.reduce_sum(y, axis=axes, keepdims=True)
+#         local_squared_sum = tf.reduce_sum(tf.square(y), axis=axes, keepdims=True)
+#         batch_size = tf.cast(shape[axes[0]], tf.float32)
+#         y_sum = replica_ctx.all_reduce(tf.distribute.ReduceOp.SUM, local_sum)
+#         y_squared_sum = replica_ctx.all_reduce(tf.distribute.ReduceOp.SUM, local_squared_sum)
+#         global_batch_size = replica_ctx.all_reduce(tf.distribute.ReduceOp.SUM, batch_size)
+#
+#         axes_vals = [shape[axes[i]] for i in range(1, len(axes))]
+#         multiplier = tf.cast(tf.reduce_prod(axes_vals), tf.float32)
+#         multiplier = multiplier * global_batch_size
+#
+#         mean = y_sum / multiplier
+#         y_squared_mean = y_squared_sum / multiplier
+#         # var = E(x^2) - E(x)^2
+#         variance = y_squared_mean - tf.square(mean)
+#     else:
+#         mean, variance = tf.nn.moments(x, axes=axes, keepdims=True)
+#     if not keepdims:
+#         mean = tf.squeeze(mean, axes)
+#         variance = tf.squeeze(variance, axes)
+#     if x.dtype == tf.float16:
+#         return tf.cast(mean, tf.float16), tf.cast(variance, tf.float16)
+#     else:
+#         return mean, variance
 
 
 def make_inplace_abn_op(epsilon, alpha, fused=True, sync=False):
@@ -60,7 +81,7 @@ def make_inplace_abn_op(epsilon, alpha, fused=True, sync=False):
             else:
                 mean, var = tf.nn.moments(x, axes=(0, 1, 2), keepdims=False)
             ginv = tf.math.rsqrt(var + epsilon) * gamma
-            y = x * tf.cast(ginv, x.dtype) + tf.cast(beta - mean * ginv, x.dtype)
+            y = x * ginv + beta - mean * ginv
 
         z = tf.nn.leaky_relu(y, alpha)
         def custom_grad(dz, _d1, _d2):
@@ -252,10 +273,8 @@ class InplaceABN(Layer):
             inputs = tf.cast(inputs, tf.float32)
 
         gamma, beta = self.gamma, self.beta
-        if beta is not None:
-            beta = tf.cast(beta, inputs.dtype)
-        if gamma is not None:
-            gamma = tf.cast(gamma, inputs.dtype) + self.epsilon
+            # add epsilon to avoid nan in grad_fn
+        gamma = gamma + self.epsilon
 
         if training:
             output, mean, variance = self._op_func(inputs, gamma, beta)
@@ -273,8 +292,6 @@ class InplaceABN(Layer):
             self.add_update(variance_update)
         else:
             mean, variance = self.moving_mean, self.moving_variance
-            mean = tf.cast(mean, inputs.dtype)
-            variance = tf.cast(variance, inputs.dtype)
 
             if self.fused:
                 output, _mean, _var = tf.compat.v1.nn.fused_batch_norm(
