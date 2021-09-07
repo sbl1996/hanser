@@ -273,7 +273,7 @@ class InplaceABN(Layer):
             inputs = tf.cast(inputs, tf.float32)
 
         gamma, beta = self.gamma, self.beta
-            # add epsilon to avoid nan in grad_fn
+        # add epsilon to avoid nan in grad_fn
         gamma = gamma + self.epsilon
 
         if training:
