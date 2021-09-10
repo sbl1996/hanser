@@ -18,7 +18,7 @@ def prepare(ds: tf.data.Dataset, batch_size, transform=None, training=True, buff
     if training:
         ds = ds.shuffle(buffer_size)
         if aug_repeats is not None:
-            assert len(ds.element_spec) == 2
+            # assert len(ds.element_spec) == 2
             ds = ds.flat_map(make_repeat_fn(aug_repeats))
         if type(repeat) == int:
             ds = ds.repeat(repeat)
