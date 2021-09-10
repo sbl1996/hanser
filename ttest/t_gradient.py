@@ -1,6 +1,3 @@
-import os
-
-import numpy as np
 from toolz import curry
 from hanser.datasets.mnist import make_mnist_dataset
 
@@ -18,8 +15,6 @@ def transform(image, label, training):
     image, label = to_tensor(image, label)
     image = normalize(image, [0.1307], [0.3081])
 
-    # label = tf.one_hot(label, 10)
-
     return image, label
 
 
@@ -29,48 +24,20 @@ ds_train, ds_test, steps_per_epoch, test_steps = \
     make_mnist_dataset(batch_size, eval_batch_size, transform, sub_ratio=0.01)
 
 
+class Transform(Layer):
 
-class Transform(tf.keras.Layer):
-
-    def __init__(self, transforms):
+    def __init__(self, transform):
         super().__init__()
-        self.transforms = transforms
+        self.transform = transform
 
     def call(self, x):
         x = tf.raw_ops.ImageProjectiveTransformV2(
             images=x,
-            transforms=[[1., 0., 0., 0.5, 1., 0., 0., 0.]],
+            transforms=[self.transform],
             output_shape=tf.shape(x)[1:3],
             interpolation="BILINEAR",
         )
         return x
-
-
-def wrap(image):
-    """Returns 'image' with an extra channel set to all 1s."""
-    shape = tf.shape(image)
-    extended_channel = tf.ones([shape[0], shape[1], 1], image.dtype)
-    extended = tf.concat([image, extended_channel], 2)
-    return extended
-
-
-
-class ShearX(Layer):
-
-    def __init__(self, magnitude):
-        super().__init__()
-        self.magnitude = self.add_weight(
-            name='magnitude', shape=(), initializer=np.array(magnitude), trainable=False)
-
-    def call(self, x):
-        x = tf.raw_ops.ImageProjectiveTransformV2(
-            images=x,
-            transforms=[[1., self.magnitude, 0., 0., 1., 0., 0., 0.]],
-            output_shape=tf.shape(x)[1:3],
-            interpolation="BILINEAR",
-        )
-        return x
-
 
 
 class ConvNet(tf.keras.Model):
@@ -82,11 +49,12 @@ class ConvNet(tf.keras.Model):
         self.flatten = Flatten()
         self.fc = Linear(4, 10)
 
+        self.transform = Transform([1., 0., 0., 0.5, 1., 0., 0., 0.])
         self.wt = self.add_weight(
             name="wt", shape=(), dtype=tf.float32, trainable=True, initializer='ones')
 
     def call(self, x):
-        x = x * self.wt
+        x = self.transform(x) * self.wt
 
         x = self.stem(x)
         x = tf.reduce_mean(x, axis=[1, 2])
@@ -102,7 +70,6 @@ optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3)
 
 loss_m = tf.keras.metrics.Mean()
 accuracy = tf.keras.metrics.SparseCategoricalAccuracy()
-
 
 @tf.function
 def train_step(batch):
