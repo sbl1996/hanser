@@ -39,7 +39,7 @@ def _resize_and_mix(args):
     return image
 
 
-def resizemix_batch(image, label, scale=(0.1, 0.8), hard=False, sample_area=False):
+def resizemix_batch(image, label, scale=(0.1, 0.6), hard=False, sample_area=False):
 
     n, h, w, c = image_dimensions(image, 4)
     shape = (n,) if hard else ()

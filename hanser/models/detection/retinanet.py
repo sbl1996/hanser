@@ -1,14 +1,13 @@
 import math
 
 import tensorflow as tf
-from tensorflow.keras import Sequential
 from tensorflow.keras.layers import Layer
 from tensorflow.keras.initializers import RandomNormal, Constant, Zeros
 
 from hanser.models.detection.detector import SingleStageDetector
 from hanser.models.detection.neck.fpn import FPN
 from hanser.models.detection.neck.bifpn import BiFPN
-from hanser.models.layers import Conv2d, Norm, Act
+from hanser.models.layers import Conv2d, NormAct
 
 
 class RetinaNetBiFPN(SingleStageDetector):
@@ -74,13 +73,13 @@ class RetinaHead(Layer):
                     Conv2d(in_channels, feat_channels, 3,
                            kernel_init=RandomNormal(stddev=0.01), bias_init=Zeros()))
                 for l in range(num_levels):
-                    reg_norm_acts[l].append(Sequential([Norm(feat_channels), Act()]))
+                    reg_norm_acts[l].append(NormAct(feat_channels))
 
                 cls_convs.append(
                     Conv2d(in_channels, feat_channels, 3,
                            kernel_init=RandomNormal(stddev=0.01), bias_init=Zeros()))
                 for l in range(num_levels):
-                    cls_norm_acts[l].append(Sequential([Norm(feat_channels), Act()]))
+                    cls_norm_acts[l].append(NormAct(feat_channels))
 
                 in_channels = feat_channels
             self.reg_norm_acts = reg_norm_acts
