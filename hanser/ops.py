@@ -21,6 +21,21 @@ def gumbel_softmax(logits, tau=1.0, hard=False, axis=-1, return_index=False):
     return ret
 
 
+def sample_relaxed_bernoulli(probs, temperature=1, hard=False):
+    u = tf.random.uniform(tf.shape(probs), dtype=probs.dtype)
+
+    y_soft = tf.sigmoid(
+        (tf.math.log(u) - tf.math.log1p(-u) +
+         tf.math.log(probs) - tf.math.log1p(-probs)) / temperature)
+
+    if hard:
+        y_hard = tf.cast(tf.where(y_soft >= 0.5, 1.0, 0.0), probs.dtype)
+        ret = y_hard - tf.stop_gradient(y_soft) + y_soft
+    else:
+        ret = y_soft
+    return ret
+
+
 def nonzero(t):
     # assert t.ndim == 1 and t.dtype == tf.bool
     return tf.range(tf.shape(t)[0], dtype=tf.int32)[t]

@@ -50,9 +50,55 @@ def autoaugment(image):
     return apply_autoaugment(image, policies)
 
 
+def get_augmentation_space(name):
+    if name in ['aa', 'ua']:
+        return [
+            'identity', 'autocontrast', 'equalize', 'rotate',
+            'solarize', 'color', 'posterize', 'contrast', 'brightness',
+            'sharpness', 'shearX', 'shearY', 'translateX', 'translateY',
+            'invert', 'cutout',
+            # 'cutout', 'invert', 'samplePairing'
+            # cutout actually not appeared, samplePairing not implemented
+            # UA = AA − { SamplePairing }
+        ]
+    elif name in ['ra']:
+        return [
+            'identity', 'autocontrast', 'equalize', 'rotate',
+            'solarize', 'color', 'posterize', 'contrast', 'brightness',
+            'sharpness', 'shearX', 'shearY', 'translateX', 'translateY',
+            # RA = AA − { SamplePairing, Invert, Cutout }
+        ]
+    elif name in ['aa-']:
+        return [
+            'identity', 'autocontrast', 'equalize', 'rotate',
+            'solarize', 'color', 'posterize', 'contrast', 'brightness',
+            'sharpness', 'shearX', 'shearY', 'translateX', 'translateY',
+            'cutout',
+            # remove the extreme invert operation
+            # performs very well for CIFAR-10, but not great for SVHN Core
+            # Conclusion from TrivialAugment 4.2.1
+        ]
+    elif name in ['ra0']: # official
+        return [
+            'autocontrast', 'equalize', 'rotate', 'solarize', 'color',
+            'posterize', 'contrast', 'brightness', 'sharpness',
+            'shearX', 'shearY', 'translateX', 'translateY',
+            'cutout', 'solarize_add', 'invert',
+        ]
+    elif name in ['ra+']:
+        return [
+            'autocontrast', 'equalize', 'rotate', 'solarize', 'color',
+            'contrast', 'brightness', 'sharpness',
+            'shearX', 'shearY', 'translateX', 'translateY',
+            'cutout', 'solarize_add',
+            # RA0 - { Invert, Posterize }
+        ]
+    else:
+        raise ValueError("No augmentation space: %s" % name)
 
 # official
-def randaugment(image, num_layers=2, magnitude=10.):
+def randaugment(image, num_layers=2, magnitude=10.,
+                random_magnitude=False, augmentation_space='ra0'):
 
     # RandAugment use larger translate or cutout for EfficientNet
     # with higher image resolution, therefore the relative ratio of
@@ -68,13 +114,7 @@ def randaugment(image, num_layers=2, magnitude=10.):
         "cutout_max": 60 / 331 / ratio,
     }
 
-    magnitude = tf.cast(magnitude, tf.float32)
-
-    available_ops = [
-        'autocontrast', 'equalize', 'invert', 'rotate', 'posterize',
-        'solarize', 'color', 'contrast', 'brightness', 'sharpness',
-        'shearX', 'shearY', 'translateX', 'translateY', 'cutout', 'solarize_add',
-    ]
+    available_ops = get_augmentation_space(augmentation_space)
 
     op_funcs = [
         NAME_TO_FUNC[op_name] for op_name in available_ops
@@ -84,7 +124,10 @@ def randaugment(image, num_layers=2, magnitude=10.):
         op_to_select = tf.random.uniform((), 0, maxval=len(available_ops), dtype=tf.int32)
         for (i, op_func) in enumerate(op_funcs):
             prob = tf.random.uniform((), minval=0.2, maxval=0.8, dtype=tf.float32)
-            selected_func = lambda im: op_func(im, magnitude, hparams)
+            if random_magnitude:
+                selected_func = lambda im: op_func(im, random_level(magnitude), hparams)
+            else:
+                selected_func = lambda im: op_func(im, tf.cast(magnitude, tf.float32), hparams)
             image = tf.cond(
                 tf.equal(i, op_to_select),
                 lambda: random_apply(selected_func, prob, image),
@@ -132,6 +175,7 @@ def rand_or_auto_augment(image, num_layers=2, magnitude=10.):
 
 
 def random_level(max_level):
+    max_level = tf.cast(max_level, tf.int32)
     level = tf.random.uniform((), 0, max_level, dtype=tf.int32)
     return tf.cast(level, tf.float32)
 

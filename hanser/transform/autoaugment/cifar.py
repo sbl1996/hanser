@@ -14,7 +14,7 @@ def cifar10_policy():
         (0.3, "sharpness",    9, 0.7, "brightness",   9),
         (0.6, "equalize",     5, 0.5, "equalize",     1),
         (0.6, "contrast",     7, 0.6, "sharpness",    5),
-        #
+
         (0.7, "color",        7, 0.5, "translateX",   8),
         (0.3, "equalize",     7, 0.4, "autocontrast", 8),
         (0.4, "translateY",   3, 0.2, "sharpness",    6),
