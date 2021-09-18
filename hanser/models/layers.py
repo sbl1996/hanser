@@ -94,7 +94,7 @@ def Conv2d(in_channels: int,
     elif isinstance(padding, str):
         assert padding == 'same'
 
-    assert stride in [(1, 1), (2, 2)]
+    # assert stride in [(1, 1), (2, 2)]
 
     avd = avd and stride == (2, 2)
     anti_alias = anti_alias and stride == (2, 2)
@@ -111,7 +111,7 @@ def Conv2d(in_channels: int,
     if padding == 'same':
         # 1. fixed padding
         if DEFAULTS['fixed_padding']:
-            if stride == (2, 2):
+            if 2 in stride:
                 paddings = calc_fixed_padding(kernel_size, dilation)
                 pad = ZeroPadding2D(paddings) if paddings != ((0, 0), (0, 0)) else None
                 conv_padding = 'VALID'
