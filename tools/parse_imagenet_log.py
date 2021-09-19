@@ -51,7 +51,6 @@ def estimate_epoch_cost(valid_ends):
     epoch_seconds = list(map(lambda t: dtime(t[0], t[1]).seconds, zip(valid_ends[1:], valid_ends[:-1])))
     n = len(epoch_seconds)
     second_counts = pd.value_counts(epoch_seconds)
-    print(second_counts)
     sum = 0
     tc = 0
     for cost, freq in second_counts.iteritems():
