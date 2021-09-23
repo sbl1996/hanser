@@ -1,4 +1,4 @@
-from hanser.models.cifar.res2net.resnet_vd import Bottle2neck
+from hanser.models.common.res2net.resnet_vd import Bottle2neck
 from hanser.models.imagenet.stem import ResNetvdStem
 from hanser.models.imagenet.resnet import _ResNet
 

@@ -13,5 +13,7 @@ class IResNet(_IResNet):
                          strides=(1, 2, 2, 2), dropout=dropout, se_last=True,
                          drop_path=drop_path, se_reduction=se_reduction, se_mode=se_mode)
 
-def resnet50(**kwargs):
+def resnet_m(**kwargs):
     return IResNet(Bottleneck, [3, 4, 8, 3], **kwargs)
+
+resnet50 = resnet_m
