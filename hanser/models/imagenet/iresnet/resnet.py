@@ -4,24 +4,46 @@ from hanser.models.layers import GlobalAvgPool, Linear, Dropout
 from hanser.models.common.iresnet.resnet import BasicBlock, Bottleneck
 from hanser.models.imagenet.stem import ResNetStem
 
+class LayerArgs:
 
-def _make_layer(block, in_channels, channels, blocks, stride, **kwargs):
+    def __init__(self, args):
+        self.args = args
+
+
+def _get_layer_kwargs(kwargs, i):
+    d = {}
+    for k, v in kwargs.items():
+        if isinstance(v, LayerArgs):
+            d[k] = v.args[i]
+        else:
+            d[k] = v
+    return d
+
+
+def _make_layer(block, in_channels, channels, blocks, stride, return_seq=True, **kwargs):
     layers = [block(in_channels, channels, stride=stride,
-                    start_block=True, **kwargs)]
+                    start_block=True, **_get_layer_kwargs(kwargs, 0))]
     in_channels = channels * block.expansion
     for i in range(1, blocks - 1):
         layers.append(block(in_channels, channels, stride=1,
-                            exclude_bn0=i == 1, **kwargs))
+                            exclude_bn0=i == 1, **_get_layer_kwargs(kwargs, i)))
     layers.append(block(in_channels, channels, stride=1,
-                        end_block=True, **kwargs))
-    return Sequential(layers)
+                        end_block=True, **_get_layer_kwargs(kwargs, blocks - 1)))
+    if return_seq:
+        layers = Sequential(layers)
+    return layers
 
 
-def _get_kwargs(kwargs, i):
+def _get_kwargs(kwargs, i, layers=None):
     d = {}
     for k, v in kwargs.items():
-        if isinstance(v, tuple) and len(v) == 4:
-            d[k] = v[i]
+        if isinstance(v, tuple):
+            if len(v) == 4:
+                d[k] = v[i]
+            elif layers is not None and len(v) == sum(layers):
+                d[k] = LayerArgs(v[sum(layers[:i]):sum(layers[:(i+1)])])
+            else:
+                d[k] = v
         else:
             d[k] = v
     return d
@@ -39,7 +61,7 @@ class _IResNet(Model):
         blocks = (block,) * 4 if not isinstance(block, tuple) else block
         for i, (block, c, n, s) in enumerate(zip(blocks, channels, layers, strides)):
             layer = _make_layer(
-                block, c_in, c, n, s, **_get_kwargs(kwargs, i))
+                block, c_in, c, n, s, **_get_kwargs(kwargs, i, layers))
             c_in = c * block.expansion
             setattr(self, "layer" + str(i+1), layer)
 

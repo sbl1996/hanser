@@ -8,7 +8,7 @@ from hanser.models.modules import DropPath, AntiAliasing
 from hanser.models.layers import Conv2d, Act, Identity, Norm, NormAct
 from hanser.models.common.modules import get_shortcut_vd
 from hanser.models.attention import SELayer
-from hanser.models.cifar.res2net.layers import Res2Conv
+from hanser.models.common.res2net.layers import Res2Conv
 
 
 class PPConv(Layer):
