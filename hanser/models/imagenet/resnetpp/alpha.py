@@ -16,3 +16,6 @@ class IResNet(_IResNet):
 
 def resnet50(**kwargs):
     return IResNet(Bottleneck, [3, 4, 8, 3], **kwargs)
+
+def resnet_m(**kwargs):
+    return IResNet(Bottleneck, [3, 4, 10, 3], **kwargs)
