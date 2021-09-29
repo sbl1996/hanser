@@ -14,6 +14,7 @@ class Bottleneck(Layer):
                  group_width=64, inv_expansion=2.0, drop_path=0,
                  se_reduction=4, se_mode=0, se_last=False):
         super().__init__()
+        self.use_se = se_reduction is not None
         self.se_last = se_last
 
         channels = int(out_channels * inv_expansion)
@@ -31,7 +32,7 @@ class Bottleneck(Layer):
         self.conv2 = Conv2d(channels, channels, kernel_size=3, stride=stride,
                             groups=num_groups, norm='def', act='def', anti_alias=True)
 
-        if not self.se_last:
+        if not self.se_last and self.use_se:
             self.se = SELayer(channels, se_channels=out_channels // se_reduction, mode=se_mode)
 
         self.conv3 = Conv2d(channels, out_channels, kernel_size=1)
@@ -39,7 +40,7 @@ class Bottleneck(Layer):
         if start_block:
             self.bn3 = Norm(out_channels)
 
-        if self.se_last:
+        if self.se_last and self.use_se:
             self.se = SELayer(out_channels, se_channels=out_channels // se_reduction, mode=se_mode)
 
         self.drop_path = DropPath(drop_path) if drop_path else Identity()
@@ -65,7 +66,7 @@ class Bottleneck(Layer):
         x = self.conv1(x)
 
         x = self.conv2(x)
-        if not self.se_last:
+        if not self.se_last and self.use_se:
             x = self.se(x)
 
         x = self.conv3(x)
@@ -73,7 +74,7 @@ class Bottleneck(Layer):
         if self.start_block:
             x = self.bn3(x)
 
-        if self.se_last:
+        if self.se_last and self.use_se:
             x = self.se(x)
 
         x = self.drop_path(x)
