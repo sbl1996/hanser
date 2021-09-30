@@ -211,16 +211,9 @@ class EMA(Callback):
 
     def init(self):
         assert isinstance(self.learner.optimizers[0], MovingAverage)
-        # if self.decay is not None:
-        #     self.original_optimizer = self.learner.optimizers[0]
-        #     self.learner.optimizers[0] = MovingAverage(
-        #         self.original_optimizer, average_decay=self.decay)
-        # else:
-        #     assert isinstance(self.learner.optimizers[0], MovingAverage)
 
     def begin_eval(self, state):
         opt: MovingAverage = self.learner.optimizers[0]
-        opt.shadow_copy(self.learner.model.trainable_variables)
         opt.swap_weights()
 
     def after_eval(self, state):
