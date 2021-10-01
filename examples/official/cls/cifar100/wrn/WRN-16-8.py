@@ -2,6 +2,7 @@ from toolz import curry
 
 import tensorflow as tf
 from tensorflow.keras.metrics import CategoricalAccuracy, Mean, CategoricalCrossentropy
+from tensorflow_addons.optimizers import MovingAverage
 
 from hanser.distribute import setup_runtime, distribute_datasets
 from hanser.datasets.classification.cifar import make_cifar100_dataset
@@ -59,6 +60,7 @@ base_lr = 0.1
 epochs = 300
 lr_schedule = CosineLR(base_lr, steps_per_epoch, epochs=epochs, min_lr=0)
 optimizer = SGD(lr_schedule, momentum=0.9, weight_decay=5e-4, nesterov=True)
+optimizer = MovingAverage(optimizer, average_decay=0.9999)
 train_metrics = {
     'loss': Mean(),
     'acc': CategoricalAccuracy(),
@@ -75,4 +77,4 @@ learner = SuperLearner(
 
 hist = learner.fit(ds_train, epochs, ds_test, val_freq=1,
                    steps_per_epoch=steps_per_epoch, val_steps=test_steps,
-                   callbacks=[EMA(decay=0.99975)])
+                   callbacks=[EMA()])
