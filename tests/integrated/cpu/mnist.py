@@ -66,3 +66,5 @@ learner = SuperLearner(
 learner.fit(ds_train, epochs, ds_test, val_freq=2,
             steps_per_epoch=steps_per_epoch, val_steps=test_steps,
             callbacks=[EMA(0.9)])
+
+from tensorflow_addons.optimizers import MovingAverage
