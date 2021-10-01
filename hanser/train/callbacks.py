@@ -6,6 +6,7 @@ from hhutil.io import time_now
 
 import tensorflow as tf
 from hanser.models.modules import DropPath, DropBlock
+from hanser.train.ema import swap_weights, get_ema_vars
 
 
 @curry
@@ -216,74 +217,17 @@ class EMA(Callback):
 
     def init(self):
         self._ema = tf.train.ExponentialMovingAverage(decay=self.decay)
-        self._ema_vars = self._get_ema_vars()
-
-    def _get_ema_vars(self):
-        model = self.learner.model
-        ema_vars = model.trainable_variables + [
-            v for v in model.variables
-            if 'moving_mean' in v.name or 'moving_variance' in v.name
-        ]
-        return ema_vars
-
-    def after_batch(self, state):
-        self._ema.apply(self._get_ema_vars())
-
-    def swap_weights(self):
-        """Swap the average and moving weights.
-
-        This is a convenience method to allow one to evaluate the averaged weights
-        at test time. Loads the weights stored in `self._average_weights` into the model,
-        keeping a copy of the original model weights. Swapping twice will return
-        the original weights.
-        """
-        if tf.distribute.in_cross_replica_context():
-            strategy = tf.distribute.get_strategy()
-            return strategy.run(self._swap_weights, args=())
-        else:
-            self._swap_weights_local()
-
-    @tf.function
-    def _swap_weights_local(self):
-        avg_vars = [self._ema._averages[var.ref()] for var in self._ema_vars]
-        for a, b in zip(avg_vars, self._ema_vars):
-            a.assign_add(b)
-            b.assign(a - b)
-            a.assign_sub(b)
-
-    @tf.function
-    def _swap_weights(self):
-        def fn_0(a, b):
-            return a.assign_add(b)
-
-        def fn_1(b, a):
-            return b.assign(a - b)
-
-        def fn_2(a, b):
-            return a.assign_sub(b)
-
-        def swap(strategy, a, b):
-            """Swap `a` and `b` and mirror to all devices."""
-            for a_element, b_element in zip(a, b):
-                strategy.extended.update(
-                    a_element, fn_0, args=(b_element,)
-                )  # a = a + b
-                strategy.extended.update(
-                    b_element, fn_1, args=(a_element,)
-                )  # b = a - b
-                strategy.extended.update(
-                    a_element, fn_2, args=(b_element,)
-                )  # a = a - b
-
-        ctx = tf.distribute.get_replica_context()
-        avg_vars = [self._ema._averages[var.ref()] for var in self._ema_vars]
-        return ctx.merge_call(swap, args=(avg_vars, self._ema_vars))
+        self._ema_vars = get_ema_vars(self.learner.model)
+        self.learner._ema = self._ema
+        self.learner._ema_vars = self._ema_vars
 
     def begin_eval(self, state):
-        self.swap_weights()
+        avg_vars = [self._ema._averages[var.ref()] for var in self._ema_vars]
+        swap_weights(avg_vars, self._ema_vars)
 
     def after_eval(self, state):
-        self.swap_weights()
+        avg_vars = [self._ema._averages[var.ref()] for var in self._ema_vars]
+        swap_weights(avg_vars, self._ema_vars)
 
 
 class DropPathRateSchedule(Callback):
