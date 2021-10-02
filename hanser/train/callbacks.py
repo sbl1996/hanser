@@ -211,13 +211,15 @@ class EvalLogger(Callback):
 
 class EMA(Callback):
 
-    def __init__(self, decay, zero_debias=False):
+    def __init__(self, decay, num_updates=None, zero_debias=False):
         super().__init__()
         self.decay = decay
+        self.num_updates = num_updates
         self.zero_debias = zero_debias
 
     def init(self):
-        self._ema = tf.train.ExponentialMovingAverage(decay=self.decay, zero_debias=self.zero_debias)
+        self._ema = tf.train.ExponentialMovingAverage(
+            decay=self.decay, num_updates=self.num_updates, zero_debias=self.zero_debias)
         self._ema_vars = get_ema_vars(self.learner.model)
         self.learner._ema = self._ema
         self.learner._ema_vars = self._ema_vars
