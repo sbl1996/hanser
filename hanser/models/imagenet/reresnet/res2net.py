@@ -1,4 +1,4 @@
-from hanser.models.common.resnetpp.res2net import Bottleneck
+from hanser.models.common.reresnet.res2net import Bottleneck
 from hanser.models.imagenet.iresnet.resnet import _IResNet
 from hanser.models.imagenet.stem import SpaceToDepthStem
 

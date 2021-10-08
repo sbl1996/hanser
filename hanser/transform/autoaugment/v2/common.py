@@ -1,8 +1,3 @@
-# These implementations were stolen from https://github.com/google/automl/blob/master/efficientnetv2/autoaugment.py
-# 1. Image ops are exactly the same.
-# 2. Function to combine and apply policies is different.
-# 3. The way to apply hparams (cutout_max and translate_max) is different.
-
 from typing import Optional, Dict
 
 import tensorflow as tf
@@ -11,20 +6,20 @@ from hanser.transform import sharpness, shear_x, shear_y, solarize, solarize_add
 from hanser.transform.common import image_dimensions
 
 
+# Follow timm
 H_PARAMS = {
     "max_level": 10,
     "fill_color": (128, 128, 128),
     # Follows paper rather than code
     'cutout_max': 60 / 331,
-    'translate_max': 150 / 331.,
+    'translate_max': 0.45,
+    'shear_max': 0.3,
     'rotate_max': 30.,
-    'enhance_min': 0.1,
-    'enhance_max': 1.9,
+    'enhance_max': 0.9,
     'posterize_min': 4.0,
     'posterize_max': 8.0,
     'solarize_max': 256,
     'solarize_add_max': 110,
-    'shear_max': 0.3,
 }
 
 
@@ -41,8 +36,10 @@ def _rotate_level_to_arg(level, max_level, max_val):
     return level
 
 
-def _enhance_level_to_arg(level, max_level, min_val, max_val):
-    return (level / max_level) * (max_val - min_val) + min_val
+def _enhance_level_to_arg(level, max_level, max_val):
+    level = (level / max_level) * max_val
+    level = _randomly_negate_tensor(level)
+    return 1 - level
 
 
 def _translate_level_to_arg(level, max_level, max_val):
@@ -59,7 +56,7 @@ def _posterize_level_to_arg(level, max_level, min_val, max_val):
 
 def _solarize_level_to_arg(level, max_level, max_val):
     level = tf.cast((level / max_level) * max_val, tf.int32)
-    return level
+    return 256 - level
 
 
 def _solarize_add_level_to_arg(level, max_level, max_val):
