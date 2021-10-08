@@ -62,7 +62,7 @@ class ECALayer(Layer):
             t = int(abs((log(channels, 2) + b) / gamma))
             kernel_size = t if t % 2 else t + 1
         self.avg_pool = GlobalAvgPool(keep_dim=True)
-        self.conv = Conv1D(1, kernel_size=kernel_size, use_bias=False)
+        self.conv = Conv1D(1, kernel_size=kernel_size, use_bias=False, padding='SAME')
 
     def call(self, x):
         y = self.avg_pool(x)
