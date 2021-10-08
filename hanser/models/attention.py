@@ -1,6 +1,8 @@
+from math import log
+
 import tensorflow as tf
 from tensorflow.keras import Sequential
-from tensorflow.keras.layers import Layer
+from tensorflow.keras.layers import Layer, Conv1D
 
 from hanser.models.layers import GlobalAvgPool, Conv2d
 
@@ -47,6 +49,30 @@ class SELayer(Layer):
         if self.scale is not None:
             s = s * tf.constant(self.scale, s.dtype)
         return x * s
+
+
+class ECALayer(Layer):
+
+    def __init__(self, channels=None, kernel_size=None):
+        super().__init__()
+        if channels is None:
+            assert kernel_size is not None
+        else:
+            gamma, b = 2, 1
+            t = int(abs((log(channels, 2) + b) / gamma))
+            kernel_size = t if t % 2 else t + 1
+        self.avg_pool = GlobalAvgPool(keep_dim=True)
+        self.conv = Conv1D(1, kernel_size=kernel_size, use_bias=False)
+
+    def call(self, x):
+        y = self.avg_pool(x)
+
+        y = tf.transpose(tf.squeeze(y, axis=1), [0, 2, 1])
+        y = self.conv(y)
+        y = tf.expand_dims(tf.transpose(y, [0, 2, 1]), 1)
+
+        y = tf.sigmoid(y)
+        return x * y
 
 
 # class CBAMChannelAttention(Layer):

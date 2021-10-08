@@ -1,9 +1,9 @@
-from tensorflow.keras import Model, Sequential
+from tensorflow.keras import Sequential
 from tensorflow.keras.layers import Layer
 
 from hanser.models.layers import Conv2d, Norm, Act, Identity
-from hanser.models.imagenet.ecanet.resnet_vd import ECALayer
 from hanser.models.imagenet.gen_regnet.regnety import GenRegNet
+from hanser.models.attention import ECALayer
 
 
 class Bottleneck(Layer):
@@ -20,7 +20,7 @@ class Bottleneck(Layer):
             Conv2d(out_channels, out_channels, kernel_size=1, bias=False),
             Norm(out_channels)
         ])
-        self.eca = ECALayer()
+        self.eca = ECALayer(kernel_size=3)
         if stride != 1 or in_channels != out_channels:
             self.shortcut = Conv2d(
                 in_channels, out_channels, stride=stride, kernel_size=1, norm='def')

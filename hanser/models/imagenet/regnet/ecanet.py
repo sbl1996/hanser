@@ -2,8 +2,8 @@ from tensorflow.keras import Model, Sequential
 from tensorflow.keras.layers import Layer
 
 from hanser.models.layers import Conv2d, Norm, Act, Identity, GlobalAvgPool, Linear
-from hanser.models.imagenet.ecanet.resnet_vd import ECALayer
 from hanser.models.imagenet.stem import SimpleStem
+from hanser.models.attention import ECALayer
 
 
 class Bottleneck(Layer):
@@ -16,7 +16,7 @@ class Bottleneck(Layer):
                             norm='def', act='def')
         self.conv2 = Conv2d(out_channels, out_channels, kernel_size=3, stride=stride, groups=groups,
                             norm='def', act='def')
-        self.eca = ECALayer()
+        self.eca = ECALayer(kernel_size=3)
         self.conv3 = Sequential([
             Conv2d(out_channels, out_channels, kernel_size=1, bias=False),
             Norm(out_channels, gamma_init='zeros')

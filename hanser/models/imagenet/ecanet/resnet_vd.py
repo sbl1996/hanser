@@ -1,27 +1,12 @@
+from math import log
+
 import tensorflow as tf
 from tensorflow.keras import Sequential, Model
 from tensorflow.keras.layers import Layer, Conv1D, Dropout
 
 from hanser.models.layers import Conv2d, Act, Identity, GlobalAvgPool, Linear, Pool2d, Norm
 from hanser.models.imagenet.stem import ResNetvdStem
-
-
-class ECALayer(Layer):
-
-    def __init__(self, kernel_size=3):
-        super().__init__()
-        self.avg_pool = GlobalAvgPool(keep_dim=True)
-        self.conv = Conv1D(1, kernel_size=kernel_size, use_bias=False)
-
-    def call(self, x):
-        y = self.avg_pool(x)
-
-        y = tf.transpose(tf.squeeze(y, axis=1), [0, 2, 1])
-        y = self.conv(y)
-        y = tf.expand_dims(tf.transpose(y, [0, 2, 1]), 1)
-
-        y = tf.sigmoid(y)
-        return x * y
+from hanser.models.attention import ECALayer
 
 
 class Bottleneck(Layer):
