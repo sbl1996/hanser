@@ -24,9 +24,9 @@ def flatten_hw(x):
 
 
 def split_hw(x, H, W):
-    # (B, n_heads, H * W, d)
+    # (B, H * W, n_heads, d)
     B = tf.shape(x)[0]
-    n_heads, d = x.shape[1], x.shape[3]
+    n_heads, d = x.shape[2:4]
     return tf.reshape(x, [B, H, W, n_heads, d])
 
 
