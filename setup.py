@@ -34,6 +34,7 @@ REQUIRED = [
     "hhutil",
     "lark",
     "pendulum",
+    "loguru",
 ]
 
 DEPENDENCY_LINKS = [
