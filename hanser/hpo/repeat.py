@@ -16,14 +16,16 @@ def get_tpu_errors():
 def run_trial(
     train_fn: Callable,
     catch: Tuple[Type[Exception], ...] = (),
+    skip: Tuple[Type[Exception], ...] = (),
     i: int = 0,
 ):
     try:
         train_fn(i)
     except Exception as e:
         func_err = e
-        logger.warning(
-            "Experiment failed because of the following error: {}".format(repr(func_err)))
+        if skip and not isinstance(func_err, skip):
+            logger.warning(
+                "Experiment failed because of the following error: {}".format(repr(func_err)))
         if not isinstance(func_err, catch):
             raise e
 
@@ -32,11 +34,12 @@ def repeat(
     train_fn: Callable,
     times: int,
     catch: Tuple[Type[Exception], ...] = get_tpu_errors(),
+    skip: Tuple[Type[Exception], ...] = (),
     timeout: int = None,
 ):
     i = 0
     while True:
-        p = multiprocessing.Process(target=run_trial, args=(train_fn, catch, i))
+        p = multiprocessing.Process(target=run_trial, args=(train_fn, catch, skip, i))
         p.start()
         logger.info("Experiment {} started".format(i + 1))
         p.join(timeout=timeout)

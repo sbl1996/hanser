@@ -205,10 +205,14 @@ class Learner(metaclass=ABCMeta):
         if self._verbose:
             print(*args, **kwargs)
 
-    def fit(self, ds_train, max_epochs, ds_val=None, val_freq=1,
-            steps_per_epoch=None, val_steps=None, save_freq=None, callbacks=None,
-            reuse_train_iterator=True, local_eval_metrics=None, local_eval_freq=None):
+    def fit(self, ds_train, epochs, ds_val=None, val_freq=1,
+            steps_per_epoch=None, val_steps=None, max_epochs=None, save_freq=None,
+            callbacks=None, reuse_train_iterator=True,
+            local_eval_metrics=None, local_eval_freq=None):
         # It seems that reuse_train_iterator speed up the first epoch significantly
+        if max_epochs is None:
+            max_epochs = epochs
+
         self._max_epochs = max_epochs
 
         steps_per_epoch = steps_per_epoch or len(ds_train)
@@ -234,7 +238,9 @@ class Learner(metaclass=ABCMeta):
             self._train_it = iter(ds_train)
 
         cbks.begin_train(self._state['train'])
+        max_epochs = min(start_epoch + epochs, self._max_epochs)
         for epoch in range(start_epoch, max_epochs):
+
             self.set_global_state("epoch", epoch)
 
             state = self._state['train']
