@@ -1,10 +1,11 @@
 import os
 import math
 import functools
+import numpy as np
 import tensorflow as tf
 from hanser.datasets import prepare
 from hanser.datasets.classification.imagenet_classes import IMAGENET_CLASSES
-from hanser.datasets.imagenet import parse_example_proto, parse_and_transform
+from hanser.datasets.imagenet import parse_example_proto
 
 NUM_IMAGES = {
     'train': 6000,
@@ -19,6 +20,32 @@ NUM_FILES = {
 _SHUFFLE_BUFFER = 10000
 
 
+def get_classes():
+    return np.array(
+        [700, 3, 590, 811, 889, 479, 433, 908, 2, 259, 295, 517, 1,
+         209, 516, 790, 587, 758, 885, 613, 194, 332, 25, 218, 705, 939,
+         191, 388, 579, 718, 229, 144, 305, 543, 875, 89, 658, 822, 205,
+         76, 51, 660, 482, 624, 258, 341, 707, 448, 166, 352, 192, 399,
+         898, 247, 589, 883, 909, 182, 732, 848, 737, 635, 460, 178, 221,
+         782, 5, 450, 468, 656, 979, 773, 964, 703, 959, 987, 946, 88,
+         925, 874, 48, 287, 969, 60, 952, 184, 560, 383, 717, 7, 973,
+         407, 870, 414, 897, 457, 588, 56, 815, 813, 272, 706, 271, 591,
+         616, 11, 98, 296, 755, 115, 975, 854, 625, 228, 290, 855, 237,
+         395, 421, 446])
+
+
+def get_label_map(classes):
+    m = np.zeros(1001, dtype=np.int)
+    for i, c in enumerate(classes):
+        m[c] = i + 1
+    return m
+
+
+def map_label(label):
+    label_map = get_label_map(get_classes())
+    return tf.gather(tf.constant(label_map, label.dtype), label)
+
+
 def get_filenames(data_dir, training):
   if training:
     return [
@@ -28,6 +55,14 @@ def get_filenames(data_dir, training):
     return [
         os.path.join(data_dir, 'validation-%05d-of-00008' % i)
         for i in range(NUM_FILES['validation'])]
+
+
+def parse_and_transform(transform, training):
+    def fn(x):
+        image, label = parse_example_proto(x)
+        label = map_label(label)
+        return transform(image, label, training)
+    return fn
 
 
 def make_imagenet_dataset_split(
