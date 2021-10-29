@@ -13,8 +13,8 @@ NUM_IMAGES = {
 }
 
 NUM_FILES = {
-    'train': 8,
-    'validation': 8
+    'train': 10,
+    'validation': 4
 }
 
 _SHUFFLE_BUFFER = 10000
@@ -50,11 +50,11 @@ def map_label(label):
 def get_filenames(data_dir, training):
   if training:
     return [
-        os.path.join(data_dir, 'train-%05d-of-00008' % i)
+        os.path.join(data_dir, 'train-%05d-of-00010' % i)
         for i in range(NUM_FILES['train'])]
   else:
     return [
-        os.path.join(data_dir, 'validation-%05d-of-00008' % i)
+        os.path.join(data_dir, 'validation-%05d-of-00004' % i)
         for i in range(NUM_FILES['validation'])]
 
 
