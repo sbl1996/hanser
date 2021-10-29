@@ -1,6 +1,6 @@
 import os
 import math
-import functools
+from functools import partial
 import numpy as np
 import tensorflow as tf
 from hanser.datasets import prepare
@@ -58,11 +58,11 @@ def get_filenames(data_dir, training):
         for i in range(NUM_FILES['validation'])]
 
 
-def parse_and_transform(transform, training):
+def parse_and_transform(transform):
     def fn(x):
         image, label = parse_example_proto(x)
         label = map_label(label)
-        return transform(image, label, training)
+        return transform(image, label)
     return fn
 
 
@@ -98,9 +98,8 @@ def make_imagenet_dataset_split(
 
     if cache_parsed:
         dataset = dataset.map(parse_example_proto, num_parallel_calls=tf.data.experimental.AUTOTUNE)
-        transform = functools.partial(transform, training=training)
     else:
-        transform = parse_and_transform(transform, training)
+        transform = parse_and_transform(transform)
     ds = prepare(dataset, batch_size, transform, training=training, buffer_size=_SHUFFLE_BUFFER,
                  cache=True, prefetch=True, repeat=repeat, drop_remainder=drop_remainder, **kwargs)
 
@@ -130,10 +129,10 @@ def make_imagenet_dataset(
         eval_files = get_filenames(data_dir, training=False)
 
     ds_train, steps_per_epoch = make_imagenet_dataset_split(
-        batch_size, transform, train_files, 'train', training=True,
+        batch_size, partial(transform, training=True), train_files, 'train', training=True,
         zip_transform=zip_transform, batch_transform=batch_transform,
         aug_repeats=aug_repeats, n_batches_per_step=n_batches_per_step, **kwargs)
     ds_eval, eval_steps = make_imagenet_dataset_split(
-        eval_batch_size, transform, eval_files, 'validation', training=False,
+        eval_batch_size, partial(transform, training=False), eval_files, 'validation', training=False,
         drop_remainder=drop_remainder, n_batches_per_step=1, **kwargs)
     return ds_train, ds_eval, steps_per_epoch, eval_steps
