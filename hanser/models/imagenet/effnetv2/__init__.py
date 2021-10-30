@@ -134,5 +134,5 @@ class EfficientNetV2(Model):
         return x
 
 
-def efficientnet_v2_s(**kwargs):
-    return EfficientNetV2(v2_s_block, dropout=0.2, **kwargs)
+def efficientnet_v2_s(dropout=0.2, **kwargs):
+    return EfficientNetV2(v2_s_block, dropout=dropout, **kwargs)
