@@ -26,5 +26,5 @@ class StageControl(Callback):
 
 
 def train_multi_stage(train_fn):
-    train_fn = lambda _i: train_fn(_i)
+    train_fn = lambda _i: train_fn()
     repeat(train_fn, 1000, catch=(tf.errors.UnavailableError, StageEndException))
