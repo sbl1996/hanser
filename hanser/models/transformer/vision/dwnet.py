@@ -94,9 +94,7 @@ class SpatialBlock(Layer):
     def call(self, x):
 
         shortcut = x
-        print(shortcut.shape)
         x = self.attn2conv(x)
-        print(x.shape)
         x = shortcut + self.drop_path(x)
 
         shortcut = x
