@@ -67,8 +67,7 @@ class MultiHeadAttention(Layer):
 
         scaled_attention = tf.transpose(scaled_attention, perm=[0, 2, 1, 3])
 
-        output = tf.reshape(scaled_attention,
-                                      (batch_size, -1, self.d_model))
+        output = tf.reshape(scaled_attention, (batch_size, -1, self.d_model))
         if self.dense:
             output = self.dense(output)
         if self.dropout:

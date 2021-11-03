@@ -138,7 +138,10 @@ def Conv2d(in_channels: int,
             conv_padding = 'VALID'
     else:
         # 4. manual padding
-        pad = ZeroPadding2D(padding)
+        if padding != ((0, 0), (0, 0)):
+            pad = ZeroPadding2D(padding)
+        else:
+            pad = None
         conv_padding = 'VALID'
 
 

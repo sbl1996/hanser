@@ -119,7 +119,7 @@ class EfficientNetV2(Model):
                 b += 1
 
         self.blocks = Sequential(blocks)
-        self.top = Conv2d(in_channels, 1280, 1,norm='def', act='def')
+        self.top = Conv2d(in_channels, 1280, 1, norm='def', act='def')
         self.avgpool = GlobalAvgPool()
         self.dropout = Dropout(dropout)
         self.fc = Linear(1280, num_classes)
