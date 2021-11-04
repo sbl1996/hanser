@@ -83,7 +83,7 @@ class AdamW(tf.keras.optimizers.Optimizer):
         var_name = self._get_variable_name(var.name)
         if self._do_use_weight_decay(var_name):
             wd = coefficients["weight_decay"] * coefficients["lr_t"]
-            var = var.assign_sub(wd * var, self._use_locking)
+            var.assign_sub(wd * var, self._use_locking)
 
         if not self.amsgrad:
             return tf.raw_ops.ResourceApplyAdam(
