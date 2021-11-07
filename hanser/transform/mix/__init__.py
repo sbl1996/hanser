@@ -8,6 +8,7 @@ from hanser.transform.mix.fmix import fmix
 from hanser.transform.common import image_dimensions
 
 
+# timm batch mode
 @curry
 def mixup_or_cutmix_batch(
     image, label, mixup_alpha=0.2, cutmix_alpha=1.0, switch_prob=0.5, hard=False, **gen_lam_kwargs):
