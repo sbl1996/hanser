@@ -1,24 +1,27 @@
 import tensorflow as tf
 from tensorflow.keras import Sequential, Model
 from tensorflow.keras.layers import Layer
-from tensorflow.keras.initializers import Constant
 
 from hanser.train.callbacks import Callback
 from hanser.models.common.modules import get_shortcut_vd
 from hanser.models.layers import Conv2d, GlobalAvgPool, Linear, Act, Identity, Norm
-from hanser.models.modules import DropPath
+from hanser.models.modules import DropPath, ReZero
 
 
 class DropPathRateSchedule(Callback):
 
-    def __init__(self, drop_path):
+    def __init__(self, drop_path, from_epoch=0):
         super().__init__()
         self.drop_path = drop_path
+        self.from_epoch = from_epoch
 
     def begin_epoch(self, state):
         epoch = self.learner.epoch
         epochs = state['epochs']
-        rate = (epoch + 1) / epochs * self.drop_path
+        if epoch <= self.from_epoch:
+            rate = 0.
+        else:
+            rate = (epoch - self.from_epoch + 1) / epochs * self.drop_path
         for l in self.learner.model.submodules:
             if isinstance(l, DropPath):
                 l.rate.assign(rate)
@@ -50,9 +53,11 @@ class Bottleneck(Layer):
         if start_block:
             self.bn3 = Norm(out_channels)
 
+        # self.rezero = ReZero()
         self.drop_path = DropPath(drop_path) if drop_path else Identity()
         self.gate = self.add_weight(
-            name='gate', shape=(), trainable=False, initializer=Constant(1.))
+            name='gate', shape=(), dtype=tf.float32,
+            trainable=False, initializer=tf.keras.initializers.Constant(1.))
 
         if end_block:
             self.bn3 = Norm(out_channels)
@@ -82,6 +87,7 @@ class Bottleneck(Layer):
             x = self.bn3(x)
 
         x = self.drop_path(x)
+        # x = self.rezero(x)
         x = x * tf.cast(self.gate, x.dtype)
         x = x + identity
 

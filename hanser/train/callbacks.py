@@ -44,7 +44,7 @@ def config_callbacks(
             cbks.append(ModelCheckpoint(save_freq))
     else:
         if not any(isinstance(k, EvalLogger) for k in cbks):
-            cbks.insert(0, EvalLogger())
+            cbks.insert(0, EvalLogger(print_fn=learner._print))
     cbks = sorted(cbks, key=lambda c: -c.priority)
     cbk_list = CallbackList(learner, cbks)
     return cbk_list
