@@ -8,7 +8,7 @@ from hanser.models.layers import Conv2d, Act, Identity, Norm, NormAct
 from hanser.models.common.modules import get_shortcut_vd
 from hanser.models.modules import DropPath
 
-from hanser.models.nas.simple.iresnet import _IResNet
+from hanser.models.nas.one.iresnet import _IResNet
 
 class Bottleneck(Layer):
     expansion = 4
