@@ -36,6 +36,7 @@ class SGD(tf.keras.optimizers.Optimizer):
         self._set_hyper("weight_decay", weight_decay)
         self.nesterov = nesterov
         self.exclude_from_weight_decay = exclude_from_weight_decay
+        self.use_weight_decay = weight_decay != 0
 
     def _create_slots(self, var_list):
         for var in var_list:
@@ -43,6 +44,8 @@ class SGD(tf.keras.optimizers.Optimizer):
 
     def _do_use_weight_decay(self, param_name):
         """Whether to use L2 weight decay for `param_name`."""
+        if not self.use_weight_decay:
+            return False
         if self.exclude_from_weight_decay:
             for r in self.exclude_from_weight_decay:
                 if re.search(r, param_name) is not None:
