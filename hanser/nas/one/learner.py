@@ -22,10 +22,10 @@ class OneShotLearner(Learner):
             per_example_loss = self.criterion(target, preds)
             loss = self.reduce_loss(per_example_loss)
 
-            l2_loss = self.weight_decay * model.l2_loss()
+            l2_loss = model.l2_loss()
             if self._strategy:
                 l2_loss = l2_loss / self._strategy.num_replicas_in_sync
-            loss = loss + l2_loss
+            loss = loss + self.weight_decay * l2_loss
 
             if self.dtype == tf.float16:
                 loss = optimizer.get_scaled_loss(loss)
