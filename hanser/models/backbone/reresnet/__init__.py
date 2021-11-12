@@ -15,6 +15,3 @@ class IResNet(_IResNet):
 
 def re_resnet_s(**kwargs):
     return IResNet(Bottleneck, [3, 4, 8, 3], **kwargs)
-
-
-resnet50 = re_resnet_s
