@@ -15,3 +15,6 @@ class IResNet(_IResNet):
 
 def re_resnet_s(**kwargs):
     return IResNet(Bottleneck, [3, 4, 8, 3], **kwargs)
+
+def re_resnet_sp(layers, **kwargs):
+    return IResNet(Bottleneck, layers, **kwargs)
