@@ -275,12 +275,13 @@ class AntiAliasing(Layer):
     # Although REFLECT padding is the original way, we find CONSTANT padding
     # performs similarly and is faster.
 
-    def __init__(self, kernel_size=3, stride=2, mode=None, **kwargs):
+    def __init__(self, kernel_size=3, stride=2, mode=None, learnable=False, **kwargs):
         super().__init__(**kwargs)
         cfg = DEFAULTS['anti_aliasing']
         self.kernel_size = kernel_size
         self.stride = stride
         self.mode = mode or cfg['mode']
+        self.learnable = learnable
 
     def build(self, input_shape):
         kernel_size = self.kernel_size
@@ -314,7 +315,7 @@ class AntiAliasing(Layer):
 
         self.kernel = self.add_weight(
             name="kernel", shape=kernel.shape, dtype=self.dtype,
-            initializer=initializers.Constant(kernel), trainable=False)
+            initializer=initializers.Constant(kernel), trainable=self.learnable)
 
     # noinspection PyMethodOverriding
     def call(self, inputs):
@@ -336,6 +337,7 @@ class AntiAliasing(Layer):
             "kernel_size": self.kernel_size,
             "stride": self.stride,
             "mode": self.mode,
+            "learnable": self.learnable,
         }
         return base_config
 

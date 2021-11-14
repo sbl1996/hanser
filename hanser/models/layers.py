@@ -226,7 +226,10 @@ def Conv2d(in_channels: int,
         layers.append(Pool2d(kernel_size=3, stride=2, type='avg'))
 
     if anti_alias:
-        layers.append(AntiAliasing(kernel_size=3, stride=2))
+        cfg = DEFAULTS['anti_aliasing']
+        layers.append(
+            AntiAliasing(kernel_size=cfg['kernel_size'], stride=2,
+                         mode=cfg['mode'], learnable=cfg['learnable']))
 
     if len(layers) == 1:
         return layers[0]

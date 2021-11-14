@@ -68,7 +68,9 @@ DEFAULTS = {
         'groups': 32,
     },
     'anti_aliasing': {
+        'kernel_size': 3,
         'mode': "CONSTANT",
+        'learnable': False,
     }
 }
 
@@ -134,6 +136,11 @@ _defaults_schema = {
         'momentum': {'type': 'float', 'min': 0.0, 'max': 1.0},
         'eps': {'type': 'float', 'min': 0.0},
         'groups': {'type': 'integer'},
+    },
+    'anti_aliasing': {
+        'kernel_size': {'type': 'integer'},
+        'mode': {'type': 'string', 'allowed': ['CONSTANT', 'REFLECT']},
+        'learnable': {'type': 'boolean'},
     }
 }
 
