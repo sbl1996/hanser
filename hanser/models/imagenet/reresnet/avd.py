@@ -1,5 +1,5 @@
-from hanser.models.common.reresnet import Bottleneck
-from hanser.models.backbone.iresnet.resnet import _IResNet
+from hanser.models.common.reresnet.avd import Bottleneck
+from hanser.models.imagenet.iresnet.resnet import _IResNet
 from hanser.models.imagenet.stem import SpaceToDepthStem
 
 
@@ -16,5 +16,5 @@ class IResNet(_IResNet):
 def re_resnet_s(**kwargs):
     return IResNet(Bottleneck, [3, 4, 8, 3], **kwargs)
 
-def re_resnet_sp1(**kwargs):
-    return IResNet(Bottleneck, [2, 3, 9, 5], **kwargs)
+def re_resnet_sp(layers, **kwargs):
+    return IResNet(Bottleneck, layers, **kwargs)

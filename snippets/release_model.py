@@ -62,4 +62,4 @@ def release_model(
 if __name__ == '__main__':
     app()
 
-# python release_model.py "~/Downloads/88/ckpt" ppresnetvd50_nlb "~/Downloads"
+# python release_model.py "/Users/hrvvi/Downloads/290/ckpt" re_resnet_sp1 "/Users/hrvvi/Downloads"

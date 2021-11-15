@@ -135,8 +135,8 @@ class _IResNet(Model):
                     weights2.extend(l.trainable_variables)
                 else:
                     weights1.extend(l.trainable_variables)
-        decay_rate = 1.0 - tf.cast(self.drop_rate, tf.float32)
         l2_loss = tf.add_n([tf.nn.l2_loss(v) for v in weights1])
         if weights2:
+            decay_rate = 1.0 - tf.cast(self.drop_rate, tf.float32)
             l2_loss = l2_loss + decay_rate * tf.add_n([tf.nn.l2_loss(v) for v in weights2])
         return l2_loss
