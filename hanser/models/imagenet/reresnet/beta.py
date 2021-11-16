@@ -23,4 +23,4 @@ def re_resnet_sp(layers, **kwargs):
     return IResNet(Bottleneck, layers, **kwargs)
 
 def re_resnet_ls(**kwargs):
-    return IResNet(Bottleneck, [3, 4, 6, 3], **kwargs)
+    return IResNet(Bottleneck, [3, 4, 6, 3], light_stem=False, **kwargs)
