@@ -154,8 +154,11 @@ def load_model_from_hub(name_or_url_or_path: str, model_dir=None, check_hash=Fal
     if is_url(name_or_url_or_path):
         if github_access_token is not None:
             url = name_or_url_or_path
-            dst = model_dir or _get_default_model_dir()
-            path = download_github_private_assert(url, dst, github_access_token)
+            if model_dir is None:
+                model_dir = _get_default_model_dir()
+            else:
+                model_dir = fmt_path(model_dir)
+            path = download_github_private_assert(url, model_dir, github_access_token)
             url_or_path = path
         else:
             url_or_path = name_or_url_or_path
