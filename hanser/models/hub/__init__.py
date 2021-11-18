@@ -5,7 +5,7 @@ import re
 from urllib.parse import urlparse
 from pathlib import Path
 
-from hhutil.io import fmt_path, download_file, unzip, eglob
+from hhutil.io import fmt_path, download_file, unzip, eglob, download_github_private_assert
 from hhutil.hash import sha256
 
 _model_path = {
@@ -64,6 +64,12 @@ def checkpoint_exists(ckpt_dir: Path):
     return True
 
 
+def _get_default_model_dir():
+    hub_dir = _get_hanser_home() / 'hub'
+    model_dir = hub_dir / 'checkpoints'
+    return model_dir
+
+
 def load_model_from_url_or_path(url_or_path, model_dir=None, check_hash=False):
     r"""Loads the Torch serialized object at the given URL.
 
@@ -90,8 +96,7 @@ def load_model_from_url_or_path(url_or_path, model_dir=None, check_hash=False):
     """
 
     if model_dir is None:
-        hub_dir = _get_hanser_home() / 'hub'
-        model_dir = hub_dir / 'checkpoints'
+        model_dir = _get_default_model_dir()
 
     model_dir.mkdir(parents=True, exist_ok=True)
 
@@ -140,13 +145,20 @@ def is_url(s):
     return all([result.scheme, result.netloc, result.path])
 
 
-def load_model_from_hub(name_or_url_or_path: str, model_dir=None, check_hash=False):
+def load_model_from_hub(name_or_url_or_path: str, model_dir=None, check_hash=False, github_access_token=None):
+
     if isinstance(name_or_url_or_path, Path):
         path = name_or_url_or_path
         return load_model_from_url_or_path(path, model_dir, check_hash)
 
     if is_url(name_or_url_or_path):
-        url_or_path = name_or_url_or_path
+        if github_access_token is not None:
+            url = name_or_url_or_path
+            dst = model_dir or _get_default_model_dir()
+            path = download_github_private_assert(url, dst, github_access_token)
+            url_or_path = path
+        else:
+            url_or_path = name_or_url_or_path
     else:
         name_or_path = name_or_url_or_path
         if name_or_path.endswith(".zip"):

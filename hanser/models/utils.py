@@ -28,7 +28,7 @@ def load_checkpoint(ckpt_path, **ckpt_kwargs):
     return status.assert_nontrivial_match().expect_partial()
 
 
-def load_pretrained_model(name_or_url_or_path, model, with_fc=False):
+def load_pretrained_model(name_or_url_or_path, model, with_fc=False, github_access_token=None):
     r"""Load pretrained weights to the model.
 
     Args:
@@ -59,7 +59,7 @@ def load_pretrained_model(name_or_url_or_path, model, with_fc=False):
         >>> model = resnet50()
         >>> load_pretrained_model("resnetvd50", model, with_fc=True)
     """
-    ckpt_path = load_model_from_hub(name_or_url_or_path)
+    ckpt_path = load_model_from_hub(name_or_url_or_path, github_access_token=github_access_token)
     status = load_checkpoint(ckpt_path, model=model)
     if with_fc:
         assert hasattr(model, "fc")
