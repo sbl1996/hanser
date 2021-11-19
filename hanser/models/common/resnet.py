@@ -34,13 +34,13 @@ class BasicBlock(Layer):
 class Bottleneck(Layer):
     expansion = 4
 
-    def __init__(self, in_channels, channels, stride, zero_init_residual=False):
+    def __init__(self, in_channels, channels, stride, zero_init_residual=False, dilation=1):
         super().__init__()
         out_channels = channels * self.expansion
         self.conv1 = Conv2d(in_channels, channels, kernel_size=1,
                             norm='def', act='def')
         self.conv2 = Conv2d(channels, channels, kernel_size=3, stride=stride,
-                            norm='def', act='def')
+                            norm='def', act='def', dilation=dilation)
         self.conv3 = Conv2d(channels, out_channels, kernel_size=1,
                             norm='def', gamma_init='zeros' if zero_init_residual else 'ones')
 
