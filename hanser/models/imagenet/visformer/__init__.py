@@ -215,15 +215,15 @@ class Visformer(Model):
         return x
 
 
-def visformer_tiny(**kwargs):
+def visformer_tiny(drop_path=0.03, **kwargs):
     model = Visformer(
         img_size=224, init_channels=16, embed_dim=192, depth=[7,4,4], num_heads=3, mlp_ratio=4.,
-        group=8, drop_path=0.03, **kwargs)
+        group=8, drop_path=drop_path, **kwargs)
     return model
 
 
-def visformer_small(**kwargs):
+def visformer_small(drop_path=0.1, **kwargs):
     model = Visformer(
         img_size=224, init_channels=32, embed_dim=384, depth=[7,4,4], num_heads=6, mlp_ratio=4.,
-        group=8, drop_path=0.1, **kwargs)
+        group=8, drop_path=drop_path, **kwargs)
     return model
