@@ -53,6 +53,9 @@ DEFAULTS = {
     'leaky_relu': {
         'alpha': 0.1,
     },
+    'gelu': {
+        'approximate': False,
+    },
     'norm': 'bn',
     'dropblock': {
         'keep_prob': 0.9,

@@ -519,7 +519,7 @@ class ScaledWSConv2D(Conv2D):
 
 class GELU(Layer):
 
-    def __init__(self, approximate: bool = True, **kwargs):
+    def __init__(self, approximate: bool = False, **kwargs):
         super().__init__(**kwargs)
         self.approximate = approximate
         self.supports_masking = True

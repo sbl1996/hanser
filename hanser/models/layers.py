@@ -343,7 +343,7 @@ def Act(type='default', **kwargs):
     if type == 'mish':
         return Mish()
     elif type == 'gelu':
-        return GELU()
+        return GELU(approximate=DEFAULTS['gelu']['approximate'])
     elif type == 'scaled_relu':
         return ScaledReLU()
     elif type == 'scaled_swish':
