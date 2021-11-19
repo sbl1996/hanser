@@ -11,7 +11,7 @@ DEFAULTS = {
         'sync': False,
         'fused': None,
     },
-    'fixed_padding': False,
+    'fixed_padding': True,
     'naive_padding': False,
     'conv': {
         'depthwise': {
@@ -124,6 +124,9 @@ _defaults_schema = {
     },
     'leaky_relu': {
         'alpha': {'type': 'float', 'min': 0.0, 'max': 1.0},
+    },
+    'gelu': {
+        'approximate': {'type': 'boolean'},
     },
     'norm': {'type': 'string', 'allowed': ['bn', 'gn', 'none']},
     'seed': {'type': 'integer'},

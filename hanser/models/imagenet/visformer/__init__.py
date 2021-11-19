@@ -131,7 +131,7 @@ class PositionEmbedding(Layer):
 class Visformer(Model):
 
     def __init__(self, img_size=224, init_channels=32, num_classes=1000, embed_dim=384, depth=(7, 4, 4),
-                 num_heads=6, mlp_ratio=4., drop_rate=0., attn_drop_rate=0., drop_path_rate=0.,
+                 num_heads=6, mlp_ratio=4., drop_rate=0., attn_drop_rate=0., drop_path=0.,
                  attn_stage=(False, True, True), spatial_conv=(True, False, False), group=8):
         super().__init__()
         self.num_classes = num_classes
@@ -140,7 +140,7 @@ class Visformer(Model):
         self.img_size = img_size
         self.stage_num1, self.stage_num2, self.stage_num3 = depth
         depth = sum(depth)
-        dpr = [x.numpy() for x in tf.linspace(0., drop_path_rate, depth)]
+        dpr = [x.numpy() for x in tf.linspace(0., drop_path, depth)]
 
         self.stem = Conv2d(3, init_channels, 7, stride=2, norm='def', act='relu')
         img_size //= 2
@@ -217,11 +217,13 @@ class Visformer(Model):
 
 def visformer_tiny(**kwargs):
     model = Visformer(
-        img_size=224, init_channels=16, embed_dim=192, depth=[7,4,4], num_heads=3, mlp_ratio=4., group=8, **kwargs)
+        img_size=224, init_channels=16, embed_dim=192, depth=[7,4,4], num_heads=3, mlp_ratio=4.,
+        group=8, drop_path=0.03, **kwargs)
     return model
 
 
 def visformer_small(**kwargs):
     model = Visformer(
-        img_size=224, init_channels=32, embed_dim=384, depth=[7,4,4], num_heads=6, mlp_ratio=4., group=8, **kwargs)
+        img_size=224, init_channels=32, embed_dim=384, depth=[7,4,4], num_heads=6, mlp_ratio=4.,
+        group=8, drop_path=0.1, **kwargs)
     return model
