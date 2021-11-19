@@ -21,9 +21,9 @@ _model_path = {
     "legacy_res2netvd50_nlb": "https://github.com/sbl1996/hanser/releases/download/0.1.1/res2netvd50_nlb-8958f30f.zip",
     "legacy_ppresnet50": "https://github.com/sbl1996/hanser/releases/download/0.1.1/ppresnet50-7c0adb0b.zip",
     "legacy_ppresnet50_nlb": "https://github.com/sbl1996/hanser/releases/download/0.1.1/ppresnetvd50_nlb-c77c5f1c.zip",
-    "resnet_beta_50": "https://github.com/sbl1996/hanser/releases/download/0.1.3/resnet_beta_50-5001074b.zip",
-    "resnet_beta_50_aug": "https://github.com/sbl1996/hanser/releases/download/0.1.3/resnet_beta_50_aug-ed44e04e.zip",
-    "resnet_beta_50_aug1": "https://github.com/sbl1996/hanser/releases/download/0.1.3/resnet_beta_50_aug1-f9259322.zip",
+    "re_resnet_s": "https://github.com/sbl1996/hanser/releases/download/0.1.3/re_resnet_s-5001074b.zip",
+    "re_resnet_s_aug": "https://github.com/sbl1996/hanser/releases/download/0.1.3/re_resnet_s_aug-ed44e04e.zip",
+    "re_resnet_s_aug1": "https://github.com/sbl1996/hanser/releases/download/0.1.3/re_resnet_s_aug1-f9259322.zip",
 }
 
 HASH_REGEX = re.compile(r'-([a-f0-9]*)\.')
