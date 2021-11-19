@@ -6,6 +6,18 @@ import tensorflow as tf
 
 from hanser.detection.bbox import BBox
 from hanser.detection.eval import average_precision
+from hhutil.io import download_file, fmt_path
+from hhutil.hash import md5
+
+
+def download_instances_val2017(save_dir="./"):
+    save_dir = fmt_path(save_dir)
+    fp = save_dir / "instances_val2017.json"
+    if fp.exists() and md5(fp) == "b681580a54b900b3cb44022fd1102ad5":
+        return fp
+    else:
+        url = "https://github.com/sbl1996/hanser/releases/download/0.1.3/instances_val2017.json"
+        return download_file(url, save_dir)
 
 
 class MeanAveragePrecision:

@@ -35,6 +35,7 @@ REQUIRED = [
     "lark",
     "pendulum",
     "loguru",
+    "typer",
 ]
 
 DEPENDENCY_LINKS = [
