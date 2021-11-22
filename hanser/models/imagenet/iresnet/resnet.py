@@ -1,3 +1,4 @@
+import numpy as np
 from tensorflow.keras import Sequential, Model
 
 from hanser.models.layers import GlobalAvgPool, Linear, Dropout

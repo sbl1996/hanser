@@ -1,3 +1,5 @@
+import numpy as np
+
 from hanser.models.common.reresnet import Bottleneck
 from hanser.models.imagenet.iresnet.resnet import _IResNet
 from hanser.models.imagenet.stem import SpaceToDepthStem, ResNetvdStem
@@ -12,6 +14,8 @@ class IResNet(_IResNet):
             stem = SpaceToDepthStem(stem_channels)
         else:
             stem = ResNetvdStem(stem_channels)
+        if drop_path:
+            drop_path = tuple(np.linspace(0.0, drop_path, sum(layers)))
         super().__init__(stem, block, layers, num_classes, channels,
                          strides=(1, 2, 2, 2), dropout=dropout, se_last=True,
                          drop_path=drop_path, se_reduction=se_reduction, se_mode=se_mode)
