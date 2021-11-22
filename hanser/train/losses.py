@@ -36,7 +36,7 @@ class BinaryCrossEntropy:
             y_true = y_true * (1.0 - self.label_smoothing) + (self.label_smoothing / num_classes)
         if self.target_thresh and self.thresh_after_smooth:
             y_true = tf.cast(y_true > self.target_thresh, y_pred.dtype)
-        loss = tf.nn.sigmoid_cross_entropy_with_logits(y_true, y_true)
+        loss = tf.nn.sigmoid_cross_entropy_with_logits(y_true, y_pred)
         if self.reduction == 'sum':
             loss = tf.reduce_sum(loss, axis=-1)
         elif self.reduction == 'mean':
