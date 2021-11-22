@@ -17,10 +17,12 @@ def bce(y, p):
 
 y = [
     [0.9, 0.05, 0.05],
+    [0.9, 0.05, 0.05],
 ]
 
 p = [
     [0.6, 0.35, 0.05],
+    [0.9, 0.05, 0.05],
 ]
 
 y = tf.convert_to_tensor(y)
@@ -32,4 +34,4 @@ import torch.nn.functional as F
 
 yt = torch.tensor(y.numpy())
 pt = torch.tensor(p.numpy())
-F.binary_cross_entropy(pt, yt, reduction='mean')
+F.binary_cross_entropy_with_logits(pt, yt, reduction='mean')

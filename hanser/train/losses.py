@@ -20,11 +20,13 @@ class CrossEntropy:
 
 class BinaryCrossEntropy:
 
-    def __init__(self, label_smoothing=0.0, target_thresh=None, reduction='none', thresh_after_smooth=True):
-        self._criterion = BinaryCrossentropy(from_logits=True, reduction=reduction)
+    def __init__(self, label_smoothing=0.0, target_thresh=None, thresh_after_smooth=True,
+                 reduction='sum'):
+        assert reduction in ['sum', 'mean']
         self.label_smoothing = label_smoothing
         self.target_thresh = target_thresh
         self.thresh_after_smooth = thresh_after_smooth
+        self.reduction = reduction
 
     def __call__(self, y_true, y_pred):
         if self.target_thresh and not self.thresh_after_smooth:
@@ -34,5 +36,9 @@ class BinaryCrossEntropy:
             y_true = y_true * (1.0 - self.label_smoothing) + (self.label_smoothing / num_classes)
         if self.target_thresh and self.thresh_after_smooth:
             y_true = tf.cast(y_true > self.target_thresh, y_pred.dtype)
-        loss = self._criterion(y_true, y_pred)
+        loss = tf.nn.sigmoid_cross_entropy_with_logits(y_true, y_true)
+        if self.reduction == 'sum':
+            loss = tf.reduce_sum(loss, axis=-1)
+        elif self.reduction == 'mean':
+            loss = tf.reduce_mean(loss, axis=-1)
         return loss
