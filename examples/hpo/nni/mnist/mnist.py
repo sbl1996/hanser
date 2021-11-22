@@ -45,8 +45,8 @@ criterion = CrossEntropy()
 epochs = 20
 
 base_lr = params["learning_rate"]
-lr_shcedule = CosineLR(base_lr, steps_per_epoch, epochs=epochs, min_lr=0)
-optimizer = SGD(lr_shcedule, momentum=0.9, nesterov=True, weight_decay=params["weight_decay"])
+lr_schedule = CosineLR(base_lr, steps_per_epoch, epochs=epochs, min_lr=0)
+optimizer = SGD(lr_schedule, momentum=0.9, nesterov=True, weight_decay=params["weight_decay"])
 
 train_metrics = {
     'loss': Mean(),

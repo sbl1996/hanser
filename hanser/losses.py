@@ -2,7 +2,7 @@ from toolz import curry
 
 import tensorflow as tf
 import tensorflow.keras.backend as K
-from hanser.train.losses import CrossEntropy
+from hanser.train.losses import CrossEntropy, BinaryCrossEntropy
 from hanser.ops import to_float, to_int
 
 

@@ -25,12 +25,7 @@ def mixup_batch(image, label, alpha, hard=False, **gen_lam_kwargs):
     image2 = tf.gather(image, indices)
     label2 = tf.gather(label, indices)
 
-    lam_image = tf.cast(lam, image.dtype)[:, None, None, None]
-    image = lam_image * image + (1 - lam_image) * image2
-
-    lam_label = tf.cast(lam, label.dtype)[:, None]
-    label = lam_label * label + (1 - lam_label) * label2
-    return image, label
+    return _mixup(image, label, image2, label2, lam)
 
 
 @curry

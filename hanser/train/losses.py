@@ -1,4 +1,5 @@
-from tensorflow.keras.losses import CategoricalCrossentropy
+import tensorflow as tf
+from tensorflow.keras.losses import CategoricalCrossentropy, BinaryCrossentropy
 
 
 class CrossEntropy:
@@ -14,4 +15,24 @@ class CrossEntropy:
             loss = self._criterion(y_true, y_pred) + self._auxiliary_weight * self._criterion(y_true, y_pred_aux)
         else:
             loss = self._criterion(y_true, y_pred)
+        return loss
+
+
+class BinaryCrossEntropy:
+
+    def __init__(self, label_smoothing=0.0, target_thresh=None, reduction='none', thresh_after_smooth=True):
+        self._criterion = BinaryCrossentropy(from_logits=True, reduction=reduction)
+        self.label_smoothing = label_smoothing
+        self.target_thresh = target_thresh
+        self.thresh_after_smooth = thresh_after_smooth
+
+    def __call__(self, y_true, y_pred):
+        if self.target_thresh and not self.thresh_after_smooth:
+            y_true = tf.cast(y_true > self.target_thresh, y_pred.dtype)
+        if self.label_smoothing:
+            num_classes = tf.cast(tf.shape(y_true)[-1], y_pred.dtype)
+            y_true = y_true * (1.0 - self.label_smoothing) + (self.label_smoothing / num_classes)
+        if self.target_thresh and self.thresh_after_smooth:
+            y_true = tf.cast(y_true > self.target_thresh, y_pred.dtype)
+        loss = self._criterion(y_true, y_pred)
         return loss
