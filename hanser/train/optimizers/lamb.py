@@ -5,7 +5,6 @@ import tensorflow as tf
 from typeguard import typechecked
 from hanser.train.optimizers.types import FloatTensorLike
 
-
 # From tensorflow_addons.optimizers.LAMB
 @tf.keras.utils.register_keras_serializable(package="Hanser")
 class LAMB(tf.keras.optimizers.Optimizer):
@@ -25,6 +24,7 @@ class LAMB(tf.keras.optimizers.Optimizer):
         weight_decay: FloatTensorLike = 0.0,
         exclude_from_weight_decay: Optional[List[str]] = None,
         exclude_from_layer_adaptation: Optional[List[str]] = None,
+        max_grad_norm: FloatTensorLike = None,
         name: str = "LAMB",
         **kwargs,
     ):
@@ -55,14 +55,11 @@ class LAMB(tf.keras.optimizers.Optimizer):
               decay of learning rate. `lr` is included for backward
               compatibility, recommended to use `learning_rate` instead.
         """
+        assert "global_clipnorm" not in kwargs, "Use max_grad_norm instead."
+        if max_grad_norm:
+            kwargs['global_clipnorm'] = max_grad_norm
         super().__init__(name, **kwargs)
 
-        # Just adding the square of the weights to the loss function is *not*
-        # the correct way of using L2 regularization/weight decay with Adam,
-        # since that will interact with the m and v parameters in strange ways.
-        #
-        # Instead we want to decay the weights in a manner that doesn't interact
-        # with the m/v parameters.
         self._set_hyper("weight_decay", weight_decay)
         self._set_hyper("learning_rate", kwargs.get("lr", learning_rate))
 
