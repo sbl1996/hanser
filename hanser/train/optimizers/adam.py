@@ -2,8 +2,9 @@ import re
 from typing import Union, Callable, Optional, List, Tuple
 
 import tensorflow as tf
-from tensorflow_addons.utils.types import FloatTensorLike
 from typeguard import typechecked
+
+from hanser.train.optimizers.types import FloatTensorLike
 
 
 @tf.keras.utils.register_keras_serializable(package="Hanser")

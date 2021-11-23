@@ -4,9 +4,6 @@ from toolz import curry
 
 import tensorflow as tf
 
-from tensorflow_addons.image.translate_ops import translations_to_projective_transforms
-from tensorflow_addons.image.transform_ops import angles_to_projective_transforms
-
 from hanser.ops import log_uniform, prepend_dims
 from hanser.transform.common import image_dimensions, to_4D_image, get_ndims, from_4D_image
 from hanser.transform.mix import mixup, mixup_in_batch, mixup_batch, cutmix, cutmix_in_batch, cutmix_batch, fmix, mixup_cutmix_batch, mixup_or_cutmix_batch, mixup_cutmix_batch2, resizemix_batch
@@ -14,6 +11,98 @@ from hanser.transform.mix import mixup, mixup_in_batch, mixup_batch, cutmix, cut
 
 IMAGENET_MEAN = [123.675, 116.28, 103.53]
 IMAGENET_STD = [58.395, 57.120, 57.375]
+
+
+def translations_to_projective_transforms(translations) -> tf.Tensor:
+    """Returns projective transform(s) for the given translation(s).
+
+    Args:
+        translations: A 2-element list representing `[dx, dy]` or a matrix of
+            2-element lists representing `[dx, dy]` to translate for each image
+            (for a batch of images). The rank must be statically known
+            (the shape is not `TensorShape(None)`).
+    Returns:
+        A tensor of shape `(num_images, 8)` projective transforms which can be
+        given to `tfa.image.transform`.
+    """
+    translation_or_translations = tf.convert_to_tensor(
+        translations, name="translations", dtype=tf.dtypes.float32
+    )
+    if translation_or_translations.get_shape().ndims is None:
+        raise TypeError("translation_or_translations rank must be statically known")
+    elif len(translation_or_translations.get_shape()) == 1:
+        translations = translation_or_translations[None]
+    elif len(translation_or_translations.get_shape()) == 2:
+        translations = translation_or_translations
+    else:
+        raise TypeError("Translations should have rank 1 or 2.")
+    num_translations = tf.shape(translations)[0]
+    # The translation matrix looks like:
+    #     [[1 0 -dx]
+    #      [0 1 -dy]
+    #      [0 0 1]]
+    # where the last entry is implicit.
+    # Translation matrices are always float32.
+    return tf.concat(
+        values=[
+            tf.ones((num_translations, 1), tf.dtypes.float32),
+            tf.zeros((num_translations, 1), tf.dtypes.float32),
+            -translations[:, 0, None],
+            tf.zeros((num_translations, 1), tf.dtypes.float32),
+            tf.ones((num_translations, 1), tf.dtypes.float32),
+            -translations[:, 1, None],
+            tf.zeros((num_translations, 2), tf.dtypes.float32),
+        ],
+        axis=1,
+    )
+
+
+def angles_to_projective_transforms(angles, image_height, image_width) -> tf.Tensor:
+    """Returns projective transform(s) for the given angle(s).
+
+    Args:
+      angles: A scalar angle to rotate all images by, or (for batches of
+        images) a vector with an angle to rotate each image in the batch. The
+        rank must be statically known (the shape is not `TensorShape(None)`.
+      image_height: Height of the image(s) to be transformed.
+      image_width: Width of the image(s) to be transformed.
+
+    Returns:
+      A tensor of shape (num_images, 8). Projective transforms which can be
+      given to `transform` op.
+    """
+    angle_or_angles = tf.convert_to_tensor(
+        angles, name="angles", dtype=tf.dtypes.float32
+    )
+    if len(angle_or_angles.get_shape()) == 0:
+        angles = angle_or_angles[None]
+    elif len(angle_or_angles.get_shape()) == 1:
+        angles = angle_or_angles
+    else:
+        raise ValueError("angles should have rank 0 or 1.")
+    cos_angles = tf.math.cos(angles)
+    sin_angles = tf.math.sin(angles)
+    x_offset = (
+        (image_width - 1)
+        - (cos_angles * (image_width - 1) - sin_angles * (image_height - 1))
+    ) / 2.0
+    y_offset = (
+        (image_height - 1)
+        - (sin_angles * (image_width - 1) + cos_angles * (image_height - 1))
+    ) / 2.0
+    num_angles = tf.shape(angles)[0]
+    return tf.concat(
+        values=[
+            cos_angles[:, None],
+            -sin_angles[:, None],
+            x_offset[:, None],
+            sin_angles[:, None],
+            cos_angles[:, None],
+            y_offset[:, None],
+            tf.zeros((num_angles, 2), tf.dtypes.float32),
+        ],
+        axis=1,
+    )
 
 
 def transform(images, transforms, interpolation="BILINEAR", output_shape=None):

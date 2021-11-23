@@ -325,6 +325,12 @@ def Norm(channels=None, type='default', affine=None, track_running_stats=None, g
         else:
             groups = cfg['groups']
         from tensorflow_addons.layers import GroupNormalization
+
+        try:
+            from tensorflow_addons.layers import GroupNormalization
+        except ImportError:
+            raise ImportError(
+                "Please install tensorflow_addons:'pip install -U tensorflow_addons==0.13.0'")
         gn = GroupNormalization(
             groups=groups, epsilon=cfg['eps'], center=affine, scale=affine)
         return gn

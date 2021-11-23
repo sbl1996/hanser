@@ -4,7 +4,6 @@ import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp
 
-
 @curry
 def fmix(data1, data2, alpha, decay_power):
     image1, label1 = data1
