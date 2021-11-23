@@ -24,7 +24,7 @@ class LAMB(tf.keras.optimizers.Optimizer):
         weight_decay: FloatTensorLike = 0.0,
         exclude_from_weight_decay: Optional[List[str]] = None,
         exclude_from_layer_adaptation: Optional[List[str]] = None,
-        max_grad_norm: FloatTensorLike = None,
+        # max_grad_norm: FloatTensorLike = None,
         name: str = "LAMB",
         **kwargs,
     ):
@@ -55,9 +55,9 @@ class LAMB(tf.keras.optimizers.Optimizer):
               decay of learning rate. `lr` is included for backward
               compatibility, recommended to use `learning_rate` instead.
         """
-        assert "global_clipnorm" not in kwargs, "Use max_grad_norm instead."
-        if max_grad_norm:
-            kwargs['global_clipnorm'] = max_grad_norm
+        # assert "global_clipnorm" not in kwargs, "Use max_grad_norm instead."
+        # if max_grad_norm:
+        #     kwargs['global_clipnorm'] = max_grad_norm
         super().__init__(name, **kwargs)
 
         self._set_hyper("weight_decay", weight_decay)
