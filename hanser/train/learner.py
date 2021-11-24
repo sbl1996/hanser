@@ -455,6 +455,8 @@ class Learner(metaclass=ABCMeta):
                 self._max_epochs = d['max_epochs']
                 self.set_global_state('epoch', epoch)
                 self._print("Load learner at epoch %d from %s" % (self.epoch + 1, fp))
+        else:
+            self._print("Load learner from %s" % (fp,))
         return True
 
     def recover_log(self):

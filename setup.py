@@ -25,7 +25,7 @@ REQUIRED = [
     "toolz",
     "pybind11",
     "cerberus",
-    "tensorflow_probability==0.15.0",
+    "tensorflow_probability==0.14.1",
     "tensorflow_datasets>=4.3.0",
     "hhutil",
     "lark",
