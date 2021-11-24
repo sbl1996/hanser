@@ -94,12 +94,12 @@ class Learner(metaclass=ABCMeta):
         self.eval_metrics = eval_metrics
         self.work_dir = work_dir
         self.dtype = tf.dtypes.as_dtype(mixed_precision.global_policy().compute_dtype)
-        if self.dtype == tf.float16:
-            self.optimizers = [
-                mixed_precision.LossScaleOptimizer(optimizer, 'dynamic')
-                if not isinstance(optimizer, mixed_precision.LossScaleOptimizer) else optimizer
-                for optimizer in self.optimizers
-            ]
+        # if self.dtype == tf.float16:
+        #     self.optimizers = [
+        #         mixed_precision.LossScaleOptimizer(optimizer, 'dynamic')
+        #         if not isinstance(optimizer, mixed_precision.LossScaleOptimizer) else optimizer
+        #         for optimizer in self.optimizers
+        #     ]
         self.output_transform = output_transform
 
         device = discover_device()
@@ -373,8 +373,8 @@ class Learner(metaclass=ABCMeta):
 
     def minimize(self, tape, optimizer, loss, trainable_variables, grad_clip_norm=None):
         grads = tape.gradient(loss, trainable_variables)
-        if self.dtype == tf.float16:
-            grads = optimizer.get_unscaled_gradients(grads)
+        # if self.dtype == tf.float16:
+        #     grads = optimizer.get_unscaled_gradients(grads)
         self.apply_gradients(optimizer, grads, trainable_variables, grad_clip_norm)
 
     def apply_gradients(self, optimizer, grads, vars, grad_clip_norm=None):

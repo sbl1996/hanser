@@ -8,9 +8,6 @@ import glob
 
 from setuptools import find_packages, setup, Extension
 
-# with open('requirements.txt') as f:
-#     requirements = f.read().splitlines()
-
 # Package meta-data.
 
 NAME = 'hanser'
@@ -28,7 +25,7 @@ REQUIRED = [
     "toolz",
     "pybind11",
     "cerberus",
-    "tensorflow_probability==0.11.1",
+    "tensorflow_probability==0.15.0",
     "tensorflow_datasets>=4.3.0",
     "hhutil",
     "lark",

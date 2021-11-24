@@ -27,8 +27,8 @@ class OneShotLearner(Learner):
                 l2_loss = l2_loss / self._strategy.num_replicas_in_sync
             loss = loss + self.weight_decay * l2_loss
 
-            if self.dtype == tf.float16:
-                loss = optimizer.get_scaled_loss(loss)
+            # if self.dtype == tf.float16:
+            #     loss = optimizer.get_scaled_loss(loss)
         self.minimize(tape, optimizer, loss, model.trainable_variables, self.grad_clip_norm)
         self.update_metrics(self.train_metrics, target, preds, per_example_loss)
         if hasattr(self, "_ema") and self._ema is not None:
