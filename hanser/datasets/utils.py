@@ -25,19 +25,19 @@ def prepare(ds: tf.data.Dataset, batch_size, transform=None, training=True, buff
         elif repeat:
             ds = ds.repeat()
     if transform:
-        ds = ds.map(transform, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+        ds = ds.map(transform, num_parallel_calls=tf.data.AUTOTUNE)
     if training:
         if zip_transform:
-            ds = tf.data.Dataset.zip((ds, ds)).map(zip_transform, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+            ds = tf.data.Dataset.zip((ds, ds)).map(zip_transform, num_parallel_calls=tf.data.AUTOTUNE)
         ds = ds.batch(batch_size, drop_remainder=drop_remainder)
         if batch_transform:
-            ds = ds.map(batch_transform, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+            ds = ds.map(batch_transform, num_parallel_calls=tf.data.AUTOTUNE)
     else:
         ds = ds.batch(batch_size, drop_remainder=drop_remainder)
         if batch_transform:
-            ds = ds.map(batch_transform, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+            ds = ds.map(batch_transform, num_parallel_calls=tf.data.AUTOTUNE)
         if repeat:
             ds = ds.repeat()
     if prefetch:
-        ds = ds.prefetch(tf.data.experimental.AUTOTUNE)
+        ds = ds.prefetch(tf.data.AUTOTUNE)
     return ds

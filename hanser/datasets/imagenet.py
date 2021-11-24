@@ -78,11 +78,11 @@ def make_imagenet_dataset_split(
     dataset = dataset.interleave(
         tf.data.TFRecordDataset,
         cycle_length=16,
-        num_parallel_calls=tf.data.experimental.AUTOTUNE,
+        num_parallel_calls=tf.data.AUTOTUNE,
         deterministic=False)
 
     if cache_parsed:
-        dataset = dataset.map(parse_example_proto, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+        dataset = dataset.map(parse_example_proto, num_parallel_calls=tf.data.AUTOTUNE)
         transform = functools.partial(transform, training=training)
     else:
         transform = parse_and_transform(transform, training)

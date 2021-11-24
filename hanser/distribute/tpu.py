@@ -1,7 +1,7 @@
 import os
 
 import tensorflow as tf
-import tensorflow.keras.mixed_precision.experimental as mixed_precision
+import tensorflow.keras.mixed_precision as mixed_precision
 
 
 def setup_tpu(fp16=True):
@@ -18,7 +18,7 @@ def setup_tpu(fp16=True):
 
     if fp16:
         policy = mixed_precision.Policy('mixed_bfloat16')
-        mixed_precision.set_policy(policy)
+        mixed_precision.set_global_policy(policy)
 
 
 def has_tpu():
