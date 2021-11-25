@@ -334,9 +334,13 @@ class SGDW(tf.keras.optimizers.Optimizer):
         self, learning_rate: Union[FloatTensorLike, Callable], base_lr: Optional[FloatTensorLike]):
         if base_lr is not None:
             return float(base_lr)
-        if isinstance(learning_rate, Callable):
-            learning_rate = learning_rate(0)
-        return float(learning_rate)
+        if isinstance(learning_rate, tf.keras.optimizers.schedules.LearningRateSchedule) \
+            and hasattr(learning_rate, "base_lr"):
+            return learning_rate.base_lr
+        try:
+            return float(learning_rate)
+        except:
+            raise ValueError("Can't infer `base_lr`, set it manually.")
 
     def _create_slots(self, var_list):
         for var in var_list:

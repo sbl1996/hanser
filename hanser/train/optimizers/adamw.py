@@ -114,46 +114,6 @@ class AdamW(tf.keras.optimizers.Optimizer):
                 grad=grad,
                 use_locking=self._use_locking)
 
-    def _resource_apply_sparse(self, grad, var, indices, apply_state=None):
-        # Not implemented
-        var_device, var_dtype = var.device, var.dtype.base_dtype
-        coefficients = ((apply_state or {}).get((var_device, var_dtype))
-                        or self._fallback_apply_state(var_device, var_dtype))
-
-        m = self.get_slot(var, 'm')
-        m_scaled_g_values = grad * coefficients['one_minus_beta_1_t']
-        m_t = tf.assign(m, m * coefficients['beta_1_t'],
-                               use_locking=self._use_locking)
-        with tf.control_dependencies([m_t]):
-            m_t = self._resource_scatter_add(m, indices, m_scaled_g_values)
-
-        # v_t = beta2 * v + (1 - beta2) * (g_t * g_t)
-        v = self.get_slot(var, 'v')
-        v_scaled_g_values = (grad * grad) * coefficients['one_minus_beta_2_t']
-        v_t = tf.assign(v, v * coefficients['beta_2_t'],
-                               use_locking=self._use_locking)
-        with tf.control_dependencies([v_t]):
-            v_t = self._resource_scatter_add(v, indices, v_scaled_g_values)
-
-        if not self.amsgrad:
-            v_sqrt = tf.sqrt(v_t)
-            var_update = tf.assign_sub(
-                var, coefficients['lr'] * m_t / (v_sqrt + coefficients['epsilon']),
-                use_locking=self._use_locking)
-            return tf.group(*[var_update, m_t, v_t])
-        else:
-            v_hat = self.get_slot(var, 'vhat')
-            v_hat_t = tf.maximum(v_hat, v_t)
-            with tf.control_dependencies([v_hat_t]):
-                v_hat_t = tf.assign(
-                    v_hat, v_hat_t, use_locking=self._use_locking)
-            v_hat_sqrt = tf.sqrt(v_hat_t)
-            var_update = tf.assign_sub(
-                var,
-                coefficients['lr'] * m_t / (v_hat_sqrt + coefficients['epsilon']),
-                use_locking=self._use_locking)
-            return tf.group(*[var_update, m_t, v_t, v_hat_t])
-
     def get_config(self):
         config = super().get_config()
         config.update({
