@@ -180,7 +180,7 @@ def random_level(max_level):
     return tf.cast(level, tf.float32)
 
 
-def trival_augment(image):
+def trivial_augment(image):
     hparams = {
         **H_PARAMS,
         'max_level': 30,
