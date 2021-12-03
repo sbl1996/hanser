@@ -18,14 +18,13 @@ class AdamW(tf.keras.optimizers.Optimizer):
         beta_2: FloatTensorLike = 0.999,
         epsilon: FloatTensorLike = 1e-8,
         amsgrad: bool = False,
-        weight_decay: FloatTensorLike = 0.01,
+        weight_decay: FloatTensorLike = 0,
         exclude_from_weight_decay: Optional[List[str]] = None,
         name='AdamW',
         **kwargs
     ):
         super().__init__(name, **kwargs)
         self._set_hyper('learning_rate', kwargs.get('lr', learning_rate))
-        self._set_hyper('decay', self._initial_decay)
         self._set_hyper('beta_1', beta_1)
         self._set_hyper('beta_2', beta_2)
         self._set_hyper('weight_decay', weight_decay)
@@ -58,18 +57,13 @@ class AdamW(tf.keras.optimizers.Optimizer):
         beta_1_power = tf.pow(beta_1_t, local_step)
         beta_2_power = tf.pow(beta_2_t, local_step)
         weight_decay = tf.identity(self._get_hyper('weight_decay', var_dtype))
-        lr = (apply_state[(var_device, var_dtype)]['lr_t'] *
-              (tf.sqrt(1 - beta_2_power) / (1 - beta_1_power)))
         apply_state[(var_device, var_dtype)].update(
             dict(
-                lr=lr,
                 epsilon=tf.convert_to_tensor(self.epsilon, var_dtype),
                 beta_1_t=beta_1_t,
-                beta_1_power=beta_1_power,
-                one_minus_beta_1_t=1 - beta_1_t,
                 beta_2_t=beta_2_t,
+                beta_1_power=beta_1_power,
                 beta_2_power=beta_2_power,
-                one_minus_beta_2_t=1 - beta_2_t,
                 weight_decay=weight_decay,
             ))
 
@@ -119,7 +113,6 @@ class AdamW(tf.keras.optimizers.Optimizer):
         config = super().get_config()
         config.update({
             'learning_rate': self._serialize_hyperparameter('learning_rate'),
-            'decay': self._initial_decay,
             'beta_1': self._serialize_hyperparameter('beta_1'),
             'beta_2': self._serialize_hyperparameter('beta_2'),
             'weight_decay': self._serialize_hyperparameter('weight_decay'),
