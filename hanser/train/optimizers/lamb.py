@@ -24,6 +24,7 @@ class LAMB(tf.keras.optimizers.Optimizer):
         weight_decay: FloatTensorLike = 0.0,
         exclude_from_weight_decay: Optional[List[str]] = None,
         exclude_from_layer_adaptation: Optional[List[str]] = None,
+        decoupled: bool = False,
         # max_grad_norm: FloatTensorLike = None,
         name: str = "LAMB",
         **kwargs,
@@ -73,6 +74,7 @@ class LAMB(tf.keras.optimizers.Optimizer):
             self.exclude_from_layer_adaptation = exclude_from_layer_adaptation
         else:
             self.exclude_from_layer_adaptation = exclude_from_weight_decay
+        self.decoupled = decoupled
 
     def _create_slots(self, var_list):
         for var in var_list:
@@ -126,7 +128,7 @@ class LAMB(tf.keras.optimizers.Optimizer):
         update = m_t_hat / (v_sqrt + coefficients["epsilon"])
 
         var_name = self._get_variable_name(var.name)
-        if self._do_use_weight_decay(var_name):
+        if self._do_use_weight_decay(var_name) and not self.decoupled:
             update += coefficients["weight_decay"] * var
 
         ratio = 1.0
@@ -140,6 +142,9 @@ class LAMB(tf.keras.optimizers.Optimizer):
             )
 
         var_update = var - ratio * coefficients["lr_t"] * update
+        if self._do_use_weight_decay(var_name) and self.decoupled:
+            wd = coefficients["weight_decay"] * coefficients["lr_t"]
+            var_update = var_update - wd * var
         return var.assign(var_update, use_locking=self._use_locking)
 
     def get_config(self):
@@ -147,9 +152,7 @@ class LAMB(tf.keras.optimizers.Optimizer):
         config.update(
             {
                 "learning_rate": self._serialize_hyperparameter("learning_rate"),
-                "weight_decay": self._serialize_hyperparameter(
-                    "weight_decay"
-                ),
+                "weight_decay": self._serialize_hyperparameter("weight_decay"),
                 "decay": self._serialize_hyperparameter("decay"),
                 "beta_1": self._serialize_hyperparameter("beta_1"),
                 "beta_2": self._serialize_hyperparameter("beta_2"),
