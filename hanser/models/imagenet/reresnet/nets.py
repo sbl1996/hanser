@@ -127,10 +127,20 @@ def net3(**kwargs):
     return ReResNet(layers=(3, 4, 6, 3), anti_alias=(False, True, True, True),
                     light_stem=True, strides=(1, 2, 2, 2), **kwargs)
 
-# 30.7M 5.11G
+# 30.7M 5.11G 1078
 def net4(**kwargs):
     return ReResNet(layers=(3, 4, 6, 3), anti_alias=(False, True, True, True),
                     light_stem=True, strides=(1, 2, 2, 2), se_reduction=(4, 8, 8, 8), **kwargs)
+
+# 1016
+def net41(**kwargs):
+    return ReResNet(layers=(3, 4, 6, 3), anti_alias=(False, True, True, True),
+                    light_stem=False, strides=(2, 2, 2, 2), se_reduction=(4, 8, 8, 8), **kwargs)
+
+# 1041
+def net42(**kwargs):
+    return ReResNet(layers=(3, 4, 6, 3), anti_alias=(False, True, True, True),
+                    light_stem=False, pool=True, strides=(1, 2, 2, 2), se_reduction=(4, 8, 8, 8), **kwargs)
 
 # 33.4M 5.55G 1025
 def net5(**kwargs):
