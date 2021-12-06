@@ -164,5 +164,12 @@ def net53(**kwargs):
     return ReResNet(layers=(3, 4, 8, 3), anti_alias=(False, True, True, True),
                     light_stem=True, strides=(1, 2, 2, 2), eca=False, **kwargs)
 
+# 29.2M 5.54G
+def net54(**kwargs):
+    return ReResNet(layers=(3, 4, 8, 3), anti_alias=(False, True, True, True),
+                    light_stem=True, strides=(1, 2, 2, 2), se_reduction=(4, 8, 8, 8),
+                    se_last=False, se_mode=2, **kwargs)
+
+
 def re_resnet_s(**kwargs):
     return net5(**kwargs)
