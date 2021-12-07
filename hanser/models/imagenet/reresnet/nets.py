@@ -162,7 +162,7 @@ def net52(**kwargs):
 # 27.8M 5.54G 1026
 def net53(**kwargs):
     return ReResNet(layers=(3, 4, 8, 3), anti_alias=(False, True, True, True),
-                    light_stem=True, strides=(1, 2, 2, 2), eca=False, **kwargs)
+                    light_stem=True, strides=(1, 2, 2, 2), eca=True, **kwargs)
 
 # 29.2M 5.54G
 def net54(**kwargs):
