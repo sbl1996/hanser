@@ -152,13 +152,9 @@ class ResNet(Model):
         x = self.stem(x)
 
         x = self.layer1(x)
-        print("Layer1")
         x = self.layer2(x)
-        print("Layer2")
         x = self.layer3(x)
-        print("Layer3")
         x = self.layer4(x)
-        print("Layer4")
 
         x = self.avgpool(x)
         if self.dropout is not None:
