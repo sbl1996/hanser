@@ -33,4 +33,8 @@ xs9 = [lr_scheduler9(i).numpy() for i in range(total_steps)]
 
 import matplotlib.pyplot as plt
 
+plt.plot(xs2)
+plt.plot(xs5)
 plt.plot(xs9)
+plt.legend(['cosine', 'exp', 'exp2'])
+plt.show()

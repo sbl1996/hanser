@@ -348,7 +348,7 @@ class ExponentialDecay2(LearningRateSchedule):
         learning_rate,
         steps_per_epoch,
         epochs,
-        decay_rate,
+        decay_rate=0.02,
         warmup_epoch=0,
         warmup_min_lr=0,
     ):

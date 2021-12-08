@@ -18,7 +18,7 @@ class SGD(tf.keras.optimizers.Optimizer):
         dampening: FloatTensorLike = 0.0,
         weight_decay: FloatTensorLike = 0,
         nesterov: bool = False,
-        exclude_from_weight_decay: Optional[List[str]] = None,
+        exclude_from_weight_decay: Optional[List[str]] = None, # '.*(bias|gamma|beta).*'
         name: str = "SGD",
         **kwargs
     ):
