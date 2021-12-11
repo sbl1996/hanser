@@ -97,14 +97,14 @@ class ReResNet(_IResNet):
 
     def __init__(self, layers, num_classes=1000, channels=(64, 64, 128, 256, 512), pool=False,
                  se_reduction=(0, 0, 0, 0), se_mode=0, se_last=True, eca=False, strides=(2, 2, 2, 2),
-                 anti_alias=False, avd=False, light_stem=False):
+                 anti_alias=False, avd=False, light_stem=False, dropout=0):
         stem_channels, *channels = channels
         if light_stem:
             stem = SpaceToDepthStem(stem_channels)
         else:
             stem = ResNetvdStem(stem_channels, pool=pool)
         super().__init__(stem, Bottleneck, layers, num_classes, channels,
-                         strides=strides, anti_alias=anti_alias, avd=avd,
+                         strides=strides, anti_alias=anti_alias, avd=avd, dropout=dropout,
                          se_mode=se_mode, se_last=se_last, se_reduction=se_reduction, eca=eca)
 
 # 25.6M 1152
