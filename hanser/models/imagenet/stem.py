@@ -35,10 +35,10 @@ def ResNetvdStem(channels=64, pool=True, norm_act=True):
     return stem
 
 
-def SpaceToDepthStem(channels=64):
+def SpaceToDepthStem(channels=64, stride=4):
     layers = [
-        SpaceToDepth(4),
-        Conv2d(3 * 16, channels, 3, stride=1, norm='def', act='def')
+        SpaceToDepth(stride),
+        Conv2d(3 * stride * stride, channels, 3, stride=1, norm='def', act='def')
     ]
     stem = Sequential(layers)
     stem.out_channels = channels
