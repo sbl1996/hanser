@@ -26,6 +26,11 @@ def resnet50(**kwargs):
     return ResNet(Bottleneck, [3, 4, 6, 3], **kwargs)
 
 
+# 539.3 34.5M 6.08G
+def resnet74(**kwargs):
+    return ResNet(Bottleneck, [3, 4, 14, 3], **kwargs)
+
+
 def resnet101(**kwargs):
     return ResNet(Bottleneck, [3, 4, 23, 3], **kwargs)
 

@@ -107,7 +107,16 @@ class ReResNet(_IResNet):
                          strides=strides, anti_alias=anti_alias, avd=avd, dropout=dropout,
                          se_mode=se_mode, se_last=se_last, se_reduction=se_reduction, eca=eca)
 
-# 25.6M 1152
+
+# 34.5M 6.08G
+# def resnet74(**kwargs):
+#     return ResNet(Bottleneck, [3, 4, 14, 3], **kwargs)
+
+# 25.6M 4.33G
+# def net0(**kwargs):
+#     return ResNet(Bottleneck, [3, 4, 6, 3], **kwargs)
+
+# 25.6M 4.37G 1152
 def net1(**kwargs):
     return ReResNet(layers=(3, 4, 6, 3), **kwargs)
 
