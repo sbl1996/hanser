@@ -21,12 +21,15 @@ def resnet18(**kwargs):
 def resnet34(**kwargs):
     return ResNet(BasicBlock, [3, 4, 6, 3], **kwargs)
 
-
+# 25.6M 4.33G 1262
 def resnet50(**kwargs):
     return ResNet(Bottleneck, [3, 4, 6, 3], **kwargs)
 
+# 32.3M 5.64G 1015
+def resnet68(**kwargs):
+    return ResNet(Bottleneck, [3, 4, 12, 3], **kwargs)
 
-# 539.3 34.5M 6.08G
+# 34.5M 6.08G
 def resnet74(**kwargs):
     return ResNet(Bottleneck, [3, 4, 14, 3], **kwargs)
 

@@ -1,9 +1,9 @@
 import tensorflow as tf
 from hanser.models.layers import Conv2d
 from hanser.models.modules import DropBlock
-from hanser.distribute import setup_tpu
+from hanser.distribute import setup_runtime
 
-setup_tpu(fp16=False)
+setup_runtime(fp16=False)
 strategy = tf.distribute.get_strategy()
 
 
