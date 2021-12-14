@@ -79,7 +79,7 @@ class Learner(metaclass=ABCMeta):
                  train_metrics: Mapping[str, Metric], eval_metrics: Mapping[str, Metric],
                  work_dir: str, output_transform=default_metric_transform,
                  n_batches_per_step: Optional[int] = None, multiple_steps: Optional[bool] = None,
-                 xla_compile: bool = True):
+                 xla_compile: bool = True, eval_multiple_steps: Optional[bool] = None):
         if not isinstance(optimizers, Sequence):
             optimizers = [optimizers]
         optimizers = list(optimizers)
@@ -107,6 +107,9 @@ class Learner(metaclass=ABCMeta):
             multiple_steps = device == 'TPU'
         self.multiple_steps = multiple_steps
         self.xla_compile = xla_compile
+        if eval_multiple_steps is None:
+            eval_multiple_steps = self.multiple_steps
+        self.eval_multiple_steps = eval_multiple_steps
 
         self._log_dir = self.work_dir / "runs"
         self._writer = None
@@ -132,7 +135,9 @@ class Learner(metaclass=ABCMeta):
             self.train_batch = tf.function(self.train_batch, experimental_compile=True)
 
         if multiple_steps:
-            self._run_steps = tf.function(self._run_steps)
+            self._run_steps_fn = tf.function(self._run_steps)
+        else:
+            self._run_steps_fn = self._run_steps
 
         self.n_batches_per_step = n_batches_per_step
 
@@ -347,12 +352,14 @@ class Learner(metaclass=ABCMeta):
 
         if mode == 'train' and self.n_batches_per_step is not None:
             step_fn = self._train_step_on_batches
-            self._run_steps(
+            self._run_steps_fn(
                 step_fn, iterator, self.n_batches_per_step, steps, callbacks, run_state)
-        else:
+        elif mode == 'eval' and not self.eval_multiple_steps:
             self._run_steps(
                 step_fn, iterator, None, steps, callbacks, run_state)
-
+        else:
+            self._run_steps_fn(
+                step_fn, iterator, None, steps, callbacks, run_state)
 
         for name, metric in metrics.items():
             state['metrics'][name] = metric.result().numpy()
