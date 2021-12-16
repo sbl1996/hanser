@@ -1,5 +1,6 @@
 from tensorflow.keras import Model, Sequential
 from tensorflow.keras.layers import Layer
+from tensorflow.keras.initializers import RandomNormal, Zeros
 
 from hanser.models.layers import Conv2d, Act, Norm, NormAct, Identity, GlobalAvgPool, Linear, Pool2d
 from hanser.models.modules import Dropout, DropPath
@@ -106,7 +107,8 @@ class RegNet(Model):
 
         self.avgpool = GlobalAvgPool()
         self.dropout = Dropout(dropout) if dropout else None
-        self.fc = Linear(self.in_channels, num_classes)
+        self.fc = Linear(self.in_channels, num_classes,
+                         kernel_init=RandomNormal(stddev=0.01), bias_init=Zeros())
 
     def _make_layer(self, block, channels, blocks, stride, groups, **kwargs):
         layers = [block(self.in_channels, channels, stride=stride,
