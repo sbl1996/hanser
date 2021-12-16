@@ -11,7 +11,7 @@ __all__ = [
     "PadChannel", "StochDepth", "DropPath", "ReZero",
     "Affine", "AntiAliasing", "SpaceToDepth", "Slice",
     "DropBlock", "ScaledWSConv2D", "GELU", "Mish",
-    "ScaledReLU", "ScaledSwish", "ScaledGELU",
+    "ScaledReLU", "ScaledSwish", "ScaledGELU", "Dropout",
     "NaiveGroupConv2D", "GlobalAvgPool", "Identity"
 ]
 
