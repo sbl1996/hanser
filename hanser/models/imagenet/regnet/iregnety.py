@@ -1,7 +1,7 @@
 from tensorflow.keras import Model, Sequential
 from tensorflow.keras.layers import Layer
 
-from hanser.models.layers import Conv2d, Act, Identity, GlobalAvgPool, Linear, Pool2d
+from hanser.models.layers import Conv2d, Act, Norm, NormAct, Identity, GlobalAvgPool, Linear, Pool2d
 from hanser.models.modules import Dropout, DropPath
 from hanser.models.attention import SELayer
 from hanser.models.imagenet.stem import SimpleStem
@@ -11,17 +11,37 @@ class Bottleneck(Layer):
     expansion = 1
 
     def __init__(self, in_channels, out_channels, stride, groups,
+                 start_block=False, end_block=False, exclude_bn0=False,
                  se_reduction=4, se_last=False, se_mode=0,
                  avg_shortcut=False, drop_path=0):
         super().__init__()
         self.se_last = se_last
+        self.start_block = start_block
+        self.end_block = end_block
+        self.exclude_bn0 = exclude_bn0
+
+        if not start_block:
+            if exclude_bn0:
+                self.act0 = Act()
+            else:
+                self.norm_act0 = NormAct(in_channels)
 
         self.conv1 = Conv2d(in_channels, out_channels, 1, norm='def', act='def')
+
         self.conv2 = Conv2d(out_channels, out_channels, 3, stride=stride, groups=groups,
                             norm='def', act='def')
-        self.conv3 = Conv2d(out_channels, out_channels, 1, norm='def')
+
+        self.conv3 = Conv2d(out_channels, out_channels, 1)
+
+        if start_block:
+            self.bn3 = Norm(out_channels)
+
         self.se = SELayer(out_channels, reduction=se_reduction, mode=se_mode)
+
         self.drop_path = DropPath(drop_path) if drop_path else Identity()
+
+        if end_block:
+            self.norm_act3 = NormAct(out_channels)
 
         if stride != 1 or in_channels != out_channels:
             if avg_shortcut and stride != 1:
@@ -34,20 +54,35 @@ class Bottleneck(Layer):
                                        stride=stride, norm='def')
         else:
             self.shortcut = Identity()
-        self.act = Act()
 
     def call(self, x):
         identity = self.shortcut(x)
+
+        if not self.start_block:
+            if self.exclude_bn0:
+                x = self.act0(x)
+            else:
+                x = self.norm_act0(x)
+
         x = self.conv1(x)
+
         x = self.conv2(x)
         if not self.se_last:
             x = self.se(x)
+
         x = self.conv3(x)
+
+        if self.start_block:
+            x = self.bn3(x)
+
         if self.se_last:
             x = self.se(x)
+
         x = self.drop_path(x)
         x = x + identity
-        x = self.act(x)
+
+        if self.end_block:
+            x = self.norm_act3(x)
         return x
 
 
@@ -75,11 +110,12 @@ class RegNet(Model):
 
     def _make_layer(self, block, channels, blocks, stride, groups, **kwargs):
         layers = [block(self.in_channels, channels, stride=stride,
-                        groups=groups, **kwargs)]
+                        groups=groups, start_block=True, **kwargs)]
         self.in_channels = channels * block.expansion
         for i in range(1, blocks):
             layers.append(block(self.in_channels, channels, stride=1,
-                                groups=groups, **kwargs))
+                                exclude_bn0 = i==1, end_block = i==blocks-1,
+                                groups = groups, **kwargs))
         return Sequential(layers)
 
     def call(self, x):
