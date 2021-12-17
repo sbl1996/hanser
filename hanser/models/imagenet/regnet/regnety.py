@@ -13,14 +13,15 @@ class Bottleneck(Layer):
 
     def __init__(self, in_channels, out_channels, stride, groups,
                  se_reduction=4, se_last=False, se_mode=0,
-                 avg_shortcut=False, drop_path=0):
+                 avg_shortcut=False, zero_init_residual=False, drop_path=0):
         super().__init__()
         self.se_last = se_last
 
         self.conv1 = Conv2d(in_channels, out_channels, 1, norm='def', act='def')
         self.conv2 = Conv2d(out_channels, out_channels, 3, stride=stride, groups=groups,
                             norm='def', act='def')
-        self.conv3 = Conv2d(out_channels, out_channels, 1, norm='def')
+        self.conv3 = Conv2d(out_channels, out_channels, 1, norm='def',
+                            gamma_init='zeros' if zero_init_residual else 'ones')
         self.se = SELayer(out_channels, reduction=se_reduction, mode=se_mode)
         self.drop_path = DropPath(drop_path) if drop_path else Identity()
 
@@ -55,7 +56,8 @@ class Bottleneck(Layer):
 class RegNet(Model):
 
     def __init__(self, stem_channels, channels, layers, channels_per_group, se_reduction=4,
-                 se_last=False, se_mode=0, avg_shortcut=False, dropout=0, num_classes=1000):
+                 se_last=False, se_mode=0, avg_shortcut=False, zero_init_residual=False,
+                 dropout=0, num_classes=1000):
         super().__init__()
         block = Bottleneck
 
@@ -67,7 +69,7 @@ class RegNet(Model):
             layer = self._make_layer(
                 block, channels[i], layers[i], stride=2, groups=gs[i],
                 se_reduction=se_reduction, se_last=se_last, se_mode=se_mode,
-                avg_shortcut=avg_shortcut)
+                avg_shortcut=avg_shortcut, zero_init_residual=zero_init_residual)
             setattr(self, "layer" + str(i + 1), layer)
 
         self.avgpool = GlobalAvgPool()
@@ -122,15 +124,3 @@ def RegNetY_4_0GF(**kwargs):
 
 def RegNetY_6_4GF(**kwargs):
     return RegNet(32, (144, 288, 576, 1296), (2, 7, 14, 2), 72, 4, **kwargs)
-
-def RegNetY_8_0GF(**kwargs):
-    return RegNet(32, (128, 192, 512, 1088), (2, 6, 12, 2), 64, 4, **kwargs)
-
-def RegNetY_12GF(**kwargs):
-    return RegNet(32, (128, 192, 512, 1088), (2, 6, 12, 2), 64, 4, **kwargs)
-
-def RegNetY_16GF(**kwargs):
-    return RegNet(32, (128, 192, 512, 1088), (2, 6, 12, 2), 64, 4, **kwargs)
-
-def RegNetY_32GF(**kwargs):
-    return RegNet(32, (128, 192, 512, 1088), (2, 6, 12, 2), 64, 4, **kwargs)
