@@ -215,10 +215,10 @@ def sample_distorted_bounding_box(shape, scale, ratio):
         in_ratio = width / height
         if in_ratio < min(ratio):
             w = width
-            h = tf.cast(tf.round(w / min(ratio)), tf.int32)
+            h = tf.cast(tf.round(tf.cast(w, tf.float32) / min(ratio)), tf.int32)
         elif in_ratio > max(ratio):
             h = height
-            w = tf.cast(tf.round(h * max(ratio)), tf.int32)
+            w = tf.cast(tf.round(tf.cast(h, tf.float32) * max(ratio)), tf.int32)
         else:  # whole image
             w = width
             h = height
