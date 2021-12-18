@@ -27,7 +27,7 @@ n = 10000
 res1 = []
 res2 = []
 for i in range(n):
-    res1.append(sample_distorted_bounding_box(shape, scale, ratio).numpy())
+    res1.append(tf.stack(sample_distorted_bounding_box(shape, scale, ratio)).numpy())
     res2.append(sample_tf(shape, scale, ratio).numpy())
 
 res1 = np.stack(res1, axis=0)

@@ -189,19 +189,16 @@ def resize(img, size, method='bilinear'):
     return img
 
 
-@tf.function
 def sample_distorted_bounding_box(shape, scale, ratio):
     height, width, _ = tf.unstack(shape)
     area = tf.cast(height * width, tf.float32)
 
     log_ratio = tf.math.log(tf.convert_to_tensor(ratio))
 
-    # i, j, h, w = [
-    #     tf.convert_to_tensor(x) for x in [-1, -1, 0, 0]
-    # ]
+    i, j, h, w = [
+        tf.convert_to_tensor(x) for x in [-1, -1, 0, 0]
+    ]
     for _ in tf.range(10):
-        # if i != -1:
-        #     break
         target_area = area * tf.random.uniform((), scale[0], scale[1])
         aspect_ratio = tf.math.exp(tf.random.uniform((), log_ratio[0], log_ratio[1]))
 
@@ -211,25 +208,29 @@ def sample_distorted_bounding_box(shape, scale, ratio):
         if 0 < w <= width and 0 < h <= height:
             i = tf.random.uniform((), 0, height - h + 1, dtype=tf.int32)
             j = tf.random.uniform((), 0, width - w + 1, dtype=tf.int32)
-            return i, j, h, w
+            break
 
-    # if i != -1:
-    #     return i, j, h, w
+    def central_crop():
+        # Fallback to central crop
+        in_ratio = width / height
+        if in_ratio < min(ratio):
+            w = width
+            h = tf.cast(tf.round(w / min(ratio)), tf.int32)
+        elif in_ratio > max(ratio):
+            h = height
+            w = tf.cast(tf.round(h * max(ratio)), tf.int32)
+        else:  # whole image
+            w = width
+            h = height
+        i = (height - h) // 2
+        j = (width - w) // 2
+        return i, j, h, w
 
-    # Fallback to central crop
-    in_ratio = width / height
-    if in_ratio < min(ratio):
-        w = width
-        h = tf.cast(tf.round(w / min(ratio)), tf.int32)
-    elif in_ratio > max(ratio):
-        h = height
-        w = tf.cast(tf.round(h * max(ratio)), tf.int32)
-    else:  # whole image
-        w = width
-        h = height
-    i = (height - h) // 2
-    j = (width - w) // 2
-    return i, j, h, w
+    return tf.cond(
+        i != -1,
+        lambda: (i, j, h, w),
+        lambda: central_crop,
+    )
 
 
 def random_resized_crop(image, size, scale=(0.05, 1.0), ratio=(0.75, 1.33),
