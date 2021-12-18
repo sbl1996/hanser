@@ -189,20 +189,59 @@ def resize(img, size, method='bilinear'):
     return img
 
 
-def random_resized_crop(image, size, scale=(0.05, 1.0), ratio=(0.75, 1.33)):
-    bbox = tf.zeros((1, 0, 4), dtype=tf.float32)
+def sample_distorted_bounding_box(shape, scale, ratio):
+    height, width, _ = tf.unstack(shape)
+    area = tf.cast(height * width, tf.float32)
+
+    log_ratio = tf.math.log(tf.convert_to_tensor(ratio))
+
+    for _ in tf.range(10):
+        target_area = area * tf.random.uniform((), scale[0], scale[1])
+        aspect_ratio = tf.math.exp(tf.random.uniform((), log_ratio[0], log_ratio[1]))
+
+        w = tf.cast(tf.round(tf.math.sqrt(target_area * aspect_ratio)), tf.int32)
+        h = tf.cast(tf.round(tf.math.sqrt(target_area / aspect_ratio)), tf.int32)
+
+        if 0 < w <= width and 0 < h <= height:
+            i = tf.random.uniform((), 0, height - h + 1, dtype=tf.int32)
+            j = tf.random.uniform((), 0, width - w + 1, dtype=tf.int32)
+            return i, j, h, w
+
+    # Fallback to central crop
+    in_ratio = width / height
+    if in_ratio < min(ratio):
+        w = width
+        h = tf.cast(tf.round(w / min(ratio)), tf.int32)
+    elif in_ratio > max(ratio):
+        h = height
+        w = tf.cast(tf.round(h * max(ratio)), tf.int32)
+    else:  # whole image
+        w = width
+        h = height
+    i = (height - h) // 2
+    j = (width - w) // 2
+    return i, j, h, w
+
+
+def random_resized_crop(image, size, scale=(0.05, 1.0), ratio=(0.75, 1.33),
+                        sample_log_ratio=False):
     decoded = image.dtype != tf.string
     shape = tf.shape(image) if decoded else tf.image.extract_jpeg_shape(image)
-    sample_distorted_bounding_box = tf.image.sample_distorted_bounding_box(
-        shape,
-        bounding_boxes=bbox,
-        aspect_ratio_range=ratio,
-        area_range=scale,
-        use_image_if_no_bounding_boxes=True)
-    bbox_begin, bbox_size, _ = sample_distorted_bounding_box
+    if sample_log_ratio:
+        offset_y, offset_x, target_height, target_width = \
+            sample_distorted_bounding_box(shape, scale, ratio)
+    else:
+        bbox = tf.zeros((1, 0, 4), dtype=tf.float32)
+        bbox_begin, bbox_size, _ = tf.image.sample_distorted_bounding_box(
+            shape,
+            bounding_boxes=bbox,
+            aspect_ratio_range=ratio,
+            area_range=scale,
+            use_image_if_no_bounding_boxes=True)
 
-    offset_y, offset_x, _ = tf.unstack(bbox_begin)
-    target_height, target_width, _ = tf.unstack(bbox_size)
+        offset_y, offset_x, _ = tf.unstack(bbox_begin)
+        target_height, target_width, _ = tf.unstack(bbox_size)
+
     crop_window = tf.stack([offset_y, offset_x, target_height, target_width])
 
     if decoded:
