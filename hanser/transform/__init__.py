@@ -205,7 +205,7 @@ def sample_distorted_bounding_box(shape, scale, ratio):
         w = tf.cast(tf.round(tf.math.sqrt(target_area * aspect_ratio)), tf.int32)
         h = tf.cast(tf.round(tf.math.sqrt(target_area / aspect_ratio)), tf.int32)
 
-        if 0 < w <= width and 0 < h <= height:
+        if 0 < w and w <= width and 0 < h and h <= height:
             i = tf.random.uniform((), 0, height - h + 1, dtype=tf.int32)
             j = tf.random.uniform((), 0, width - w + 1, dtype=tf.int32)
             break
