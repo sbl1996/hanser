@@ -189,6 +189,7 @@ def resize(img, size, method='bilinear'):
     return img
 
 
+@tf.function
 def sample_distorted_bounding_box(shape, scale, ratio):
     height, width, _ = tf.unstack(shape)
     area = tf.cast(height * width, tf.float32)
@@ -212,7 +213,7 @@ def sample_distorted_bounding_box(shape, scale, ratio):
             j = tf.random.uniform((), 0, width - w + 1, dtype=tf.int32)
     if i != -1:
         return i, j, h, w
-    
+
     # Fallback to central crop
     in_ratio = width / height
     if in_ratio < min(ratio):
