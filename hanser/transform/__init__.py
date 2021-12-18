@@ -229,7 +229,7 @@ def sample_distorted_bounding_box(shape, scale, ratio):
     return tf.cond(
         i != -1,
         lambda: (i, j, h, w),
-        lambda: central_crop,
+        central_crop,
     )
 
 
