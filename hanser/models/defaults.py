@@ -103,6 +103,7 @@ _defaults_schema = {
             'mode': {'type': 'string', 'allowed': ['fan_in', 'fan_out']},
             'distribution': {'type': 'string', 'allowed': ['uniform', 'truncated_normal', 'untruncated_normal']},
             'fix': {'type': 'boolean'},
+            'zero_bias': {'type': 'boolean'},
         },
 
     },
