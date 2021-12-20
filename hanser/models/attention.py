@@ -28,7 +28,7 @@ class SELayer(Layer):
             if groups != 1:
                 channels = round_channels(channels, groups)
             self.fc = Sequential([
-                Conv2d(in_channels, channels, kernel_size=1, bias=False, act=act),
+                Conv2d(in_channels, channels, kernel_size=1, bias=True, act=act),
                 Conv2d(channels, in_channels, 1, groups=groups, act='sigmoid'),
             ])
         elif mode == 1:

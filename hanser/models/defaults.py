@@ -27,6 +27,7 @@ DEFAULTS = {
             'mode': 'fan_out',
             'distribution': 'untruncated_normal',
             'fix': True,
+            'zero_bias': False,
         },
     },
     'bn': {

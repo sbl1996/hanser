@@ -162,6 +162,8 @@ def Conv2d(in_channels: int,
 
     if bias_init:
         bias_initializer = bias_init
+    elif init_cfg['zero_bias']:
+        bias_initializer = 'zeros'
     else:
         bound = math.sqrt(1 / (kernel_size[0] * kernel_size[1] * (in_channels // groups)))
         bias_initializer = RandomUniform(-bound, bound)
