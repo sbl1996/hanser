@@ -1,7 +1,7 @@
 from hanser.train.lr_schedule import FlatCosineLR, CosineLR, CosinePowerAnnealingLR, MultiStepLR, ExponentialDecay, OneCycleLR, Knee, PolynomialDecay, ExponentialDecay2
 
 steps_per_epoch = 20
-epochs = 300
+epochs = 100
 total_steps = steps_per_epoch * epochs
 
 lr_scheduler1 = FlatCosineLR(0.1, steps_per_epoch, epochs, 75, 0.0001, 5, 0.01)
@@ -31,10 +31,11 @@ xs8 = [lr_scheduler8(i).numpy() for i in range(total_steps)]
 lr_scheduler9 = ExponentialDecay2(0.1, steps_per_epoch, epochs, 0.02, 5, 0)
 xs9 = [lr_scheduler9(i).numpy() for i in range(total_steps)]
 
+lr_scheduler10 = CosineLR(0.1, steps_per_epoch, epochs, 0.0001, 5, 0, staircase=True)
+xs10 = [lr_scheduler10(i).numpy() for i in range(total_steps)]
+
 import matplotlib.pyplot as plt
 
 plt.plot(xs2)
-plt.plot(xs5)
-plt.plot(xs9)
-plt.legend(['cosine', 'exp', 'exp2'])
+plt.plot(xs10)
 plt.show()

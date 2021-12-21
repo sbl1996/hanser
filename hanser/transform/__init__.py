@@ -864,7 +864,7 @@ _EIG_VECS = [
 
 
 # noinspection PyDefaultArgument
-def lighting(x, alpha_std, eig_val=_EIG_VALS, eig_vec=_EIG_VECS, vmax=255):
+def lighting(x, alpha_std, eig_val=_EIG_VALS, eig_vec=_EIG_VECS, vmax=1.0):
     """Performs AlexNet-style PCA jitter (used for training)."""
     eig_val = tf.convert_to_tensor(eig_val, x.dtype)
     eig_vec = tf.convert_to_tensor(eig_vec, x.dtype)
