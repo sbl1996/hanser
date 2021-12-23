@@ -158,15 +158,3 @@ def RegNetY_4_0GF(**kwargs):
 
 def RegNetY_6_4GF(**kwargs):
     return RegNet(32, (144, 288, 576, 1296), (2, 7, 14, 2), 72, 4, **kwargs)
-
-def RegNetY_8_0GF(**kwargs):
-    return RegNet(32, (128, 192, 512, 1088), (2, 6, 12, 2), 64, 4, **kwargs)
-
-def RegNetY_12GF(**kwargs):
-    return RegNet(32, (128, 192, 512, 1088), (2, 6, 12, 2), 64, 4, **kwargs)
-
-def RegNetY_16GF(**kwargs):
-    return RegNet(32, (128, 192, 512, 1088), (2, 6, 12, 2), 64, 4, **kwargs)
-
-def RegNetY_32GF(**kwargs):
-    return RegNet(32, (128, 192, 512, 1088), (2, 6, 12, 2), 64, 4, **kwargs)
