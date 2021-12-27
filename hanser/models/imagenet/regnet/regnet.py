@@ -107,52 +107,67 @@ class RegNet(Model):
         x = self.fc(x)
         return x
 
-
+# 31.1±0.09
 def RegNetX_200MF(**kwargs):
     return RegNet(32, (24, 56, 152, 368), (1, 1, 4, 7), 8, 0, **kwargs)
 
+# 27.3±0.15
 def RegNetX_400MF(**kwargs):
     return RegNet(32, (32, 64, 160, 384), (1, 2, 7, 12), 16, 0, **kwargs)
 
+# 25.9±0.03
 def RegNetX_600MF(**kwargs):
     return RegNet(32, (48, 96, 240, 528), (1, 3, 5, 7), 24, 0, **kwargs)
 
+# 24.8±0.09
 def RegNetX_800MF(**kwargs):
     return RegNet(32, (64, 128, 288, 672), (1, 3, 7, 5), 16, 0, **kwargs)
 
+# 23.0±0.13
 def RegNetX_1_6GF(**kwargs):
     return RegNet(32, (72, 168, 408, 912), (2, 4, 10, 2), 24, 0, **kwargs)
 
+# 21.7±0.08
 def RegNetX_3_2GF(**kwargs):
     return RegNet(32, (96, 192, 432, 1008), (2, 6, 15, 2), 48, 0, **kwargs)
 
+# 21.4±0.19
 def RegNetX_4_0GF(**kwargs):
     return RegNet(32, (80, 240, 560, 1360), (2, 5, 14, 2), 40, 0, **kwargs)
 
+# 20.8±0.07
 def RegNetX_6_4GF(**kwargs):
     return RegNet(32, (168, 392, 784, 1624), (2, 4, 10, 1), 56, 0, **kwargs)
 
 
+# 29.6±0.11
 def RegNetY_200MF(**kwargs):
     return RegNet(32, (24, 56, 152, 368), (1, 1, 4, 7), 8, 4, **kwargs)
 
+# 25.9±0.16
 def RegNetY_400MF(**kwargs):
     return RegNet(32, (48, 104, 208, 440), (1, 3, 6, 6), 8, 4, **kwargs)
 
+# 24.5±0.07
 def RegNetY_600MF(**kwargs):
     return RegNet(32, (48, 112, 256, 608), (1, 3, 7, 4), 16, 4, **kwargs)
 
+# 23.7±0.03
 def RegNetY_800MF(**kwargs):
     return RegNet(32, (64, 128, 320, 768), (1, 3, 8, 2), 16, 4, **kwargs)
 
+# 22.0±0.08
 def RegNetY_1_6GF(**kwargs):
     return RegNet(32, (48, 120, 336, 888), (2, 6, 17, 2), 24, 4, **kwargs)
 
+# 21.0±0.05
 def RegNetY_3_2GF(**kwargs):
     return RegNet(32, (72, 216, 576, 1512), (2, 5, 13, 1), 24, 4, **kwargs)
 
+# 20.6±0.08
 def RegNetY_4_0GF(**kwargs):
     return RegNet(32, (128, 192, 512, 1088), (2, 6, 12, 2), 64, 4, **kwargs)
 
+# 20.1±0.04
 def RegNetY_6_4GF(**kwargs):
     return RegNet(32, (144, 288, 576, 1296), (2, 7, 14, 2), 72, 4, **kwargs)
