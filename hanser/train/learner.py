@@ -78,8 +78,8 @@ class Learner(metaclass=ABCMeta):
     def __init__(self, model, criterion, optimizers,
                  train_metrics: Mapping[str, Metric], eval_metrics: Mapping[str, Metric],
                  work_dir: str, output_transform=default_metric_transform,
-                 n_batches_per_step: Optional[int] = None, multiple_steps: Optional[bool] = None,
-                 xla_compile: bool = True, eval_multiple_steps: Optional[bool] = None):
+                 n_batches_per_step: Optional[int] = None, steps_per_loop: int = -1,
+                 xla_compile: bool = True, eval_steps_per_loop: int = -1):
         if not isinstance(optimizers, Sequence):
             optimizers = [optimizers]
         optimizers = list(optimizers)
@@ -102,14 +102,9 @@ class Learner(metaclass=ABCMeta):
             ]
         self.output_transform = output_transform
 
-        device = discover_device()
-        if multiple_steps is None:
-            multiple_steps = device == 'TPU'
-        self.multiple_steps = multiple_steps
         self.xla_compile = xla_compile
-        if eval_multiple_steps is None:
-            eval_multiple_steps = self.multiple_steps
-        self.eval_multiple_steps = eval_multiple_steps
+        self.steps_per_loop = steps_per_loop
+        self.eval_steps_per_loop = eval_steps_per_loop
 
         self._log_dir = self.work_dir / "runs"
         self._writer = None
@@ -133,11 +128,6 @@ class Learner(metaclass=ABCMeta):
 
         if self.xla_compile:
             self.train_batch = tf.function(self.train_batch, experimental_compile=True)
-
-        if multiple_steps:
-            self._run_steps_fn = tf.function(self._run_steps)
-        else:
-            self._run_steps_fn = self._run_steps
 
         self.n_batches_per_step = n_batches_per_step
 
@@ -318,6 +308,7 @@ class Learner(metaclass=ABCMeta):
         return local_results(
             strategy_run(self._strategy, self.local_eval_batch, (batch,)), self._strategy)
 
+    @tf.function
     def _run_steps(self, step_fn, iterator, n_batches_per_step, n_steps, callbacks, state):
         # state['step'].assign(-1)
         for i in tf.range(n_steps):
@@ -333,33 +324,41 @@ class Learner(metaclass=ABCMeta):
 
     def _run_epoch(self, iterator, steps, callbacks, mode):
         state = self._state[mode]
-        metrics = getattr(self, mode + "_metrics")
-        step_fn = getattr(self, f"_{mode}_step")
+
+        if mode == 'train':
+            metrics = self.train_metrics
+            step_fn = self._train_step
+            n_batches_per_step = self.n_batches_per_step
+            if n_batches_per_step is not None:
+                step_fn = self._train_step_on_batches
+            steps_per_loop = self.steps_per_loop
+        else:
+            metrics = self.eval_metrics
+            step_fn = self._eval_step
+            n_batches_per_step = None
+            steps_per_loop = self.eval_steps_per_loop
+
+        steps_per_epoch = steps
+        if steps_per_loop == -1:
+            steps_per_loop = steps_per_epoch
 
         state.update({
-            'steps': steps,
+            'steps': steps_per_epoch,
         })
 
         for metric in metrics.values():
             metric.reset_states()
 
-        if self.multiple_steps:
-            run_state = {
-                k: state[k] for k in ["step", "steps", "epochs"]
-            }
-        else:
-            run_state = state
+        run_state = {
+            k: state[k] for k in ["step", "steps", "epochs"]
+        }
 
-        if mode == 'train' and self.n_batches_per_step is not None:
-            step_fn = self._train_step_on_batches
-            self._run_steps_fn(
-                step_fn, iterator, self.n_batches_per_step, steps, callbacks, run_state)
-        elif mode == 'eval' and not self.eval_multiple_steps:
-            self._run_steps(
-                step_fn, iterator, None, steps, callbacks, run_state)
-        else:
-            self._run_steps_fn(
-                step_fn, iterator, None, steps, callbacks, run_state)
+        current_step = 0
+        while current_step < steps_per_epoch:
+            steps = steps_to_run(current_step, steps_per_epoch, steps_per_loop)
+            self._run_steps(step_fn, iterator, n_batches_per_step,
+                            tf.convert_to_tensor(steps, dtype=tf.int32), callbacks, run_state)
+            current_step += steps
 
         for name, metric in metrics.items():
             state['metrics'][name] = metric.result().numpy()
@@ -494,3 +493,15 @@ class Learner(metaclass=ABCMeta):
                 eval_metric_logs = ", ".join(
                     f"{k}: {eval_metrics[k]:.4f}" for k in eval_metric_keys)
                 print(f"{eval_end} valid - {eval_metric_logs}")
+
+def steps_to_run(current_step, steps_per_epoch, steps_per_loop):
+    """Calculates steps to run on device."""
+    if steps_per_loop <= 0:
+        raise ValueError('steps_per_loop should be positive integer.')
+    if steps_per_loop == 1:
+        return steps_per_loop
+    remainder_in_epoch = current_step % steps_per_epoch
+    if remainder_in_epoch != 0:
+        return min(steps_per_epoch - remainder_in_epoch, steps_per_loop)
+    else:
+        return steps_per_loop
