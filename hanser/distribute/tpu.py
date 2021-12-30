@@ -8,9 +8,10 @@ def setup_tpu(fp16=True):
     assert has_tpu()
     tf.keras.backend.clear_session()
 
-    tpu_address = get_colab_tpu_address()
+    tpu_address = get_tpu_address()
     tpu = tf.distribute.cluster_resolver.TPUClusterResolver(tpu_address)
-    tf.config.experimental_connect_to_cluster(tpu)
+    if tpu_address != 'local':
+        tf.config.experimental_connect_to_cluster(tpu)
     tf.tpu.experimental.initialize_tpu_system(tpu)
 
     strategy = tf.distribute.TPUStrategy(tpu)
@@ -22,14 +23,11 @@ def setup_tpu(fp16=True):
 
 
 def has_tpu():
-    return get_colab_tpu_address() is not None
+    return get_tpu_address() is not None
 
 
-def get_colab_tpu_address():
-    tpu_address = os.environ.get("COLAB_TPU_ADDR")
-    if tpu_address is not None:
-        tpu_address = "grpc://" + tpu_address
-    return tpu_address
+def get_tpu_address():
+    return os.environ.get("TPU_NAME")
 
 
 def is_tpu_strategy(strategy):
