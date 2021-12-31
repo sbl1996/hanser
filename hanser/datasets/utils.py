@@ -1,10 +1,20 @@
-import tensorflow as tf
+import warnings
 
+import tensorflow as tf
+from packaging.version import parse as vparse
 
 def make_repeat_fn(n):
     def fn(*args):
         return tf.data.Dataset.from_tensor_slices(tuple([arg for _ in range(n)] for arg in args))
     return fn
+
+def batch_dataset(dataset, batch_size, drop_remainder=False, num_parallel_calls=None, deterministic=None):
+    if vparse(tf.__version__) < vparse("2.5"):
+        if num_parallel_calls:
+            warnings.warn("parallel_batch not work before tensorflow 2.5.0")
+        return dataset.batch(batch_size, drop_remainder)
+    else:
+        return dataset.batch(batch_size, drop_remainder, num_parallel_calls, deterministic)
 
 
 def prepare(ds: tf.data.Dataset, batch_size, transform=None, training=True, buffer_size=1024,
@@ -31,11 +41,11 @@ def prepare(ds: tf.data.Dataset, batch_size, transform=None, training=True, buff
     if training:
         if zip_transform:
             ds = tf.data.Dataset.zip((ds, ds)).map(zip_transform, num_parallel_calls=tf.data.experimental.AUTOTUNE)
-        ds = ds.batch(batch_size, drop_remainder=drop_remainder, num_parallel_calls=batch_num_parallel_calls)
+        ds = batch_dataset(ds, batch_size, drop_remainder=drop_remainder, num_parallel_calls=batch_num_parallel_calls)
         if batch_transform:
             ds = ds.map(batch_transform, num_parallel_calls=tf.data.experimental.AUTOTUNE)
     else:
-        ds = ds.batch(batch_size, drop_remainder=drop_remainder, num_parallel_calls=batch_num_parallel_calls)
+        ds = batch_dataset(ds, batch_size, drop_remainder=drop_remainder, num_parallel_calls=batch_num_parallel_calls)
         if batch_transform:
             ds = ds.map(batch_transform, num_parallel_calls=tf.data.experimental.AUTOTUNE)
         if repeat:

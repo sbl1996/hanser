@@ -2,7 +2,6 @@ import os
 import multiprocessing
 
 import tensorflow as tf
-import tensorflow.keras.mixed_precision as mixed_precision
 
 
 def setup_gpu(fp16=True):
@@ -11,8 +10,15 @@ def setup_gpu(fp16=True):
     # gpus = tf.config.list_physical_devices('GPU')
     # tf.config.experimental.set_memory_growth(gpus[0], True)
     if fp16:
-        policy = mixed_precision.Policy('mixed_float16')
-        mixed_precision.set_global_policy(policy)
+        from packaging.version import parse as vparse
+        if vparse(tf.__version__) >= vparse("2.4"):
+            import tensorflow.keras.mixed_precision as mixed_precision
+            policy = mixed_precision.Policy('mixed_float16')
+            mixed_precision.set_global_policy(policy)
+        else:
+            import tensorflow.keras.mixed_precision.experimental as mixed_precision
+            policy = mixed_precision.Policy('mixed_float16')
+            mixed_precision.set_policy(policy)
 
 
 def has_gpu():
