@@ -7,11 +7,7 @@ import sys
 import glob
 
 from setuptools import find_packages, setup, Extension
-
-# with open('requirements.txt') as f:
-#     requirements = f.read().splitlines()
-
-# Package meta-data.
+import pkg_resources
 
 NAME = 'hanser'
 IMPORT_NAME = 'hanser'
@@ -28,7 +24,6 @@ REQUIRED = [
     "toolz",
     "pybind11",
     "cerberus",
-    "tensorflow_probability==0.14.1",
     "tensorflow_datasets>=4.3.0",
     "hhutil",
     "lark",
@@ -38,8 +33,23 @@ REQUIRED = [
     'typeguard',
 ]
 
-DEPENDENCY_LINKS = [
-]
+tfp_version_compat_table = {
+    "2.7": "0.15.0",
+    "2.6": "0.14.1",
+    "2.5": "0.13.0",
+    "2.4": "0.12.2",
+    "2.3": "0.11.1",
+}
+
+def get_tf_version():
+    try:
+        version = pkg_resources.get_distribution("tensorflow").version
+    except pkg_resources.DistributionNotFound:
+        version = pkg_resources.get_distribution("tf_nightly").version
+    return version.rsplit('.', 1)[0]
+
+tfp_version = tfp_version_compat_table[get_tf_version()]
+REQUIRED.append(f"tensorflow_probability=={tfp_version}")
 
 here = os.path.dirname(os.path.abspath(__file__))
 
@@ -49,7 +59,6 @@ try:
 except FileNotFoundError:
     long_description = DESCRIPTION
 
-# Load the package's _version.py module as a dictionary.
 about = {}
 if not VERSION:
     with open(os.path.join(here, IMPORT_NAME, '_version.py')) as f:
@@ -90,7 +99,6 @@ def get_numpy_extensions():
 
     return ext_modules
 
-# Where the magic happens:
 setup(
     name=NAME,
     version=about['__version__'],
@@ -103,7 +111,7 @@ setup(
     url=URL,
     packages=find_packages(exclude=('tests',)),
     install_requires=REQUIRED,
-    dependency_links=DEPENDENCY_LINKS,
+    dependency_links=[],
     # include_package_data=True,
     license='MIT',
     # ext_modules=get_numpy_extensions(),
