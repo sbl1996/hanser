@@ -87,11 +87,11 @@ class Learner(metaclass=ABCMeta):
         self.eval_metrics = eval_metrics
         self.work_dir = work_dir
 
-        if vparse(tf.__version__) >= vparse("2.4"):
-            import tensorflow.keras.mixed_precision as mixed_precision
-        else:
-            import tensorflow.keras.mixed_precision.experimental as mixed_precision
-        # import tensorflow.keras.mixed_precision.experimental as mixed_precision
+        # if vparse(tf.__version__) >= vparse("2.4"):
+        #     import tensorflow.keras.mixed_precision as mixed_precision
+        # else:
+        #     import tensorflow.keras.mixed_precision.experimental as mixed_precision
+        import tensorflow.keras.mixed_precision.experimental as mixed_precision
 
         self.dtype = tf.dtypes.as_dtype(mixed_precision.global_policy().compute_dtype)
         if self.dtype == tf.float16:
