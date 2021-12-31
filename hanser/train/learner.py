@@ -222,7 +222,6 @@ class Learner(metaclass=ABCMeta):
 
         if ds_val is not None:
             val_steps = val_steps or len(ds_val)
-            val_steps = tf.convert_to_tensor(val_steps, dtype=tf.int32)
 
         self.init_state('train', epochs=max_epochs)
         cbks = config_callbacks(
