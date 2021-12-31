@@ -309,18 +309,14 @@ class Learner(metaclass=ABCMeta):
             strategy_run(self._strategy, self.local_eval_batch, (batch,)), self._strategy)
 
     @tf.function
-    def _run_steps(self, step_fn, iterator, n_batches_per_step, n_steps, callbacks, state):
-        # state['step'].assign(-1)
+    def _run_steps(self, step_fn, iterator, n_batches_per_step, n_steps):
         for i in tf.range(n_steps):
-            # state['step'].assign_add(1)
-            callbacks.begin_batch(state)
             if n_batches_per_step is not None:
                 batches = tuple(next(iterator) for bi in range(n_batches_per_step))
                 step_fn(batches)
             else:
                 batch = next(iterator)
                 step_fn(batch)
-            callbacks.after_batch(state)
 
     def _run_epoch(self, iterator, steps, callbacks, mode):
         state = self._state[mode]
@@ -349,15 +345,11 @@ class Learner(metaclass=ABCMeta):
         for metric in metrics.values():
             metric.reset_states()
 
-        run_state = {
-            k: state[k] for k in ["step", "steps", "epochs"]
-        }
-
         current_step = 0
         while current_step < steps_per_epoch:
             steps = steps_to_run(current_step, steps_per_epoch, steps_per_loop)
             self._run_steps(step_fn, iterator, n_batches_per_step,
-                            tf.convert_to_tensor(steps, dtype=tf.int32), callbacks, run_state)
+                            tf.convert_to_tensor(steps, dtype=tf.int32))
             current_step += steps
 
         for name, metric in metrics.items():
