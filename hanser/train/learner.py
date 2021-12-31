@@ -5,12 +5,12 @@ from typing import Sequence, Mapping, Optional
 import pickle
 
 import tensorflow as tf
-from packaging.version import parse as vparse
+import tensorflow.keras.mixed_precision.experimental as mixed_precision
 from tensorflow.keras.metrics import Metric, Mean
 
 from hhutil.io import fmt_path, eglob, rm, time_now
 
-from hanser.distribute import parse_strategy, strategy_run, is_distribute_strategy, local_results, discover_device
+from hanser.distribute import parse_strategy, strategy_run, is_distribute_strategy, local_results
 from hanser.train.metric_history import MetricHistory
 from hanser.train.callbacks import config_callbacks, log_metrics
 
@@ -87,23 +87,23 @@ class Learner(metaclass=ABCMeta):
         self.eval_metrics = eval_metrics
         self.work_dir = work_dir
 
+        # from packaging.version import parse as vparse
         # if vparse(tf.__version__) >= vparse("2.4"):
         #     import tensorflow.keras.mixed_precision as mixed_precision
         # else:
         #     import tensorflow.keras.mixed_precision.experimental as mixed_precision
-        import tensorflow.keras.mixed_precision.experimental as mixed_precision
 
         self.dtype = tf.dtypes.as_dtype(mixed_precision.global_policy().compute_dtype)
-        if self.dtype == tf.float16:
-            if vparse(tf.__version__) >= vparse("2.4"):
-                dynamic = True
-            else:
-                dynamic = 'dynamic'
-            self.optimizers = [
-                mixed_precision.LossScaleOptimizer(optimizer, dynamic)
-                if not isinstance(optimizer, mixed_precision.LossScaleOptimizer) else optimizer
-                for optimizer in self.optimizers
-            ]
+        # if self.dtype == tf.float16:
+        #     if vparse(tf.__version__) >= vparse("2.4"):
+        #         dynamic = True
+        #     else:
+        #         dynamic = 'dynamic'
+        #     self.optimizers = [
+        #         mixed_precision.LossScaleOptimizer(optimizer, dynamic)
+        #         if not isinstance(optimizer, mixed_precision.LossScaleOptimizer) else optimizer
+        #         for optimizer in self.optimizers
+        #     ]
         self.output_transform = output_transform
 
         self.xla_compile = xla_compile

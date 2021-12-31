@@ -6,7 +6,7 @@ from hanser.distribute.gpu import has_gpu, setup_gpu
 from hanser.distribute.tpu import has_tpu, setup_tpu, local_results
 
 
-__all__ = ["setup_runtime", "distribute_datasets"]
+__all__ = ["setup_runtime", "distribute_datasets", "parse_strategy", "strategy_run", "is_distribute_strategy", "local_results"]
 
 
 def discover_device():

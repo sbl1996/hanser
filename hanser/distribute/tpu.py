@@ -1,6 +1,7 @@
 import os
 
 import tensorflow as tf
+import tensorflow.keras.mixed_precision.experimental as mixed_precision
 
 def setup_tpu(fp16=True):
     assert has_tpu()
@@ -16,18 +17,17 @@ def setup_tpu(fp16=True):
     tf.distribute.experimental_set_strategy(strategy)
 
     if fp16:
-        from packaging.version import parse as vparse
-        if vparse(tf.__version__) >= vparse("2.4"):
-            import tensorflow.keras.mixed_precision as mixed_precision
-            policy = mixed_precision.Policy('mixed_bfloat16')
-            mixed_precision.set_global_policy(policy)
-        else:
-            import tensorflow.keras.mixed_precision.experimental as mixed_precision
-            policy = mixed_precision.Policy('mixed_bfloat16')
-            mixed_precision.set_policy(policy)
-        # import tensorflow.keras.mixed_precision.experimental as mixed_precision
-        # policy = mixed_precision.Policy('mixed_bfloat16')
-        # mixed_precision.set_policy(policy)
+        # from packaging.version import parse as vparse
+        # if vparse(tf.__version__) >= vparse("2.4"):
+        #     import tensorflow.keras.mixed_precision as mixed_precision
+        #     policy = mixed_precision.Policy('mixed_bfloat16')
+        #     mixed_precision.set_global_policy(policy)
+        # else:
+        #     import tensorflow.keras.mixed_precision.experimental as mixed_precision
+        #     policy = mixed_precision.Policy('mixed_bfloat16')
+        #     mixed_precision.set_policy(policy)
+        policy = mixed_precision.Policy('mixed_bfloat16')
+        mixed_precision.set_policy(policy)
 
 
 def has_tpu():
