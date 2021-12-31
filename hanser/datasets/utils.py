@@ -9,12 +9,13 @@ def make_repeat_fn(n):
     return fn
 
 def batch_dataset(dataset, batch_size, drop_remainder=False, num_parallel_calls=None, deterministic=None):
-    if vparse(tf.__version__) < vparse("2.5"):
-        if num_parallel_calls:
-            warnings.warn("parallel_batch not work before tensorflow 2.5.0")
-        return dataset.batch(batch_size, drop_remainder)
-    else:
-        return dataset.batch(batch_size, drop_remainder, num_parallel_calls, deterministic)
+    # if vparse(tf.__version__) < vparse("2.5"):
+    #     if num_parallel_calls:
+    #         warnings.warn("parallel_batch not work before tensorflow 2.5.0")
+    #     return dataset.batch(batch_size, drop_remainder=drop_remainder)
+    # else:
+    #     return dataset.batch(batch_size, drop_remainder, num_parallel_calls, deterministic)
+    return dataset.batch(batch_size, drop_remainder=drop_remainder)
 
 
 def prepare(ds: tf.data.Dataset, batch_size, transform=None, training=True, buffer_size=1024,
