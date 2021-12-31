@@ -219,7 +219,6 @@ class Learner(metaclass=ABCMeta):
         self._max_epochs = max_epochs
 
         steps_per_epoch = steps_per_epoch or len(ds_train)
-        steps_per_epoch = tf.convert_to_tensor(steps_per_epoch, dtype=tf.int32)
 
         if ds_val is not None:
             val_steps = val_steps or len(ds_val)
