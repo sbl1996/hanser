@@ -247,7 +247,7 @@ class Learner(metaclass=ABCMeta):
             if not reuse_train_iterator:
                 self._train_it = iter(ds_train)
 
-            self._run_epoch(self._train_it, steps_per_epoch, cbks, 'train')
+            self._run_epoch(self._train_it, steps_per_epoch)
             cbks.after_epoch(state)
 
             do_local_eval = local_eval_metrics and parse_freq(epoch, local_eval_freq)
@@ -257,7 +257,7 @@ class Learner(metaclass=ABCMeta):
                 state = self._state['eval']
                 state['metrics'] = {}
                 cbks.begin_eval(state)
-                self._run_epoch(iter(ds_val), val_steps, cbks, 'eval')
+                self._run_eval(iter(ds_val), val_steps)
                 cbks.after_eval(state)
 
             if do_local_eval:
@@ -311,32 +311,22 @@ class Learner(metaclass=ABCMeta):
             strategy_run(self._strategy, self.local_eval_batch, (batch,)), self._strategy)
 
     @tf.function
-    def _run_steps(self, step_fn, iterator, n_batches_per_step, n_steps):
+    def _train_steps(self, iterator, n_steps):
         for i in tf.range(n_steps):
-            if n_batches_per_step is not None:
-                batches = tuple(next(iterator) for bi in range(n_batches_per_step))
-                step_fn(batches)
-            else:
-                batch = next(iterator)
-                step_fn(batch)
+            self._train_step(next(iterator))
 
-    def _run_epoch(self, iterator, steps, callbacks, mode):
-        state = self._state[mode]
+    @tf.function
+    def _train_steps_on_batches(self, iterator, n_batches_per_step, n_steps):
+        for i in tf.range(n_steps):
+            batches = tuple(next(iterator) for bi in range(n_batches_per_step))
+            self._train_step_on_batches(batches)
 
-        if mode == 'train':
-            metrics = self.train_metrics
-            step_fn = self._train_step
-            n_batches_per_step = self.n_batches_per_step
-            if n_batches_per_step is not None:
-                step_fn = self._train_step_on_batches
-            steps_per_loop = self.steps_per_loop
-        else:
-            metrics = self.eval_metrics
-            step_fn = self._eval_step
-            n_batches_per_step = None
-            steps_per_loop = self.eval_steps_per_loop
+    def _run_epoch(self, iterator, steps_per_epoch):
+        state = self._state['train']
 
-        steps_per_epoch = steps
+        metrics = self.train_metrics
+
+        steps_per_loop = self.steps_per_loop
         if steps_per_loop == -1:
             steps_per_loop = steps_per_epoch
 
@@ -350,12 +340,41 @@ class Learner(metaclass=ABCMeta):
         current_step = 0
         while current_step < steps_per_epoch:
             steps = steps_to_run(current_step, steps_per_epoch, steps_per_loop)
-            self._run_steps(step_fn, iterator, n_batches_per_step,
-                            tf.convert_to_tensor(steps, dtype=tf.int32))
+            if self.n_batches_per_step is not None:
+                self._train_steps_on_batches(
+                    iterator, self.n_batches_per_step, tf.convert_to_tensor(steps, dtype=tf.int32))
+            else:
+                self._train_steps(iterator, tf.convert_to_tensor(steps, dtype=tf.int32))
             current_step += steps
 
         for name, metric in metrics.items():
             state['metrics'][name] = metric.result().numpy()
+
+    @tf.function
+    def _eval_steps(self, iterator, steps):
+        for i in tf.range(steps):
+            self._eval_step(next(iterator))
+
+    def _run_eval(self, iterator, eval_steps):
+
+        metrics = self.eval_metrics
+        steps_per_loop = self.eval_steps_per_loop
+        if steps_per_loop == -1:
+            steps_per_loop = eval_steps
+
+        for metric in metrics.values():
+            metric.reset_states()
+
+        current_step = 0
+        while current_step < eval_steps:
+            steps = steps_to_run(current_step, eval_steps, steps_per_loop)
+            self._eval_steps(iterator, tf.convert_to_tensor(steps, dtype=tf.int32))
+            current_step += steps
+
+        state = self._state['eval']
+        for name, metric in metrics.items():
+            state['metrics'][name] = metric.result().numpy()
+
 
     def update_metrics(self, metrics, y_true, y_pred, per_example_loss=None):
         y_pred = self.output_transform(y_pred)
