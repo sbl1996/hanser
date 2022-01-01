@@ -5,7 +5,11 @@ from typing import Sequence, Mapping, Optional
 import pickle
 
 import tensorflow as tf
-import tensorflow.keras.mixed_precision.experimental as mixed_precision
+from packaging.version import parse as vparse
+if vparse(tf.__version__) >= vparse("2.4"):
+    import tensorflow.keras.mixed_precision as mixed_precision
+else:
+    import tensorflow.keras.mixed_precision.experimental as mixed_precision
 from tensorflow.keras.metrics import Metric, Mean
 
 from hhutil.io import fmt_path, eglob, rm, time_now
@@ -57,13 +61,6 @@ def default_metric_transform(x):
         return x[0]
     return x
 
-def is_global_bfloat16():
-    return mixed_precision.global_policy().compute_dtype == 'bfloat16'
-
-
-def is_global_float16():
-    return mixed_precision.global_policy().compute_dtype == 'float16'
-
 
 def cast(xs, dtype, whiltelist=(tf.int32, tf.int64, tf.bool)):
     def func(x):
@@ -95,8 +92,12 @@ class Learner(metaclass=ABCMeta):
         self.work_dir = work_dir
         self.dtype = tf.dtypes.as_dtype(mixed_precision.global_policy().compute_dtype)
         if self.dtype == tf.float16:
+            if vparse(tf.__version__) >= vparse("2.4"):
+                dynamic = True
+            else:
+                dynamic = 'dynamic'
             self.optimizers = [
-                mixed_precision.LossScaleOptimizer(optimizer, 'dynamic')
+                mixed_precision.LossScaleOptimizer(optimizer, dynamic)
                 if not isinstance(optimizer, mixed_precision.LossScaleOptimizer) else optimizer
                 for optimizer in self.optimizers
             ]
