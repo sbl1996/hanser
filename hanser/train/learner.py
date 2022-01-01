@@ -254,7 +254,7 @@ class Learner(metaclass=ABCMeta):
             if not reuse_train_iterator:
                 self._train_it = iter(ds_train)
 
-            self._run_epoch(self._train_it, steps_per_epoch, cbks, 'train')
+            self._run_epoch(self._train_it, steps_per_epoch, cbks)
             cbks.after_epoch(state)
 
             do_local_eval = local_eval_metrics and parse_freq(epoch, local_eval_freq)
@@ -264,7 +264,7 @@ class Learner(metaclass=ABCMeta):
                 state = self._state['eval']
                 state['metrics'] = {}
                 cbks.begin_eval(state)
-                self._run_epoch(iter(ds_val), val_steps, cbks, 'eval')
+                self._run_eval(iter(ds_val), val_steps, cbks)
                 cbks.after_eval(state)
 
             if do_local_eval:
@@ -284,7 +284,7 @@ class Learner(metaclass=ABCMeta):
         state = self._state['eval']
         state['metrics'] = {}
         cbks.begin_eval(state)
-        self._run_epoch(iter(ds_val), val_steps, cbks, 'eval')
+        self._run_eval(iter(ds_val), val_steps, cbks)
         cbks.after_eval(state)
 
     def evaluate_local(self, iterator, steps, metrics):
@@ -330,10 +330,9 @@ class Learner(metaclass=ABCMeta):
                 step_fn(batch)
             callbacks.after_batch(state)
 
-    def _run_epoch(self, iterator, steps, callbacks, mode):
-        state = self._state[mode]
-        metrics = getattr(self, mode + "_metrics")
-        step_fn = getattr(self, f"_{mode}_step")
+    def _run_epoch(self, iterator, steps, callbacks):
+        state = self._state['train']
+        metrics = self.train_metrics
 
         state.update({
             'steps': steps,
@@ -350,16 +349,34 @@ class Learner(metaclass=ABCMeta):
             run_state = state
 
         steps = tf.convert_to_tensor(steps, tf.int32)
-        if mode == 'train' and self.n_batches_per_step is not None:
-            step_fn = self._train_step_on_batches
+        if self.n_batches_per_step is not None:
             self._run_steps_fn(
-                step_fn, iterator, self.n_batches_per_step, steps, callbacks, run_state)
-        elif mode == 'eval' and not self.eval_multiple_steps:
-            self._run_steps(
-                step_fn, iterator, None, steps, callbacks, run_state)
+                self._train_step_on_batches, iterator,
+                self.n_batches_per_step, steps, callbacks, run_state)
         else:
             self._run_steps_fn(
-                step_fn, iterator, None, steps, callbacks, run_state)
+                self._train_step, iterator, None, steps, callbacks, run_state)
+
+        for name, metric in metrics.items():
+            state['metrics'][name] = metric.result().numpy()
+
+    def _run_eval(self, iterator, steps, callbacks):
+        state = self._state['eval']
+        metrics = self.eval_metrics
+
+        state.update({
+            'steps': steps,
+        })
+
+        for metric in metrics.values():
+            metric.reset_states()
+
+        steps = tf.convert_to_tensor(steps, tf.int32)
+        run_state = {
+            k: state[k] for k in ["step", "steps", "epochs"]
+        }
+        self._run_steps_fn(
+            self._eval_step, iterator, None, steps, callbacks, run_state)
 
         for name, metric in metrics.items():
             state['metrics'][name] = metric.result().numpy()
