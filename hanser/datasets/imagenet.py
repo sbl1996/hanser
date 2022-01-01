@@ -87,11 +87,7 @@ def make_imagenet_dataset_split(
     else:
         transform = parse_and_transform(transform, training)
 
-    options = tf.data.Options()
-    options.experimental_threading.private_threadpool_size = 48
-    ds = dataset.with_options(options)
-
-    ds = prepare(ds, batch_size, transform, training=training, buffer_size=_SHUFFLE_BUFFER,
+    ds = prepare(dataset, batch_size, transform, training=training, buffer_size=_SHUFFLE_BUFFER,
                  cache=True, prefetch=True, repeat=repeat, drop_remainder=drop_remainder, **kwargs)
 
     n = NUM_IMAGES[split]
