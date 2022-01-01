@@ -235,7 +235,6 @@ class Learner(metaclass=ABCMeta):
 
         if ds_val is not None:
             val_steps = val_steps or len(ds_val)
-            self._eval_it = iter(ds_val)
 
         self.init_state('train', epochs=max_epochs)
         cbks = config_callbacks(
@@ -276,6 +275,7 @@ class Learner(metaclass=ABCMeta):
                 state = self._state['eval']
                 state['metrics'] = {}
                 cbks.begin_eval(state)
+                self._eval_it = iter(ds_val)
                 self._run_epoch(self._eval_it, val_steps, cbks, 'eval')
                 cbks.after_eval(state)
 
