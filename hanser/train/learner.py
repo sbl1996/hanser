@@ -70,6 +70,19 @@ def cast(xs, dtype, whiltelist=(tf.int32, tf.int64, tf.bool)):
     return tf.nest.map_structure(func, xs)
 
 
+def steps_to_run(current_step, steps_per_epoch, steps_per_loop):
+    """Calculates steps to run on device."""
+    if steps_per_loop <= 0:
+        raise ValueError('steps_per_loop should be positive integer.')
+    if steps_per_loop == 1:
+        return steps_per_loop
+    remainder_in_epoch = current_step % steps_per_epoch
+    if remainder_in_epoch != 0:
+        return min(steps_per_epoch - remainder_in_epoch, steps_per_loop)
+    else:
+        return steps_per_loop
+
+
 class Learner(metaclass=ABCMeta):
 
     def __init__(self, model, criterion, optimizers,
@@ -222,6 +235,7 @@ class Learner(metaclass=ABCMeta):
 
         if ds_val is not None:
             val_steps = val_steps or len(ds_val)
+            self._eval_it = iter(ds_val)
 
         self.init_state('train', epochs=max_epochs)
         cbks = config_callbacks(
@@ -237,6 +251,7 @@ class Learner(metaclass=ABCMeta):
 
         if reuse_train_iterator:
             self._train_it = iter(ds_train)
+
 
         cbks.begin_train(self._state['train'])
         max_epochs = min(start_epoch + epochs, self._max_epochs)
@@ -261,7 +276,7 @@ class Learner(metaclass=ABCMeta):
                 state = self._state['eval']
                 state['metrics'] = {}
                 cbks.begin_eval(state)
-                self._run_epoch(iter(ds_val), val_steps, cbks, 'eval')
+                self._run_epoch(self._eval_it, val_steps, cbks, 'eval')
                 cbks.after_eval(state)
 
             if do_local_eval:
@@ -333,6 +348,9 @@ class Learner(metaclass=ABCMeta):
     def _run_epoch(self, iterator, steps, callbacks, mode):
         state = self._state[mode]
         metrics = getattr(self, mode + "_metrics")
+        steps_per_loop = self.steps_per_loop if mode == 'train' else self.eval_steps_per_loop
+        if steps_per_loop == -1:
+            steps_per_loop = steps
 
         state.update({
             'steps': steps,
@@ -346,6 +364,19 @@ class Learner(metaclass=ABCMeta):
             self.train_steps(iterator, steps, self.n_batches_per_step)
         else:
             self.eval_steps(iterator, steps)
+
+        # if mode == 'train':
+        #     current_step = 0
+        #     while current_step < steps:
+        #         run_steps = steps_to_run(current_step, steps, steps_per_loop)
+        #         self.train_steps(iterator, tf.convert_to_tensor(run_steps, tf.int32), self.n_batches_per_step)
+        #         current_step += run_steps
+        # else:
+        #     current_step = 0
+        #     while current_step < steps:
+        #         run_steps = steps_to_run(current_step, steps, steps_per_loop)
+        #         self.eval_steps(iterator, tf.convert_to_tensor(run_steps, tf.int32))
+        #         current_step += run_steps
 
         for name, metric in metrics.items():
             state['metrics'][name] = metric.result().numpy()
