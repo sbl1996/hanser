@@ -222,11 +222,9 @@ class Learner(metaclass=ABCMeta):
         self._max_epochs = max_epochs
 
         steps_per_epoch = steps_per_epoch or len(ds_train)
-        steps_per_epoch = tf.convert_to_tensor(steps_per_epoch, dtype=tf.int32)
 
         if ds_val is not None:
             val_steps = val_steps or len(ds_val)
-            val_steps = tf.convert_to_tensor(val_steps, dtype=tf.int32)
 
         self.init_state('train', epochs=max_epochs)
         cbks = config_callbacks(
@@ -351,6 +349,7 @@ class Learner(metaclass=ABCMeta):
         else:
             run_state = state
 
+        steps = tf.convert_to_tensor(steps, tf.int32)
         if mode == 'train' and self.n_batches_per_step is not None:
             step_fn = self._train_step_on_batches
             self._run_steps_fn(
