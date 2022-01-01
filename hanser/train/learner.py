@@ -122,7 +122,7 @@ class Learner(metaclass=ABCMeta):
         self.steps_per_loop = steps_per_loop
         self.jit_compile = jit_compile
         if eval_steps_per_loop is None:
-            eval_steps_per_loop = steps_per_loop
+            eval_steps_per_loop = -1 if device == 'TPU' else 1
         self.eval_steps_per_loop = eval_steps_per_loop
 
         self._log_dir = self.work_dir / "runs"
