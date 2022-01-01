@@ -135,11 +135,6 @@ class Learner(metaclass=ABCMeta):
         if self.xla_compile:
             self.train_batch = tf.function(self.train_batch, experimental_compile=True)
 
-        if multiple_steps:
-            self._run_steps_fn = tf.function(self._run_steps)
-        else:
-            self._run_steps_fn = self._run_steps
-
         self.n_batches_per_step = n_batches_per_step
 
     def _make_ckpt(self, model_only=False):
@@ -317,10 +312,9 @@ class Learner(metaclass=ABCMeta):
         return local_results(
             strategy_run(self._strategy, self.local_eval_batch, (batch,)), self._strategy)
 
+    @tf.function
     def _run_steps(self, step_fn, iterator, n_batches_per_step, n_steps, callbacks, state):
-        state['step'].assign(-1)
         for i in tf.range(n_steps):
-            state['step'].assign_add(1)
             callbacks.begin_batch(state)
             if n_batches_per_step is not None:
                 batches = tuple(next(iterator) for bi in range(n_batches_per_step))
@@ -350,11 +344,11 @@ class Learner(metaclass=ABCMeta):
 
         steps = tf.convert_to_tensor(steps, tf.int32)
         if self.n_batches_per_step is not None:
-            self._run_steps_fn(
+            self._run_steps(
                 self._train_step_on_batches, iterator,
                 self.n_batches_per_step, steps, callbacks, run_state)
         else:
-            self._run_steps_fn(
+            self._run_steps(
                 self._train_step, iterator, None, steps, callbacks, run_state)
 
         for name, metric in metrics.items():
@@ -375,7 +369,7 @@ class Learner(metaclass=ABCMeta):
         run_state = {
             k: state[k] for k in ["step", "steps", "epochs"]
         }
-        self._run_steps_fn(
+        self._run_steps(
             self._eval_step, iterator, None, steps, callbacks, run_state)
 
         for name, metric in metrics.items():
