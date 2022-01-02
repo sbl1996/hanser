@@ -143,7 +143,6 @@ class Learner(metaclass=ABCMeta):
 
         self._terminated = False
         self.set_global_state("epoch", -1)
-        self._epoch_var = tf.Variable(self.epoch, dtype=tf.int64) # TODO: no need to use var
 
         if self.jit_compile:
             self.train_batch = tf.function(self.train_batch, experimental_compile=True)
@@ -154,15 +153,11 @@ class Learner(metaclass=ABCMeta):
         optimizers = self.optimizers
         # if len(optimizers) == 1 and hasattr(self, "original_optimizer"):
         #     optimizers = [self.original_optimizer]
-        self._epoch_var.assign(self.epoch)
         if model_only:
-            ckpt = tf.train.Checkpoint(
-                model=self.model, epoch=self._epoch_var)
+            ckpt = tf.train.Checkpoint(model=self.model)
         else:
             ckpt = tf.train.Checkpoint(
-                model=self.model, optimizers=optimizers,
-                epoch=self._epoch_var,
-            )
+                model=self.model, optimizers=optimizers)
         ckpt_options = tf.train.CheckpointOptions(
             experimental_io_device="/job:localhost") if self._strategy else None
         return ckpt, ckpt_options
@@ -201,7 +196,7 @@ class Learner(metaclass=ABCMeta):
 
     def set_state(self, k, v, mode):
         # State
-        # epoch: int (Variable by _epoch_var), for save and load
+        # epoch: int, for save and load
         # epochs: int
         # step: Variable
         # steps: int
@@ -223,7 +218,6 @@ class Learner(metaclass=ABCMeta):
             steps_per_epoch=None, val_steps=None, max_epochs=None, save_freq=None,
             callbacks=None, reuse_train_iterator=True,
             local_eval_metrics=None, local_eval_freq=None):
-        # It seems that reuse_train_iterator speed up the first epoch significantly
         if max_epochs is None:
             max_epochs = epochs
 
@@ -462,7 +456,7 @@ class Learner(metaclass=ABCMeta):
             return None
 
 
-    def save(self, save_dir=None, model_only=False, state=True):
+    def save(self, save_dir=None, model_only=False):
         if save_dir is None:
             save_dir = self.work_dir
         else:
@@ -477,12 +471,9 @@ class Learner(metaclass=ABCMeta):
         ckpt, ckpt_options = self._make_ckpt(model_only=model_only)
         path = ckpt.write(save_path, ckpt_options)
 
-        if state:
-            self.save_state(save_dir)
-
         self._print('Save learner to %s' % path)
 
-    def load(self, fp=None, miss_ok=False, model_only=False, state=True):
+    def load(self, fp=None, miss_ok=False, model_only=False):
         if fp is None:
             fp = find_most_recent(self.work_dir, "ckpt.index")
             if fp is None:
@@ -494,19 +485,18 @@ class Learner(metaclass=ABCMeta):
             fp = str(fp)[:-6]
         ckpt, ckpt_options = self._make_ckpt(model_only=model_only)
         ckpt.restore(fp, ckpt_options)
-        epoch = int(self._epoch_var.numpy())
 
-        if state:
-            save_dir = fmt_path(fp).parent
-            d = self.load_state(save_dir)
-            if d is not None:
-                self.metric_history._history = d['metric_history']
-                self._train_start = d['train_start']
-                epoch = d['epoch']
-                self._max_epochs = d['max_epochs']
-
-        self.set_global_state('epoch', epoch)
-        self._print("Load learner at epoch %d from %s" % (self.epoch + 1, fp))
+        save_dir = fmt_path(fp).parent
+        d = self.load_state(save_dir)
+        if d is not None:
+            self.metric_history._history = d['metric_history']
+            self._train_start = d['train_start']
+            self._max_epochs = d['max_epochs']
+            epoch = d['epoch']
+            self.set_global_state('epoch', epoch)
+            self._print("Load learner at epoch %d from %s" % (self.epoch + 1, fp))
+        else:
+            self._print("Load learner from %s" % (fp,))
         return True
 
     def recover_log(self):
