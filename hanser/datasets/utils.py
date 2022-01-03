@@ -52,11 +52,4 @@ def prepare(ds: tf.data.Dataset, batch_size, transform=None, training=True, buff
             ds = ds.repeat()
     if prefetch:
         ds = ds.prefetch(tf.data.experimental.AUTOTUNE)
-
-    options = tf.data.Options()
-    options.experimental_deterministic = False
-    options.experimental_threading.max_intra_op_parallelism = 1
-    options.experimental_threading.private_threadpool_size = 48
-    ds = ds.with_options(options)
-
     return ds
