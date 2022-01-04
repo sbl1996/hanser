@@ -15,7 +15,7 @@ NUM_FILES = {
     'validation': 128
 }
 
-_SHUFFLE_BUFFER = 10000
+_SHUFFLE_BUFFER = 1251 * 1024
 
 
 def get_filenames(data_dir, training):
