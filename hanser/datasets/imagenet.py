@@ -93,12 +93,12 @@ def make_imagenet_dataset_split(
     ds = prepare(dataset, batch_size, transform, training=training, buffer_size=buffer_size,
                  cache=True, prefetch=True, repeat=repeat, drop_remainder=drop_remainder, **kwargs)
 
-    options = tf.data.Options()
-    options.experimental_deterministic = False
-    options.experimental_threading.max_intra_op_parallelism = 1
-    options.experimental_threading.private_threadpool_size = 48
-    options.experimental_distribute.auto_shard_policy = tf.data.experimental.AutoShardPolicy.FILE
-    ds = ds.with_options(options)
+    # options = tf.data.Options()
+    # options.experimental_deterministic = False
+    # options.experimental_threading.max_intra_op_parallelism = 1
+    # options.experimental_threading.private_threadpool_size = 48
+    # options.experimental_distribute.auto_shard_policy = tf.data.experimental.AutoShardPolicy.FILE
+    # ds = ds.with_options(options)
 
     n = NUM_IMAGES[split]
     chunksize = math.ceil(n / NUM_FILES[split])
