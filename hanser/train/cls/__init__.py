@@ -28,8 +28,15 @@ class SuperLearner(Learner):
                 loss = optimizer.get_scaled_loss(loss)
         self.minimize(tape, optimizer, loss, model.trainable_variables, self.grad_clip_norm)
         self.update_metrics(self.train_metrics, target, preds, per_example_loss)
+
         if hasattr(self, "_ema") and self._ema is not None:
             self._ema.apply(self._ema_vars)
+
+        return_metrics = {}
+        for name, metric in self.train_metrics.items():
+            return_metrics[name] = metric.result()
+        return return_metrics
+
 
     def train_batches(self, *batches):
         batch = tuple(tf.concat(xs, axis=0) for xs in zip(*batches))
@@ -45,6 +52,11 @@ class SuperLearner(Learner):
     def eval_batch(self, batch):
         target, preds = self._eval_batch(batch)
         self.update_metrics(self.eval_metrics, target, preds)
+
+        return_metrics = {}
+        for name, metric in self.eval_metrics.items():
+            return_metrics[name] = metric.result()
+        return return_metrics
 
     def local_eval_batch(self, batch):
         return self._eval_batch(batch)

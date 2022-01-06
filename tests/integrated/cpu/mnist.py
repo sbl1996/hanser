@@ -58,7 +58,7 @@ eval_metrics = {
 }
 
 learner = SuperLearner(
-    model, criterion, optimizer, xla_compile=False, multiple_steps=False,
+    model, criterion, optimizer, jit_compile=True, steps_per_loop=steps_per_epoch,
     train_metrics=train_metrics, eval_metrics=eval_metrics,
     work_dir=f"./MNIST")
 

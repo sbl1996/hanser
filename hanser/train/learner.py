@@ -83,6 +83,31 @@ def steps_to_run(current_step, steps_per_epoch, steps_per_loop):
         return steps_per_loop
 
 
+def reduce_per_replica(values, strategy, reduction='first'):
+    """Reduce PerReplica objects.
+
+    Args:
+        values: Structure of `PerReplica` objects or `Tensor`s. `Tensor`s are
+            returned as-is.
+        strategy: `tf.distribute.Strategy` object.
+        reduction: One of 'first', 'concat'.
+
+    Returns:
+        Structure of `Tensor`s.
+    """
+    def _reduce(v):
+        """Reduce a single `PerReplica` object."""
+        if not "PerReplica" in type(v).__name__:
+            return v
+        elif reduction == 'first':
+            return strategy.experimental_local_results(v)[0]
+        elif reduction == 'concat':
+            return tf.concat(strategy.experimental_local_results(x), axis=0)
+        else:
+          raise ValueError('`reduction` must be "first" or "concat".')
+    return tf.nest.map_structure(_reduce, values)
+
+
 class Learner(metaclass=ABCMeta):
 
     def __init__(self, model, criterion, optimizers,
@@ -304,33 +329,36 @@ class Learner(metaclass=ABCMeta):
 
     @tf.function
     def _train_step(self, batch):
-        strategy_run(self._strategy, self.train_batch, (batch,))
+        return strategy_run(self._strategy, self.train_batch, (batch,))
 
     @tf.function
     def _train_step_on_batches(self, batches):
-        strategy_run(self._strategy, self.train_batches, batches)
+        return strategy_run(self._strategy, self.train_batches, batches)
 
     @tf.function
     def _eval_step(self, batch):
-        strategy_run(self._strategy, self.eval_batch, (batch,))
+        return strategy_run(self._strategy, self.eval_batch, (batch,))
 
     @tf.function
     def _local_eval_step(self, batch):
         return local_results(
             strategy_run(self._strategy, self.local_eval_batch, (batch,)), self._strategy)
 
-    @tf.function
+    @tf.function(experimental_relax_shapes=True)
     def _run_steps(self, step_fn, iterator, n_batches_per_step, n_steps, callbacks, state):
         for i in tf.range(n_steps):
             state['step'].assign_add(1)
             callbacks.begin_batch(state)
             if n_batches_per_step is not None:
                 batches = tuple(next(iterator) for bi in range(n_batches_per_step))
-                step_fn(batches)
+                outputs = step_fn(batches)
             else:
                 batch = next(iterator)
-                step_fn(batch)
+                outputs = step_fn(batch)
             callbacks.after_batch(state)
+        outputs = reduce_per_replica(
+            outputs, self._strategy, reduction='first')
+        return outputs
 
     def _run_epoch(self, iterator, steps, callbacks):
         state = self._state['train']
@@ -361,13 +389,11 @@ class Learner(metaclass=ABCMeta):
         current_step = 0
         while current_step < steps:
             run_steps = steps_to_run(current_step, steps, steps_per_loop)
-            self._run_steps(step_fn, iterator, n_batches_per_step,
-                            tf.convert_to_tensor(run_steps, dtype=tf.int32),
-                            callbacks, run_state)
+            return_metrics = self._run_steps(
+                step_fn, iterator, n_batches_per_step,
+                tf.convert_to_tensor(run_steps, dtype=tf.int32),callbacks, run_state)
             current_step += run_steps
-
-        for name, metric in metrics.items():
-            state['metrics'][name] = metric.result().numpy()
+        state['metrics'].update(return_metrics)
 
     def _run_eval(self, iterator, steps, callbacks):
         state = self._state['eval']
@@ -390,13 +416,11 @@ class Learner(metaclass=ABCMeta):
         current_step = 0
         while current_step < steps:
             run_steps = steps_to_run(current_step, steps, steps_per_loop)
-            self._run_steps(self._eval_step, iterator, None,
-                            tf.convert_to_tensor(run_steps, dtype=tf.int32),
-                            callbacks, run_state)
+            return_metrics = self._run_steps(self._eval_step, iterator, None,
+                tf.convert_to_tensor(run_steps, dtype=tf.int32),
+                callbacks, run_state)
             current_step += run_steps
-
-        for name, metric in metrics.items():
-            state['metrics'][name] = metric.result().numpy()
+        state['metrics'].update(return_metrics)
 
     def update_metrics(self, metrics, y_true, y_pred, per_example_loss=None):
         y_pred = self.output_transform(y_pred)
