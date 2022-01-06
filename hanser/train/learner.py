@@ -4,6 +4,8 @@ from typing import Sequence, Mapping, Optional
 
 import pickle
 
+import numpy as np
+
 import tensorflow as tf
 from packaging.version import parse as vparse
 if vparse(tf.__version__) >= vparse("2.4"):
@@ -106,6 +108,38 @@ def reduce_per_replica(values, strategy, reduction='first'):
         else:
           raise ValueError('`reduction` must be "first" or "concat".')
     return tf.nest.map_structure(_reduce, values)
+
+
+def sync_to_numpy_or_python_type(tensors):
+    """Syncs and converts a structure of `Tensor`s to `NumPy` arrays or Python scalar types.
+
+    For each tensor, it calls `tensor.numpy()`. If the result is a scalar value,
+    it converts it to a Python type, such as a float or int, by calling
+    `result.item()`.
+
+    Numpy scalars are converted, as Python types are often more convenient to deal
+    with. This is especially useful for bfloat16 Numpy scalars, which don't
+    support as many operations as other Numpy values.
+
+    Async strategies (such as `TPUStrategy` and `ParameterServerStrategy`) are
+    forced to
+    sync during this process.
+
+    Args:
+    tensors: A structure of tensors.
+
+    Returns:
+    `tensors`, but scalar tensors are converted to Python types and non-scalar
+    tensors are converted to Numpy arrays.
+    """
+
+    def _to_single_numpy_or_python_type(t):
+        if isinstance(t, tf.Tensor):
+            x = t.numpy()
+            return x.item() if np.ndim(x) == 0 else x
+        return t  # Don't turn ragged or sparse tensors to NumPy.
+
+    return tf.nest.map_structure(_to_single_numpy_or_python_type, tensors)
 
 
 class Learner(metaclass=ABCMeta):
@@ -389,11 +423,12 @@ class Learner(metaclass=ABCMeta):
         current_step = 0
         while current_step < steps:
             run_steps = steps_to_run(current_step, steps, steps_per_loop)
-            return_metrics = self._run_steps(
+            logs = self._run_steps(
                 step_fn, iterator, n_batches_per_step,
                 tf.convert_to_tensor(run_steps, dtype=tf.int32), callbacks, run_state)
+            logs = sync_to_numpy_or_python_type(logs)
             current_step += run_steps
-        state['metrics'].update(return_metrics)
+        state['metrics'].update(logs)
 
     def _run_eval(self, iterator, steps, callbacks):
         state = self._state['eval']
@@ -416,11 +451,12 @@ class Learner(metaclass=ABCMeta):
         current_step = 0
         while current_step < steps:
             run_steps = steps_to_run(current_step, steps, steps_per_loop)
-            return_metrics = self._run_steps(self._eval_step, iterator, None,
+            logs = self._run_steps(self._eval_step, iterator, None,
                 tf.convert_to_tensor(run_steps, dtype=tf.int32),
                 callbacks, run_state)
+            logs = sync_to_numpy_or_python_type(logs)
             current_step += run_steps
-        state['metrics'].update(return_metrics)
+        state['metrics'].update(logs)
 
     def update_metrics(self, metrics, y_true, y_pred, per_example_loss=None):
         y_pred = self.output_transform(y_pred)
