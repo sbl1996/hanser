@@ -346,6 +346,7 @@ class Learner(metaclass=ABCMeta):
 
     @tf.function(experimental_relax_shapes=True)
     def _run_steps(self, step_fn, iterator, n_batches_per_step, n_steps, callbacks, state):
+        outputs = {}
         for i in tf.range(n_steps):
             state['step'].assign_add(1)
             callbacks.begin_batch(state)
@@ -391,7 +392,7 @@ class Learner(metaclass=ABCMeta):
             run_steps = steps_to_run(current_step, steps, steps_per_loop)
             return_metrics = self._run_steps(
                 step_fn, iterator, n_batches_per_step,
-                tf.convert_to_tensor(run_steps, dtype=tf.int32),callbacks, run_state)
+                tf.convert_to_tensor(run_steps, dtype=tf.int32), callbacks, run_state)
             current_step += run_steps
         state['metrics'].update(return_metrics)
 
