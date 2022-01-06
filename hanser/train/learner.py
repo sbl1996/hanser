@@ -379,17 +379,14 @@ class Learner(metaclass=ABCMeta):
             strategy_run(self._strategy, self.local_eval_batch, (batch,)), self._strategy)
 
     @tf.function(experimental_relax_shapes=True)
-    def _run_steps(self, step_fn, iterator, n_batches_per_step, n_steps, callbacks, state):
+    def _run_steps(self, step_fn, iterator, n_batches_per_step, n_steps):
         for i in tf.range(n_steps):
-            state['step'].assign_add(1)
-            callbacks.begin_batch(state)
             if n_batches_per_step is not None:
                 batches = tuple(next(iterator) for bi in range(n_batches_per_step))
                 outputs = step_fn(batches)
             else:
                 batch = next(iterator)
                 outputs = step_fn(batch)
-            callbacks.after_batch(state)
             outputs = reduce_per_replica(
                 outputs, self._strategy, reduction='first')
         return outputs
@@ -422,11 +419,13 @@ class Learner(metaclass=ABCMeta):
 
         current_step = 0
         while current_step < steps:
+            callbacks.begin_batch(state)
             run_steps = steps_to_run(current_step, steps, steps_per_loop)
             logs = self._run_steps(
                 step_fn, iterator, n_batches_per_step,
-                tf.convert_to_tensor(run_steps, dtype=tf.int32), callbacks, run_state)
+                tf.convert_to_tensor(run_steps, dtype=tf.int32))
             logs = sync_to_numpy_or_python_type(logs)
+            callbacks.after_batch(state)
             current_step += run_steps
         state['metrics'].update(logs)
 
@@ -450,11 +449,12 @@ class Learner(metaclass=ABCMeta):
 
         current_step = 0
         while current_step < steps:
+            callbacks.begin_batch(state)
             run_steps = steps_to_run(current_step, steps, steps_per_loop)
             logs = self._run_steps(self._eval_step, iterator, None,
-                tf.convert_to_tensor(run_steps, dtype=tf.int32),
-                callbacks, run_state)
+                tf.convert_to_tensor(run_steps, dtype=tf.int32))
             logs = sync_to_numpy_or_python_type(logs)
+            callbacks.after_batch(state)
             current_step += run_steps
         state['metrics'].update(logs)
 
