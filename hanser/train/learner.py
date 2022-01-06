@@ -346,7 +346,6 @@ class Learner(metaclass=ABCMeta):
 
     @tf.function(experimental_relax_shapes=True)
     def _run_steps(self, step_fn, iterator, n_batches_per_step, n_steps, callbacks, state):
-        outputs = {}
         for i in tf.range(n_steps):
             state['step'].assign_add(1)
             callbacks.begin_batch(state)
@@ -357,8 +356,8 @@ class Learner(metaclass=ABCMeta):
                 batch = next(iterator)
                 outputs = step_fn(batch)
             callbacks.after_batch(state)
-        outputs = reduce_per_replica(
-            outputs, self._strategy, reduction='first')
+            outputs = reduce_per_replica(
+                outputs, self._strategy, reduction='first')
         return outputs
 
     def _run_epoch(self, iterator, steps, callbacks):
