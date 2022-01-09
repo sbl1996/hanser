@@ -32,10 +32,10 @@ class SuperLearner(Learner):
         if hasattr(self, "_ema") and self._ema is not None:
             self._ema.apply(self._ema_vars)
 
-        return_metrics = {}
-        for name, metric in self.train_metrics.items():
-            return_metrics[name] = metric.result()
-        return return_metrics
+        # return_metrics = {}
+        # for name, metric in self.train_metrics.items():
+        #     return_metrics[name] = metric.result()
+        # return return_metrics
 
 
     def train_batches(self, *batches):
@@ -53,10 +53,10 @@ class SuperLearner(Learner):
         target, preds = self._eval_batch(batch)
         self.update_metrics(self.eval_metrics, target, preds)
 
-        return_metrics = {}
-        for name, metric in self.eval_metrics.items():
-            return_metrics[name] = metric.result()
-        return return_metrics
+        # return_metrics = {}
+        # for name, metric in self.eval_metrics.items():
+        #     return_metrics[name] = metric.result()
+        # return return_metrics
 
     def local_eval_batch(self, batch):
         return self._eval_batch(batch)
