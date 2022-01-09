@@ -312,27 +312,23 @@ class Learner(metaclass=ABCMeta):
 
     @tf.function
     def _train_step(self, batch):
-        self._train_counter.assign_add(1)
         strategy_run(self._strategy, self.train_batch, (batch,))
 
     @tf.function
     def _train_step_on_batches(self, batches):
-        self._train_counter.assign_add(1)
         strategy_run(self._strategy, self.train_batches, batches)
 
     @tf.function
     def _eval_step(self, batch):
-        self._eval_counter.assign_add(1)
         strategy_run(self._strategy, self.eval_batch, (batch,))
 
     @tf.function
     def _local_eval_step(self, batch):
-        self._eval_counter.assign_add(1)
         return local_results(
             strategy_run(self._strategy, self.local_eval_batch, (batch,)), self._strategy)
 
     @tf.function
-    def _run_steps(self, step_fn, iterator, n_batches_per_step, n_steps):
+    def _run_steps(self, step_fn, iterator, n_batches_per_step, n_steps, counter):
         for i in tf.range(n_steps):
             if n_batches_per_step is not None:
                 batches = tuple(next(iterator) for bi in range(n_batches_per_step))
@@ -340,6 +336,7 @@ class Learner(metaclass=ABCMeta):
             else:
                 batch = next(iterator)
                 step_fn(batch)
+        counter.assign_add(n_steps)
 
     def _run_epoch(self, iterator, steps, callbacks):
         state = self._state['train']
@@ -367,7 +364,8 @@ class Learner(metaclass=ABCMeta):
             callbacks.begin_batch(state)
             run_steps = steps_to_run(current_step, steps, steps_per_loop)
             self._run_steps(step_fn, iterator, n_batches_per_step,
-                            tf.convert_to_tensor(run_steps, dtype=tf.int32))
+                            tf.convert_to_tensor(run_steps, dtype=tf.int32),
+                            self._train_counter)
             current_step += run_steps
             callbacks.after_batch(state)
 
@@ -394,7 +392,8 @@ class Learner(metaclass=ABCMeta):
         while current_step < steps:
             run_steps = steps_to_run(current_step, steps, steps_per_loop)
             self._run_steps(self._eval_step, iterator, None,
-                            tf.convert_to_tensor(run_steps, dtype=tf.int32))
+                            tf.convert_to_tensor(run_steps, dtype=tf.int32),
+                            self._eval_counter)
             current_step += run_steps
 
         for name, metric in metrics.items():
