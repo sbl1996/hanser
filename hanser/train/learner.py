@@ -168,13 +168,14 @@ class Learner(metaclass=ABCMeta):
         return ckpt, ckpt_options
 
     def train_batch(self, batch):
-        pass
+        self._train_counter.assign_add(1)
 
     def train_batches(self, *batches):
-        pass
+        batch = tuple(tf.concat(xs, axis=0) for xs in zip(*batches))
+        return self.train_batch(batch)
 
     def eval_batch(self, batch):
-        pass
+        self._eval_counter.assign_add(1)
 
     def local_eval_batch(self, batch):
         pass
@@ -326,9 +327,8 @@ class Learner(metaclass=ABCMeta):
             strategy_run(self._strategy, self.local_eval_batch, (batch,)), self._strategy)
 
     @tf.function
-    def _run_steps(self, step_fn, iterator, n_batches_per_step, n_steps, counter):
+    def _run_steps(self, step_fn, iterator, n_batches_per_step, n_steps):
         for i in tf.range(n_steps):
-            counter.assign_add(1)
             if n_batches_per_step is not None:
                 batches = tuple(next(iterator) for bi in range(n_batches_per_step))
                 step_fn(batches)
@@ -362,8 +362,7 @@ class Learner(metaclass=ABCMeta):
             callbacks.begin_batch(state)
             run_steps = steps_to_run(current_step, steps, steps_per_loop)
             self._run_steps(step_fn, iterator, n_batches_per_step,
-                            tf.convert_to_tensor(run_steps, dtype=tf.int32),
-                            self._train_counter)
+                            tf.convert_to_tensor(run_steps, dtype=tf.int32))
             current_step += run_steps
             callbacks.after_batch(state)
 
@@ -390,8 +389,7 @@ class Learner(metaclass=ABCMeta):
         while current_step < steps:
             run_steps = steps_to_run(current_step, steps, steps_per_loop)
             self._run_steps(self._eval_step, iterator, None,
-                            tf.convert_to_tensor(run_steps, dtype=tf.int32),
-                            self._eval_counter)
+                            tf.convert_to_tensor(run_steps, dtype=tf.int32))
             current_step += run_steps
 
         for name, metric in metrics.items():
