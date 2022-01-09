@@ -84,7 +84,7 @@ def steps_to_run(current_step, steps_per_epoch, steps_per_loop):
 
 
 def _run_steps(step_fn, iterator, n_batches_per_step, n_steps, counter):
-    for i in tf.range(n_steps):
+    for _i in tf.range(n_steps):
         if n_batches_per_step is not None:
             batches = tuple(next(iterator) for bi in range(n_batches_per_step))
             step_fn(batches)
@@ -94,8 +94,8 @@ def _run_steps(step_fn, iterator, n_batches_per_step, n_steps, counter):
     counter.assign_add(n_steps)
 
 
-def _run_steps_v2(step_fn, iterator, n_batches_per_step, n_steps, counter):
-    for i in tf.range(n_steps):
+def _run_steps2(step_fn, iterator, n_batches_per_step, n_steps, counter):
+    for _i in tf.range(n_steps):
         counter.assign_add(1)
         if n_batches_per_step is not None:
             batches = tuple(next(iterator) for bi in range(n_batches_per_step))
@@ -138,18 +138,6 @@ class Learner(metaclass=ABCMeta):
             ]
         self.output_transform = output_transform
 
-        device = discover_device()
-        if steps_per_loop is None:
-            if vparse(tf.__version__) >= vparse("2.4"):
-                steps_per_loop = 50 if device == 'TPU' else 1
-            else: # 2.3
-                steps_per_loop = -1 if device == 'TPU' else 1
-        self.steps_per_loop = steps_per_loop
-        self.jit_compile = jit_compile
-        if eval_steps_per_loop is None:
-            eval_steps_per_loop = -1 if device == 'TPU' else 1
-        self.eval_steps_per_loop = eval_steps_per_loop
-
         self._log_dir = self.work_dir / "runs"
         self._writer = None
 
@@ -169,6 +157,7 @@ class Learner(metaclass=ABCMeta):
         self._terminated = False
         self.set_global_state("epoch", -1)
 
+        self.jit_compile = jit_compile
         if self.jit_compile:
             self.train_batch = tf.function(self.train_batch, experimental_compile=True)
             self.eval_batch = tf.function(self.eval_batch, experimental_compile=True)
@@ -180,10 +169,22 @@ class Learner(metaclass=ABCMeta):
         self._train_counter = tf.Variable(0, dtype='int32', aggregation=agg, synchronization=sync)
         self._eval_counter = tf.Variable(0, dtype='int32', aggregation=agg, synchronization=sync)
 
+        device = discover_device()
+
         if vparse(tf.__version__) >= vparse("2.4"):
+            tpu_steps_per_loop = 50
             run_steps_fn = _run_steps
         else:
-            run_steps_fn = _run_steps_v2
+            tpu_steps_per_loop = -1
+            run_steps_fn = _run_steps2
+
+        if steps_per_loop is None:
+            steps_per_loop = tpu_steps_per_loop if device == 'TPU' else 1
+        if eval_steps_per_loop is None:
+            eval_steps_per_loop = tpu_steps_per_loop if device == 'TPU' else 1
+
+        self.steps_per_loop = steps_per_loop
+        self.eval_steps_per_loop = eval_steps_per_loop
         self._run_steps = tf.function(run_steps_fn)
 
     def _make_ckpt(self, model_only=False):
