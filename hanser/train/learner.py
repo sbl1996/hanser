@@ -186,14 +186,14 @@ class Learner(metaclass=ABCMeta):
     def init_state(self, mode, epochs=None):
         if mode == 'eval':
             if 'step' not in self._state['eval']:
-                self.set_state('step', 0, 'eval')
+                self.set_state('step', tf.Variable(0, dtype=tf.int32), 'eval')
             if 'epoch' not in self._state['eval']:
                 self.set_state('epoch', 0, 'eval')
             if 'epochs' not in self._state['eval']:
                 self.set_state('epochs', epochs or 0, 'eval')
         elif mode == 'train':
-            self.set_global_state("epochs", epochs)
-            self.set_global_state("step", 0)
+            self.set_global_state('epochs', epochs)
+            self.set_global_state('step', tf.Variable(0, dtype=tf.int32))
 
     def set_state(self, k, v, mode):
         # State
@@ -201,7 +201,10 @@ class Learner(metaclass=ABCMeta):
         # epochs: int
         # step: int
         # steps: int
-        self._state[mode][k] = v
+        if k in self._state[mode] and isinstance(self._state[mode][k], tf.Variable):
+            self._state[mode][k].assign(v)
+        else:
+            self._state[mode][k] = v
 
     def set_global_state(self, k, v):
         modes = ['train', 'eval', 'test']
@@ -322,8 +325,9 @@ class Learner(metaclass=ABCMeta):
             strategy_run(self._strategy, self.local_eval_batch, (batch,)), self._strategy)
 
     @tf.function
-    def _run_steps(self, step_fn, iterator, n_batches_per_step, n_steps):
+    def _run_steps(self, step_fn, iterator, n_batches_per_step, n_steps, step):
         for i in tf.range(n_steps):
+            step.assign_add(1)
             if n_batches_per_step is not None:
                 batches = tuple(next(iterator) for bi in range(n_batches_per_step))
                 step_fn(batches)
@@ -340,8 +344,9 @@ class Learner(metaclass=ABCMeta):
 
         state.update({
             'steps': steps,
-            'step': 0,
         })
+
+        state['step'].assign(-1)
 
         for metric in metrics.values():
             metric.reset_states()
@@ -356,9 +361,9 @@ class Learner(metaclass=ABCMeta):
             callbacks.begin_batch(state)
             run_steps = steps_to_run(current_step, steps, steps_per_loop)
             self._run_steps(step_fn, iterator, n_batches_per_step,
-                            tf.convert_to_tensor(run_steps, dtype=tf.int32))
+                            tf.convert_to_tensor(run_steps, dtype=tf.int32),
+                            state['step'])
             current_step += run_steps
-            state['step'] = current_step
             callbacks.after_batch(state)
 
         for name, metric in metrics.items():
@@ -373,8 +378,9 @@ class Learner(metaclass=ABCMeta):
 
         state.update({
             'steps': steps,
-            'step': 0,
         })
+
+        state['step'].assign(-1)
 
         for metric in metrics.values():
             metric.reset_states()
@@ -383,9 +389,9 @@ class Learner(metaclass=ABCMeta):
         while current_step < steps:
             run_steps = steps_to_run(current_step, steps, steps_per_loop)
             self._run_steps(self._eval_step, iterator, None,
-                            tf.convert_to_tensor(run_steps, dtype=tf.int32))
+                            tf.convert_to_tensor(run_steps, dtype=tf.int32),
+                            state['step'])
             current_step += run_steps
-            state['step'] = current_step
 
         for name, metric in metrics.items():
             state['metrics'][name] = metric.result().numpy()
