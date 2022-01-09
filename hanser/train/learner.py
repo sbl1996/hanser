@@ -168,14 +168,14 @@ class Learner(metaclass=ABCMeta):
         return ckpt, ckpt_options
 
     def train_batch(self, batch):
-        self._train_counter.assign_add(1)
+        pass
 
     def train_batches(self, *batches):
         batch = tuple(tf.concat(xs, axis=0) for xs in zip(*batches))
         return self.train_batch(batch)
 
     def eval_batch(self, batch):
-        self._eval_counter.assign_add(1)
+        pass
 
     def local_eval_batch(self, batch):
         pass
@@ -311,18 +311,22 @@ class Learner(metaclass=ABCMeta):
 
     @tf.function
     def _train_step(self, batch):
+        self._train_counter.assign_add(1)
         strategy_run(self._strategy, self.train_batch, (batch,))
 
     @tf.function
     def _train_step_on_batches(self, batches):
+        self._train_counter.assign_add(1)
         strategy_run(self._strategy, self.train_batches, batches)
 
     @tf.function
     def _eval_step(self, batch):
+        self._eval_counter.assign_add(1)
         strategy_run(self._strategy, self.eval_batch, (batch,))
 
     @tf.function
     def _local_eval_step(self, batch):
+        self._eval_counter.assign_add(1)
         return local_results(
             strategy_run(self._strategy, self.local_eval_batch, (batch,)), self._strategy)
 

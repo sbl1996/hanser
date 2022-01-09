@@ -12,7 +12,6 @@ class SuperLearner(Learner):
         super().__init__(model, criterion, optimizer, **kwargs)
 
     def train_batch(self, batch):
-        super().train_batch(batch)
         model = self.model
         optimizer = self.optimizers[0]
 
@@ -40,7 +39,6 @@ class SuperLearner(Learner):
         return target, preds
 
     def eval_batch(self, batch):
-        super().eval_batch(batch)
         target, preds = self._eval_batch(batch)
         self.update_metrics(self.eval_metrics, target, preds)
 
