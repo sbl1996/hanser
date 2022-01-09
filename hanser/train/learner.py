@@ -140,7 +140,10 @@ class Learner(metaclass=ABCMeta):
 
         device = discover_device()
         if steps_per_loop is None:
-            steps_per_loop = -1 if device == 'TPU' else 1
+            if vparse(tf.__version__) >= vparse("2.4"):
+                steps_per_loop = 50 if device == 'TPU' else 1
+            else: # 2.3
+                steps_per_loop = -1 if device == 'TPU' else 1
         self.steps_per_loop = steps_per_loop
         self.jit_compile = jit_compile
         if eval_steps_per_loop is None:
