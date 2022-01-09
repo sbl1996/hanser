@@ -185,25 +185,22 @@ class Learner(metaclass=ABCMeta):
     def init_state(self, mode, epochs=None):
         if mode == 'eval':
             if 'step' not in self._state['eval']:
-                self.set_state('step', tf.Variable(0, dtype=tf.int32), 'eval')
+                self.set_state('step', 0, 'eval')
             if 'epoch' not in self._state['eval']:
                 self.set_state('epoch', 0, 'eval')
             if 'epochs' not in self._state['eval']:
                 self.set_state('epochs', epochs or 0, 'eval')
         elif mode == 'train':
             self.set_global_state("epochs", epochs)
-            self.set_global_state("step", tf.Variable(0, dtype=tf.int32))
+            self.set_global_state("step", 0)
 
     def set_state(self, k, v, mode):
         # State
         # epoch: int, for save and load
         # epochs: int
-        # step: Variable
+        # step: int
         # steps: int
-        if k in self._state[mode] and isinstance(self._state[mode][k], tf.Variable):
-            self._state[mode][k].assign(v)
-        else:
-            self._state[mode][k] = v
+        self._state[mode][k] = v
 
     def set_global_state(self, k, v):
         modes = ['train', 'eval', 'test']
@@ -338,17 +335,11 @@ class Learner(metaclass=ABCMeta):
 
         state.update({
             'steps': steps,
+            'step': 0,
         })
 
         for metric in metrics.values():
             metric.reset_states()
-
-        if steps_per_loop != 1:
-            run_state = {
-                k: state[k] for k in ["step", "steps", "epochs"]
-            }
-        else:
-            run_state = state
 
         step_fn = self._train_step
         n_batches_per_step = self.n_batches_per_step
@@ -357,10 +348,13 @@ class Learner(metaclass=ABCMeta):
 
         current_step = 0
         while current_step < steps:
+            callbacks.begin_batch(state)
             run_steps = steps_to_run(current_step, steps, steps_per_loop)
             self._run_steps(step_fn, iterator, n_batches_per_step,
                             tf.convert_to_tensor(run_steps, dtype=tf.int32))
             current_step += run_steps
+            state['step'] = current_step
+            callbacks.after_batch(state)
 
         for name, metric in metrics.items():
             state['metrics'][name] = metric.result().numpy()
@@ -374,21 +368,21 @@ class Learner(metaclass=ABCMeta):
 
         state.update({
             'steps': steps,
+            'step': 0,
         })
 
         for metric in metrics.values():
             metric.reset_states()
 
-        run_state = {
-            k: state[k] for k in ["step", "steps", "epochs"]
-        }
-
         current_step = 0
         while current_step < steps:
+            callbacks.begin_batch(state)
             run_steps = steps_to_run(current_step, steps, steps_per_loop)
             self._run_steps(self._eval_step, iterator, None,
                             tf.convert_to_tensor(run_steps, dtype=tf.int32))
             current_step += run_steps
+            state['step'] = current_step
+            callbacks.after_batch(state)
 
         for name, metric in metrics.items():
             state['metrics'][name] = metric.result().numpy()
