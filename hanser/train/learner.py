@@ -213,7 +213,7 @@ class Learner(metaclass=ABCMeta):
 
     def fit(self, ds_train, epochs, ds_val=None, val_freq=1,
             steps_per_epoch=None, val_steps=None, max_epochs=None, save_freq=None,
-            callbacks=None, reuse_train_iterator=True,
+            callbacks=None, reuse_train_iterator=True, reuse_eval_iterator=False,
             local_eval_metrics=None, local_eval_freq=None):
         if max_epochs is None:
             max_epochs = epochs
@@ -224,6 +224,8 @@ class Learner(metaclass=ABCMeta):
 
         if ds_val is not None:
             val_steps = val_steps or len(ds_val)
+            if reuse_eval_iterator:
+                self._eval_it = iter(ds_val)
 
         self.init_state('train', epochs=max_epochs)
         cbks = config_callbacks(
@@ -263,7 +265,9 @@ class Learner(metaclass=ABCMeta):
                 state = self._state['eval']
                 state['metrics'] = {}
                 cbks.begin_eval(state)
-                self._run_eval(iter(ds_val), val_steps)
+                if not reuse_eval_iterator:
+                    self._eval_it = iter(ds_val)
+                self._run_eval(self._eval_it, val_steps)
                 cbks.after_eval(state)
 
             if do_local_eval:
