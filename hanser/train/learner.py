@@ -150,6 +150,10 @@ class Learner(metaclass=ABCMeta):
 
         self.n_batches_per_step = n_batches_per_step
 
+        agg = tf.VariableAggregation.ONLY_FIRST_REPLICA
+        self._train_counter = tf.Variable(0, dtype='int64', aggregation=agg)
+        self._eval_counter = tf.Variable(0, dtype='int64', aggregation=agg)
+
     def _make_ckpt(self, model_only=False):
         optimizers = self.optimizers
         # if len(optimizers) == 1 and hasattr(self, "original_optimizer"):
@@ -186,14 +190,14 @@ class Learner(metaclass=ABCMeta):
     def init_state(self, mode, epochs=None):
         if mode == 'eval':
             if 'step' not in self._state['eval']:
-                self.set_state('step', tf.Variable(0, dtype=tf.int32), 'eval')
+                self.set_state('step', 0, 'eval')
             if 'epoch' not in self._state['eval']:
                 self.set_state('epoch', 0, 'eval')
             if 'epochs' not in self._state['eval']:
                 self.set_state('epochs', epochs or 0, 'eval')
         elif mode == 'train':
             self.set_global_state('epochs', epochs)
-            self.set_global_state('step', tf.Variable(0, dtype=tf.int32))
+            self.set_global_state('step', 0)
 
     def set_state(self, k, v, mode):
         # State
@@ -201,10 +205,7 @@ class Learner(metaclass=ABCMeta):
         # epochs: int
         # step: int
         # steps: int
-        if k in self._state[mode] and isinstance(self._state[mode][k], tf.Variable):
-            self._state[mode][k].assign(v)
-        else:
-            self._state[mode][k] = v
+        self._state[mode][k] = v
 
     def set_global_state(self, k, v):
         modes = ['train', 'eval', 'test']
@@ -325,9 +326,9 @@ class Learner(metaclass=ABCMeta):
             strategy_run(self._strategy, self.local_eval_batch, (batch,)), self._strategy)
 
     @tf.function
-    def _run_steps(self, step_fn, iterator, n_batches_per_step, n_steps, step):
+    def _run_steps(self, step_fn, iterator, n_batches_per_step, n_steps, counter):
         for i in tf.range(n_steps):
-            step.assign_add(1)
+            counter.assign_add(1)
             if n_batches_per_step is not None:
                 batches = tuple(next(iterator) for bi in range(n_batches_per_step))
                 step_fn(batches)
@@ -346,7 +347,7 @@ class Learner(metaclass=ABCMeta):
             'steps': steps,
         })
 
-        state['step'].assign(-1)
+        self._train_counter.assign(-1)
 
         for metric in metrics.values():
             metric.reset_states()
@@ -362,7 +363,7 @@ class Learner(metaclass=ABCMeta):
             run_steps = steps_to_run(current_step, steps, steps_per_loop)
             self._run_steps(step_fn, iterator, n_batches_per_step,
                             tf.convert_to_tensor(run_steps, dtype=tf.int32),
-                            state['step'])
+                            self._train_counter)
             current_step += run_steps
             callbacks.after_batch(state)
 
@@ -380,7 +381,7 @@ class Learner(metaclass=ABCMeta):
             'steps': steps,
         })
 
-        state['step'].assign(-1)
+        self._eval_counter.assign(-1)
 
         for metric in metrics.values():
             metric.reset_states()
@@ -390,7 +391,7 @@ class Learner(metaclass=ABCMeta):
             run_steps = steps_to_run(current_step, steps, steps_per_loop)
             self._run_steps(self._eval_step, iterator, None,
                             tf.convert_to_tensor(run_steps, dtype=tf.int32),
-                            state['step'])
+                            self._eval_counter)
             current_step += run_steps
 
         for name, metric in metrics.items():

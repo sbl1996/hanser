@@ -65,3 +65,6 @@ learner = SuperLearner(
 
 learner.fit(ds_train, 5, ds_test, val_freq=2, max_epochs=epochs,
             steps_per_epoch=steps_per_epoch, val_steps=test_steps)
+
+
+model.fit
