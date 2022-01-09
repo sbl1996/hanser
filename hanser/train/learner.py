@@ -263,7 +263,7 @@ class Learner(metaclass=ABCMeta):
                 state = self._state['eval']
                 state['metrics'] = {}
                 cbks.begin_eval(state)
-                self._run_eval(iter(ds_val), val_steps, cbks)
+                self._run_eval(iter(ds_val), val_steps)
                 cbks.after_eval(state)
 
             if do_local_eval:
@@ -283,7 +283,7 @@ class Learner(metaclass=ABCMeta):
         state = self._state['eval']
         state['metrics'] = {}
         cbks.begin_eval(state)
-        self._run_eval(iter(ds_val), val_steps, cbks)
+        self._run_eval(iter(ds_val), val_steps)
         cbks.after_eval(state)
 
     def evaluate_local(self, iterator, steps, metrics):
@@ -359,7 +359,7 @@ class Learner(metaclass=ABCMeta):
         for name, metric in metrics.items():
             state['metrics'][name] = metric.result().numpy()
 
-    def _run_eval(self, iterator, steps, callbacks):
+    def _run_eval(self, iterator, steps):
         state = self._state['eval']
         metrics = self.eval_metrics
         steps_per_loop = self.eval_steps_per_loop
@@ -376,13 +376,11 @@ class Learner(metaclass=ABCMeta):
 
         current_step = 0
         while current_step < steps:
-            callbacks.begin_batch(state)
             run_steps = steps_to_run(current_step, steps, steps_per_loop)
             self._run_steps(self._eval_step, iterator, None,
                             tf.convert_to_tensor(run_steps, dtype=tf.int32))
             current_step += run_steps
             state['step'] = current_step
-            callbacks.after_batch(state)
 
         for name, metric in metrics.items():
             state['metrics'][name] = metric.result().numpy()
