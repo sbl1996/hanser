@@ -152,8 +152,8 @@ class Learner(metaclass=ABCMeta):
 
         agg = tf.VariableAggregation.ONLY_FIRST_REPLICA
         sync = tf.VariableSynchronization.ON_READ
-        self._train_counter = tf.Variable(0, dtype='int64', aggregation=agg, synchronization=sync)
-        self._eval_counter = tf.Variable(0, dtype='int64', aggregation=agg, synchronization=sync)
+        self._train_counter = tf.Variable(0, dtype='int32', aggregation=agg, synchronization=sync)
+        self._eval_counter = tf.Variable(0, dtype='int32', aggregation=agg, synchronization=sync)
 
     def _make_ckpt(self, model_only=False):
         optimizers = self.optimizers
