@@ -146,6 +146,7 @@ class Learner(metaclass=ABCMeta):
 
         if self.jit_compile:
             self.train_batch = tf.function(self.train_batch, experimental_compile=True)
+            self.eval_batch = tf.function(self.eval_batch, experimental_compile=True)
 
         self.n_batches_per_step = n_batches_per_step
 
