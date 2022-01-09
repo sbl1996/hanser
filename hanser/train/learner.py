@@ -83,6 +83,28 @@ def steps_to_run(current_step, steps_per_epoch, steps_per_loop):
         return steps_per_loop
 
 
+def _run_steps(step_fn, iterator, n_batches_per_step, n_steps, counter):
+    for i in tf.range(n_steps):
+        if n_batches_per_step is not None:
+            batches = tuple(next(iterator) for bi in range(n_batches_per_step))
+            step_fn(batches)
+        else:
+            batch = next(iterator)
+            step_fn(batch)
+    counter.assign_add(n_steps)
+
+
+def _run_steps_v2(step_fn, iterator, n_batches_per_step, n_steps, counter):
+    for i in tf.range(n_steps):
+        counter.assign_add(1)
+        if n_batches_per_step is not None:
+            batches = tuple(next(iterator) for bi in range(n_batches_per_step))
+            step_fn(batches)
+        else:
+            batch = next(iterator)
+            step_fn(batch)
+
+
 class Learner(metaclass=ABCMeta):
 
     def __init__(self, model, criterion, optimizers,
@@ -154,6 +176,12 @@ class Learner(metaclass=ABCMeta):
         sync = tf.VariableSynchronization.ON_READ
         self._train_counter = tf.Variable(0, dtype='int32', aggregation=agg, synchronization=sync)
         self._eval_counter = tf.Variable(0, dtype='int32', aggregation=agg, synchronization=sync)
+
+        if vparse(tf.__version__) >= vparse("2.4"):
+            run_steps_fn = _run_steps
+        else:
+            run_steps_fn = _run_steps_v2
+        self._run_steps = tf.function(run_steps_fn)
 
     def _make_ckpt(self, model_only=False):
         optimizers = self.optimizers
@@ -326,17 +354,6 @@ class Learner(metaclass=ABCMeta):
     def _local_eval_step(self, batch):
         return local_results(
             strategy_run(self._strategy, self.local_eval_batch, (batch,)), self._strategy)
-
-    @tf.function
-    def _run_steps(self, step_fn, iterator, n_batches_per_step, n_steps, counter):
-        for i in tf.range(n_steps):
-            if n_batches_per_step is not None:
-                batches = tuple(next(iterator) for bi in range(n_batches_per_step))
-                step_fn(batches)
-            else:
-                batch = next(iterator)
-                step_fn(batch)
-        counter.assign_add(n_steps)
 
     def _run_epoch(self, iterator, steps, callbacks):
         state = self._state['train']
