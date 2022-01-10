@@ -54,7 +54,7 @@ def parse_and_transform(transform, training):
 def make_imagenet_dataset_split(
     batch_size, transform, filenames, split, training=None,
     cache_parsed=False, drop_remainder=None, repeat=None,
-    n_batches_per_step=1, buffer_size=None, **kwargs):
+    n_batches_per_step=1, buffer_size=None, cache=True, **kwargs):
     assert split in NUM_IMAGES.keys()
 
     if training is None:
@@ -91,13 +91,13 @@ def make_imagenet_dataset_split(
         transform = parse_and_transform(transform, training)
 
     ds = prepare(dataset, batch_size, transform, training=training, buffer_size=buffer_size,
-                 cache=True, prefetch=True, repeat=repeat, drop_remainder=drop_remainder, **kwargs)
+                 cache=cache, prefetch=True, repeat=repeat, drop_remainder=drop_remainder, **kwargs)
 
     options = tf.data.Options()
     options.experimental_deterministic = False
     options.experimental_threading.max_intra_op_parallelism = 1
-    options.experimental_threading.private_threadpool_size = 48
-    options.experimental_distribute.auto_shard_policy = tf.data.experimental.AutoShardPolicy.FILE
+    # options.experimental_threading.private_threadpool_size = 48
+    # options.experimental_distribute.auto_shard_policy = tf.data.experimental.AutoShardPolicy.FILE
     ds = ds.with_options(options)
 
     n = NUM_IMAGES[split]
@@ -118,7 +118,7 @@ def make_imagenet_dataset_split(
 def make_imagenet_dataset(
     batch_size, eval_batch_size, transform, data_dir=None, train_files=None, eval_files=None,
     zip_transform=None, batch_transform=None, aug_repeats=None, drop_remainder=None,
-    n_batches_per_step=1, **kwargs):
+    n_batches_per_step=1, cache_eval=True, **kwargs):
 
     if train_files is None:
         train_files = get_filenames(data_dir, training=True)
@@ -131,5 +131,5 @@ def make_imagenet_dataset(
         aug_repeats=aug_repeats, n_batches_per_step=n_batches_per_step, **kwargs)
     ds_eval, eval_steps = make_imagenet_dataset_split(
         eval_batch_size, transform, eval_files, 'validation', training=False,
-        drop_remainder=drop_remainder, n_batches_per_step=1, **kwargs)
+        drop_remainder=drop_remainder, n_batches_per_step=1, cache=cache_eval, **kwargs)
     return ds_train, ds_eval, steps_per_epoch, eval_steps
