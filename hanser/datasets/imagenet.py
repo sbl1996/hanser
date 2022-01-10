@@ -80,7 +80,7 @@ def make_imagenet_dataset_split(
         dataset = dataset.shuffle(buffer_size=len(filenames))
     dataset = dataset.interleave(
         tf.data.TFRecordDataset,
-        cycle_length=tf.data.experimental.AUTOTUNE,
+        cycle_length=16,
         num_parallel_calls=tf.data.experimental.AUTOTUNE,
         deterministic=False)
 
