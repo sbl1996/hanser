@@ -70,18 +70,6 @@ def cast(xs, dtype, whiltelist=(tf.int32, tf.int64, tf.bool)):
     return tf.nest.map_structure(func, xs)
 
 
-def steps_to_run(current_step, steps_per_epoch, steps_per_loop):
-    if steps_per_loop <= 0:
-        raise ValueError('steps_per_loop should be positive integer.')
-    if steps_per_loop == 1:
-        return steps_per_loop
-    remainder_in_epoch = current_step % steps_per_epoch
-    if remainder_in_epoch != 0:
-        return min(steps_per_epoch - remainder_in_epoch, steps_per_loop)
-    else:
-        return min(steps_per_loop, steps_per_epoch)
-
-
 def _run_steps(step_fn, iterator, n_batches_per_step, n_steps, counter):
     for _i in tf.range(n_steps):
         if n_batches_per_step is not None:
@@ -383,7 +371,7 @@ class Learner(metaclass=ABCMeta):
         current_step = 0
         while current_step < steps:
             callbacks.begin_batch(state)
-            run_steps = steps_to_run(current_step, steps, steps_per_loop)
+            run_steps = min(steps - current_step, steps_per_loop)
             self._run_steps(step_fn, iterator, n_batches_per_step,
                             tf.convert_to_tensor(run_steps, dtype=tf.int32),
                             self._train_counter)
@@ -411,7 +399,7 @@ class Learner(metaclass=ABCMeta):
 
         current_step = 0
         while current_step < steps:
-            run_steps = steps_to_run(current_step, steps, steps_per_loop)
+            run_steps = min(steps - current_step, steps_per_loop)
             self._run_steps(self._eval_step, iterator, None,
                             tf.convert_to_tensor(run_steps, dtype=tf.int32),
                             self._eval_counter)
