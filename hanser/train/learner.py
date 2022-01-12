@@ -71,7 +71,6 @@ def cast(xs, dtype, whiltelist=(tf.int32, tf.int64, tf.bool)):
 
 
 def steps_to_run(current_step, steps_per_epoch, steps_per_loop):
-    """Calculates steps to run on device."""
     if steps_per_loop <= 0:
         raise ValueError('steps_per_loop should be positive integer.')
     if steps_per_loop == 1:
@@ -80,7 +79,7 @@ def steps_to_run(current_step, steps_per_epoch, steps_per_loop):
     if remainder_in_epoch != 0:
         return min(steps_per_epoch - remainder_in_epoch, steps_per_loop)
     else:
-        return steps_per_loop
+        return min(steps_per_loop, steps_per_epoch)
 
 
 def _run_steps(step_fn, iterator, n_batches_per_step, n_steps, counter):
@@ -111,7 +110,7 @@ class Learner(metaclass=ABCMeta):
                  train_metrics: Mapping[str, Metric], eval_metrics: Mapping[str, Metric],
                  work_dir: str, output_transform=default_metric_transform,
                  n_batches_per_step: Optional[int] = None, steps_per_loop: Optional[int] = None,
-                 jit_compile: bool = True, eval_steps_per_loop: Optional[int] = None):
+                 jit_compile: bool = True, compile_eval=False, eval_steps_per_loop: Optional[int] = None):
         if not isinstance(optimizers, Sequence):
             optimizers = [optimizers]
         optimizers = list(optimizers)
@@ -160,7 +159,8 @@ class Learner(metaclass=ABCMeta):
         self.jit_compile = jit_compile
         if self.jit_compile:
             self.train_batch = tf.function(self.train_batch, experimental_compile=True)
-            self.eval_batch = tf.function(self.eval_batch, experimental_compile=True)
+            if compile_eval:
+                self.eval_batch = tf.function(self.eval_batch, experimental_compile=True)
 
         self.n_batches_per_step = n_batches_per_step
 
