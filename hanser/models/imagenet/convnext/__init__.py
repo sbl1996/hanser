@@ -16,7 +16,7 @@ class Block(Layer):
         self.pwconv1 = Conv2d(channels, exp_channels, kernel_size=1, act='gelu')
         self.pwconv2 = Conv2d(exp_channels, channels, kernel_size=1)
         self.gamma = self.add_weight(
-            shape=(channels,), initializer=Constant(layer_scale_init_value), trainable=True)
+            name="gamma", shape=(channels,), initializer=Constant(layer_scale_init_value), trainable=True)
         self.drop_path = DropPath(drop_path) if drop_path > 0. else Identity()
 
     def call(self, x):
