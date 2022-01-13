@@ -48,7 +48,7 @@ DEFAULTS = {
         'affine': True,
     },
     'ln': {
-        'eps': 1e-5,
+        'eps': 1e-6,
     },
     'activation': 'relu',
     'leaky_relu': {

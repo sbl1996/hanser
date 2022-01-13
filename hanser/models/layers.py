@@ -388,10 +388,10 @@ def Pool2d(kernel_size, stride, padding='same', type='avg', ceil_mode=True):
     return pool(kernel_size, stride, padding)
 
 
-def Linear(in_channels, out_channels, act=None, kernel_init=None, bias_init=None):
+def Linear(in_channels, out_channels, act=None, bias=True, kernel_init=None, bias_init=None):
     kernel_initializer = kernel_init or VarianceScaling(1.0 / 3, 'fan_in', 'uniform')
     bound = math.sqrt(1 / in_channels)
     bias_initializer = bias_init or RandomUniform(-bound, bound)
-    return Dense(out_channels, activation=act,
+    return Dense(out_channels, activation=act, use_bias=bias,
                  kernel_initializer=kernel_initializer,
                  bias_initializer=bias_initializer)
