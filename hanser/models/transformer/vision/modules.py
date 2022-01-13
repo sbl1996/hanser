@@ -25,9 +25,9 @@ class MultiHeadAttention(Layer):
 
         self.depth = d_model // self.num_heads
 
-        self.qkv = Linear(d_model * 3, bias=qkv_bias)
+        self.qkv = Linear(d_model, d_model * 3, bias=qkv_bias)
         self.attn_drop = Dropout(attn_drop) if attn_drop > 0 else Identity()
-        self.proj = Linear(d_model)
+        self.proj = Linear(d_model, d_model)
         self.proj_drop = Dropout(proj_drop) if proj_drop > 0 else Identity()
 
     def call(self, x):
