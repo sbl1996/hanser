@@ -86,7 +86,7 @@ class DropPath(Layer):
             return tf.nn.dropout(
                 inputs,
                 noise_shape=noise_shape,
-                rate=self.rate)
+                rate=tf.cast(self.rate, inputs.dtype))
 
         return inputs
 
@@ -112,7 +112,7 @@ class Dropout(Layer):
     def call(self, inputs, training=None):
 
         if training:
-            return tf.nn.dropout(inputs, rate=self.rate)
+            return tf.nn.dropout(inputs, rate=tf.cast(self.rate, inputs.dtype))
 
         return inputs
 
