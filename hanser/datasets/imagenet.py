@@ -96,6 +96,7 @@ def make_imagenet_dataset_split(
     options = tf.data.Options()
     options.experimental_deterministic = False
     options.experimental_threading.max_intra_op_parallelism = 1
+    options.experimental_slack = True
     # options.experimental_threading.private_threadpool_size = 48
     # options.experimental_distribute.auto_shard_policy = tf.data.experimental.AutoShardPolicy.FILE
     ds = ds.with_options(options)
@@ -118,7 +119,7 @@ def make_imagenet_dataset_split(
 def make_imagenet_dataset(
     batch_size, eval_batch_size, transform, data_dir=None, train_files=None, eval_files=None,
     zip_transform=None, batch_transform=None, aug_repeats=None, drop_remainder=None,
-    n_batches_per_step=1, cache_eval=True, **kwargs):
+    n_batches_per_step=1, cache_eval=False, **kwargs):
 
     if train_files is None:
         train_files = get_filenames(data_dir, training=True)
