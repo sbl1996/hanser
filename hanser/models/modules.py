@@ -81,7 +81,8 @@ class DropPath(Layer):
     def call(self, inputs, training=None):
 
         if training:
-            noise_shape = (tf.shape(inputs)[0], 1, 1, 1)
+            shape = tf.shape(inputs)
+            noise_shape = (shape[0], *(1,) * (len(shape) - 1))
             return tf.nn.dropout(
                 inputs,
                 noise_shape=noise_shape,

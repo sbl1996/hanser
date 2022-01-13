@@ -83,20 +83,12 @@ class TransformerEncoderLayer(Layer):
         self.ln1 = Norm(type='ln')
         self.mha = MultiHeadAttention(d_model, num_heads, attn_drop, drop)
 
-        self.mlp = MLP(d_model, int(d_model * mlp_ratio), act_layer=act_layer, drop=drop)
         self.ln2 = Norm(type='ln')
+        self.mlp = MLP(d_model, int(d_model * mlp_ratio), act_layer=act_layer, drop=drop)
 
         self.drop_path = DropPath(drop_path) if drop_path else Identity()
 
     def call(self, x):
-        identity = x
-        x = self.ln1(x)
-        x = self.mha(x)
-        x = self.drop_path(x)
-        x = x + identity
-
-        identity = x
-        x = self.mlp(self.ln2(x))
-        x = self.drop_path(x)
-        x = x + identity
+        x = x + self.drop_path(self.mha(self.ln1(x)))
+        x = x + self.drop_path(self.mlp(self.ln2(x)))
         return x
