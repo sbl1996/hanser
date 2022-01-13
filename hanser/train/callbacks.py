@@ -40,6 +40,16 @@ def config_callbacks(
     if mode == 'train':
         if not any(isinstance(k, TrainEvalLogger) for k in cbks):
             cbks.insert(0, TrainEvalLogger(print_fn=learner._print))
+        if not any(isinstance(k, TerminateOnNaN) for k in cbks):
+            ckpt_idx = None
+            for i, k in enumerate(cbks):
+                if isinstance(k, ModelCheckpoint):
+                    ckpt_idx = i
+                    break
+            if ckpt_idx is None:
+                cbks.append(TerminateOnNaN())
+            else:
+                cbks.insert(ckpt_idx, TerminateOnNaN())
         if not any(isinstance(k, ModelCheckpoint) for k in cbks) and save_freq:
             cbks.append(ModelCheckpoint(save_freq))
     else:

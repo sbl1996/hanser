@@ -240,7 +240,7 @@ class Learner(metaclass=ABCMeta):
 
     def fit(self, ds_train, epochs, ds_val=None, val_freq=1,
             steps_per_epoch=None, val_steps=None, max_epochs=None, save_freq=None,
-            callbacks=None, reuse_train_iterator=True, reuse_eval_iterator=False,
+            callbacks=None, reuse_train_iterator=True, reuse_eval_iterator=True,
             local_eval_metrics=None, local_eval_freq=None):
         if max_epochs is None:
             max_epochs = epochs
