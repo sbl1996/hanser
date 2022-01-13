@@ -74,7 +74,7 @@ class DropPath(Layer):
     def __init__(self, rate, **kwargs):
         super().__init__(**kwargs)
         self.rate = self.add_weight(
-            name="drop_rate", shape=(), dtype=tf.float32,
+            name="drop_rate", shape=(),
             initializer=initializers.Constant(rate), trainable=False)
 
     # noinspection PyMethodOverriding
