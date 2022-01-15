@@ -43,3 +43,9 @@ for i in range(1281167-1):
     # s = s.numpy()
     if i % 10000 == 0:
         print(i)
+
+
+from hanser.datasets.imagenet2 import make_eval_split
+eval_files = f"{os.getenv('GCS_BUCKET')}/ds1"
+
+make_eval_split(1024, )

@@ -88,7 +88,7 @@ def make_eval_split(batch_size, transform, load_path, drop_remainder=True, **kwa
                  prefetch=True, repeat=True, drop_remainder=drop_remainder, **kwargs)
 
     options = tf.data.Options()
-    options.experimental_deterministic = True
+    options.experimental_deterministic = False
     options.experimental_threading.max_intra_op_parallelism = 1
     ds = ds.with_options(options)
 
