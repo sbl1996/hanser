@@ -68,7 +68,7 @@ def parse_and_transform(transform):
 
 def make_imagenet_dataset_split(
     batch_size, transform, filenames, split, training=None,
-    cache_parsed=False, drop_remainder=None, repeat=None,
+    cache_parsed=False, drop_remainder=None, repeat=True,
     n_batches_per_step=1, **kwargs):
     assert split in NUM_IMAGES.keys()
 
@@ -77,9 +77,6 @@ def make_imagenet_dataset_split(
 
     if drop_remainder is None:
         drop_remainder = training
-
-    if repeat is None:
-        repeat = training
 
     if n_batches_per_step != 1:
         assert training
