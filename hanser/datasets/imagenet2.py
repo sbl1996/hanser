@@ -41,23 +41,18 @@ def parse_and_transform(transform, training):
 
 
 def make_train_split(
-    batch_size, transform, filenames, n_batches_per_step=1, buffer_size=None, **kwargs):
-    training = True
+    batch_size, transform, load_path, n_batches_per_step=1, buffer_size=None, **kwargs):
+
     if buffer_size is None:
-        buffer_size = _SHUFFLE_BUFFER
+        buffer_size = 1251 * 1024
 
-    batch_size = batch_size // n_batches_per_step
+    training = True
 
-    dataset = tf.data.Dataset.from_tensor_slices(filenames)
-    dataset = dataset.shuffle(buffer_size=len(filenames))
-    dataset = dataset.interleave(
-        tf.data.TFRecordDataset,
-        cycle_length=16,
-        num_parallel_calls=tf.data.experimental.AUTOTUNE,
-        deterministic=False)
-
+    dataset = tf.data.experimental.load(load_path, element_spec=tf.TensorSpec((), dtype=tf.string))
     dataset = dataset.map(parse_example_proto, num_parallel_calls=tf.data.experimental.AUTOTUNE)
     transform = functools.partial(transform, training=training)
+
+    batch_size = batch_size // n_batches_per_step
 
     ds = prepare(dataset, batch_size, transform, training=training, buffer_size=buffer_size,
                  cache=True, prefetch=True, repeat=True, drop_remainder=True, **kwargs)
@@ -68,8 +63,6 @@ def make_train_split(
     ds = ds.with_options(options)
 
     n = NUM_IMAGES['train']
-    chunksize = math.ceil(n / NUM_FILES['train'])
-    n = min(len(filenames) * chunksize, n)
     if 'repeat' in kwargs and type(kwargs['repeat']) == int:
         n *= kwargs['repeat']
     if 'aug_repeats' in kwargs and type(kwargs['aug_repeats']) == int:
@@ -105,6 +98,7 @@ def make_imagenet_dataset(
     zip_transform=None, batch_transform=None, aug_repeats=None, drop_remainder=None,
     n_batches_per_step=1, **kwargs):
 
+    assert isinstance(train_files, str)
     assert isinstance(eval_files, str)
 
     ds_train, steps_per_epoch = make_train_split(
