@@ -80,7 +80,7 @@ def make_train_split(
 
 def make_eval_split(batch_size, transform, load_path, drop_remainder=True, **kwargs):
 
-    dataset = tf.data.experimental.load(load_path)
+    dataset = tf.data.experimental.load(load_path, element_spec=tf.TensorSpec((), dtype=tf.string))
     dataset = dataset.map(parse_example_proto, num_parallel_calls=tf.data.experimental.AUTOTUNE)
     transform = functools.partial(transform, training=False)
 
