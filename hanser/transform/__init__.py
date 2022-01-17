@@ -189,21 +189,32 @@ def resize(img, size, method='bilinear'):
     return img
 
 
-def sample_distorted_bounding_box(shape, scale, ratio):
+def sample_distorted_bounding_box(shape, scale, ratio, sample_log_ratio=True):
     height, width, _ = tf.unstack(shape)
     area = tf.cast(height * width, tf.float32)
 
-    log_ratio = tf.math.log(tf.convert_to_tensor(ratio))
+    if sample_log_ratio:
+        log_ratio = tf.math.log(tf.convert_to_tensor(ratio))
 
     i, j, h, w = [
         tf.convert_to_tensor(x) for x in [-1, -1, 0, 0]
     ]
     for _ in tf.range(10):
         target_area = area * tf.random.uniform((), scale[0], scale[1])
-        aspect_ratio = tf.math.exp(tf.random.uniform((), log_ratio[0], log_ratio[1]))
+        if sample_log_ratio:
+            aspect_ratio = tf.math.exp(tf.random.uniform((), log_ratio[0], log_ratio[1]))
+        else:
+            aspect_ratio = tf.random.uniform((), ratio[0], ratio[1])
 
         w = tf.cast(tf.round(tf.math.sqrt(target_area * aspect_ratio)), tf.int32)
         h = tf.cast(tf.round(tf.math.sqrt(target_area / aspect_ratio)), tf.int32)
+
+        if not sample_log_ratio:
+            w, h = tf.cond(
+                tf.random.uniform((), 0, 1) < 0.5,
+                lambda: (w, h),
+                lambda: (h, w),
+            )
 
         # noinspection PyChainedComparisons
         if 0 < w and w <= width and 0 < h and h <= height:
@@ -235,7 +246,7 @@ def sample_distorted_bounding_box(shape, scale, ratio):
 
 
 def random_resized_crop(image, size, scale=(0.05, 1.0), ratio=(0.75, 1.33),
-                        sample_log_ratio=False):
+                        sample_log_ratio=False, fix=False):
     decoded = image.dtype != tf.string
     shape = tf.shape(image) if decoded else tf.image.extract_jpeg_shape(image)
     if sample_log_ratio:
@@ -248,6 +259,7 @@ def random_resized_crop(image, size, scale=(0.05, 1.0), ratio=(0.75, 1.33),
             bounding_boxes=bbox,
             aspect_ratio_range=ratio,
             area_range=scale,
+            min_object_covered=0 if fix else 0.1,
             use_image_if_no_bounding_boxes=True)
 
         offset_y, offset_x, _ = tf.unstack(bbox_begin)

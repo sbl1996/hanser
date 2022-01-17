@@ -46,15 +46,13 @@ def make_train_split(
     if buffer_size is None:
         buffer_size = 1251 * 1024
 
-    training = True
-
     dataset = tf.data.experimental.load(load_path, element_spec=tf.TensorSpec((), dtype=tf.string))
     dataset = dataset.map(parse_example_proto, num_parallel_calls=tf.data.experimental.AUTOTUNE)
-    transform = functools.partial(transform, training=training)
+    transform = functools.partial(transform, training=True)
 
     batch_size = batch_size // n_batches_per_step
 
-    ds = prepare(dataset, batch_size, transform, training=training, buffer_size=buffer_size,
+    ds = prepare(dataset, batch_size, transform, training=True, buffer_size=buffer_size,
                  cache=True, prefetch=True, repeat=True, drop_remainder=True, **kwargs)
 
     options = tf.data.Options()
