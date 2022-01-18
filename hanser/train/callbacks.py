@@ -171,6 +171,7 @@ class Callback(object):
     def after_train(self, state):
         pass
 
+
 class ModelCheckpoint(Callback):
 
     def __init__(self, save_freq=1):
@@ -181,11 +182,15 @@ class ModelCheckpoint(Callback):
         epoch = self.learner.epoch + 1
         if epoch % self.save_freq == 0:
             self.learner.save()
+            # This prevents state mismatch when training stop at eval
+            self.learner.save_state()
 
+    # This prevents eval log miss when training is stopped
     def after_eval(self, state):
         epoch = self.learner.epoch + 1
         if epoch % self.save_freq == 0:
             self.learner.save_state()
+
 
 class TrainEvalLogger(Callback):
 
