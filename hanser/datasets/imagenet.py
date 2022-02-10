@@ -116,7 +116,7 @@ def make_imagenet_dataset_split(
 def make_imagenet_dataset(
     batch_size, eval_batch_size, transform, data_dir=None, train_files=None, eval_files=None,
     zip_transform=None, batch_transform=None, aug_repeats=None, drop_remainder=None,
-    n_batches_per_step=1, cache_eval=False, **kwargs):
+    n_batches_per_step=1, cache_eval=True, **kwargs):
 
     if train_files is None:
         train_files = get_filenames(data_dir, training=True)
