@@ -51,6 +51,8 @@ def autoaugment(image):
 
 
 def get_augmentation_space(name):
+    if isinstance(name, list):
+        return name
     if name in ['aa', 'ua']:
         return [
             'identity', 'autocontrast', 'equalize', 'rotate',
