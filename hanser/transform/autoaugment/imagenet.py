@@ -100,7 +100,8 @@ def get_augmentation_space(name):
 
 # official
 def randaugment(image, num_layers=2, magnitude=10.,
-                random_magnitude=False, augmentation_space='ra0'):
+                random_magnitude=False, augmentation_space='ra0',
+                effnet_style=True):
 
     # RandAugment use larger translate or cutout for EfficientNet
     # with higher image resolution, therefore the relative ratio of
@@ -109,12 +110,13 @@ def randaugment(image, num_layers=2, magnitude=10.,
     # Official code:
     # cutout_const: 40, translate_const: 100
     # resolution|magnitude: 224|9, 456|17, 600|28
-    ratio = (magnitude / H_PARAMS['max_level'])
-    hparams = {
-        **H_PARAMS,
-        "translate_max": 150 / 331 / ratio,
-        "cutout_max": 60 / 331 / ratio,
-    }
+    if effnet_style:
+        ratio = (magnitude / H_PARAMS['max_level'])
+        hparams = {
+            **H_PARAMS,
+            "translate_max": 150 / 331 / ratio,
+            "cutout_max": 60 / 331 / ratio,
+        }
 
     available_ops = get_augmentation_space(augmentation_space)
 
