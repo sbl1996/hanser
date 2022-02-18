@@ -13,7 +13,7 @@ from hanser.models.bn2 import BatchNormalizationTest
 from hanser.models.inplace_abn import InplaceABN
 from hanser.models.evonorm import EvoNormB0, EvoNormS0
 from hanser.models.modules import DropBlock, ScaledWSConv2D, AntiAliasing, GlobalAvgPool, Identity, NaiveGroupConv2D, \
-    GELU, Mish, ScaledSwish, ScaledGELU, ScaledReLU, Dropout
+    GELU, Mish, ScaledSwish, ScaledGELU, ScaledReLU, Dropout, ReLU6
 from hanser.models.defaults import DEFAULTS, set_defaults, set_default
 
 
@@ -352,12 +352,16 @@ def Act(type='default', **kwargs):
         return Mish()
     elif type == 'gelu':
         return GELU(approximate=DEFAULTS['gelu']['approximate'])
+    elif type == 'relu6':
+        return ReLU6()
+
     elif type == 'scaled_relu':
         return ScaledReLU()
     elif type == 'scaled_swish':
         return ScaledSwish()
     elif type == 'scaled_gelu':
         return ScaledGELU()
+
     elif type == 'leaky_relu':
         if 'alpha' not in kwargs:
             kwargs = {**kwargs, 'alpha': DEFAULTS['leaky_relu']['alpha']}

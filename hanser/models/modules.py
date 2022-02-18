@@ -557,6 +557,13 @@ class Mish(Layer):
         return mish(x)
 
 
+class ReLU6(Layer):
+
+    # noinspection PyMethodOverriding
+    def call(self, x):
+        return tf.nn.relu6(x)
+
+
 class ScaledReLU(Layer):
 
     # noinspection PyMethodOverriding
