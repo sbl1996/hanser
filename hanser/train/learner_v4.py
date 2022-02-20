@@ -65,7 +65,7 @@ class TrainableController(tf.keras.callbacks.Callback):
         log_str += ", ".join(metric_logs)
         self.print_fn(log_str)
 
-        if self.val_freq > 0 and (epoch + 1) % self.val_freq == 0:
+        if self.val_freq > 0 and (epoch + 1) % self.val_freq == 0 and self.ds_val is not None:
             for m in self.model.eval_metrics.values():
                 m.reset_states()
             eval_logs = self.model.evaluate(
