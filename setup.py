@@ -31,6 +31,7 @@ REQUIRED = [
     "loguru",
     "typer",
     'typeguard',
+    "pandas"
 ]
 
 tfp_version_compat_table = {

@@ -1,5 +1,6 @@
 from tensorflow.keras import Sequential
 from tensorflow.keras.layers import Flatten
+import tensorflow as tf
 
 from hanser.models.layers import Conv2d, Pool2d, Linear
 
