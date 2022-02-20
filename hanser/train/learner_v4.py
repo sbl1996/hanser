@@ -52,7 +52,7 @@ class TrainableController(tf.keras.callbacks.Callback):
         self.print_fn = print_fn
 
     def on_train_begin(self, logs=None):
-        self.print_fn("Start training")
+        self.print_fn(f"{time_now()} Start training")
 
     def on_epoch_begin(self, epoch, logs=None):
         self.print_fn("Epoch %d/%d" % (epoch + 1, self.max_epochs))
