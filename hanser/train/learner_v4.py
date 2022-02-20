@@ -51,6 +51,9 @@ class TrainableController(tf.keras.callbacks.Callback):
         self.val_freq = val_freq
         self.print_fn = print_fn
 
+    def on_train_begin(self, logs=None):
+        self.print_fn("Start training")
+
     def on_epoch_begin(self, epoch, logs=None):
         self.print_fn("Epoch %d/%d" % (epoch + 1, self.max_epochs))
         for m in self.model.train_metrics.values():
