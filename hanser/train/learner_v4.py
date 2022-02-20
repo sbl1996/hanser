@@ -17,6 +17,9 @@ class TrainableModel(tf.keras.Model):
         y_pred = self.output_transform(y_pred)
         for name, metric in metrics.items():
             if 'loss' in name and type(metric) == Mean:
+                num_replicas = tf.distribute.get_strategy().num_replicas_in_sync
+                if num_replicas > 1.0:
+                    per_example_loss = per_example_loss * per_example_loss
                 metric.update_state(per_example_loss)
             else:
                 metric.update_state(y_true, y_pred, None)
