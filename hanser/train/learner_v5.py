@@ -118,12 +118,17 @@ class SuperLearner:
         if self._train_function is not None:
             return self._train_function
 
+        train_step = self.train_step
+        if self.jit_compile:
+            train_step = tf.function(
+                train_step, jit_compile=True, experimental_relax_shapes=True)
+
         def train_function(iterator):
             for _ in tf.range(self._steps_per_execution):
-                self._distribute_strategy.run(self.train_step, args=(next(iterator),))
+                self._distribute_strategy.run(train_step, args=(next(iterator),))
 
         train_function = tf.function(
-            train_function, experimental_relax_shapes=True, jit_compile=self.jit_compile)
+            train_function, experimental_relax_shapes=True)
         self._train_function = train_function
         return self._train_function
 
@@ -131,12 +136,17 @@ class SuperLearner:
         if self._eval_function is not None:
             return self._eval_function
 
+        eval_step = self.eval_step
+        if self.jit_compile:
+            eval_step = tf.function(
+                eval_step, jit_compile=True, experimental_relax_shapes=True)
+
         def eval_function(iterator):
             for _ in tf.range(self._steps_per_execution):
-                self._distribute_strategy.run(self.eval_step, args=(next(iterator),))
+                self._distribute_strategy.run(eval_step, args=(next(iterator),))
 
         eval_function = tf.function(
-            eval_function, experimental_relax_shapes=True, jit_compile=self.jit_compile)
+            eval_function, experimental_relax_shapes=True)
         self._eval_function = eval_function
         return self._eval_function
 
