@@ -546,6 +546,17 @@ def gelu(x, approximate=False):
         return 0.5 * x * (1.0 + tf.math.erf(x / tf.cast(1.4142135623730951, x.dtype)))
 
 
+def hard_swish(x):
+    return x * tf.nn.relu6(x + 3.0) * 0.16666667
+
+
+class HSwish(Layer):
+
+    # noinspection PyMethodOverriding
+    def call(self, x):
+        return hard_swish(x)
+
+
 def mish(x):
     return x * tf.math.tanh(tf.math.softplus(x))
 
