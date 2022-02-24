@@ -15,31 +15,54 @@ def round_channels(channels, divisor=8, min_depth=None):
     return int(new_channels)
 
 
+def _make_divisible(v, divisor=8, min_value=None):
+    """
+    This function is taken from the original tf repo.
+    It ensures that all layers have a channel number that is divisible by 8
+    It can be seen here:
+    https://github.com/tensorflow/models/blob/master/research/slim/nets/mobilenet/mobilenet.py
+    :param v:
+    :param divisor:
+    :param min_value:
+    :return:
+    """
+    if min_value is None:
+        min_value = divisor
+    new_v = max(min_value, int(v + divisor / 2) // divisor * divisor)
+    # Make sure that round down does not go down by more than 10%.
+    if new_v < 0.9 * v:
+        new_v += divisor
+    return new_v
+
+
 class SELayer(Layer):
 
     def __init__(self, in_channels, reduction=None, groups=1, se_channels=None,
-                 min_se_channels=32, act='def', mode=0, scale=None, **kwargs):
+                 min_se_channels=32, act='def', gating_fn='sigmoid', mode=0, scale=None,
+                 divisible=None, **kwargs):
         super().__init__(**kwargs)
         self.scale = scale
         self.pool = GlobalAvgPool(keep_dim=True)
         if mode == 0:
             # σ(f_{W1, W2}(y))
             channels = se_channels or min(max(in_channels // reduction, min_se_channels), in_channels)
+            if divisible:
+                channels = _make_divisible(channels, 8)
             if groups != 1:
                 channels = round_channels(channels, groups)
             self.fc = Sequential([
                 Conv2d(in_channels, channels, kernel_size=1, bias=True, act=act),
-                Conv2d(channels, in_channels, 1, groups=groups, act='sigmoid'),
+                Conv2d(channels, in_channels, 1, groups=groups, act=gating_fn),
             ])
         elif mode == 1:
             # σ(w ⊙ y)
             assert groups == 1
             self.fc = Conv2d(in_channels, in_channels, 1,
-                             groups=in_channels, bias=False, act='sigmoid')
+                             groups=in_channels, bias=False, act=gating_fn)
         elif mode == 2:
             # σ(Wy)
             assert groups == 1
-            self.fc = Conv2d(in_channels, in_channels, 1, bias=False, act='sigmoid')
+            self.fc = Conv2d(in_channels, in_channels, 1, bias=False, act=gating_fn)
         else:
             raise ValueError("Not supported mode: {}" % mode)
 

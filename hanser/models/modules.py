@@ -12,7 +12,7 @@ __all__ = [
     "Affine", "AntiAliasing", "SpaceToDepth", "Slice",
     "DropBlock", "ScaledWSConv2D", "GELU", "Mish",
     "ScaledReLU", "ScaledSwish", "ScaledGELU", "Dropout",
-    "NaiveGroupConv2D", "GlobalAvgPool", "Identity"
+    "NaiveGroupConv2D", "GlobalAvgPool", "Identity", "HSwish", "HSigmoid", "ReLU6"
 ]
 
 
@@ -546,8 +546,19 @@ def gelu(x, approximate=False):
         return 0.5 * x * (1.0 + tf.math.erf(x / tf.cast(1.4142135623730951, x.dtype)))
 
 
+def hard_sigmoid(x):
+    return tf.nn.relu6(x + 3.0) * 0.16666667
+
+
+class HSigmoid(Layer):
+
+    # noinspection PyMethodOverriding
+    def call(self, x):
+        return hard_sigmoid(x)
+
+
 def hard_swish(x):
-    return x * tf.nn.relu6(x + 3.0) * 0.16666667
+    return x * hard_sigmoid(x)
 
 
 class HSwish(Layer):

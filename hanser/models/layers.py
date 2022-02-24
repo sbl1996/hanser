@@ -13,7 +13,7 @@ from hanser.models.bn2 import BatchNormalizationTest
 from hanser.models.inplace_abn import InplaceABN
 from hanser.models.evonorm import EvoNormB0, EvoNormS0
 from hanser.models.modules import DropBlock, ScaledWSConv2D, AntiAliasing, GlobalAvgPool, Identity, NaiveGroupConv2D, \
-    GELU, Mish, ScaledSwish, ScaledGELU, ScaledReLU, Dropout, ReLU6, HSwish
+    GELU, Mish, ScaledSwish, ScaledGELU, ScaledReLU, Dropout, ReLU6, HSwish, HSigmoid
 from hanser.models.defaults import DEFAULTS, set_defaults, set_default
 
 
@@ -356,6 +356,8 @@ def Act(type='default', **kwargs):
         return ReLU6()
     elif type == 'hswish':
         return HSwish()
+    elif type == 'hsigmoid':
+        return HSigmoid()
 
     elif type == 'scaled_relu':
         return ScaledReLU()
@@ -398,6 +400,9 @@ def Linear(in_channels, out_channels, act=None, bias=True, kernel_init=None, bia
     kernel_initializer = kernel_init or VarianceScaling(1.0 / 3, 'fan_in', 'uniform')
     bound = math.sqrt(1 / in_channels)
     bias_initializer = bias_init or RandomUniform(-bound, bound)
-    return Dense(out_channels, activation=act, use_bias=bias,
+    dense = Dense(out_channels, use_bias=bias,
                  kernel_initializer=kernel_initializer,
                  bias_initializer=bias_initializer)
+    if act is not None:
+        return Sequential([dense, Act(act)])
+    return dense
