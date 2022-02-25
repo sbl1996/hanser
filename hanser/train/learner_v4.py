@@ -5,10 +5,31 @@ from tensorflow.keras.metrics import Mean
 from packaging.version import parse as vparse
 
 from hanser.distribute import is_distribute_strategy
-from hanser.train.learner import find_most_recent
+from hanser.train.learner import find_most_recent, cast, parse_freq
 from hanser.train.metric_history import MetricHistory
 
 from hhutil.io import time_now, eglob, fmt_path, rm
+
+
+def _is_per_replica_instance(obj):
+    return (isinstance(obj, tf.distribute.DistributedValues) and
+            isinstance(obj, tf.__internal__.CompositeTensor))
+
+
+def reduce_per_replica(values, strategy, reduction='first'):
+    def _reduce(v):
+        if not _is_per_replica_instance(v):
+            return v
+        elif reduction == 'first':
+            return strategy.unwrap(v)[0]
+        elif reduction == 'concat':
+            return tf.concat(strategy.unwrap(v))
+        else:
+            raise ValueError('`reduction` must be "first" or "concat". Received: '
+                             f'reduction={reduction}.')
+
+    return tf.nest.map_structure(_reduce, values)
+
 
 class TrainableModel(tf.keras.Model):
 
@@ -30,8 +51,8 @@ class TrainableModel(tf.keras.Model):
             else:
                 metric.update_state(y_true, y_pred, None)
 
-    def train_step(self, data):
-        x, y = data
+    def train_step(self, batch):
+        x, y = batch
         with tf.GradientTape() as tape:
             y_pred = self.model(x, training=True)
             loss = self.compiled_loss(y, y_pred)
@@ -39,12 +60,26 @@ class TrainableModel(tf.keras.Model):
         self.update_metrics(self.train_metrics, y, y_pred, loss)
         return {k: m.result() for k, m in self.train_metrics.items()}
 
-    def test_step(self, data):
-        x, y = data
+    def test_step(self, batch):
+        x, y = batch
         y_pred = self.model(x, training=False)
         self.compiled_loss(y, y_pred)
         self.update_metrics(self.eval_metrics, y, y_pred)
         return {k: m.result() for k, m in self.eval_metrics.items()}
+
+    def local_eval_step(self, batch):
+        x, y = batch
+        y_pred = self.model(x, training=False)
+        y_pred = cast(y_pred, tf.float32)
+        return y, y_pred
+
+    @tf.function
+    def _local_eval_step(self, batch):
+        outputs = self.distribute_strategy.run(self.local_eval_step, args=(batch,))
+        outputs = reduce_per_replica(
+            outputs, self.distribute_strategy, reduction='concat')
+        return outputs
+
 
 
 def log_metrics(stage, metrics, epoch, writer=None, metric_history=None, stage_name=None, print_fn=print):
@@ -66,7 +101,8 @@ def log_metrics(stage, metrics, epoch, writer=None, metric_history=None, stage_n
 
 class TrainableController(tf.keras.callbacks.Callback):
 
-    def __init__(self, learner, ds_val=None, val_steps=None, val_freq=1, save_freq=None):
+    def __init__(self, learner, ds_val=None, val_steps=None, val_freq=1, save_freq=None,
+                 local_eval_metrics=None, local_eval_freq=None):
         super().__init__()
         self.learner = learner
 
@@ -74,6 +110,8 @@ class TrainableController(tf.keras.callbacks.Callback):
         self.val_steps = val_steps
         self.val_freq = val_freq
         self.save_freq = save_freq
+        self.local_eval_metrics = local_eval_metrics
+        self.local_eval_freq = local_eval_freq
 
         self._print = self.learner._print
 
@@ -100,18 +138,18 @@ class TrainableController(tf.keras.callbacks.Callback):
             # This prevents state mismatch when training stop at eval
             self.learner.save_state()
 
-        if self.val_freq > 0 and (epoch + 1) % self.val_freq == 0 and self.ds_val is not None:
-            for m in self.model.eval_metrics.values():
-                m.reset_states()
-            eval_logs = self.model.evaluate(
-                self.ds_val, steps=self.val_steps, verbose=0,
-                return_dict=True, _use_cached_eval_dataset=True)
+        do_local_eval = self.local_eval_metrics and parse_freq(epoch, self.local_eval_freq)
+        do_eval = self.ds_val is not None and (not do_local_eval) and parse_freq(epoch, self.val_freq)
 
-            log_metrics('eval', eval_logs, self.learner.epoch, self.learner._writer, self.learner.metric_history,
-                        stage_name='valid', print_fn=self._print)
+        if do_eval:
+            self.learner.evaluate(self.ds_val, self.val_steps)
 
             if self.save_freq and (epoch + 1) % self.save_freq == 0:
                 self.learner.save_state()
+
+        if do_local_eval:
+            self.learner.evaluate_local(self.ds_val, self.val_steps, self.local_eval_metrics)
+
 
 
 class SuperLearner:
@@ -124,6 +162,7 @@ class SuperLearner:
         self.optimizer = optimizer
         self.train_metrics = train_metrics
         self.eval_metrics = eval_metrics
+        assert steps_per_loop is not None, "You must set steps_per_loop for LearnerV4"
         self.steps_per_loop = steps_per_loop
         self.jit_compile = jit_compile
         self.output_transform = output_transform
@@ -147,7 +186,8 @@ class SuperLearner:
         self._terminated = False
 
     def fit(self, ds_train, epochs, ds_val=None, val_freq=1,
-            steps_per_epoch=None, val_steps=None, max_epochs=None, save_freq=None):
+            steps_per_epoch=None, val_steps=None, max_epochs=None, save_freq=None,
+            local_eval_metrics=None, local_eval_freq=None):
 
         if max_epochs is None:
             max_epochs = epochs
@@ -155,11 +195,36 @@ class SuperLearner:
         self._max_epochs = max_epochs
         start_epoch = self.epoch + 1
 
-        controller = TrainableController(self, ds_val, val_steps, val_freq, save_freq)
+        controller = TrainableController(
+            self, ds_val, val_steps, val_freq, save_freq, local_eval_metrics, local_eval_freq)
 
         self._trainable.fit(
             ds_train, epochs=max_epochs, steps_per_epoch=steps_per_epoch, verbose=0,
             initial_epoch=start_epoch,  callbacks=[controller])
+
+    def evaluate(self, ds_val, val_steps=None):
+        val_steps = val_steps or len(ds_val)
+        for m in self._trainable.eval_metrics.values():
+            m.reset_states()
+        eval_logs = self._trainable.evaluate(
+            ds_val, steps=val_steps, verbose=0,
+            return_dict=True, _use_cached_eval_dataset=True)
+        log_metrics('eval', eval_logs, self.epoch, self._writer, self.metric_history,
+                    stage_name='valid', print_fn=self._print)
+
+    def evaluate_local(self, ds_val, steps, metrics):
+        iterator = iter(ds_val)
+        for m in metrics.values():
+            m.reset_states()
+        for step in range(steps):
+            y_true, y_pred = self._trainable._local_eval_step(next(iterator))
+            for m in metrics.values():
+                m.update_state(y_true, y_pred, None)
+        metric_results = {}
+        for k, m in metrics.items():
+            metric_results[k] = m.result().numpy()
+        log_metrics('eval', metric_results, self.epoch, stage_name='valid',
+                    metric_history=self.metric_history, print_fn=self._print)
 
     def _print(self, *args, **kwargs):
         if self._verbose:
