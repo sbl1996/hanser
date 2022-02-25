@@ -40,9 +40,9 @@ def reduce_per_replica(values, strategy, reduction='first'):
         if not _is_per_replica_instance(v):
             return v
         elif reduction == 'first':
-            return strategy.unwrap(v)[0]
+            return strategy.experimental_local_results(v)[0]
         elif reduction == 'concat':
-            return tf.concat(strategy.unwrap(v))
+            return tf.concat(strategy.experimental_local_results(v))
         else:
             raise ValueError('`reduction` must be "first" or "concat". Received: '
                              f'reduction={reduction}.')
