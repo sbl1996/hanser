@@ -33,37 +33,45 @@ def reduce_per_replica(values, strategy, reduction='first'):
 
 class TrainableModel(tf.keras.Model):
 
-    def __init__(self, model, train_metrics, eval_metrics, output_transform=lambda x: x):
+    def __init__(self, model, criterion, train_metrics, eval_metrics, output_transform=lambda x: x):
         super().__init__()
         self.model = model
+        self.criterion = criterion
         self.train_metrics = train_metrics
         self.eval_metrics = eval_metrics
         self.output_transform = output_transform
+
+        self._num_replicas = tf.distribute.get_strategy().num_replicas_in_sync
 
     def update_metrics(self, metrics, y_true, y_pred, per_example_loss=None):
         y_pred = self.output_transform(y_pred)
         for name, metric in metrics.items():
             if 'loss' in name and type(metric) == Mean:
-                num_replicas = tf.distribute.get_strategy().num_replicas_in_sync
-                if num_replicas > 1.0:
-                    per_example_loss = per_example_loss * num_replicas
                 metric.update_state(per_example_loss)
             else:
                 metric.update_state(y_true, y_pred, None)
+
+    def reduce_loss(self, per_example_loss):
+        loss = tf.reduce_mean(per_example_loss)
+        if self._num_replicas > 1.0:
+            loss = loss / self._num_replicas
+        return loss
 
     def train_step(self, batch):
         x, y = batch
         with tf.GradientTape() as tape:
             y_pred = self.model(x, training=True)
-            loss = self.compiled_loss(y, y_pred)
+            y_pred = cast(y_pred, tf.float32)
+            per_example_loss = self.criterion(y, y_pred)
+            loss = self.reduce_loss(per_example_loss)
         self.optimizer.minimize(loss, self.trainable_variables, tape=tape)
-        self.update_metrics(self.train_metrics, y, y_pred, loss)
+        self.update_metrics(self.train_metrics, y, y_pred, per_example_loss)
         return {k: m.result() for k, m in self.train_metrics.items()}
 
     def test_step(self, batch):
         x, y = batch
         y_pred = self.model(x, training=False)
-        self.compiled_loss(y, y_pred)
+        y_pred = cast(y_pred, tf.float32)
         self.update_metrics(self.eval_metrics, y, y_pred)
         return {k: m.result() for k, m in self.eval_metrics.items()}
 
@@ -168,12 +176,11 @@ class SuperLearner:
         self.output_transform = output_transform
         self.work_dir = fmt_path(work_dir)
 
-        self._trainable = TrainableModel(model, train_metrics, eval_metrics, output_transform)
+        self._trainable = TrainableModel(model, criterion, train_metrics, eval_metrics, output_transform)
         if vparse(tf.__version__) >= vparse("2.8"):
-            self._trainable.compile(optimizer, self.criterion, steps_per_execution=steps_per_loop,
-                                    jit_compile=self.jit_compile)
+            self._trainable.compile(optimizer, steps_per_execution=steps_per_loop, jit_compile=self.jit_compile)
         else:
-            self._trainable.compile(optimizer, self.criterion, steps_per_execution=steps_per_loop)
+            self._trainable.compile(optimizer, steps_per_execution=steps_per_loop)
 
         self._verbose = True
         self._epoch = -1

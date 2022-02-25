@@ -147,7 +147,6 @@ class DetectionLoss:
         self.quantity_weighted = quantity_weighted
 
     def __call__(self, y_true, y_pred):
-
         bbox_targets = y_true['bbox_target']
         labels = y_true['label']
         ignore = y_true.get("ignore")

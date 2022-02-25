@@ -6,7 +6,7 @@ from hanser.models.common.modules import get_shortcut_vd
 class BasicBlock(Layer):
     expansion = 1
 
-    def __init__(self, in_channels, channels, stride, zero_init_residual=False):
+    def __init__(self, in_channels, channels, stride, zero_init_residual=False, dilation=1):
         super().__init__()
         out_channels = channels * self.expansion
         self.conv1 = Conv2d(in_channels, out_channels, kernel_size=3, stride=stride,
