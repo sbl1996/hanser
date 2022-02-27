@@ -121,3 +121,5 @@ def mobilenet_v2_140(**kwargs):
 def mobilenet_v2_050(**kwargs):
     model = MobileNetV2(width_mult=0.5, **kwargs)
     return model
+
+from torchvision.models import MobileNetV2
