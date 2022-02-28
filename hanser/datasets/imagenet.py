@@ -4,6 +4,7 @@ import functools
 import tensorflow as tf
 from hanser.datasets import prepare
 from hanser.datasets.classification.imagenet_classes import IMAGENET_CLASSES
+from hhutil.io import fmt_path
 
 NUM_IMAGES = {
     'train': 1281167,
@@ -18,7 +19,7 @@ NUM_FILES = {
 _SHUFFLE_BUFFER = 10000
 
 
-def get_filenames(data_dir, training):
+def _get_filenames(data_dir, training):
   if training:
     return [
         os.path.join(data_dir, 'train-%05d-of-01024' % i)
@@ -119,9 +120,9 @@ def make_imagenet_dataset(
     n_batches_per_step=1, cache_eval=True, **kwargs):
 
     if train_files is None:
-        train_files = get_filenames(data_dir, training=True)
+        train_files = _get_filenames(data_dir, training=True)
     if eval_files is None:
-        eval_files = get_filenames(data_dir, training=False)
+        eval_files = _get_filenames(data_dir, training=False)
 
     ds_train, steps_per_epoch = make_imagenet_dataset_split(
         batch_size, transform, train_files, 'train', training=True,
@@ -131,3 +132,18 @@ def make_imagenet_dataset(
         eval_batch_size, transform, eval_files, 'validation', training=False,
         drop_remainder=drop_remainder, n_batches_per_step=1, cache=cache_eval, **kwargs)
     return ds_train, ds_eval, steps_per_epoch, eval_steps
+
+
+def get_files(remote_dir, local_dir, filenames):
+    if local_dir is None:
+        return [os.path.join(remote_dir, filename) for filename in filenames]
+    local_dir = fmt_path(local_dir)
+    fps = []
+    for filename in filenames:
+        local_path = local_dir / filename
+        if local_path.exists():
+            fps.append(str(local_path))
+        else:
+            remote_path = os.path.join(remote_dir, filename)
+            fps.append(remote_path)
+    return fps
