@@ -135,8 +135,11 @@ def make_imagenet_dataset(
 
 
 def get_files(remote_dir, local_dir, filenames):
+    assert not (remote_dir is None and local_dir is None)
     if local_dir is None:
         return [os.path.join(remote_dir, filename) for filename in filenames]
+    if remote_dir is None:
+        return [os.path.join(local_dir, filename) for filename in filenames]
     local_dir = fmt_path(local_dir)
     fps = []
     for filename in filenames:
