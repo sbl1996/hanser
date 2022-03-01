@@ -13,12 +13,13 @@ x = x.astype(np.float32)
 
 # Tensorflow Model
 
-from hanser.models.legacy.imagenet.res2net import resnet50
-from hanser.models.utils import load_pretrained_model
+from hanser.models.imagenet.res2net.resnet_vd import resnet50
+from hanser.models.utils import load_pretrained_model, load_checkpoint
 
 net = resnet50()
 net.build((None, 224, 224, 3))
 load_pretrained_model('res2netvd50', net, with_fc=True)
+load_checkpoint("/Users/hrvvi/Downloads/ImageNet-459-1/ckpt", model=model)
 
 xt = tf.convert_to_tensor(x)
 y1 = net(xt[None]).numpy()[0]
@@ -40,6 +41,7 @@ v2 = y2[p2]
 
 # TF Lite
 converter = tf.lite.TFLiteConverter.from_saved_model(save_path)
+converter.optimizations = [tf.lite.Optimize.DEFAULT]
 tflite_model = converter.convert()
 with open(tflite_model_path, 'wb') as f:
     f.write(tflite_model)
