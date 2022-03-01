@@ -124,8 +124,8 @@ def mobilenet_v3_large(mult=1.0, **kwargs):
     return MobileNetV3(inverted_residual_setting, last_channels, width_mult=mult, **kwargs)
 
 
-def mobilenet_v3_large_140(**kwargs):
-    return mobilenet_v3_large(1.4, **kwargs)
+def mobilenet_v3_large_125(**kwargs):
+    return mobilenet_v3_large(1.25, **kwargs)
 
 
 def mobilenet_v3_small(mult=1.0, **kwargs):
