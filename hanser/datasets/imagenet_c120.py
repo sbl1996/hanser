@@ -5,7 +5,7 @@ import numpy as np
 import tensorflow as tf
 from hanser.datasets import prepare
 from hanser.datasets.classification.imagenet_classes import IMAGENET_CLASSES
-from hanser.datasets.imagenet import parse_example_proto
+from hanser.datasets.imagenet import parse_example_proto, get_files
 
 NUM_IMAGES = {
     'train': 6000,
