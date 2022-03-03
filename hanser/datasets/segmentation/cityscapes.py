@@ -1,4 +1,6 @@
 import math
+import os.path
+
 import numpy as np
 
 import tensorflow as tf
@@ -120,8 +122,19 @@ def parse_and_transform(transform, training):
     return fn
 
 
+def _get_files(data_dir):
+    train_files = [os.path.join(data_dir, "train-%05d-of-00048.tfrecord") % i for i in range(48)]
+    eval_files = [os.path.join(data_dir, "val-%05d-of-00048.tfrecord") % i for i in range(48)]
+    return train_files, eval_files
+
+
 def make_dataset(
-    batch_size, eval_batch_size, transform, train_files=None, eval_files=None, drop_remainder=None, repeat=True):
+    batch_size, eval_batch_size, transform,
+    data_dir=None, train_files=None, eval_files=None, drop_remainder=None, repeat=True):
+    if data_dir is not None:
+        train_files, eval_files = _get_files(data_dir)
+    else:
+        assert train_files is not None and eval_files is not None, "data_dir or (train_files, eval_files) must be specified"
     n_train, n_val = NUM_EXAMPLES['train'], NUM_EXAMPLES['validation']
     steps_per_epoch = n_train // batch_size
     if drop_remainder:
