@@ -124,7 +124,7 @@ def parse_and_transform(transform, training):
 
 def _get_files(data_dir):
     train_files = [os.path.join(data_dir, "train-%05d-of-00048.tfrecord") % i for i in range(48)]
-    eval_files = [os.path.join(data_dir, "val-%05d-of-00048.tfrecord") % i for i in range(48)]
+    eval_files = [os.path.join(data_dir, "val-%05d-of-00008.tfrecord") % i for i in range(8)]
     return train_files, eval_files
 
 
