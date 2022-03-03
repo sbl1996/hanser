@@ -1,7 +1,11 @@
+import math
 import numpy as np
 
 import tensorflow as tf
 from collections import namedtuple
+
+from hanser.datasets.utils import prepare
+from hanser.datasets.segmentation import decode
 
 # a label and all meta information
 Label = namedtuple( 'Label' , [
@@ -99,3 +103,36 @@ COLOR_MAP = np.array([l.color for l in sorted(labels[:-1], key=lambda l: l.train
 #     COLOR_MAP[l.trainId]
 def map_label(label):
     return tf.gather(tf.convert_to_tensor(LABEL_MAP, label.dtype), label)
+
+
+NUM_EXAMPLES = {
+    'train': 2975,
+    'validation': 500,
+}
+
+
+def parse_and_transform(transform, training):
+    def fn(x):
+        image, label = decode(x)
+        label = tf.cast(label, tf.int32)
+        label = map_label(label)
+        return transform(image, label, training=training)
+    return fn
+
+
+def make_dataset(
+    batch_size, eval_batch_size, transform, train_files=None, eval_files=None, drop_remainder=None, repeat=True):
+    n_train, n_val = NUM_EXAMPLES['train'], NUM_EXAMPLES['validation']
+    steps_per_epoch = n_train // batch_size
+    if drop_remainder:
+        val_steps = n_val // eval_batch_size
+    else:
+        val_steps = math.ceil(n_val / eval_batch_size)
+
+    ds_train = tf.data.TFRecordDataset(train_files)
+    ds_val = tf.data.TFRecordDataset(eval_files)
+    ds_train = prepare(ds_train, batch_size, parse_and_transform(transform, training=True),
+                       training=True, repeat=True)
+    ds_val = prepare(ds_val, eval_batch_size, parse_and_transform(transform, training=False),
+                     training=False, repeat=repeat, drop_remainder=drop_remainder)
+    return ds_train, ds_val, steps_per_epoch, val_steps

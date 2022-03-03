@@ -24,7 +24,8 @@ NUM_EXAMPLES = {
 
 
 def make_dataset(
-    batch_size, eval_batch_size, transform, data_dir=None, drop_remainder=None):
+    batch_size, eval_batch_size, transform, data_dir=None,
+    drop_remainder=None, repeat=True):
     n_train, n_val = NUM_EXAMPLES['train'], NUM_EXAMPLES['validation']
     steps_per_epoch = n_train // batch_size
     if drop_remainder:
@@ -40,7 +41,7 @@ def make_dataset(
     ds_train = prepare(ds_train, batch_size, transform(training=True),
                        training=True, repeat=True)
     ds_val = prepare(ds_val, eval_batch_size, transform(training=False),
-                     training=False, repeat=False, drop_remainder=drop_remainder)
+                     training=False, repeat=repeat, drop_remainder=drop_remainder)
     return ds_train, ds_val, steps_per_epoch, val_steps
 
 
