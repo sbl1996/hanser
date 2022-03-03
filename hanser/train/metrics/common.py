@@ -7,7 +7,7 @@ class MeanMetricWrapper(Mean):
     def __init__(self, fn, name=None, dtype=None, **kwargs):
         super().__init__(name=name, dtype=dtype)
         self._fn = fn
-        self._compiled_fn = tf.function(lambda y_true, y_pred, **kwargs: fn(y_true, y_pred, **kwargs))
+        self._compiled_fn = tf.function(lambda y_true, y_pred: fn(y_true, y_pred, **kwargs))
         self._fn_kwargs = kwargs
 
     def update_state(self, y_true, y_pred, sample_weight=None):
