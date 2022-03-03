@@ -2,6 +2,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.keras.metrics import Metric
 from hanser.ops import confusion_matrix_tpu
+from hanser.train.metrics.classification import CrossEntropy
 
 
 def _iou_from_cm(cm):

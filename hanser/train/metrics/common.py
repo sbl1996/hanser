@@ -7,12 +7,12 @@ class MeanMetricWrapper(Mean):
     def __init__(self, fn, name=None, dtype=None, **kwargs):
         super().__init__(name=name, dtype=dtype)
         self._fn = fn
-        self._compiled_fn = tf.function(fn)
+        self._compiled_fn = tf.function(lambda y_true, y_pred, **kwargs: fn(y_true, y_pred, **kwargs))
         self._fn_kwargs = kwargs
 
     def update_state(self, y_true, y_pred, sample_weight=None):
 
-        matches = self._compiled_fn(y_true, y_pred, **self._fn_kwargs)
+        matches = self._compiled_fn(y_true, y_pred)
         return super().update_state(matches, sample_weight=None)
 
     def get_config(self):
