@@ -21,9 +21,9 @@ def make_dataset(
 
     read_config = tfds.ReadConfig(try_autocache=False, skip_prefetch=True)
     ds_train = tfds.load("ade_20_k", split=f"train", data_dir=data_dir,
-                          shuffle_files=True, read_config=read_config)
+                          shuffle_files=True, read_config=read_config, as_supervised=True)
     ds_val = tfds.load("ade_20_k", split=f"validation", data_dir=data_dir,
-                       shuffle_files=False, read_config=read_config)
+                       shuffle_files=False, read_config=read_config, as_supervised=True)
     ds_train = prepare(ds_train, batch_size, transform(training=True),
                        training=True, repeat=True)
     ds_val = prepare(ds_val, eval_batch_size, transform(training=False),
