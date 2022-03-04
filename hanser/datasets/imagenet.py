@@ -19,15 +19,17 @@ NUM_FILES = {
 _SHUFFLE_BUFFER = 10000
 
 
-def _get_filenames(data_dir, training):
-  if training:
-    return [
-        os.path.join(data_dir, 'train-%05d-of-01024' % i)
-        for i in range(NUM_FILES['train'])]
-  else:
-    return [
-        os.path.join(data_dir, 'validation-%05d-of-00128' % i)
-        for i in range(NUM_FILES['validation'])]
+def get_filenames(training, num_files=None, data_dir=None):
+    if training:
+        filenames = [
+            'train-%05d-of-01024' % i for i in range(num_files or NUM_FILES['train'])]
+    else:
+        filenames = [
+            'validation-%05d-of-00128' % i for i in range(num_files or NUM_FILES['validation'])]
+    if data_dir is not None:
+        filenames = [os.path.join(data_dir, f) for f in filenames]
+    return filenames
+
 
 
 def parse_example_proto(example_serialized):
@@ -119,10 +121,14 @@ def make_imagenet_dataset(
     zip_transform=None, batch_transform=None, aug_repeats=None, drop_remainder=None,
     n_batches_per_step=1, cache_eval=True, **kwargs):
 
-    if train_files is None:
-        train_files = _get_filenames(data_dir, training=True)
-    if eval_files is None:
-        eval_files = _get_filenames(data_dir, training=False)
+    if data_dir is not None:
+        if isinstance(data_dir, (tuple, list)) and len(data_dir) == 2:
+            remote_dir, local_dir = data_dir
+            train_files = get_files(remote_dir, local_dir, get_filenames(training=True))
+            eval_files = get_files(remote_dir, local_dir, get_filenames(training=False))
+        else:
+            train_files = [os.path.join(data_dir, f) for f in get_filenames(training=True)]
+            eval_files = [os.path.join(data_dir, f) for f in get_filenames(training=False)]
 
     ds_train, steps_per_epoch = make_imagenet_dataset_split(
         batch_size, transform, train_files, 'train', training=True,
