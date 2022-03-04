@@ -33,6 +33,7 @@ eval_batch_size = 2048
 
 ds_train, ds_test, steps_per_epoch, test_steps = make_cifar100_dataset(
     batch_size, eval_batch_size, transform)
+
 setup_runtime(fp16=True)
 ds_train, ds_test = distribute_datasets(ds_train, ds_test)
 
@@ -60,5 +61,5 @@ learner = SuperLearner(
     train_metrics=train_metrics, eval_metrics=eval_metrics,
     work_dir="./drive/MyDrive/models/CIFAR100")
 
-hist = learner.fit(ds_train, epochs, ds_test, val_freq=1,
-                   steps_per_epoch=steps_per_epoch, val_steps=test_steps)
+learner.fit(ds_train, epochs, ds_test, val_freq=1,
+            steps_per_epoch=steps_per_epoch, val_steps=test_steps)

@@ -76,5 +76,5 @@ learner = SuperLearner(
     train_metrics=train_metrics, eval_metrics=eval_metrics,
     work_dir="./drive/MyDrive/models/CIFAR100")
 
-hist = learner.fit(ds_train, epochs, ds_test, val_freq=1,
-                   steps_per_epoch=steps_per_epoch, val_steps=test_steps)
+learner.fit(ds_train, epochs, ds_test, val_freq=1,
+            steps_per_epoch=steps_per_epoch, val_steps=test_steps)

@@ -34,10 +34,9 @@ def transform(image, label, training):
 batch_size = 1024
 eval_batch_size = 2048
 
-train_files = ["train-%05d-of-01024" % i for i in range(1024)]
-eval_files = ["validation-%05d-of-00128" % i for i in range(128)]
+remote_dir, local_dir = os.getenv('REMOTE_DDIR'), os.getenv('LOCAL_DDIR')
 ds_train, ds_eval, steps_per_epoch, eval_steps = make_imagenet_dataset(
-    batch_size, eval_batch_size, transform, train_files=train_files, eval_files=eval_files)
+    batch_size, eval_batch_size, transform, data_dir=(remote_dir, local_dir))
 
 setup_runtime(fp16=True)
 ds_train, ds_eval = distribute_datasets(ds_train, ds_eval)
