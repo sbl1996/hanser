@@ -2,13 +2,13 @@ import os
 
 import tensorflow as tf
 
-def setup_tpu(fp16=True):
+def setup_tpu(fp16=True, connect=None):
     assert has_tpu()
     tf.keras.backend.clear_session()
 
     tpu_address = get_tpu_address()
     tpu = tf.distribute.cluster_resolver.TPUClusterResolver(tpu_address)
-    if tpu_address != 'local':
+    if tpu_address != 'local' or connect:
         tf.config.experimental_connect_to_cluster(tpu)
     tf.tpu.experimental.initialize_tpu_system(tpu)
 
