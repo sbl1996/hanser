@@ -1,9 +1,11 @@
 import sys
+import argparse
+from collections import defaultdict
 import numpy as np
 
 import matplotlib.pyplot as plt
 
-from hhutil.io import read_text
+from hhutil.io import read_text, fmt_path
 from hanser.train.parser import parse_log
 
 
@@ -16,29 +18,64 @@ def smooth(scalars, weight: float):
         last = smoothed_val                                  # Anchor the last smoothed value
     return smoothed
 
+def find(f, xs):
+    candidates = [x for x in xs if f(x)]
+    if len(candidates) == 0:
+        return None
+    return candidates[0]
+
 
 def parse(fp):
     text = read_text(fp)
     res = parse_log(text)[1]
 
-    train_losses = []
-    valid_accs = []
-    valid_acc5s = []
+    train_metrics = defaultdict(list)
+    eval_metrics = defaultdict(list)
+
     for l in res:
-        train_losses.append(l.stages[0].metrics['loss'])
-        if len(l.stages) > 1:
-            metrics = l.stages[1].metrics
-            valid_accs.append(metrics['acc'])
-            valid_acc5s.append(metrics['acc5'])
-    train_losses, valid_accs, valid_acc5s = [
-        np.array(xs) for xs in [train_losses, valid_accs, valid_acc5s]
-    ]
-    return train_losses, valid_accs, valid_acc5s
+        stages = l.stages
+        train_log = find(lambda s: s.name == 'train', stages)
+        for k, v in train_log.metrics.items():
+            train_metrics[k].append(v)
+        eval_log = find(lambda s: s.name == 'valid', stages)
+        if eval_log is not None:
+            for k, v in eval_log.metrics.items():
+                eval_metrics[k].append(v)
+    train_metrics = {
+        k: np.array(v) for k, v in train_metrics.items()
+    }
+    eval_metrics = {
+        k: np.array(v) for k, v in eval_metrics.items()
+    }
+    return train_metrics, eval_metrics
 
-log_files = sys.argv[1:]
+parser = argparse.ArgumentParser()
+parser.add_argument('-k','--key', type=str, required=True)
+parser.add_argument('-f','--logs', nargs='+', help='Log files', required=True)
+parser.add_argument('-o','--out', type=str, required=False)
+parser.add_argument('-s','--smooth', type=float, required=False, default=0.9)
+args = parser.parse_args()
 
+log_files = args.logs
+log_files = [fmt_path(f) for f in log_files]
+legends = []
 for fp in log_files:
-    train_losses, valid_accs, valid_acc5s = parse(fp)
-    plt.plot(smooth(valid_accs, 0.9))
-plt.legend(log_files)
-plt.savefig("/Users/hrvvi/Downloads/res_0_9.png", dpi=500)
+    train_metrics, eval_metrics = parse(fp)
+    k = args.key
+    if k.startswith('train_'):
+        metrics = train_metrics
+        k = k[6:]
+    else:
+        if k.startswith('eval_'):
+            k = k[5:]
+        metrics = eval_metrics
+    plt.plot(smooth(metrics[k], args.smooth))
+    legends.append(fp.stem)
+
+plt.title(args.key)
+plt.legend(legends)
+if args.out is not None:
+    save_path = fmt_path(args.out) / f"{args.key} {' '.join(legends)}.png"
+    plt.savefig(save_path, dpi=500)
+else:
+    plt.show()

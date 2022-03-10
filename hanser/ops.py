@@ -226,3 +226,113 @@ def in_top_k(predictions, targets, k):
     indices = tf.math.top_k(predictions, k=k, sorted=False).indices
     eq = tf.equal(targets[:, None], tf.cast(indices, targets.dtype))
     return tf.reduce_any(eq, axis=1)
+
+
+def roi_align(input, boxes, output_size, spatial_scale=1.0, sampling_ratio=1.0, aligned=True):
+    """Crop boxes from the image and resize them to crop_size.
+
+    Args:
+      input: A tensor with shape [batch, height, width, channels].
+      boxes: A float tensor with shape [batch, num_boxes, 4]. The box coordinates
+        in (y1, x1, y2, x2) format where the regions will be taken from. The
+        coordinate must satisfy 0 <= x1 < x2 and 0 <= y1 < y2.
+      output_size: The size of the output (in bins or pixels) after the pooling is performed.
+      spatial_scale: A scaling factor that maps the box coordinates to the input coordinates.
+        For example, if your boxes are defined on the scale of a 224x224 image and your input
+        is a 112x112 feature map (resulting from a 0.5x scaling of the original image), you’ll
+        want to set this to 0.5. Default: 1.0
+      sampling_ratio: A number of sampling points in the interpolation grid used to compute the
+        output value of each pooled output bin. If > 0, then exactly sampling_ratio x sampling_ratio
+        sampling points per bin are used. If <= 0, then an adaptive number of grid points are used
+        (computed as ceil(roi_width / output_width), and likewise for height). Default: 1
+      aligned: If False, use the legacy implementation. If True, pixel shift the box coordinates
+        it by -0.5 for a better alignment with the two neighboring pixel indices. This version is used in Detectron2
+
+    Returns:
+      A tensor with shape [batch, num_boxes, output_size, output_size, channels].
+    """
+    assert sampling_ratio == 1.0, 'Sampling is currently not supported'
+    # Note that according to the Mask R-CNN paper,
+    # "the results are not sensitive to the exact sampling locations,
+    # or how many points are sampled, as long as no quantization is performed"
+    # Therefore, sampling_ratio == 1.0 should work well.
+
+    dtype = input.dtype
+    shape = tf.shape(boxes)
+    batch_size, num_boxes = shape[0], shape[1]
+
+    shape = tf.shape(input)
+    height, width, channels = shape[1], shape[2], shape[3]
+    height = tf.cast(height, dtype)
+    width = tf.cast(width, dtype)
+
+    boxes = boxes * spatial_scale
+
+    grid = tf.range(output_size, dtype=dtype)
+    box_grid_yx = boxes[..., None, 0:2] + (grid[:, None] + 0.5) * boxes[..., None, 2:4] / output_size
+
+    if aligned:
+        box_grid_yx = box_grid_yx - 0.5
+
+    box_grid_yx0 = tf.floor(box_grid_yx)
+    box_grid_yx0 = tf.maximum(0., box_grid_yx0)
+    box_grid_yx1 = tf.minimum(box_grid_yx0 + 1, [height - 1, width - 1])
+
+    # (batch_size, num_boxes, output_size * 2)
+    box_gridx0x1 = tf.concat([box_grid_yx0[..., 1], box_grid_yx1[..., 1]], axis=-1)
+    box_gridy0y1 = tf.concat([box_grid_yx0[..., 0], box_grid_yx1[..., 0]], axis=-1)
+
+    indices_dtype = tf.int32
+    x_indices = tf.cast(box_gridx0x1, tf.int32)
+    y_indices = tf.cast(box_gridy0y1, tf.int32)
+
+    height_dim_offset = width
+    batch_dim_offset = height * height_dim_offset
+
+    height_dim_offset = tf.cast(height_dim_offset, indices_dtype)
+    batch_dim_offset = tf.cast(batch_dim_offset, indices_dtype)
+
+    batch_dim_indices = tf.reshape(
+        tf.range(batch_size, dtype=indices_dtype) * batch_dim_offset, [batch_size, 1, 1, 1])
+    height_indices = tf.reshape(
+            y_indices * height_dim_offset, [batch_size, num_boxes, output_size * 2, 1])
+    width_indices = tf.reshape(
+            x_indices, [batch_size, num_boxes, 1, output_size * 2])
+
+    indices = batch_dim_indices + height_indices + width_indices
+
+    indices = tf.reshape(indices, [-1])
+    features = tf.reshape(input, [-1, channels])
+    features_per_box = tf.gather(features, indices)
+
+    features_per_box = tf.reshape(features_per_box,
+        [batch_size, num_boxes, output_size * 2, output_size * 2, channels])
+
+    # The RoIAlign feature f can be computed by bilinear interpolation of four
+    # neighboring feature points f0, f1, f2, and f3.
+    # f(y, x) = [hy, ly] * [[f00, f01], * [hx, lx]^T
+    #                       [f10, f11]]
+    # f(y, x) = (hy*hx)f00 + (hy*lx)f01 + (ly*hx)f10 + (lx*ly)f11
+    # f(y, x) = w00*f00 + w01*f01 + w10*f10 + w11*f11
+    l_yx = box_grid_yx - box_grid_yx0
+    h_yx = 1.0 - l_yx
+    ly, lx, hy, hx = l_yx[..., 0], l_yx[..., 1], h_yx[..., 0], h_yx[..., 1]
+    kernel_x = tf.reshape(
+        tf.stack([hx, lx], axis=-1), [batch_size, num_boxes, 1, output_size * 2])
+    kernel_y = tf.reshape(
+        tf.stack([hy, ly], axis=-1), [batch_size, num_boxes, output_size * 2, 1])
+    interpolation_kernel = kernel_y * kernel_x * 4
+
+    features_per_box *= tf.cast(
+        tf.expand_dims(interpolation_kernel, axis=-1),
+        dtype=features_per_box.dtype)
+    features_per_box = tf.reshape(
+        features_per_box,
+        [batch_size * num_boxes, output_size * 2, output_size * 2, channels])
+    features_per_box = tf.nn.avg_pool(features_per_box, [1, 2, 2, 1],
+                                      [1, 2, 2, 1], 'VALID')
+    features_per_box = tf.reshape(
+        features_per_box,
+        [batch_size, num_boxes, output_size, output_size, channels])
+
+    return features_per_box
