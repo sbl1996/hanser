@@ -227,7 +227,9 @@ def in_top_k(predictions, targets, k):
     eq = tf.equal(targets[:, None], tf.cast(indices, targets.dtype))
     return tf.reduce_any(eq, axis=1)
 
-
+# Inspired by tpu/models/official/mask_rcnn and torchvision.ops.roi_align
+#
+# https://github.com/pytorch/vision/blob/main/torchvision/csrc/ops/cuda/roi_align_kernel.cu
 def roi_align(input, boxes, output_size, spatial_scale=1.0, sampling_ratio=1.0, aligned=True):
     """Crop boxes from the image and resize them to crop_size.
 
@@ -267,9 +269,11 @@ def roi_align(input, boxes, output_size, spatial_scale=1.0, sampling_ratio=1.0, 
     width = tf.cast(width, dtype)
 
     boxes = boxes * spatial_scale
+    boxes_yx = boxes[..., 0:2]
+    boxes_hw = boxes[..., 2:4] - boxes_yx
 
     grid = tf.range(output_size, dtype=dtype)
-    box_grid_yx = boxes[..., None, 0:2] + (grid[:, None] + 0.5) * boxes[..., None, 2:4] / output_size
+    box_grid_yx = boxes_yx[..., None, :] + (grid[:, None] + 0.5) * boxes_hw[..., None, :] / output_size
 
     if aligned:
         box_grid_yx = box_grid_yx - 0.5
@@ -283,8 +287,8 @@ def roi_align(input, boxes, output_size, spatial_scale=1.0, sampling_ratio=1.0, 
     box_gridy0y1 = tf.concat([box_grid_yx0[..., 0], box_grid_yx1[..., 0]], axis=-1)
 
     indices_dtype = tf.int32
-    x_indices = tf.cast(box_gridx0x1, tf.int32)
-    y_indices = tf.cast(box_gridy0y1, tf.int32)
+    x_indices = tf.cast(box_gridx0x1, indices_dtype)
+    y_indices = tf.cast(box_gridy0y1, indices_dtype)
 
     height_dim_offset = width
     batch_dim_offset = height * height_dim_offset
