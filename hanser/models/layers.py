@@ -13,7 +13,7 @@ from hanser.models.bn2 import BatchNormalizationTest
 from hanser.models.inplace_abn import InplaceABN
 from hanser.models.evonorm import EvoNormB0, EvoNormS0
 from hanser.models.modules import DropBlock, ScaledWSConv2D, AntiAliasing, GlobalAvgPool, Identity, NaiveGroupConv2D, \
-    GELU, Mish, ScaledSwish, ScaledGELU, ScaledReLU, Dropout, ReLU6, HSwish, HSigmoid
+    GELU, Mish, ScaledSwish, ScaledGELU, ScaledReLU, Dropout, ReLU6, HSwish, HSigmoid, DeformableConv2D
 from hanser.models.defaults import DEFAULTS, set_defaults, set_default
 
 
@@ -75,7 +75,8 @@ def Conv2d(in_channels: int,
            dropblock: Union[bool, Dict[str, Any]] = False,
            scaled_ws: bool = False,
            avd=False, avd_first=True,
-           anti_alias: bool = False):
+           anti_alias: bool = False,
+           dcn=False):
 
     assert not (avd and anti_alias)
 
@@ -194,6 +195,11 @@ def Conv2d(in_channels: int,
             padding=conv_padding, groups=groups)
     elif scaled_ws:
         conv = ScaledWSConv2D(
+            out_channels, kernel_size=kernel_size, strides=stride,
+            padding=conv_padding, dilation_rate=dilation, use_bias=use_bias, groups=groups,
+            kernel_initializer=kernel_initializer, bias_initializer=bias_initializer)
+    elif dcn:
+        conv = DeformableConv2D(
             out_channels, kernel_size=kernel_size, strides=stride,
             padding=conv_padding, dilation_rate=dilation, use_bias=use_bias, groups=groups,
             kernel_initializer=kernel_initializer, bias_initializer=bias_initializer)
