@@ -11,10 +11,10 @@
 #
 #     return
 
+
 import tensorflow as tf
 from tensorflow.keras.layers import Conv2D
 
-tf.image.extract_patches
 
 class DeformableConv2D(Conv2D):
 
@@ -26,6 +26,7 @@ class DeformableConv2D(Conv2D):
                  data_format=None,
                  dilation_rate=(1, 1),
                  num_deformable_group=1,
+                 activation=None,
                  use_bias=True,
                  kernel_initializer='glorot_uniform',
                  bias_initializer='zeros',
@@ -46,6 +47,7 @@ class DeformableConv2D(Conv2D):
             padding=padding,
             data_format=data_format,
             dilation_rate=dilation_rate,
+            activation=activation,
             use_bias=use_bias,
             kernel_initializer=kernel_initializer,
             bias_initializer=bias_initializer,
@@ -57,8 +59,8 @@ class DeformableConv2D(Conv2D):
             **kwargs)
         self.kernel = None
         self.bias = None
-        self.offset_kernel = None
-        self.offset_bias = None
+        self.offset_layer_kernel = None
+        self.offset_layer_bias = None
         if filters % num_deformable_group != 0:
             raise ValueError('"filters" mod "num_deformable_group" must be zero')
         self.num_deformable_group = num_deformable_group
@@ -66,7 +68,8 @@ class DeformableConv2D(Conv2D):
     def build(self, input_shape):
         in_channels = int(input_shape[-1])
         # kernel_shape = self.kernel_size + (in_channels, self.filters)
-        kernel_shape = (self.kernel_size[0]*self.kernel_size[1], in_channels, self.filters)
+        # we want to use depth-wise conv
+        kernel_shape = self.kernel_size + (self.filters * in_channels, 1)
         self.kernel = self.add_weight(
             name='kernel',
             shape=kernel_shape,
@@ -87,15 +90,15 @@ class DeformableConv2D(Conv2D):
 
         # create offset conv layer
         offset_num = self.kernel_size[0] * self.kernel_size[1] * self.num_deformable_group
-        self.offset_kernel = self.add_weight(
-            name='offset_kernel',
+        self.offset_layer_kernel = self.add_weight(
+            name='offset_layer_kernel',
             shape=self.kernel_size + (in_channels, offset_num * 2),  # 2 means x and y axis
             initializer=tf.zeros_initializer(),
             regularizer=self.kernel_regularizer,
             trainable=True,
             dtype=self.dtype)
-        self.offset_bias = self.add_weight(
-            name='offset_bias',
+        self.offset_layer_bias = self.add_weight(
+            name='offset_layer_bias',
             shape=(offset_num * 2,),
             initializer=tf.zeros_initializer(),
             regularizer=self.bias_regularizer,
@@ -104,20 +107,24 @@ class DeformableConv2D(Conv2D):
         self.built = True
 
     def call(self, inputs, training=None, **kwargs):
-        # [N, oH, oW, kH * kW * 2]
+        dtype = inputs.dtype
+        # get offset, shape [N, oH, oW, kH * kW * 2]
         offset = tf.nn.conv2d(inputs,
-                              filters=self.offset_kernel,
+                              filters=self.offset_layer_kernel,
                               strides=[1, *self.strides, 1],
                               padding=self.padding.upper(),
                               dilations=[1, *self.dilation_rate, 1])
-        offset += self.offset_bias
-        dtype = offset.dtype
+        offset += self.offset_layer_bias
 
+        # add padding if needed
         inputs = self._pad_input(inputs)
 
         shape = tf.shape(inputs)
+        # some length
         N = shape[0]
         iH, iW, iC = inputs.shape[1:4]
+        shape = tf.shape(offset)
+        oC = self.filters
         oH, oW = offset.shape[1:3]
         kH, kW = self.kernel_size
 
@@ -132,29 +139,45 @@ class DeformableConv2D(Conv2D):
         y = tf.clip_by_value(y, 0, iH - 1.0)
         x = tf.clip_by_value(x, 0, iW - 1.0)
 
-        y0, x0 = [tf.floor(t) for t in [y, x]]
+        # get four coordinates of points around (x, y)
+        y0, x0 = [tf.cast(tf.floor(t), dtype=tf.int32) for t in [y, x]]
         y1, x1 = y0 + 1, x0 + 1
+        # clip
         y0, x0 = [tf.maximum(t, 0) for t in [y0, x0]]
         y1, x1 = tf.minimum(x1, iH - 1), tf.minimum(x1, iW - 1)
 
+        # get pixel values
         indices = [[y0, x0], [y0, x1], [y1, x0], [y1, x1]]
         p0, p1, p2, p3 = [self._get_pixel_values_at_point(inputs, t) for t in indices]
         # (N, oH, oW, kH*kW, iC)
 
+        # cast to float
+        x0, x1, y0, y1 = [tf.cast(t, dtype) for t in [x0, x1, y0, y1]]
+        # weights
         w0 = (y1 - y) * (x1 - x)
         w1 = (y1 - y) * (x - x0)
         w2 = (y - y0) * (x1 - x)
         w3 = (y - y0) * (x - x0)
+        # expand dim for broadcast
         w0, w1, w2, w3 = [tf.expand_dims(t, axis=-1) for t in [w0, w1, w2, w3]]
+        # bilinear interpolation
         pixels = tf.add_n([w0 * p0, w1 * p1, w2 * p2, w3 * p3])
 
-        pixels = tf.reshape(pixels, [N, oH, oW, kH*kW, iC])
-        # pixels = tf.transpose(pixels, [0, 1, 2, 4, 3])
-        # out = tf.tensordot(pixels, self.kernel, axes=2)
-        out = tf.einsum('nhwki,kio->nhwo', pixels, self.kernel)
+        # reshape the "big" feature map
+        pixels = tf.reshape(pixels, [N, oH, oW, kH, kW, iC])
+        pixels = tf.transpose(pixels, [0, 1, 3, 2, 4, 5])
+        pixels = tf.reshape(pixels, [N, oH*kW, oW*kW, iC, 1])
+
+        pixels = tf.tile(pixels, [1, 1, 1, 1, oC])
+        pixels = tf.reshape(pixels, [N, oH*kH, oW*kW, oC*iC])
+
+        # depth-wise conv
+        out = tf.nn.depthwise_conv2d(pixels, self.kernel, [1, kH, kW, 1], 'VALID')
+        out = tf.reshape(out, [N, oH, oW, oC, iC])
+        out = tf.reduce_sum(out, axis=-1)
         if self.use_bias:
             out += self.bias
-        return out
+        return self.activation(out)
 
     def _pad_input(self, inputs):
         """Check if input feature map needs padding, because we don't use the standard Conv() function.
@@ -208,7 +231,7 @@ class DeformableConv2D(Conv2D):
         Returns:
             (N, oH, oW, kH*kW, iC)
         """
-        y, x = [tf.cast(t, tf.int32) for t in indices]
+        y, x = indices
         shape = tf.shape(y)
         N, H, W, I = shape[0], shape[1], shape[2], shape[3]
 

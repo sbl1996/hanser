@@ -5,6 +5,7 @@ from tensorflow.keras import initializers
 from tensorflow.keras.layers import InputSpec, Layer, Conv2D
 from tensorflow.keras.initializers import Constant
 from hanser.models.defaults import DEFAULTS
+from hanser.ops.deform_conv import deform_conv
 
 
 __all__ = [
@@ -652,3 +653,104 @@ class Identity(Layer):
     # noinspection PyMethodOverriding
     def call(self, inputs):
         return tf.identity(inputs)
+
+
+class DeformableConv2D(Conv2D):
+
+    def __init__(self,
+                 filters,
+                 kernel_size,
+                 strides=(1, 1),
+                 padding='valid',
+                 data_format=None,
+                 dilation_rate=(1, 1),
+                 num_deformable_group=1,
+                 use_bias=True,
+                 kernel_initializer='glorot_uniform',
+                 bias_initializer='zeros',
+                 kernel_regularizer=None,
+                 bias_regularizer=None,
+                 activity_regularizer=None,
+                 kernel_constraint=None,
+                 bias_constraint=None,
+                 **kwargs):
+        """`kernel_size`, `strides` and `dilation_rate` must have the same value in both axis.
+        :param num_deformable_group: split output channels into groups, offset shared in each group. If
+        this parameter is None, then set  num_deformable_group=filters.
+        """
+        super().__init__(
+            filters=filters,
+            kernel_size=kernel_size,
+            strides=strides,
+            padding=padding,
+            data_format=data_format,
+            dilation_rate=dilation_rate,
+            use_bias=use_bias,
+            kernel_initializer=kernel_initializer,
+            bias_initializer=bias_initializer,
+            kernel_regularizer=kernel_regularizer,
+            bias_regularizer=bias_regularizer,
+            activity_regularizer=activity_regularizer,
+            kernel_constraint=kernel_constraint,
+            bias_constraint=bias_constraint,
+            **kwargs)
+        self.kernel = None
+        self.bias = None
+        self.offset_kernel = None
+        self.offset_bias = None
+        if filters % num_deformable_group != 0:
+            raise ValueError('"filters" mod "num_deformable_group" must be zero')
+        self.num_deformable_group = num_deformable_group
+
+    def build(self, input_shape):
+        in_channels = int(input_shape[-1])
+        kernel_shape = (*self.kernel_size, in_channels, self.filters)
+        self.kernel = self.add_weight(
+            name='kernel',
+            shape=kernel_shape,
+            initializer=self.kernel_initializer,
+            regularizer=self.kernel_regularizer,
+            constraint=self.kernel_constraint,
+            trainable=True,
+            dtype=self.dtype)
+        if self.use_bias:
+            self.bias = self.add_weight(
+                name='bias',
+                shape=(self.filters,),
+                initializer=self.bias_initializer,
+                regularizer=self.bias_regularizer,
+                constraint=self.bias_constraint,
+                trainable=True,
+                dtype=self.dtype)
+
+        offset_num = self.kernel_size[0] * self.kernel_size[1] * self.num_deformable_group
+        self.offset_kernel = self.add_weight(
+            name='offset_kernel',
+            shape=(*self.kernel_size, in_channels, offset_num * 2),  # 2 means x and y axis
+            initializer=tf.zeros_initializer(),
+            regularizer=self.kernel_regularizer,
+            trainable=True,
+            dtype=self.dtype)
+        self.offset_bias = self.add_weight(
+            name='offset_bias',
+            shape=(offset_num * 2,),
+            initializer=tf.zeros_initializer(),
+            regularizer=self.bias_regularizer,
+            trainable=True,
+            dtype=self.dtype)
+        self.built = True
+
+    def call(self, inputs, training=None, **kwargs):
+        # [N, oH, oW, kH * kW * 2]
+        offset = tf.nn.conv2d(inputs,
+                              filters=self.offset_kernel,
+                              strides=[1, *self.strides, 1],
+                              padding=self.padding.upper(),
+                              dilations=[1, *self.dilation_rate, 1])
+        offset += self.offset_bias
+
+        output = deform_conv(
+            inputs, self.kernel, offset, self.kernel_size, self.strides, self.padding, self.dilation_rate)
+        if self.use_bias:
+            output += self.bias
+        return output
