@@ -228,7 +228,7 @@ def in_top_k(predictions, targets, k):
     return tf.reduce_any(eq, axis=1)
 
 # Inspired by tpu/models/official/mask_rcnn and torchvision.ops.roi_align
-#
+# https://github.com/tensorflow/tpu/blob/master/models/official/mask_rcnn/spatial_transform_ops.py
 # https://github.com/pytorch/vision/blob/main/torchvision/csrc/ops/cuda/roi_align_kernel.cu
 def roi_align(input, boxes, output_size, spatial_scale=1.0, sampling_ratio=1.0, aligned=True):
     """Crop boxes from the image and resize them to crop_size.
