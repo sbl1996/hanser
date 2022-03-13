@@ -3,7 +3,7 @@ import numpy as np
 
 import tensorflow as tf
 
-from hanser.losses import reduce_loss, focal_loss, l1_loss, smooth_l1_loss
+from hanser.losses import reduce_loss, focal_loss, l1_loss, smooth_l1_loss, mse_loss
 from hanser.ops import to_float, to_int, all_reduce_mean
 from hanser.detection.iou import bbox_iou2
 
@@ -191,6 +191,54 @@ class DetectionLoss:
         return loss
 
 
+# class YOLOLoss:
+#
+#     def __init__(self, box_loss_weight=2.,
+#                  bbox_coder=None, decode_pred=False,
+#                  quantity_weighted=True):
+#         if decode_pred:
+#             assert bbox_coder is not None
+#         self.box_loss_weight = box_loss_weight
+#         self.bbox_coder = bbox_coder
+#         self.decode_pred = decode_pred
+#         self.quantity_weighted = quantity_weighted
+#
+#     def __call__(self, y_true, y_pred):
+#         bbox_targets = y_true['bbox_target']
+#         labels = y_true['label']
+#         ignore = y_true.get("ignore")
+#         non_ignore = to_float(~ignore)
+#
+#         bbox_preds = y_pred['bbox_pred']
+#         cls_scores = y_pred['cls_score']
+#         obj_scores = y_pred['obj_score']
+#
+#         pos = labels != 0
+#         pos_weight = to_float(pos)
+#         total_pos = tf.reduce_sum(pos_weight)
+#         total_pos = all_reduce_mean(total_pos)
+#
+#         loss_obj = binary_cross_entropy(pos_weight, obj_scores, weight=non_ignore, reduction='sum') / total_pos
+#
+#         loss_cls = binary_cross_entropy(labels, cls_scores, weight=pos_weight, reduction='sum') / total_pos
+#
+#         bbox_targets_xy = bbox_targets[..., :2]
+#         bbox_preds_xy = bbox_preds[..., :2]
+#         loss_box_xy = binary_cross_entropy(
+#             bbox_targets_xy, bbox_preds_xy, weight=pos_weight, reduction='none')
+#
+#         bbox_targets_hw = bbox_targets[..., 2:]
+#         bbox_preds_hw = bbox_preds[..., 2:]
+#         loss_box_hw = mse_loss(bbox_targets_hw, bbox_preds_hw, weight=pos_weight, reduction='none')
+#
+#         # loss_box_weight =
+#
+#         loss_box = (loss_box_xy + loss_box_hw) / total_pos
+#
+#         loss = loss_obj + loss_cls + loss_box * self.box_loss_weight
+#         return loss
+
+
 @curry
 def iou_loss(y_true, y_pred, weight=None, mode='iou', offset=False, reduction='sum'):
     # y_true: (batch_size, n_dts, 4)
@@ -216,6 +264,16 @@ def cross_entropy_det(y_true, y_pred, weight=None, neg_pos_ratio=None, reduction
     neg = 1. - pos
     loss_neg = hard_negative_mining(losses * neg, n_pos, neg_pos_ratio)
     return loss_pos + loss_neg
+
+
+@curry
+def binary_cross_entropy(y_true, y_pred, weight=None, reduction='sum'):
+    if y_pred.shape.ndims - y_true.shape.ndims == 1:
+        num_classes = tf.shape(y_pred)[-1]
+        y_true = tf.one_hot(y_true, num_classes + 1)[..., 1:]
+
+    losses = tf.nn.sigmoid_cross_entropy_with_logits(y_true, y_pred)
+    return reduce_loss(losses, weight, reduction)
 
 
 def hard_negative_mining(losses, n_pos, neg_pos_ratio, max_pos=1000):

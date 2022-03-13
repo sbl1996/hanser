@@ -147,3 +147,9 @@ def l1_loss(y_true, y_pred, weight=None, clip_value=10, reduction='sum'):
     losses = tf.math.abs(y_pred - y_true)
     losses = tf.clip_by_value(losses, 0, clip_value)
     return reduce_loss(losses, weight, reduction)
+
+
+@curry
+def mse_loss(y_true, y_pred, weight=None, reduction='sum'):
+    losses = tf.math.squared_difference(y_pred, y_true)
+    return reduce_loss(losses, weight, reduction)

@@ -162,6 +162,47 @@ def atss_assign(bboxes, num_level_bboxes, gt_bboxes, topk=9):
     return assigned_gt_inds
 
 
+def yolo_assign(bboxes, gt_bboxes, ignore_iou_thr=0.5):
+    num_gts = get_shape(gt_bboxes, 0)
+    num_bboxes = get_shape(bboxes, 0)
+
+    if num_gts == 0:
+        # No truth, assign everything to background
+        return tf.fill((num_bboxes,), tf.constant(0, dtype=tf.int32))
+
+    ious = bbox_iou(gt_bboxes, bboxes)
+
+    # P1. assign -1 by default
+    assigned_gt_inds = tf.fill((num_bboxes,), tf.constant(-1, dtype=tf.int32))
+
+    # for each anchor, the max iou of all gts
+    max_ious = tf.reduce_max(ious, axis=0)
+
+    # P2. assign negative: below
+    # the negative inds are set to be 0
+    mask = max_ious < ignore_iou_thr
+    assigned_gt_inds = tf.where(mask, 0, assigned_gt_inds)
+
+    # P3. assign positive
+    gt_argmax_ious = tf.argmax(ious, axis=1, output_type=tf.int32)
+    assigned_gt_inds = index_put(
+        assigned_gt_inds, gt_argmax_ious, tf.range(1, num_gts + 1))
+
+    # anchor
+    # 1. overlap without any gt                 0
+    # 2. overlap with some gt (is max, > 0.5)   X
+    # 3. overlap with some gt (is max, < 0.5)   X
+    # 4. overlap with some gt (not max, > 0.5)  -1
+    # 5. overlap with some gt (not max, < 0.5)  0
+    # we don't consider that the anchor is the max of multiple gts
+
+    # P1. -1 -1 -1 -1 -1
+    # P2. 0 -1  0 -1  0
+    # P3. 0  X  X -1  0
+
+    return assigned_gt_inds
+
+
 def mlvl_concat(xs, reps, dtype=tf.float32):
     xs = np.array(xs)
     ndim = len(xs.shape)
@@ -197,6 +238,14 @@ def max_iou_match(gt_bboxes, gt_labels, bbox_coder, pos_iou_thr=0.5, neg_iou_thr
     return encode_target(
         gt_bboxes, gt_labels, assigned_gt_inds,
         bbox_coder=bbox_coder, centerness=centerness, encode_bbox=encode_bbox)
+
+
+def yolo_match(gt_bboxes, gt_labels, bbox_coder, ignore_iou_thr=0.5, encode_bbox=True):
+    anchors = bbox_coder.anchors
+    assigned_gt_inds = yolo_assign(anchors, gt_bboxes, ignore_iou_thr)
+    return encode_target(
+        gt_bboxes, gt_labels, assigned_gt_inds,
+        bbox_coder=bbox_coder, encode_bbox=encode_bbox)
 
 
 def atss_match(gt_bboxes, gt_labels, anchors, num_level_bboxes, topk=9, centerness=True):

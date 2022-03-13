@@ -72,6 +72,47 @@ class FCOSBBoxCoder:
         return tf.stack([t, l, b, r], axis=-1)
 
 
+class YOLOBBoxCoder:
+
+    def __init__(self, anchors, strides, num_base_anchors, eps=1e-6):
+        super(YOLOBBoxCoder, self).__init__()
+        self.anchors = tf.constant(anchors, tf.float32)
+        scales = [tf.repeat(s, n) for s, n in zip(strides, num_base_anchors)]
+        self.scales = tf.cast(tf.concat(scales, axis=0), tf.float32)
+        self.eps = eps
+
+    def encode(self, bboxes, idx=None):
+        anchors = self.anchors
+        if idx is not None:
+            anchors = tf.gather(anchors, idx, axis=0)
+        boxes_yx = (bboxes[..., :2] + bboxes[..., 2:]) / 2
+        boxes_hw = bboxes[..., 2:] - bboxes[..., :2]
+        anchors_yx = (anchors[:, :2] + anchors[:, 2:]) / 2
+        anchors_hw = anchors[:, 2:] - anchors[:, :2]
+        thtw = tf.math.log(
+            tf.maximum(boxes_hw / anchors_hw, self.eps))
+        tytx = (boxes_yx - anchors_yx) / self.scales + 0.5
+        tytx = tf.clip_by_value(tytx, self.eps, 1 - self.eps)
+        target = tf.concat([tytx, thtw], axis=-1)
+        return target
+
+    def decode(self, pred, idx=None):
+        anchors = self.anchors
+        if idx is not None:
+            anchors = tf.gather(anchors, idx, axis=0)
+        anchors = tf.convert_to_tensor(anchors, pred.dtype)
+
+        anchors_yx = (anchors[..., :2] + anchors[..., 2:]) / 2
+        anchors_hw = anchors[..., 2:] - anchors[..., :2]
+
+        bbox_yx = (pred[..., :2] - 0.5) * self.scales + anchors_yx
+        bbox_hw = tf.exp(pred[..., 2:]) * anchors_hw
+
+        bbox_hw_half = bbox_hw / 2
+        bboxes = tf.concat([bbox_yx - bbox_hw_half, bbox_yx + bbox_hw_half], axis=-1)
+        return bboxes
+
+
 def coords_to_absolute(bboxes, size):
     height, width = size[0], size[1]
     bboxes = bboxes * tf.cast(tf.stack([height, width, height, width]), bboxes.dtype)[None, :]
