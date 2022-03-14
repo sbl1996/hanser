@@ -163,9 +163,6 @@ class DetectionLoss:
         total_pos = tf.reduce_sum(pos_weight)
         total_pos = all_reduce_mean(total_pos)
 
-        if self.decode_pred:
-            bbox_preds = self.bbox_coder.decode(bbox_preds)
-
         loss_cls = self.cls_loss_fn(labels, cls_scores, weight=non_ignore, reduction='sum') / total_pos
         loss = loss_cls
 
@@ -184,6 +181,9 @@ class DetectionLoss:
             box_loss_avg_factor = tf.reduce_sum(centerness_t)
             box_loss_avg_factor = all_reduce_mean(box_loss_avg_factor)
 
+        if self.decode_pred:
+            bbox_preds = self.bbox_coder.decode(bbox_preds)
+
         loss_box = self.box_loss_fn(bbox_targets, bbox_preds,
                                     weight=box_losses_weight, reduction='sum') / box_loss_avg_factor
 
@@ -191,52 +191,45 @@ class DetectionLoss:
         return loss
 
 
-# class YOLOLoss:
-#
-#     def __init__(self, box_loss_weight=2.,
-#                  bbox_coder=None, decode_pred=False,
-#                  quantity_weighted=True):
-#         if decode_pred:
-#             assert bbox_coder is not None
-#         self.box_loss_weight = box_loss_weight
-#         self.bbox_coder = bbox_coder
-#         self.decode_pred = decode_pred
-#         self.quantity_weighted = quantity_weighted
-#
-#     def __call__(self, y_true, y_pred):
-#         bbox_targets = y_true['bbox_target']
-#         labels = y_true['label']
-#         ignore = y_true.get("ignore")
-#         non_ignore = to_float(~ignore)
-#
-#         bbox_preds = y_pred['bbox_pred']
-#         cls_scores = y_pred['cls_score']
-#         obj_scores = y_pred['obj_score']
-#
-#         pos = labels != 0
-#         pos_weight = to_float(pos)
-#         total_pos = tf.reduce_sum(pos_weight)
-#         total_pos = all_reduce_mean(total_pos)
-#
-#         loss_obj = binary_cross_entropy(pos_weight, obj_scores, weight=non_ignore, reduction='sum') / total_pos
-#
-#         loss_cls = binary_cross_entropy(labels, cls_scores, weight=pos_weight, reduction='sum') / total_pos
-#
-#         bbox_targets_xy = bbox_targets[..., :2]
-#         bbox_preds_xy = bbox_preds[..., :2]
-#         loss_box_xy = binary_cross_entropy(
-#             bbox_targets_xy, bbox_preds_xy, weight=pos_weight, reduction='none')
-#
-#         bbox_targets_hw = bbox_targets[..., 2:]
-#         bbox_preds_hw = bbox_preds[..., 2:]
-#         loss_box_hw = mse_loss(bbox_targets_hw, bbox_preds_hw, weight=pos_weight, reduction='none')
-#
-#         # loss_box_weight =
-#
-#         loss_box = (loss_box_xy + loss_box_hw) / total_pos
-#
-#         loss = loss_obj + loss_cls + loss_box * self.box_loss_weight
-#         return loss
+class YOLOLoss:
+
+    def __init__(self, box_loss_weight=2.,
+                 bbox_coder=None, decode_pred=True,
+                 iou_loss_mode='giou'):
+        if decode_pred:
+            assert bbox_coder is not None
+        self.box_loss_weight = box_loss_weight
+        self.bbox_coder = bbox_coder
+        self.decode_pred = decode_pred
+        self.iou_loss_mode = iou_loss_mode
+
+    def __call__(self, y_true, y_pred):
+        bbox_targets = y_true['bbox_target']
+        labels = y_true['label']
+        ignore = y_true.get("ignore")
+        non_ignore = to_float(~ignore)
+
+        bbox_preds = y_pred['bbox_pred']
+        cls_scores = y_pred['cls_score']
+        obj_scores = y_pred['obj_score']
+
+        pos = labels != 0
+        pos_weight = to_float(pos)
+        total_pos = tf.reduce_sum(pos_weight)
+        total_pos = all_reduce_mean(total_pos)
+
+        loss_obj = binary_cross_entropy(pos_weight, obj_scores, weight=non_ignore, reduction='sum') / total_pos
+
+        loss_cls = binary_cross_entropy(labels, cls_scores, weight=pos_weight, reduction='sum') / total_pos
+
+        if self.decode_pred:
+            bbox_preds = self.bbox_coder.decode(bbox_preds)
+
+        loss_box = iou_loss(bbox_targets, bbox_preds, weight=pos_weight,
+                            reduction='sum', mode=self.iou_loss_mode) / total_pos
+
+        loss = loss_obj + loss_cls + loss_box * self.box_loss_weight
+        return loss
 
 
 @curry

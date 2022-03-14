@@ -162,7 +162,7 @@ def atss_assign(bboxes, num_level_bboxes, gt_bboxes, topk=9):
     return assigned_gt_inds
 
 
-def yolo_assign(bboxes, gt_bboxes, ignore_iou_thr=0.5):
+def yolo_assign(bboxes, gt_bboxes, ignore_iou_thr=0.5, return_iou=False):
     num_gts = get_shape(gt_bboxes, 0)
     num_bboxes = get_shape(bboxes, 0)
 
@@ -199,6 +199,9 @@ def yolo_assign(bboxes, gt_bboxes, ignore_iou_thr=0.5):
     # P1. -1 -1 -1 -1 -1
     # P2. 0 -1  0 -1  0
     # P3. 0  X  X -1  0
+
+    if return_iou:
+        return assigned_gt_inds, max_ious
 
     return assigned_gt_inds
 

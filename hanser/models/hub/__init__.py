@@ -24,6 +24,7 @@ _model_path = {
     "re_resnet_s": "https://github.com/sbl1996/hanser/releases/download/0.1.3/re_resnet_s-5001074b.zip",
     "re_resnet_s_aug": "https://github.com/sbl1996/hanser/releases/download/0.1.3/re_resnet_s_aug-ed44e04e.zip",
     "re_resnet_s_aug1": "https://github.com/sbl1996/hanser/releases/download/0.1.3/re_resnet_s_aug1-f9259322.zip",
+    "resnetvd50_nls": "https://github.com/sbl1996/hanser/releases/download/0.1.4/resnetvd50_nls-1d7559da.zip",
 }
 
 HASH_REGEX = re.compile(r'-([a-f0-9]*)\.')
