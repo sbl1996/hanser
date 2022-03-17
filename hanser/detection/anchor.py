@@ -7,11 +7,6 @@ from hanser.ops import _pair, _meshgrid
 
 class BaseAnchorGenerator:
 
-    def __init__(self, strides: Union[List[int], List[tuple]]):
-
-        self.strides = [_pair(stride) for stride in strides]
-        self.base_anchors = self.gen_base_anchors()
-
     @property
     def num_base_anchors(self):
         """list[int]: total number of base anchors in a feature grid"""
@@ -152,8 +147,10 @@ class AnchorGenerator(BaseAnchorGenerator):
         self.scales_per_octave = scales_per_octave
         self.ratios = np.array(ratios, dtype=np.float32)
         self.center_offset = center_offset
-        super(AnchorGenerator, self).__init__(strides)
+
+        self.strides = [_pair(stride) for stride in strides]
         self.base_sizes = [min(stride) for stride in self.strides]
+        self.base_anchors = self.gen_base_anchors()
 
     def gen_base_anchors(self):
         """Generate base anchors.
@@ -268,8 +265,9 @@ class SSDAnchorGenerator(BaseAnchorGenerator):
         self.scales = anchor_scales
         self.ratios = anchor_ratios
         self.center_offset = 0
+        self.strides = [_pair(stride) for stride in strides]
         self.base_sizes = min_sizes
-        super(SSDAnchorGenerator, self).__init__(strides)
+        self.base_anchors = self.gen_base_anchors()
 
     def gen_base_anchors(self):
         """Generate base anchors.
@@ -336,8 +334,9 @@ class YOLOAnchorGenerator(BaseAnchorGenerator):
                  centroids=COCO_CENTROIDS):
         assert len(strides) == len(centroids)
         self.centroids = np.array(centroids)
+        self.strides = [_pair(stride) for stride in strides]
         self.base_sizes = [min(stride) for stride in self.strides]
-        super(YOLOv3AnchorGenerator, self).__init__(strides)
+        self.base_anchors = self.gen_base_anchors()
 
     def gen_base_anchors(self):
         """Generate base anchors.

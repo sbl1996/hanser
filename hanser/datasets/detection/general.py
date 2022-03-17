@@ -8,6 +8,7 @@ import tensorflow_datasets as tfds
 
 from hanser.datasets.tfds.helper import HGeneratorBasedBuilder, DatasetInfo
 
+
 def decode(example):
     image_id = example['image/id']
     image = tf.cast(example['image'], tf.float32)
