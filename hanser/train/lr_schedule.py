@@ -15,6 +15,7 @@ class CosineAnnealingLR(LearningRateSchedule):
         min_lr=0,
         warmup_epoch=0,
         warmup_min_lr=0,
+        warmup_steps=None,
         staircase=False,
     ):
         super().__init__()
@@ -28,7 +29,10 @@ class CosineAnnealingLR(LearningRateSchedule):
         self.staircase = staircase
 
         self.total_steps = epochs * steps_per_epoch
-        self.warmup_steps = warmup_epoch * steps_per_epoch
+        if warmup_steps is not None:
+            self.warmup_steps = warmup_steps
+        else:
+            self.warmup_steps = warmup_epoch * steps_per_epoch
 
     def __call__(self, step):
 
