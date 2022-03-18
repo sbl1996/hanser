@@ -218,7 +218,8 @@ CosineLR = CosineAnnealingLR
 
 class MultiStepLR(LearningRateSchedule):
 
-    def __init__(self, learning_rate, steps_per_epoch, milestones, gamma, warmup_epoch=0, warmup_min_lr=0):
+    def __init__(self, learning_rate, steps_per_epoch, milestones, gamma,
+                 warmup_epoch=0, warmup_min_lr=0, warmup_steps=None):
         super().__init__()
         self.base_lr = learning_rate
         self.steps_per_epoch = steps_per_epoch
@@ -226,7 +227,10 @@ class MultiStepLR(LearningRateSchedule):
         self.gamma = gamma
         self.warmup_min_lr = warmup_min_lr
         self.warmup_epoch = warmup_epoch
-        self.warmup_steps = warmup_epoch * steps_per_epoch
+        if warmup_steps is not None:
+            self.warmup_steps = warmup_steps
+        else:
+            self.warmup_steps = warmup_epoch * steps_per_epoch
 
         self.boundaries = [x * self.steps_per_epoch for x in self.milestones]
         self.values = [self.base_lr * (gamma ** i) for i in range(len(self.milestones) + 1)]
