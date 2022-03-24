@@ -30,11 +30,13 @@ res2 = []
 # res3 = []
 # res4 = []
 for i in range(n):
-    res1.append(sample_tf(shape, (0.05, 1.0), ratio, min_object_covered=0).numpy())
-    res2.append(sample_tf(shape, (0.08, 1.0), ratio, min_object_covered=0).numpy())
+    # res1.append(sample_tf(shape, (0.05, 1.0), ratio, min_object_covered=0).numpy())
+    # res2.append(sample_tf(shape, (0.08, 1.0), ratio, min_object_covered=0).numpy())
     # res2.append(tf.stack(sample_distorted_bounding_box(shape, scale, ratio)).numpy())
     # res3.append(tf.stack(sample_distorted_bounding_box(shape, scale, ratio, sample_log_ratio=False)).numpy())
-    # res4.append(sample_tf(shape, scale, 、ratio, min_object_covered=0).numpy())
+    # res4.append(sample_tf(shape, scale, ratio, min_object_covered=0).numpy())
+    res1.append(sample_tf(shape, (0.01, 1.0), ratio, min_object_covered=0.1).numpy())
+    res2.append(sample_tf(shape, (0.1, 1.0), ratio, min_object_covered=0.0).numpy())
 
 res1 = np.stack(res1, axis=0)
 res2 = np.stack(res2, axis=0)
@@ -43,3 +45,4 @@ res2 = np.stack(res2, axis=0)
 
 j = 0
 plt.hist(res1[:, j]); plt.hist(res2[:, j], alpha=0.5)
+plt.show()
