@@ -216,7 +216,7 @@ def mlvl_concat(xs, reps, dtype=tf.float32):
     return tf.constant(xs, dtype)
 
 
-def grid_points(featmap_sizes, strides):
+def grid_points(featmap_sizes, strides, center_offset=0):
     assert len(featmap_sizes) == len(strides)
     strides = [_pair(s) for s in strides]
     mlvl_points = []
@@ -224,7 +224,9 @@ def grid_points(featmap_sizes, strides):
         feat_h, feat_w = featmap_size[0], featmap_size[1]
         point_y = tf.range(0, feat_h, dtype=tf.float32) * stride[0]
         point_x = tf.range(0, feat_w, dtype=tf.float32) * stride[1]
-
+        if center_offset:
+            point_y = point_y + stride[0] * center_offset
+            point_x = point_x + stride[1] * center_offset
         point_yy, point_xx = _meshgrid(point_y, point_x, row_major=False)
         points = tf.stack([point_yy, point_xx], axis=-1)
         mlvl_points.append(points)
@@ -279,7 +281,6 @@ def fcos_match(gt_bboxes, gt_labels, points, num_level_points,
     # (num_points, 2)
     regress_ranges = mlvl_concat(
         regress_ranges, num_level_points)
-    # (num_points, 2)
 
     areas = (gt_bboxes[:, 2] - gt_bboxes[:, 0]) * (
         gt_bboxes[:, 3] - gt_bboxes[:, 1])
@@ -294,24 +295,23 @@ def fcos_match(gt_bboxes, gt_labels, points, num_level_points,
 
     # center sampling
     # condition1: inside a `center bbox`
-    if radius is not None:
-        centers = (gt_bboxes[..., :2] + gt_bboxes[..., 2:]) / 2
+    centers = (gt_bboxes[..., :2] + gt_bboxes[..., 2:]) / 2
 
-        radius = mlvl_concat(
-            np.array(strides) * radius, num_level_points)
-        radius = radius[:, None, :]
-        mins = centers - radius
-        maxs = centers + radius
-        center_gts_tl = tf.maximum(mins, gt_bboxes[..., :2])
-        center_gts_br = tf.minimum(maxs, gt_bboxes[..., 2:])
+    radius = mlvl_concat(
+        np.array(strides) * radius, num_level_points)
+    radius = radius[:, None, :]
+    mins = centers - radius
+    maxs = centers + radius
+    center_gts_tl = tf.maximum(mins, gt_bboxes[..., :2])
+    center_gts_br = tf.minimum(maxs, gt_bboxes[..., 2:])
 
-        center_gts_t, center_gts_l = center_gts_tl[..., 0], center_gts_tl[..., 1]
-        center_gts_b, center_gts_r = center_gts_br[..., 0], center_gts_br[..., 1]
-        inside_gt_bbox_mask = tf.math.reduce_all(
-            [ys > center_gts_t,
-             xs > center_gts_l,
-             ys < center_gts_b,
-             xs < center_gts_r], axis=0)
+    center_gts_t, center_gts_l = center_gts_tl[..., 0], center_gts_tl[..., 1]
+    center_gts_b, center_gts_r = center_gts_br[..., 0], center_gts_br[..., 1]
+    inside_gt_bbox_mask = tf.math.reduce_all(
+        [ys > center_gts_t,
+         xs > center_gts_l,
+         ys < center_gts_b,
+         xs < center_gts_r], axis=0)
 
     # condition2: limit the regression range for each location
     t = ys - gt_bboxes[..., 0]
@@ -327,9 +327,7 @@ def fcos_match(gt_bboxes, gt_labels, points, num_level_points,
 
     # if there are still more than one objects for a location,
     # we choose the one with minimal area
-    cond = inside_regress_range
-    if radius is not None:
-        cond = inside_gt_bbox_mask & cond
+    cond = inside_gt_bbox_mask & inside_regress_range
     areas = tf.where(cond, areas, INF)
     min_area_inds = tf.argmin(areas, axis=1, output_type=tf.int32)
     min_area = tf.gather(areas, min_area_inds, axis=1, batch_dims=1)
