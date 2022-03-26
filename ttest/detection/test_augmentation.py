@@ -9,9 +9,7 @@ import tensorflow_datasets as tfds
 
 from hanser.detection import random_colors
 from hanser.datasets.detection.voc import decode
-from hanser.transform import photo_metric_distortion
-from hanser.transform.detection import random_resize, random_crop, pad_to, random_hflip, random_expand, \
-    random_sample_crop, resize
+from hanser.transform.detection import random_resize, random_crop, pad_to, random_hflip, resize
 
 ds_val = tfds.load("voc/2012", split=f"train[:100]",
                shuffle_files=False, read_config=tfds.ReadConfig(try_autocache=False, skip_prefetch=True))
@@ -26,28 +24,22 @@ ds1 = ds[:10]
 
 d = random.choice(ds1)
 
-# d = ds1[9]
-
-# br = False
-# i = 0
-# while not br:
-#     print(i)
 image, objects, image_id = decode(d)
-objects1 = objects
+image = resize(image, output_size)
+# objects1 = objects
 # image = photo_metric_distortion(image)
 # image, objects = random_expand(image, objects, 4.0, mean_rgb)
-image, objects = random_sample_crop(image, objects)
-objects2 = objects
+# image, objects = random_sample_crop(image, objects)
+# objects2 = objects
 # image = resize(image, output_size, keep_ratio=False)
 image, objects = random_hflip(image, objects)
 
 # image = random_resize(image, output_size, (0.8, 1.2))
 # image, objects = random_crop(image, objects, output_size)
 # image = normalize(image, [123.68, 116.779, 103.939], [58.393, 57.12, 57.375])
-image, objects = pad_to(image, objects, output_size)
-bboxes = objects['bbox']
-im_b = tf.image.draw_bounding_boxes(image[None], bboxes[None], np.array(random_colors(bboxes.shape[0])) * 255)[
-    0]
+image, objects = pad_to(image, objects, output_size, mode='random')
+bboxes = objects['gt_bbox']
+im_b = tf.image.draw_bounding_boxes(image[None], bboxes[None], np.array(random_colors(bboxes.shape[0])) * 255)[0]
 im = Image.fromarray(im_b.numpy().astype(np.uint8))
 im.show()
     # bboxes = objects['bbox']

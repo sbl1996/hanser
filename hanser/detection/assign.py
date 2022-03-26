@@ -262,7 +262,7 @@ def atss_match(gt_bboxes, gt_labels, anchors, num_level_bboxes, topk=9, centerne
 
 def fcos_match(gt_bboxes, gt_labels, points, num_level_points,
                strides=(8, 16, 32, 64, 128), radius=1.5,
-               regress_ranges=((-1, 64), (64, 128), (128, 256), (256, 512), (512, INF)),
+               regress_ranges=((0, 64), (64, 128), (128, 256), (256, 512), (512, INF)),
                centerness=True):
     strides = [_pair(s) for s in strides]
     INF = tf.constant(100000000, dtype=tf.float32)
@@ -293,33 +293,37 @@ def fcos_match(gt_bboxes, gt_labels, points, num_level_points,
     points = tf.tile(points[:, None, :], (1, num_gts, 1))
     ys, xs = points[..., 0], points[..., 1]
 
-    # center sampling
-    # condition1: inside a `center bbox`
-    centers = (gt_bboxes[..., :2] + gt_bboxes[..., 2:]) / 2
-
-    radius = mlvl_concat(
-        np.array(strides) * radius, num_level_points)
-    radius = radius[:, None, :]
-    mins = centers - radius
-    maxs = centers + radius
-    center_gts_tl = tf.maximum(mins, gt_bboxes[..., :2])
-    center_gts_br = tf.minimum(maxs, gt_bboxes[..., 2:])
-
-    center_gts_t, center_gts_l = center_gts_tl[..., 0], center_gts_tl[..., 1]
-    center_gts_b, center_gts_r = center_gts_br[..., 0], center_gts_br[..., 1]
-    inside_gt_bbox_mask = tf.math.reduce_all(
-        [ys > center_gts_t,
-         xs > center_gts_l,
-         ys < center_gts_b,
-         xs < center_gts_r], axis=0)
-
-    # condition2: limit the regression range for each location
     t = ys - gt_bboxes[..., 0]
     l = xs - gt_bboxes[..., 1]
     b = gt_bboxes[..., 2] - ys
     r = gt_bboxes[..., 3] - xs
     bbox_targets = tf.stack((t, l, b, r), axis=-1)
 
+    if radius is not None:
+        # center sampling
+        # condition1: inside a `center bbox`
+        centers = (gt_bboxes[..., :2] + gt_bboxes[..., 2:]) / 2
+
+        radius = mlvl_concat(
+            np.array(strides) * radius, num_level_points)
+        radius = radius[:, None, :]
+        mins = centers - radius
+        maxs = centers + radius
+        center_gts_tl = tf.maximum(mins, gt_bboxes[..., :2])
+        center_gts_br = tf.minimum(maxs, gt_bboxes[..., 2:])
+
+        center_gts_t, center_gts_l = center_gts_tl[..., 0], center_gts_tl[..., 1]
+        center_gts_b, center_gts_r = center_gts_br[..., 0], center_gts_br[..., 1]
+        inside_gt_bbox_mask = tf.math.reduce_all(
+            [ys > center_gts_t,
+             xs > center_gts_l,
+             ys < center_gts_b,
+             xs < center_gts_r], axis=0)
+    else:
+        # condition1: inside a gt bbox
+        inside_gt_bbox_mask = tf.reduce_min(bbox_targets, axis=-1) > 0
+
+    # condition2: limit the regression range for each location
     max_regress_distance = tf.reduce_max(bbox_targets, axis=-1)
     inside_regress_range = (
         (max_regress_distance >= regress_ranges[..., 0]) &
@@ -348,6 +352,46 @@ def fcos_match(gt_bboxes, gt_labels, points, num_level_points,
     centerness = tf.where(pos, centerness, 0)
 
     return bbox_targets, labels, centerness
+
+
+def center_match(gt_bboxes, gt_labels, points, num_level_points, strides=(8, 16, 32, 64, 128)):
+    strides = [_pair(s) for s in strides]
+    INF = tf.constant(100000000, dtype=tf.float32)
+
+    num_points = get_shape(points, 0)
+    num_gts = get_shape(gt_bboxes, 0)
+
+    if num_gts == 0:
+        bbox_targets = tf.zeros([num_points, 4], dtype=tf.float32)
+        labels = tf.zeros([num_points, ], dtype=tf.int32)
+        centerness_t = tf.zeros([num_points, ], dtype=tf.float32)
+        return bbox_targets, labels, centerness_t
+
+    # (num_points, num_gts, *)
+    points = tf.tile(points[:, None, :], (1, num_gts, 1))
+    gt_bboxes = tf.tile(gt_bboxes[None], (num_points, 1, 1))
+    ys, xs = points[..., 0], points[..., 1]
+    t = ys - gt_bboxes[..., 0]
+    l = xs - gt_bboxes[..., 1]
+    b = gt_bboxes[..., 2] - ys
+    r = gt_bboxes[..., 3] - xs
+    bbox_targets = tf.stack((t, l, b, r), axis=-1)
+    inside_gt_bbox_mask = tf.reduce_min(bbox_targets, axis=-1) > 0
+
+    radius = mlvl_concat(np.array(strides), num_level_points)
+    gt_centers = (gt_bboxes[..., :2] + gt_bboxes[..., 2:]) / 2
+    distances = (points - gt_centers) / radius
+    mean, sigma = 0, 1.11
+    center_prior = tf.math.exp(
+        -(distances - mean) ** 2 / (2 * (sigma ** 2)))
+    center_prior = tf.math.reduce_prod(center_prior, axis=-1)
+
+    center_prior = tf.where(inside_gt_bbox_mask, center_prior, 0)
+    # labels = tf.where(
+    #     pos, tf.gather(gt_labels, min_area_inds), 0)
+
+    return bbox_targets, center_prior
+
 
 
 def encode_target(gt_bboxes, gt_labels, assigned_gt_inds,

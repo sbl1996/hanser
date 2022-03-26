@@ -133,9 +133,25 @@ def random_expand(image, objects, max_scale, pad_value, prob=0.5):
     return image, objects
 
 
-def pad_to(image, objects, size, pad_value=0):
-    h, w = size[0], size[1]
-    return pad_to_bounding_box(image, objects, 0, 0, h, w, pad_value)
+def pad_to(image, objects, size, pad_value=0, mode='corner'):
+    assert mode in ['corner', 'center', 'random']
+    if mode == 'corner':
+        h, w = size[0], size[1]
+        return pad_to_bounding_box(image, objects, 0, 0, h, w, pad_value)
+    elif mode == 'center': # center
+        shape = tf.shape(image)
+        height, width = shape[0], shape[1]
+        target_height, target_width = size[0], size[1]
+        offset_h = (target_height - height) // 2
+        offset_w = (target_width - width) // 2
+        return pad_to_bounding_box(image, objects, offset_h, offset_w, target_height, target_width, pad_value)
+    else: # random
+        shape = tf.shape(image)
+        height, width = shape[0], shape[1]
+        target_height, target_width = size[0], size[1]
+        offset_h = tf.random.uniform((), 0, target_height - height + 1, dtype=tf.int32)
+        offset_w = tf.random.uniform((), 0, target_width - width + 1, dtype=tf.int32)
+        return pad_to_bounding_box(image, objects, offset_h, offset_w, target_height, target_width, pad_value)
 
 
 def pad_to_bounding_box(image, objects, offset_height, offset_width, target_height, target_width, pad_value=0):
