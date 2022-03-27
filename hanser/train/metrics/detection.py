@@ -1,10 +1,10 @@
-from toolz import get
+from toolz import get, curry, compose_left as chain
 
 import numpy as np
 
 import tensorflow as tf
 
-from hanser.detection.bbox import BBox
+from hanser.detection.bbox import BBox, bbox_inverse_transform
 from hanser.detection.eval import average_precision
 from hhutil.io import download_file, fmt_path
 from hhutil.hash import md5
@@ -92,27 +92,10 @@ class MeanAveragePrecision:
         self.dts = []
 
 
-def _bbox_transform(bbox, output_size, image_size):
-    ow, oh = output_size
-    iw, ih = image_size
-    scale = min(ow / iw, oh / ih)
-    w, h = int(iw * scale), int(ih * scale)
-    # pw, ph = ow - w, oh - h
-    bx, by, bw, bh = bbox
-    bbox = [
-        bx / w * iw,
-        by / h * ih,
-        bw / w * iw,
-        bh / h * ih,
-    ]
-    return bbox
-
-
-
 class COCOEval:
 
     def __init__(self, ann_file, output_size, output_transform=None,
-                 bbox_transform=_bbox_transform, label_transform=lambda x: x+1):
+                 bbox_transform=bbox_inverse_transform, label_transform=lambda x: x+1):
         from pycocotools.coco import COCO
         self.coco = COCO(ann_file)
         self.output_size = output_size
@@ -143,7 +126,7 @@ class COCOEval:
                 x, y = bbox[1], bbox[0]
                 w, h = bbox[3] - bbox[1], bbox[2] - bbox[0]
                 bbox = [x, y, w, h]
-                bbox = self.bbox_transform(bbox, self.output_size, (width, height))
+                bbox = self.bbox_transform(bbox, (width, height), self.output_size)
                 label = self.label_transform(all_dt_classes[i, j])
                 self.dts.append({
                     'image_id': image_id,

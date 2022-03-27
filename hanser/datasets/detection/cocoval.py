@@ -22,9 +22,9 @@ def make_dataset_sub(
     train_split = f"validation[:{n_train}]" if n_train != 5000 else 'validation'
     val_split = f"validation[:{n_val}]" if n_val != 5000 else 'validation'
     ds_train = tfds.load("coco_val/2017", split=train_split, data_dir=data_dir,
-                          shuffle_files=True, read_config=read_config)
+                          shuffle_files=True, read_config=read_config, download=False)
     ds_val = tfds.load("coco_val/2017", split=val_split, data_dir=data_dir,
-                       shuffle_files=False, read_config=read_config)
+                       shuffle_files=False, read_config=read_config, download=False)
     ds_train = prepare(ds_train, batch_size, transform(training=True),
                        training=True, repeat=True)
     ds_val = prepare(ds_val, eval_batch_size, transform(training=False),

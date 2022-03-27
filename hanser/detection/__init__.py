@@ -8,7 +8,7 @@ from hanser.detection.anchor import AnchorGenerator
 from hanser.detection.assign import max_iou_match, atss_match, fcos_match, grid_points
 from hanser.detection.nms import batched_nms
 from hanser.detection.iou import bbox_iou2
-from hanser.detection.bbox import BBoxCoder, FCOSBBoxCoder, coords_to_absolute
+from hanser.detection.bbox import BBoxCoder, FCOSBBoxCoder, coords_to_absolute, bbox_inverse_transform
 from hanser.detection.loss import DetectionLoss, focal_loss, iou_loss, l1_loss, smooth_l1_loss, cross_entropy_det, GFLoss, GFLossV2
 
 
