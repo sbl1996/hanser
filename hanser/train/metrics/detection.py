@@ -4,8 +4,9 @@ import numpy as np
 
 import tensorflow as tf
 
-from hanser.detection.bbox import BBox, bbox_inverse_transform
+from hanser.detection.bbox import BBox
 from hanser.detection.eval import average_precision
+from hanser.transform.detection import bbox_inverse_transform
 from hhutil.io import download_file, fmt_path
 from hhutil.hash import md5
 
