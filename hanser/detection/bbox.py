@@ -160,25 +160,3 @@ def centerness_target(bboxes, anchors):
         (tf.minimum(t_, b_) / tf.maximum(t_, b_)))
     centerness = tf.where(tf.math.is_nan(centerness), 0.0, centerness)
     return centerness
-
-
-@curry
-def bbox_inverse_transform(bbox, image_size, output_size, unpad=False):
-    ow, oh = output_size
-    iw, ih = image_size
-
-    scale = min(ow / iw, oh / ih)
-    w, h = int(iw * scale), int(ih * scale)
-    bx, by, bw, bh = bbox
-
-    if unpad:
-        pw, ph = (ow - w) // 2, (oh - h) // 2
-        bx, by = bx - pw, by - ph
-
-    bbox = [
-        bx / w * iw,
-        by / h * ih,
-        bw / w * iw,
-        bh / h * ih,
-    ]
-    return bbox
