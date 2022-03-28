@@ -84,7 +84,8 @@ def max_iou_assign(bboxes, gt_bboxes, pos_iou_thr, neg_iou_thr,
     return assigned_gt_inds
 
 
-def atss_assign(bboxes, num_level_bboxes, gt_bboxes, topk=9):
+def atss_assign(bboxes, num_level_bboxes, gt_bboxes, topk=9,
+                 is_points=False, strides=(8, 16, 32, 64, 128), scale=8):
 
     NINF = tf.constant(-100000000, dtype=tf.float32)
     num_gts = get_shape(gt_bboxes, 0)
@@ -94,13 +95,21 @@ def atss_assign(bboxes, num_level_bboxes, gt_bboxes, topk=9):
         # No truth, assign everything to background
         return tf.fill((num_bboxes,), tf.constant(0, dtype=tf.int32))
 
+    gt_points = (gt_bboxes[:, :2] + gt_bboxes[:, 2:]) / 2.0
+    if is_points:
+        points = bboxes
+        bbox_lengths = tf.constant([
+            x * scale for s, n in zip(strides, num_level_bboxes) for x in [s] * n], dtype=points.dtype) / 2
+        bboxes = tf.concat([points - bbox_lengths, points + bbox_lengths], axis=1)
+        bboxes_points = points
+    else:
+        # compute center distance between all bbox and gt
+        bboxes_points = (bboxes[:, :2] + bboxes[:, 2:]) / 2.0
+
     # compute iou between all bbox and gt
     # (num_gts, num_bboxes)
     ious = bbox_iou(gt_bboxes, bboxes)
 
-    # compute center distance between all bbox and gt
-    gt_points = (gt_bboxes[:, :2] + gt_bboxes[:, 2:]) / 2.0
-    bboxes_points = (bboxes[:, :2] + bboxes[:, 2:]) / 2.0
     # (num_gts, num_bboxes) for topk
     distances = l2_norm(bboxes_points[None, :, :] - gt_points[:, None, :], sqrt=True)
 
@@ -160,6 +169,7 @@ def atss_assign(bboxes, num_level_bboxes, gt_bboxes, topk=9):
     # pos = assigned_gt_inds != 0
     # pos_ious = tf.gather(ious_inf[pos], assigned_gt_inds[pos] - 1, axis=1, batch_dims=1)
     return assigned_gt_inds
+
 
 
 def yolo_assign(bboxes, gt_bboxes, ignore_iou_thr=0.5, return_iou=False):
@@ -354,7 +364,7 @@ def fcos_match(gt_bboxes, gt_labels, points, num_level_points,
     return bbox_targets, labels, centerness
 
 
-def center_match(gt_bboxes, gt_labels, points, num_level_points, strides=(8, 16, 32, 64, 128)):
+def dw_match(gt_bboxes, gt_labels, points, num_level_points, strides=(8, 16, 32, 64, 128)):
     strides = [_pair(s) for s in strides]
     INF = tf.constant(100000000, dtype=tf.float32)
 
