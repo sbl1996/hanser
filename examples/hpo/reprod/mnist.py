@@ -7,7 +7,7 @@ tf.compat.v1.logging.set_verbosity("ERROR")
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 from tensorflow.keras.metrics import CategoricalAccuracy, Mean, CategoricalCrossentropy
 
-from hanser.tpu import setup
+from hanser.distribute import setup_runtime
 from hanser.datasets.mnist import make_mnist_dataset
 
 from hanser.transform import pad, to_tensor, normalize, mixup_or_cutmix_batch
