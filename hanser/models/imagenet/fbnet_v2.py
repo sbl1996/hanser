@@ -60,12 +60,13 @@ class InvertedResidual(Layer):
 
 
 class FBNetV2(Model):
+
     def __init__(self, setting, num_classes=1000, dropout=0):
         super().__init__()
         in_channels = setting['init_channels']
         last_channels = setting['last_channels']
 
-        self.stem = Conv2d(3, in_channels, kernel_size=3, stride=1,
+        self.stem = Conv2d(3, in_channels, kernel_size=3, stride=2,
                            norm='bn', act='hswish')
 
         for i, stage_setting in enumerate(setting['stages']):
