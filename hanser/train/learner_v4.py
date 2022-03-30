@@ -1,9 +1,10 @@
 import pickle
+from packaging.version import parse as vparse
 
 import tensorflow as tf
 from tensorflow.keras.metrics import Mean
-from packaging.version import parse as vparse
 
+from hanser.train.callbacks import Callback
 from hanser.distribute import is_distribute_strategy
 from hanser.train.learner import find_most_recent, cast, parse_freq
 from hanser.train.metric_history import MetricHistory
@@ -65,6 +66,8 @@ class TrainableModel(tf.keras.Model):
             per_example_loss = self.criterion(y, y_pred)
             loss = self.reduce_loss(per_example_loss)
         self.optimizer.minimize(loss, self.trainable_variables, tape=tape)
+        if hasattr(self, "_ema") and self._ema is not None:
+            self._ema.apply(self._ema_vars)
         self.update_metrics(self.train_metrics, y, y_pred, per_example_loss)
         return {k: m.result() for k, m in self.train_metrics.items()}
 
@@ -109,8 +112,8 @@ def log_metrics(stage, metrics, epoch, writer=None, metric_history=None, stage_n
 
 class TrainableController(tf.keras.callbacks.Callback):
 
-    def __init__(self, learner, ds_val=None, val_steps=None, val_freq=1, save_freq=None,
-                 local_eval_metrics=None, local_eval_freq=None):
+    def __init__(self, learner: "SuperLearner", ds_val=None, val_steps=None, val_freq=1, save_freq=None,
+                 local_eval_metrics=None, local_eval_freq=None, callbacks=None):
         super().__init__()
         self.learner = learner
 
@@ -120,6 +123,7 @@ class TrainableController(tf.keras.callbacks.Callback):
         self.save_freq = save_freq
         self.local_eval_metrics = local_eval_metrics
         self.local_eval_freq = local_eval_freq
+        self.callbacks = callbacks
 
         self._print = self.learner._print
 
@@ -150,14 +154,24 @@ class TrainableController(tf.keras.callbacks.Callback):
         do_eval = self.ds_val is not None and (not do_local_eval) and parse_freq(epoch, self.val_freq)
 
         if do_eval:
-            self.learner.evaluate(self.ds_val, self.val_steps)
+            self.learner.evaluate(self.ds_val, self.val_steps, callbacks=self.callbacks)
 
             if self.save_freq and (epoch + 1) % self.save_freq == 0:
                 self.learner.save_state()
 
         if do_local_eval:
-            self.learner.evaluate_local(self.ds_val, self.val_steps, self.local_eval_metrics)
+            self.learner.evaluate_local(self.ds_val, self.val_steps, self.local_eval_metrics, self.callbacks)
 
+
+def split_callbacks(callbacks):
+    h_callbacks = []
+    keras_callbacks = []
+    for c in callbacks:
+        if isinstance(c, tf.keras.callbacks.Callback):
+            keras_callbacks.append(c)
+        elif isinstance(c, Callback):
+            h_callbacks.append(c)
+    return h_callbacks, keras_callbacks
 
 
 class SuperLearner:
@@ -179,6 +193,8 @@ class SuperLearner:
         self._trainable = TrainableModel(model, criterion, train_metrics, eval_metrics, output_transform)
         if vparse(tf.__version__) >= vparse("2.8"):
             self._trainable.compile(optimizer, steps_per_execution=steps_per_loop, jit_compile=self.jit_compile)
+        elif vparse(tf.__version__) < vparse("2.4"):
+            self._trainable.compile(optimizer, experimental_steps_per_execution=steps_per_loop)
         else:
             self._trainable.compile(optimizer, steps_per_execution=steps_per_loop)
 
@@ -194,7 +210,7 @@ class SuperLearner:
 
     def fit(self, ds_train, epochs, ds_val=None, val_freq=1,
             steps_per_epoch=None, val_steps=None, max_epochs=None, save_freq=None,
-            local_eval_metrics=None, local_eval_freq=None):
+            local_eval_metrics=None, local_eval_freq=None, callbacks=None):
 
         if max_epochs is None:
             max_epochs = epochs
@@ -202,25 +218,46 @@ class SuperLearner:
         self._max_epochs = max_epochs
         start_epoch = self.epoch + 1
 
+        callbacks = callbacks or []
+        self._callbacks, self._keras_callbacks = split_callbacks(callbacks)
+        for c in self._callbacks:
+            c.learner = self._trainable
+            c.init()
+
         controller = TrainableController(
-            self, ds_val, val_steps, val_freq, save_freq, local_eval_metrics, local_eval_freq)
+            self, ds_val, val_steps, val_freq, save_freq, local_eval_metrics, local_eval_freq,
+            callbacks=self._callbacks)
 
         self._trainable.fit(
             ds_train, epochs=max_epochs, steps_per_epoch=steps_per_epoch, verbose=0,
-            initial_epoch=start_epoch,  callbacks=[controller])
+            initial_epoch=start_epoch,  callbacks=[controller, *self._keras_callbacks])
 
-    def evaluate(self, ds_val, val_steps=None):
+    def evaluate(self, ds_val, val_steps=None, callbacks=None):
+        callbacks = callbacks or []
         val_steps = val_steps or len(ds_val)
+
+        for c in callbacks:
+            c.begin_eval(None)
+
         for m in self._trainable.eval_metrics.values():
             m.reset_states()
         eval_logs = self._trainable.evaluate(
             ds_val, steps=val_steps, verbose=0,
             return_dict=True, _use_cached_eval_dataset=True)
+
+        for c in callbacks:
+            c.after_eval(None)
+
         log_metrics('eval', eval_logs, self.epoch, self._writer, self.metric_history,
                     stage_name='valid', print_fn=self._print)
 
-    def evaluate_local(self, ds_val, steps, metrics):
+    def evaluate_local(self, ds_val, steps, metrics, callbacks=None):
+        callbacks = callbacks or []
         iterator = iter(ds_val)
+
+        for c in callbacks:
+            c.begin_eval(None)
+
         for m in metrics.values():
             m.reset_states()
         for step in range(steps):
@@ -230,6 +267,10 @@ class SuperLearner:
         metric_results = {}
         for k, m in metrics.items():
             metric_results[k] = m.result().numpy()
+
+        for c in callbacks:
+            c.after_eval(None)
+
         log_metrics('eval', metric_results, self.epoch, stage_name='valid',
                     metric_history=self.metric_history, print_fn=self._print)
 
