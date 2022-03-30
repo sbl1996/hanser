@@ -130,7 +130,7 @@ def convert_def(d):
             else:
                 k = int(b[0][4])
             se = 'sehsig' in b[0]
-            nl = 'hsigmoid' if b[0].endswith('hs') else 'relu'
+            nl = 'hswish' if b[0].endswith('hs') else 'relu'
             stage.append([k, c, s, n, e, se, nl])
             i = c
         stages.append(stage)
@@ -154,6 +154,8 @@ def fbnet_v2_l1(**kwargs):
 def fbnet_v2_l2(**kwargs):
     return FBNetV2(convert_def(FBNetV2_L2_def), **kwargs)
 
+
+# From https://github.com/facebookresearch/mobile-vision/blob/main/mobile_cv/arch/fbnet_v2/fbnet_modeldef_cls_fbnetv2.py
 
 FBNetV2_F3_def = {
     # nparams: 6.899504, nflops 121.824
