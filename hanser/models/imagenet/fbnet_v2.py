@@ -88,7 +88,7 @@ class FBNetV2(Model):
         self.last_pw = Conv2d(in_channels, in_channels * 6, kernel_size=1,
                               norm='bn', act='hswish')
         self.avgpool = GlobalAvgPool(keep_dim=True)
-        self.last_fc = Conv2d(in_channels * 6, last_channels, kernel_size=1, act='hswish', bias=False)
+        self.last_fc = Conv2d(in_channels * 6, last_channels, kernel_size=1, act='hswish')
         self.dropout = Dropout(dropout) if dropout else None
         self.fc = Conv2d(last_channels, num_classes, kernel_size=1,
                          kernel_init=RandomNormal(stddev=0.01), bias_init='zeros')
