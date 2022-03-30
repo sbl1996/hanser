@@ -1,3 +1,4 @@
+import tensorflow as tf
 from tensorflow.keras import Model, Sequential
 from tensorflow.keras.layers import Layer
 from tensorflow.keras.initializers import RandomNormal
@@ -68,7 +69,7 @@ class MobileNetV3(Model):
         last_channels = _make_divisible(last_channels * width_mult) if width_mult > 1.0 else last_channels
 
         # building first layer
-        features = [Conv2d(3, in_channels, kernel_size=3, stride=1,
+        features = [Conv2d(3, in_channels, kernel_size=3, stride=2,
                            norm='bn', act='hswish')]
         # building inverted residual blocks
         for k, exp, c, se, nl, s in inverted_residual_setting:
@@ -85,10 +86,10 @@ class MobileNetV3(Model):
         in_channels = exp_channels
         self.features = Sequential(features)
 
-        self.avgpool = GlobalAvgPool()
-        self.last_fc = Linear(in_channels, last_channels, act='hswish')
+        self.avgpool = GlobalAvgPool(keep_dim=True)
+        self.last_fc = Conv2d(in_channels, last_channels, kernel_size=1, act='hswish')
         self.dropout = Dropout(dropout) if dropout else None
-        self.fc = Linear(last_channels, num_classes,
+        self.fc = Conv2d(last_channels, num_classes, kernel_size=1,
                          kernel_init=RandomNormal(stddev=0.01), bias_init='zeros')
 
     def call(self, x):
@@ -98,6 +99,7 @@ class MobileNetV3(Model):
         if self.dropout is not None:
             x = self.dropout(x)
         x = self.fc(x)
+        x = tf.squeeze(x, axis=(1, 2))
         return x
 
 

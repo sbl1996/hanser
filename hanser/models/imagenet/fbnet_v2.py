@@ -1,10 +1,11 @@
 import math
 
+import tensorflow as tf
 from tensorflow.keras import Model, Sequential
 from tensorflow.keras.layers import Layer
 from tensorflow.keras.initializers import RandomNormal
 
-from hanser.models.layers import Conv2d, Identity, Linear
+from hanser.models.layers import Conv2d, Identity
 from hanser.models.attention import SELayer
 from hanser.models.modules import GlobalAvgPool, Dropout
 
@@ -86,10 +87,10 @@ class FBNetV2(Model):
 
         self.last_pw = Conv2d(in_channels, in_channels * 6, kernel_size=1,
                               norm='bn', act='hswish')
-        self.avgpool = GlobalAvgPool()
-        self.last_fc = Linear(in_channels * 6, last_channels, act='hswish', bias=False)
+        self.avgpool = GlobalAvgPool(keep_dim=True)
+        self.last_fc = Conv2d(in_channels * 6, last_channels, kernel_size=1, act='hswish', bias=False)
         self.dropout = Dropout(dropout) if dropout else None
-        self.fc = Linear(last_channels, num_classes,
+        self.fc = Conv2d(last_channels, num_classes, kernel_size=1,
                          kernel_init=RandomNormal(stddev=0.01), bias_init='zeros')
 
     def call(self, x):
@@ -99,12 +100,14 @@ class FBNetV2(Model):
         x = self.stage3(x)
         x = self.stage4(x)
         x = self.stage5(x)
+
         x = self.last_pw(x)
         x = self.avgpool(x)
         x = self.last_fc(x)
         if self.dropout is not None:
             x = self.dropout(x)
         x = self.fc(x)
+        x = tf.squeeze(x, axis=(1, 2))
         return x
 
 

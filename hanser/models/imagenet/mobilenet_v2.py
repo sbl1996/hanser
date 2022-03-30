@@ -48,6 +48,7 @@ class InvertedResidual(Layer):
 
 
 class MobileNetV2(Model):
+
     def __init__(self,
                  num_classes=1000,
                  dropout=0.2,
