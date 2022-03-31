@@ -46,11 +46,13 @@ class InvertedResidual(Layer):
                              norm='bn', act=act)
 
         if self.with_se:
-            self.se = SELayer(channels, reduction=4, act=act, gating_fn='hsigmoid',
-                              min_se_channels=8, divisible=8)
+            se_channels = int(in_channels // 4) if less_se_channels else int(channels // 4)
+            if less_se_channels:
+                self.se = SELayer(channels, se_channels=se_channels, act=act, gating_fn='hsigmoid',
+                                  min_se_channels=8, divisible=8)
 
         self.project = Conv2d(channels, out_channels, kernel_size=1,
-                              norm='bn')
+                              norm='bn', gamma_init='zeros' if zero_last_bn_gamma else 'ones')
         self.use_res_connect = stride == 1 and in_channels == out_channels
 
     def call(self, x):
@@ -72,6 +74,7 @@ class FBNetV3(Model):
         in_channels = setting['init_channels']
         last_channels = setting['last_channels']
 
+        # Original code has bias=True
         self.stem = Conv2d(3, in_channels, kernel_size=3, stride=2,
                            norm='bn', act='hswish')
 
@@ -86,13 +89,19 @@ class FBNetV3(Model):
                 else:
                     stage.append(InvertedResidual(
                         in_channels, mid_channels, out_channels, k, s, nl, se))
-                in_channels = out_channels
+                    in_channels = out_channels
+
+                    mid_channels = get_divisible_by(in_channels * e, 8)
+                    for j in range(n-1):
+                        stage.append(InvertedResidual(
+                            in_channels, mid_channels, out_channels, k, 1, nl, se))
                 name = f"stage{i+1}"
                 setattr(self, name, Sequential(stage))
 
         self.last_pw = Conv2d(in_channels, in_channels * 6, kernel_size=1,
                               norm='bn', act='hswish')
         self.avgpool = GlobalAvgPool(keep_dim=True)
+        # Original code has bias=False
         self.last_fc = Conv2d(in_channels * 6, last_channels, kernel_size=1, act='hswish')
         self.dropout = Dropout(dropout) if dropout else None
         self.fc = Conv2d(last_channels, num_classes, kernel_size=1,
@@ -148,19 +157,15 @@ def fbnet_v3_a(**kwargs):
     return FBNetV3(convert_def(FBNetV3_A_def), **kwargs)
 
 
-def fbnet_v2_f4(**kwargs):
-    return FBNetV2(convert_def(FBNetV2_F4_def), **kwargs)
+def fbnet_v3_c(**kwargs):
+    return FBNetV3(convert_def(FBNetV3_C_def), **kwargs)
 
 
-def fbnet_v2_l1(**kwargs):
-    return FBNetV2(convert_def(FBNetV2_L1_def), **kwargs)
+def fbnet_v3_e(**kwargs):
+    return FBNetV3(convert_def(FBNetV3_E_def), **kwargs)
 
 
-def fbnet_v2_l2(**kwargs):
-    return FBNetV2(convert_def(FBNetV2_L2_def), **kwargs)
-
-
-# From https://github.com/facebookresearch/mobile-vision/blob/main/mobile_cv/arch/fbnet_v2/fbnet_modeldef_cls_fbnetv2.py
+# From https://github.com/facebookresearch/mobile-vision/blob/main/mobile_cv/arch/fbnet_v2/fbnet_modeldef_cls_fbnetv3.py
 
 FBNetV3_A_def = {
     "input_size": 224,
@@ -176,13 +181,13 @@ FBNetV3_A_def = {
             ["ir_k5_sehsig_hs", 40, 1, 4, 3],
         ],
         [
-            ["ir_k5_hs_p1", 72, 2, 1, 5],
+            ["ir_k5_hs", 72, 2, 1, 5], # p1
             ["ir_k3_hs", 72, 1, 4, 3],
             ["ir_k3_sehsig_hs", 120, 1, 1, 5],
             ["ir_k5_sehsig_hs", 120, 1, 5, 3],
         ],
         [
-            ["ir_k3_sehsig_hs_p0", 184, 2, 1, 6],
+            ["ir_k3_sehsig_hs", 184, 2, 1, 6], # p0
             ["ir_k5_sehsig_hs", 184, 1, 5, 4],
             ["ir_k5_sehsig_hs", 224, 1, 1, 6],
         ],
@@ -204,13 +209,13 @@ FBNetV3_B_def = {
             ["ir_k5_sehsig_hs", 40, 1, 4, 3],
         ],
         [
-            ["ir_k5_hs_p1", 72, 2, 1, 5],
+            ["ir_k5_hs", 72, 2, 1, 5], # p1
             ["ir_k3_hs", 72, 1, 4, 3],
             ["ir_k3_sehsig_hs", 120, 1, 1, 5],
             ["ir_k5_sehsig_hs", 120, 1, 5, 3],
         ],
         [
-            ["ir_k3_sehsig_hs_p0", 184, 2, 1, 6],
+            ["ir_k3_sehsig_hs", 184, 2, 1, 6], # p0
             ["ir_k5_sehsig_hs", 184, 1, 5, 4],
             ["ir_k5_sehsig_hs", 224, 1, 1, 6],
         ],
@@ -232,13 +237,13 @@ FBNetV3_C_def = {
             ["ir_k5_sehsig_hs", 48, 1, 4, 2],
         ],
         [
-            ["ir_k5_hs_p1", 88, 2, 1, 4],
+            ["ir_k5_hs", 88, 2, 1, 4], # p1
             ["ir_k3_hs", 88, 1, 4, 3],
             ["ir_k3_sehsig_hs", 120, 1, 1, 4],
             ["ir_k5_sehsig_hs", 120, 1, 5, 3],
         ],
         [
-            ["ir_k5_sehsig_hs_p1", 216, 2, 1, 5],
+            ["ir_k5_sehsig_hs", 216, 2, 1, 5], # p1
             ["ir_k5_sehsig_hs", 216, 1, 5, 5],
             ["ir_k5_sehsig_hs", 216, 1, 1, 6],
         ],
@@ -289,7 +294,7 @@ FBNetV3_E_def = {
             ["ir_k5_sehsig_hs", 48, 1, 4, 3],
         ],
         [
-            ["ir_k5_hs_p1", 80, 2, 1, 5],
+            ["ir_k5_hs", 80, 2, 1, 5], # p1
             ["ir_k3_hs", 80, 1, 4, 3],
             ["ir_k3_sehsig_hs", 128, 1, 1, 5],
             ["ir_k5_sehsig_hs", 128, 1, 7, 3],
@@ -324,7 +329,7 @@ FBNetV3_F_def = {
             ["ir_k5_sehsig_hs", 144, 1, 8, 3],
         ],
         [
-            ["ir_k3_sehsig_hs_p0", 248, 2, 1, 6],
+            ["ir_k3_sehsig_hs", 248, 2, 1, 6], # p0
             ["ir_k5_sehsig_hs", 248, 1, 6, 5],
             ["ir_k5_sehsig_hs", 272, 1, 1, 6],
         ],
