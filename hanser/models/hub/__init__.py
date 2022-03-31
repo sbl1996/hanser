@@ -120,10 +120,11 @@ def load_model_from_url_or_path(url_or_path, model_dir=None, check_hash=False):
     if checkpoint_exists(ckpt_dir):
         return str(ckpt_dir / "model")
 
-    if is_url(url_or_path):
-        cached_file = model_dir / file_name
-    else:
+    if isinstance(url_or_path, Path) or not is_url(url_or_path):
         cached_file = path
+    else:
+        cached_file = model_dir / file_name
+
     if not os.path.exists(cached_file):
         sys.stderr.write('Downloading: "{}" to {}\n'.format(url, cached_file))
         hash_prefix = None
