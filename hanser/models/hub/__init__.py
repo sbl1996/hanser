@@ -163,7 +163,14 @@ def load_model_from_hub(name_or_url_or_path: str, model_dir=None, check_hash=Fal
             else:
                 model_dir = fmt_path(model_dir)
             model_dir.mkdir(parents=True, exist_ok=True)
+
+            stem = Path(urlparse(url).path).stem
+            ckpt_dir = model_dir / stem
+            if checkpoint_exists(ckpt_dir):
+                return str(ckpt_dir / "model")
+
             path = download_github_private_assert(url, model_dir, github_access_token)
+            sys.stderr.write('Downloading: "{}" to {}\n'.format(url, path))
             url_or_path = path
         else:
             url_or_path = name_or_url_or_path
