@@ -155,14 +155,15 @@ def load_model_from_hub(name_or_url_or_path: str, model_dir=None, check_hash=Fal
         path = name_or_url_or_path
         return load_model_from_url_or_path(path, model_dir, check_hash)
 
+    if model_dir is None:
+        model_dir = _get_default_model_dir()
+    else:
+        model_dir = fmt_path(model_dir)
+    model_dir.mkdir(parents=True, exist_ok=True)
+
     if is_url(name_or_url_or_path):
         if github_access_token is not None:
             url = name_or_url_or_path
-            if model_dir is None:
-                model_dir = _get_default_model_dir()
-            else:
-                model_dir = fmt_path(model_dir)
-            model_dir.mkdir(parents=True, exist_ok=True)
 
             stem = Path(urlparse(url).path).stem
             ckpt_dir = model_dir / stem
@@ -180,9 +181,14 @@ def load_model_from_hub(name_or_url_or_path: str, model_dir=None, check_hash=Fal
             url_or_path = name_or_path
         else:
             name = name_or_path
-            if not name in _model_path:
-                raise ValueError("No model named %s" % name)
-            url_or_path = _model_path[name]
+            if name in _model_path:
+                url_or_path = _model_path[name]
+            else:
+                ckpt_dir = model_dir / name
+                if checkpoint_exists(ckpt_dir):
+                    return str(ckpt_dir / "model")
+                else:
+                    raise ValueError("No model named %s" % name)
     return load_model_from_url_or_path(url_or_path, model_dir, check_hash)
 
 
