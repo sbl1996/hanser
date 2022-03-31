@@ -60,7 +60,7 @@ class Evaluator:
         ckpt = tf.train.Checkpoint(model=self.model)
         ckpt_options = tf.train.CheckpointOptions(
             experimental_io_device="/job:localhost") if is_distribute_strategy(tf.distribute.get_strategy()) else None
-        ckpt.restore(fp, ckpt_options)
+        ckpt.restore(fp, ckpt_options).expect_partial()
         print("Load learner from %s" % (fp,))
         return True
 
