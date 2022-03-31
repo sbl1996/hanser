@@ -36,6 +36,8 @@ class InvertedResidual(Layer):
     def __init__(self, in_channels, channels, out_channels, kernel_size, stride, act='relu', with_se=True):
         super().__init__()
         self.with_se = with_se
+        self.use_res_connect = stride == 1 and in_channels == out_channels
+
         if in_channels != channels:
             self.expand = Conv2d(in_channels, channels, kernel_size=1,
                                  norm='bn', act=act)
@@ -53,7 +55,6 @@ class InvertedResidual(Layer):
 
         self.project = Conv2d(channels, out_channels, kernel_size=1,
                               norm='bn', gamma_init='zeros' if zero_last_bn_gamma and self.use_res_connect else 'ones')
-        self.use_res_connect = stride == 1 and in_channels == out_channels
 
     def call(self, x):
         identity = x
