@@ -52,7 +52,7 @@ class InvertedResidual(Layer):
                                   min_se_channels=8, divisible=8)
 
         self.project = Conv2d(channels, out_channels, kernel_size=1,
-                              norm='bn', gamma_init='zeros' if zero_last_bn_gamma else 'ones')
+                              norm='bn', gamma_init='zeros' if zero_last_bn_gamma and self.use_res_connect else 'ones')
         self.use_res_connect = stride == 1 and in_channels == out_channels
 
     def call(self, x):
