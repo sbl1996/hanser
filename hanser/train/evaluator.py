@@ -3,6 +3,7 @@ from packaging.version import parse as vparse
 import tensorflow as tf
 from tensorflow.keras.metrics import Mean
 
+from hanser.distribute import is_distribute_strategy
 from hanser.train.learner import cast
 from hanser.train.learner_v4 import log_metrics, reduce_per_replica
 
@@ -54,6 +55,14 @@ class Evaluator:
             self._internal.compile(experimental_steps_per_execution=steps_per_loop)
         else:
             self._internal.compile(steps_per_execution=steps_per_loop)
+
+    def load(self, fp):
+        ckpt = tf.train.Checkpoint(model=self.model)
+        ckpt_options = tf.train.CheckpointOptions(
+            experimental_io_device="/job:localhost") if is_distribute_strategy(tf.distribute.get_strategy()) else None
+        ckpt.restore(fp, ckpt_options)
+        print("Load learner from %s" % (fp,))
+        return True
 
     def evaluate(self, ds_val, val_steps=None, callbacks=None):
         callbacks = callbacks or []
