@@ -8,6 +8,7 @@ from hanser.models.segmentation.backbone.resnet_vd import resnet50
 from hanser.models.segmentation.deeplab import DeepLabV3P
 
 from hanser.transform import resize
+from hhutil.io import fmt_path
 
 class SegModel:
 
@@ -60,9 +61,9 @@ class SegModel:
         return seg
 
 model = SegModel(size=(512, 1024))
-model.init("/Users/hrvvi/Downloads/Cityscapes-5.npy")
+model.init(fmt_path("~/Downloads/Cityscapes-5.npy"))
 
-img = Image.open("/Users/hrvvi/Downloads/bbac40d5711eca6d2a525f0179674468.jpeg")
+img = Image.open(fmt_path("~/Downloads/bbac40d5711eca6d2a525f0179674468.jpeg"))
 seg = model.inference(img)
 seg.show()
 

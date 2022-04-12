@@ -2,7 +2,7 @@ import numpy as np
 import tensorflow as tf
 
 from hanser.transform import mixup_batch, mixup_in_batch, cutmix_batch, resizemix_batch, image_dimensions
-
+from hhutil.io import fmt_path
 
 def resizemix(data1, data2, alpha, beta):
     image1, label1 = data1
@@ -40,9 +40,9 @@ def resizemix(data1, data2, alpha, beta):
 
 
 from PIL import Image
-im = Image.open('/Users/hrvvi/Downloads/images/cat1.jpeg')
+im = Image.open(fmt_path('~/Downloads/images/cat1.jpeg'))
 im = im.crop((66, 0, 234, 168)).resize((224, 224))
-im2 = Image.open('/Users/hrvvi/Downloads/images/cat2.jpeg')
+im2 = Image.open(fmt_path('~/Downloads/images/cat2.jpeg'))
 im2 = im2.crop((0, 0, 224, 224)).resize((224, 224))
 
 image = tf.convert_to_tensor([np.array(im), np.array(im2)], dtype=np.float32)

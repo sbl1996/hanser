@@ -3,7 +3,7 @@ import imagesize
 
 from hhutil.io import fmt_path, save_json
 
-root = fmt_path("/Users/hrvvi/Downloads/test")
+root = fmt_path("~/Downloads/test")
 
 f = h5py.File(root / "digitStruct.mat")
 d = f['digitStruct']
@@ -76,4 +76,4 @@ anns = {
     'annotations': annotations,
     'categories': categories,
 }
-save_json(anns, "/Users/hrvvi/Downloads/test.json")
+save_json(anns, "~/Downloads/test.json")

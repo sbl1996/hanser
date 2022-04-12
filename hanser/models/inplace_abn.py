@@ -36,6 +36,48 @@ def _reduce_sum(*values):
         return tuple(values)
 
 
+# Modified checkpointing proposed in InplaceABN
+def make_inplace_abn_op0(epsilon, alpha, sync=False, activation_fn=tf.nn.relu):
+
+    @tf.custom_gradient
+    def InplaceABNOp(x, gamma, beta):
+
+        if sync:
+            mean, var = global_moments(x, axes=(0, 1, 2), keepdims=False)
+        else:
+            mean, var = tf.nn.moments(x, axes=(0, 1, 2), keepdims=False)
+        ginv = tf.math.rsqrt(var + epsilon) * gamma
+        y = x * ginv + beta - mean * ginv
+
+        z = activation_fn(y)
+        def custom_grad(dz, _d1, _d2):
+            # depends on z, var, gamma, beta
+            mask = z >= 0
+            y = tf.where(mask, z, z / alpha)
+            dy = tf.where(mask, 1.0, alpha) * dz
+
+            sum_dy_local = tf.reduce_sum(dy, axis=(0, 1, 2))
+            xhat = (y - beta) / gamma
+            sum_xhat_dy_local = tf.reduce_sum(xhat * dy, axis=(0, 1, 2))
+
+            shape = tf.shape(dz)
+            count = tf.cast(shape[0] * shape[1] * shape[2], dz.dtype)
+            if sync:
+                sum_dy, sum_xhat_dy, count = _reduce_sum(sum_dy_local, sum_xhat_dy_local, count)
+            else:
+                sum_dy, sum_xhat_dy, count = sum_dy_local, sum_xhat_dy_local, count
+
+            ginv = gamma * tf.math.rsqrt(var + epsilon)
+            dx = (dy - sum_xhat_dy / count * xhat - sum_dy / count) * ginv
+
+            dgamma = sum_xhat_dy_local
+            dbeta = sum_dy_local
+
+            return dx, dgamma, dbeta
+        return (z, mean, var), custom_grad
+    return InplaceABNOp
+
+
 def make_inplace_abn_op(epsilon, alpha, fused=True, sync=False):
     if sync: assert not fused
 

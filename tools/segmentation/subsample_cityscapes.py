@@ -4,8 +4,8 @@ from hhutil.io import fmt_path, eglob, copy
 
 sample_ratio = 0.01
 min_sample_class = 2
-src = fmt_path(f"/Users/hrvvi/Downloads/datasets/Cityscapes")
-tgt = fmt_path(f"/Users/hrvvi/Downloads/datasets/Cityscapes_sub")
+src = fmt_path(f"~/Downloads/datasets/Cityscapes")
+tgt = fmt_path(f"~/Downloads/datasets/Cityscapes_sub")
 src_image, src_label = src / "leftImg8bit_trainvaltest", src / "gtFine_trainvaltest"
 tgt_image, tgt_label = tgt / "leftImg8bit_trainvaltest", tgt / "gtFine_trainvaltest"
 

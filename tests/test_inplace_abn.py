@@ -1,4 +1,3 @@
-import PIL.JpegImagePlugin
 import numpy as np
 
 import tensorflow as tf
