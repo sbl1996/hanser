@@ -7,8 +7,8 @@ from tensorflow.keras.initializers import RandomNormal
 
 from hanser.models.layers import Conv2d, Identity
 from hanser.models.attention import SELayer
-from hanser.models.modules import GlobalAvgPool, Dropout
-
+from hanser.models.modules import GlobalAvgPool, Dropout, DropPath
+from hanser.models.utils import init_layer_ascending_drop_path
 
 width_divisor = 8
 less_se_channels = True
@@ -33,7 +33,7 @@ def get_divisible_by(num, divisible_by=8, min_val=None):
 
 
 class InvertedResidual(Layer):
-    def __init__(self, in_channels, channels, out_channels, kernel_size, stride, act='relu', with_se=True):
+    def __init__(self, in_channels, channels, out_channels, kernel_size, stride, act='relu', with_se=True, drop_path=0.0):
         super().__init__()
         self.with_se = with_se
         self.use_res_connect = stride == 1 and in_channels == out_channels
@@ -55,6 +55,7 @@ class InvertedResidual(Layer):
 
         self.project = Conv2d(channels, out_channels, kernel_size=1,
                               norm='bn', gamma_init='zeros' if zero_last_bn_gamma and self.use_res_connect else 'ones')
+        self.drop_path = DropPath(drop_path) if drop_path and self.use_res_connect else Identity()
 
     def call(self, x):
         identity = x
@@ -64,13 +65,14 @@ class InvertedResidual(Layer):
             x = self.se(x)
         x = self.project(x)
         if self.use_res_connect:
+            x = self.drop_path(x)
             x += identity
         return x
 
 
 class FBNetV3(Model):
 
-    def __init__(self, setting, num_classes=1000, dropout=0):
+    def __init__(self, setting, num_classes=1000, dropout=0, drop_path=0):
         super().__init__()
         in_channels = setting['init_channels']
         last_channels = setting['last_channels']
@@ -89,7 +91,7 @@ class FBNetV3(Model):
                         in_channels, out_channels, kernel_size=1, stride=s, norm='bn', act=nl))
                 else:
                     stage.append(InvertedResidual(
-                        in_channels, mid_channels, out_channels, k, s, nl, se))
+                        in_channels, mid_channels, out_channels, k, s, nl, se, drop_path))
                     in_channels = out_channels
 
                     mid_channels = get_divisible_by(in_channels * e, 8)
@@ -98,6 +100,9 @@ class FBNetV3(Model):
                             in_channels, mid_channels, out_channels, k, 1, nl, se))
                 name = f"stage{i+1}"
                 setattr(self, name, Sequential(stage))
+
+        if drop_path:
+            init_layer_ascending_drop_path(self, drop_path)
 
         self.last_pw = Conv2d(in_channels, in_channels * 6, kernel_size=1,
                               norm='bn', act='hswish')

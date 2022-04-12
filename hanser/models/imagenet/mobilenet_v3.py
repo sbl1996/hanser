@@ -4,7 +4,9 @@ from tensorflow.keras.layers import Layer
 from tensorflow.keras.initializers import RandomNormal
 
 from hanser.models.attention import SELayer
-from hanser.models.layers import Conv2d, Identity, GlobalAvgPool, Linear, Dropout
+from hanser.models.layers import Conv2d, Identity, GlobalAvgPool
+from hanser.models.modules import DropPath, Dropout
+from hanser.models.utils import init_layer_ascending_drop_path
 
 
 def _make_divisible(v, divisor=8, min_value=None):
@@ -28,7 +30,7 @@ def _make_divisible(v, divisor=8, min_value=None):
 
 
 class InvertedResidual(Layer):
-    def __init__(self, in_channels, channels, out_channels, kernel_size, stride, act='relu', with_se=True):
+    def __init__(self, in_channels, channels, out_channels, kernel_size, stride, act='relu', with_se=True, drop_path=0.0):
         super().__init__()
         self.with_se = with_se
         if in_channels != channels:
@@ -47,6 +49,7 @@ class InvertedResidual(Layer):
         self.project = Conv2d(channels, out_channels, kernel_size=1,
                               norm='bn')
         self.use_res_connect = stride == 1 and in_channels == out_channels
+        self.drop_path = DropPath(drop_path) if drop_path and self.use_res_connect else Identity()
 
     def call(self, x):
         identity = x
@@ -56,12 +59,14 @@ class InvertedResidual(Layer):
             x = self.se(x)
         x = self.project(x)
         if self.use_res_connect:
+            x = self.drop_path(x)
             x += identity
         return x
 
 
 class MobileNetV3(Model):
-    def __init__(self, inverted_residual_setting, last_channels, num_classes=1000, width_mult=1.0, dropout=0.2):
+
+    def __init__(self, inverted_residual_setting, last_channels, num_classes=1000, width_mult=1.0, dropout=0.2, drop_path=0.0):
         super().__init__()
         block = InvertedResidual
         in_channels = 16
@@ -76,9 +81,12 @@ class MobileNetV3(Model):
             out_channels = _make_divisible(c * width_mult)
             exp_channels = _make_divisible(exp * width_mult)
             features.append(block(
-                in_channels, exp_channels, out_channels, k, s, nl, se))
+                in_channels, exp_channels, out_channels, k, s, nl, se, drop_path))
             in_channels = out_channels
-        # building last several layers
+
+        if drop_path:
+            init_layer_ascending_drop_path(self, drop_path)
+
         features.extend([
             Conv2d(in_channels, exp_channels, kernel_size=1,
                    norm='bn', act='hswish'),
