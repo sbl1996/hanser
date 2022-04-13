@@ -154,13 +154,13 @@ class TrainableController(tf.keras.callbacks.Callback):
         do_eval = self.ds_val is not None and (not do_local_eval) and parse_freq(epoch, self.val_freq)
 
         if do_eval:
-            self.learner.evaluate(self.ds_val, self.val_steps, callbacks=self.callbacks)
+            self.learner.evaluate(self.ds_val, self.val_steps, callbacks=self.callbacks, epoch=epoch)
 
             if self.save_freq and (epoch + 1) % self.save_freq == 0:
                 self.learner.save_state()
 
         if do_local_eval:
-            self.learner.evaluate_local(self.ds_val, self.val_steps, self.local_eval_metrics, self.callbacks)
+            self.learner.evaluate_local(self.ds_val, self.val_steps, self.local_eval_metrics, self.callbacks, epoch=epoch)
 
 
 def split_callbacks(callbacks):
@@ -232,12 +232,12 @@ class SuperLearner:
             ds_train, epochs=max_epochs, steps_per_epoch=steps_per_epoch, verbose=0,
             initial_epoch=start_epoch,  callbacks=[controller, *self._keras_callbacks])
 
-    def evaluate(self, ds_val, val_steps=None, callbacks=None):
+    def evaluate(self, ds_val, val_steps=None, callbacks=None, epoch=None):
         callbacks = callbacks or []
         val_steps = val_steps or len(ds_val)
 
         for c in callbacks:
-            c.begin_eval(None)
+            c.begin_eval({"epoch": epoch})
 
         for m in self._trainable.eval_metrics.values():
             m.reset_states()
@@ -246,17 +246,17 @@ class SuperLearner:
             return_dict=True, _use_cached_eval_dataset=True)
 
         for c in callbacks:
-            c.after_eval(None)
+            c.after_eval({"epoch": epoch})
 
         log_metrics('eval', eval_logs, self.epoch, self._writer, self.metric_history,
                     stage_name='valid', print_fn=self._print)
 
-    def evaluate_local(self, ds_val, steps, metrics, callbacks=None):
+    def evaluate_local(self, ds_val, steps, metrics, callbacks=None, epoch=None):
         callbacks = callbacks or []
         iterator = iter(ds_val)
 
         for c in callbacks:
-            c.begin_eval(None)
+            c.begin_eval({"epoch": epoch})
 
         for m in metrics.values():
             m.reset_states()
@@ -269,7 +269,7 @@ class SuperLearner:
             metric_results[k] = m.result().numpy()
 
         for c in callbacks:
-            c.after_eval(None)
+            c.after_eval({"epoch": epoch})
 
         log_metrics('eval', metric_results, self.epoch, stage_name='valid',
                     metric_history=self.metric_history, print_fn=self._print)
