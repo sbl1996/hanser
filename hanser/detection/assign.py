@@ -85,7 +85,7 @@ def max_iou_assign(bboxes, gt_bboxes, pos_iou_thr, neg_iou_thr,
 
 
 def atss_assign(bboxes, num_level_bboxes, gt_bboxes, topk=9,
-                 is_points=False, strides=(8, 16, 32, 64, 128), scale=8):
+                is_points=False, strides=(8, 16, 32, 64, 128), scale=8):
 
     NINF = tf.constant(-100000000, dtype=tf.float32)
     num_gts = get_shape(gt_bboxes, 0)
@@ -172,7 +172,17 @@ def atss_assign(bboxes, num_level_bboxes, gt_bboxes, topk=9,
 
 
 
-def yolo_assign(bboxes, gt_bboxes, ignore_iou_thr=0.5, return_iou=False):
+def yolo_assign(bboxes, gt_bboxes, num_level_bboxes,
+                strides=(8, 16, 32), ignore_iou_thr=0.5):
+    # This implementation is consistent with the original paper,
+    # but different from either PaddleDetection or MMDetection.
+    # Reference:
+    # PaddleDetection
+    #   https://github.com/PaddlePaddle/PaddleDetection/blob/release/2.4/ppdet/data/transform/batch_operators.py#L176-L287
+    #   https://github.com/PaddlePaddle/PaddleDetection/blob/release/2.4/ppdet/modeling/losses/yolo_loss.py#L73-L87
+    # MMDetection
+    #   https://github.com/open-mmlab/mmdetection/blob/master/mmdet/core/bbox/assigners/grid_assigner.py#L10-L156
+    #   https://github.com/open-mmlab/mmdetection/blob/master/mmdet/core/anchor/anchor_generator.py#L831-L866
     num_gts = get_shape(gt_bboxes, 0)
     num_bboxes = get_shape(bboxes, 0)
 
@@ -194,6 +204,16 @@ def yolo_assign(bboxes, gt_bboxes, ignore_iou_thr=0.5, return_iou=False):
     assigned_gt_inds = tf.where(mask, 0, assigned_gt_inds)
 
     # P3. assign positive
+    bboxes_centers = (bboxes[:, :2] + bboxes[:, 2:]) / 2.0
+    gt_bboxes_centers = (gt_bboxes[..., :2] + gt_bboxes[..., 2:]) / 2
+
+    radius = mlvl_concat(
+        np.array(strides) * 0.5, num_level_bboxes)
+    radius = radius[None, :]
+    same_grid_mask = tf.reduce_max(tf.abs(
+        bboxes_centers[None, :, :] - gt_bboxes_centers[:, None, :]), axis=-1) < radius
+    ious = tf.where(same_grid_mask, ious, -1)
+
     gt_argmax_ious = tf.argmax(ious, axis=1, output_type=tf.int32)
     assigned_gt_inds = index_put(
         assigned_gt_inds, gt_argmax_ious, tf.range(1, num_gts + 1))
@@ -209,9 +229,6 @@ def yolo_assign(bboxes, gt_bboxes, ignore_iou_thr=0.5, return_iou=False):
     # P1. -1 -1 -1 -1 -1
     # P2. 0 -1  0 -1  0
     # P3. 0  X  X -1  0
-
-    if return_iou:
-        return assigned_gt_inds, max_ious
 
     return assigned_gt_inds
 
@@ -255,9 +272,10 @@ def max_iou_match(gt_bboxes, gt_labels, bbox_coder, pos_iou_thr=0.5, neg_iou_thr
         bbox_coder=bbox_coder, centerness=centerness, encode_bbox=encode_bbox)
 
 
-def yolo_match(gt_bboxes, gt_labels, bbox_coder, ignore_iou_thr=0.5, encode_bbox=True):
+def yolo_match(gt_bboxes, gt_labels, bbox_coder, num_level_bboxes,
+               strides=(8, 16, 32), ignore_iou_thr=0.5, encode_bbox=True):
     anchors = bbox_coder.anchors
-    assigned_gt_inds = yolo_assign(anchors, gt_bboxes, ignore_iou_thr)
+    assigned_gt_inds = yolo_assign(anchors, gt_bboxes, num_level_bboxes, strides, ignore_iou_thr)
     return encode_target(
         gt_bboxes, gt_labels, assigned_gt_inds,
         bbox_coder=bbox_coder, encode_bbox=encode_bbox)
@@ -413,7 +431,8 @@ def encode_target(gt_bboxes, gt_labels, assigned_gt_inds,
     num_anchors = get_shape(assigned_gt_inds, 0)
     bbox_targets = tf.zeros([num_anchors, 4], dtype=tf.float32)
     labels = tf.zeros([num_anchors,], dtype=tf.int32)
-    centerness_t = tf.zeros([num_anchors,], dtype=tf.float32)
+    if centerness:
+        centerness_t = tf.zeros([num_anchors,], dtype=tf.float32)
 
     pos = assigned_gt_inds > 0
     indices = tf.range(num_anchors, dtype=tf.int32)[pos]
@@ -442,6 +461,9 @@ def encode_target(gt_bboxes, gt_labels, assigned_gt_inds,
     if encode_bbox:
         assigned_gt_bboxes = bbox_coder.encode(assigned_gt_bboxes, indices)
 
+    ndims = assigned_gt_bboxes.shape[-1]
+    if ndims != 4:
+        bbox_targets = tf.zeros([num_anchors, ndims], dtype=tf.float32)
     bbox_targets = index_put(bbox_targets, indices, assigned_gt_bboxes)
     labels = index_put(labels, indices, assigned_gt_labels)
 

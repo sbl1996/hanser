@@ -169,6 +169,7 @@ def random_choice(funcs, image):
 
 
 def resize(img, size, method='bilinear'):
+    # resize shorter side to size
     if img.dtype == tf.string:
         img = tf.image.decode_jpeg(img, channels=3)
     if not isinstance(size, (tuple, list)):

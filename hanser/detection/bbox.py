@@ -1,6 +1,7 @@
 from toolz import curry
-
+import numpy as np
 import tensorflow as tf
+
 
 class BBox:
     LTWH = 0  # [xmin, ymin, width, height]
@@ -72,41 +73,63 @@ class FCOSBBoxCoder:
         return tf.stack([t, l, b, r], axis=-1)
 
 
+def mlvl_concat(xs, reps, dtype=tf.float32):
+    xs = np.array(xs)
+    ndim = len(xs.shape)
+    xs = np.concatenate([
+        np.tile(xs[i][None], (n,) + (1,) * (ndim - 1))
+        for i, n in enumerate(reps)
+    ], axis=0)
+    return tf.constant(xs, dtype)
+
+
 class YOLOBBoxCoder:
 
-    def __init__(self, anchors, strides, num_base_anchors, eps=1e-6):
+    def __init__(self, anchors, strides, featmap_sizes, num_level_bboxes, eps=1e-6):
         super(YOLOBBoxCoder, self).__init__()
         self.anchors = tf.constant(anchors, tf.float32)
-        scales = [tf.repeat(s, n) for s, n in zip(strides, num_base_anchors)]
-        self.scales = tf.cast(tf.concat(scales, axis=0), tf.float32)
+        self.scales = mlvl_concat(
+            tf.cast(strides, tf.float32), num_level_bboxes)
+        self.featmap_sizes = mlvl_concat(
+            tf.cast(featmap_sizes, tf.float32), num_level_bboxes)
         self.eps = eps
 
     def encode(self, bboxes, idx=None):
         anchors = self.anchors
+        scales = self.scales
+        featmap_sizes = self.featmap_sizes
         if idx is not None:
             anchors = tf.gather(anchors, idx, axis=0)
+            scales = tf.gather(scales, idx, axis=0)
+            featmap_sizes = tf.gather(featmap_sizes, idx, axis=0)
         boxes_yx = (bboxes[..., :2] + bboxes[..., 2:]) / 2
         boxes_hw = bboxes[..., 2:] - bboxes[..., :2]
-        anchors_yx = (anchors[:, :2] + anchors[:, 2:]) / 2
         anchors_hw = anchors[:, 2:] - anchors[:, :2]
+        anchors_yx = (anchors[:, :2] + anchors[:, 2:]) / 2
         thtw = tf.math.log(
             tf.maximum(boxes_hw / anchors_hw, self.eps))
-        tytx = (boxes_yx - anchors_yx) / self.scales + 0.5
+        tytx = (boxes_yx - anchors_yx) / scales + 0.5
+        ghgw = boxes_hw / scales / featmap_sizes
+        tscale = 2.0 - ghgw[..., 0] * ghgw[..., 0]
+        # tytx = boxes_yx / scales
+        # tytx = tytx - tf.math.floor(tytx)
         tytx = tf.clip_by_value(tytx, self.eps, 1 - self.eps)
-        target = tf.concat([tytx, thtw], axis=-1)
+        target = tf.concat([tytx, thtw, tscale[:, None]], axis=-1)
         return target
 
     def decode(self, pred, idx=None):
         anchors = self.anchors
+        scales = self.scales
         if idx is not None:
             anchors = tf.gather(anchors, idx, axis=0)
+            scales = tf.gather(scales, idx, axis=0)
         anchors = tf.convert_to_tensor(anchors, pred.dtype)
 
-        anchors_yx = (anchors[..., :2] + anchors[..., 2:]) / 2
-        anchors_hw = anchors[..., 2:] - anchors[..., :2]
+        anchors_yx = (anchors[..., 0:2] + anchors[..., 2:4]) / 2
+        anchors_hw = anchors[..., 2:4] - anchors[..., 0:2]
 
-        bbox_yx = (pred[..., :2] - 0.5) * self.scales + anchors_yx
-        bbox_hw = tf.exp(pred[..., 2:]) * anchors_hw
+        bbox_yx = (pred[..., 0:2] - 0.5) * scales + anchors_yx
+        bbox_hw = tf.exp(pred[..., 2:4]) * anchors_hw
 
         bbox_hw_half = bbox_hw / 2
         bboxes = tf.concat([bbox_yx - bbox_hw_half, bbox_yx + bbox_hw_half], axis=-1)

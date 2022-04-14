@@ -314,7 +314,7 @@ class SuperLearner:
             experimental_io_device="/job:localhost") if is_distribute_strategy(tf.distribute.get_strategy()) else None
         return ckpt, ckpt_options
 
-    def save(self, save_dir=None, model_only=False):
+    def save(self, save_dir=None, model_only=False, state=True):
         if save_dir is None:
             save_dir = self.work_dir
         else:
@@ -328,6 +328,9 @@ class SuperLearner:
         save_path = str(save_dir / "ckpt")
         ckpt, ckpt_options = self._make_ckpt(model_only=model_only)
         path = ckpt.write(save_path, ckpt_options)
+
+        if state:
+            self.save_state(save_dir)
 
         self._print('Save learner to %s' % path)
 

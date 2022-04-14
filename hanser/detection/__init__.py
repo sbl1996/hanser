@@ -4,11 +4,11 @@ import random
 import numpy as np
 import tensorflow as tf
 
-from hanser.detection.anchor import AnchorGenerator
-from hanser.detection.assign import max_iou_match, atss_match, fcos_match, grid_points
+from hanser.detection.anchor import AnchorGenerator, YOLOAnchorGenerator
+from hanser.detection.assign import max_iou_match, atss_match, fcos_match, grid_points, yolo_match
 from hanser.detection.nms import batched_nms
 from hanser.detection.iou import bbox_iou2
-from hanser.detection.bbox import BBoxCoder, FCOSBBoxCoder, coords_to_absolute
+from hanser.detection.bbox import BBoxCoder, FCOSBBoxCoder, coords_to_absolute, YOLOBBoxCoder
 from hanser.detection.loss import DetectionLoss, focal_loss, iou_loss, l1_loss, smooth_l1_loss, cross_entropy_det, GFLoss, GFLossV2
 
 
@@ -80,8 +80,9 @@ def draw_bboxes(img, anns, categories=None, fontsize=8, linewidth=2, colors=None
     return fig, ax
 
 
-def draw_bboxes2(img, boxes, classes=None, categories=None, fontsize=8, linewidth=2, colors=None, label_offset=16,
-                 figsize=(10, 10)):
+def draw_bboxes2(img, boxes, classes, categories=None, fontsize=8, linewidth=2, colors=None, label_offset=16,
+                 figsize=(10, 10), relative=True):
+    # boxes is (x1, y1, x2, y2) and in [0, 1]
     import matplotlib.pyplot as plt
     from matplotlib.patches import Rectangle
 
@@ -92,7 +93,9 @@ def draw_bboxes2(img, boxes, classes=None, categories=None, fontsize=8, linewidt
             colors = ['w' for _ in range(100)]
 
     # boxes = boxes.reshape(-1, 2, 2)[..., ::-1].reshape(-1, 4)
-    boxes = (boxes.reshape(-1, 2, 2) * np.array(img.shape[:2]))[..., ::-1].reshape(-1, 4)
+    boxes = boxes.copy()
+    if relative:
+        boxes = (boxes.reshape(-1, 2, 2) * np.array(img.shape[:2]))[..., ::-1].reshape(-1, 4)
     boxes[:, 2:] -= boxes[:, :2]
 
     fig, ax = plt.subplots(1, figsize=figsize)

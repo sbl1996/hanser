@@ -193,16 +193,6 @@ class DetectionLoss:
 
 class YOLOLoss:
 
-    def __init__(self, box_loss_weight=2.,
-                 bbox_coder=None, decode_pred=True,
-                 iou_loss_mode='giou'):
-        if decode_pred:
-            assert bbox_coder is not None
-        self.box_loss_weight = box_loss_weight
-        self.bbox_coder = bbox_coder
-        self.decode_pred = decode_pred
-        self.iou_loss_mode = iou_loss_mode
-
     def __call__(self, y_true, y_pred):
         bbox_targets = y_true['bbox_target']
         labels = y_true['label']
@@ -222,13 +212,18 @@ class YOLOLoss:
 
         loss_cls = binary_cross_entropy(labels, cls_scores, weight=pos_weight, reduction='sum') / total_pos
 
-        if self.decode_pred:
-            bbox_preds = self.bbox_coder.decode(bbox_preds)
+        box_loss_weight = pos_weight * bbox_targets[..., 4]
+        loss_box_yx = binary_cross_entropy(
+            bbox_targets[..., 0:2], bbox_preds[..., :2], weight=box_loss_weight, reduction='sum')
 
-        loss_box = iou_loss(bbox_targets, bbox_preds, weight=pos_weight,
-                            reduction='sum', mode=self.iou_loss_mode) / total_pos
+        loss_box_hw = l1_loss(
+            bbox_targets[..., 2:4], bbox_preds[..., 2:], weight=box_loss_weight, reduction='sum')
+        # loss_box_hw = mse_loss(
+        #     bbox_targets[..., 2:], bbox_preds[..., 2:], weight=box_loss_weight, reduction='sum')
 
-        loss = loss_obj + loss_cls + loss_box * self.box_loss_weight
+        loss_box = (loss_box_yx + loss_box_hw) / total_pos
+
+        loss = loss_obj + loss_cls + loss_box
         return loss
 
 
@@ -291,3 +286,5 @@ def quality_focal_loss(y_true, y_pred, gamma=2.0, from_logits=True, reduction='s
         losses = tf.keras.backend.binary_crossentropy(y_true, y_pred, from_logits=False)
     losses = losses * focal_weight
     return reduce_loss(losses, weight=None, reduction=reduction)
+
+
