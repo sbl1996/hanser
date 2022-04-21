@@ -1,10 +1,11 @@
 # hanser
 
-Hanser is a library to help with training for different tasks in TensorFlow.
+`hanser` is a library to help with training for different tasks in TensorFlow 2.X.
 
 - [Sponsors](#sponsors)
 - [Features](#features)
 - [Models](#models)
+- [Highlights](#highlights)
 - [Examples](#examples)
 
 ## Sponsors
@@ -17,11 +18,21 @@ This work is supported with Cloud TPUs from Google's [TPU Research Cloud (TRC)](
 - Reproduction of popular computer vision models, modules and tricks **with experimental results**
 
 ## Models
-- [ResNet](/docs/models/resnet.md)
+- [ResNets series](/docs/models/resnet.md)
 - [Attention](/docs/models/attention.md)
 - [AutoAugment](/docs/models/autoaugment.md)
 - [Assemble](/docs/models/assemble.md)
 - [Detection](/docs/models/detection.md)
+
+## Highlights
+### [InplaceABN](/examples/highlights/inplace_abn.py)
+InplaceABN is an improved variant of gradient checkpointing which drastically reduce the training memory with negligible computation cost. We make it available on **TPU** and have carefully tested the correctness and performance. With InplaceABN, the maximal batch size may increase 20%-50% with a tiny time overhead (<10%).
+
+### [EMA](/examples/official/cls/imagenet/mobilenetv3.py)
+EMA is a simple and efficient way to stabilize training and improve performance. We integrate it into `hanser` and make it very easy to use. It has been carefully tested on our reproduced [MobileNetV3](/examples/official/cls/imagenet/mobilenetv3.py). 
+
+### [Data Augmentation](/hanser/transform)
+`hanser` provides out-of-the-box reimplementation of various data augmentation and regularization (CutMix, ResizeMix, RandAugment, TrivialAugment, DropBlock, ...). All of them are well tested and work seamlessly with **TPU**. 
 
 ## Examples
 
