@@ -78,7 +78,7 @@ def objective(trial: optuna.Trial):
     learner = SuperLearner(
         model, criterion, optimizer,
         train_metrics=train_metrics, eval_metrics=eval_metrics,
-        work_dir=f"./CIFAR100-NNI", multiple_steps=True)
+        work_dir=f"./CIFAR100-ResNet110-optuna", multiple_steps=True)
 
 
     callbacks = [OptunaReportIntermediateResult('acc', trial)]
@@ -90,3 +90,15 @@ def objective(trial: optuna.Trial):
                        callbacks=callbacks)
 
     return learner.metric_history.get_metric('acc', "eval")[-1]
+
+
+from hanser.hpo.optuna import optimize_mp
+study = optuna.create_study(
+    direction="maximize",
+    study_name="cifar1",
+    load_if_exists=True,
+    pruner=optuna.pruners.MedianPruner(
+        n_startup_trials=5, n_warmup_steps=5, interval_steps=2),
+    storage="sqlite:///cifar1.db"
+)
+optimize_mp(study, objective, n_trials=100)

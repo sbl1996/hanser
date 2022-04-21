@@ -14,7 +14,7 @@ from hanser.transform import normalize
 from hanser.transform.detection import pad_objects, random_hflip, random_resize, resize, pad_to, random_crop
 
 from hanser.models.layers import set_defaults
-from hanser.models.backbone.resnet_vd import resnet50
+from hanser.models.backbone.resnet import resnet50
 from hanser.models.detection.fcos import FCOS
 from hanser.models.utils import load_pretrained_model
 
@@ -83,7 +83,7 @@ backbone = resnet50()
 model = FCOS(backbone, num_classes=20)
 model.build((None, HEIGHT, WIDTH, 3))
 
-load_pretrained_model("resnetvd50_nlb_fp", backbone)
+load_pretrained_model("resnet50", backbone)
 
 criterion = DetectionLoss(
     box_loss_fn=iou_loss(mode='ciou', offset=True),

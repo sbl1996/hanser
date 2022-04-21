@@ -11,7 +11,7 @@ import pkg_resources
 
 NAME = 'hanser'
 IMPORT_NAME = 'hanser'
-DESCRIPTION = "HrvvI's extension to TensorFlow"
+DESCRIPTION = "A library to help with training for different tasks in TensorFlow."
 URL = 'https://github.com/sbl1996/hanser'
 EMAIL = 'sbl1996@126.com'
 AUTHOR = 'HrvvI'

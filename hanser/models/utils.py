@@ -28,6 +28,16 @@ def load_checkpoint(ckpt_path, **ckpt_kwargs):
     return status.assert_nontrivial_match().expect_partial()
 
 
+def load_fc_from_checkpoint(model, ckpt_path):
+    assert hasattr(model, "fc")
+    assert hasattr(model.fc, "kernel")
+    assert hasattr(model.fc, "bias")
+    weight = tf.train.load_variable(str(ckpt_path), "model/fc_ckpt_ignored/kernel/.ATTRIBUTES/VARIABLE_VALUE")
+    model.fc.kernel.assign(weight)
+    weight = tf.train.load_variable(str(ckpt_path), "model/fc_ckpt_ignored/bias/.ATTRIBUTES/VARIABLE_VALUE")
+    model.fc.bias.assign(weight)
+
+
 def load_pretrained_model(name_or_url_or_path, model, with_fc=False, github_access_token=None):
     r"""Load pretrained weights to the model.
 
@@ -62,13 +72,7 @@ def load_pretrained_model(name_or_url_or_path, model, with_fc=False, github_acce
     ckpt_path = load_model_from_hub(name_or_url_or_path, github_access_token=github_access_token)
     status = load_checkpoint(ckpt_path, model=model)
     if with_fc:
-        assert hasattr(model, "fc")
-        assert hasattr(model.fc, "kernel")
-        assert hasattr(model.fc, "bias")
-        weight = tf.train.load_variable(ckpt_path, "model/fc_ckpt_ignored/kernel/.ATTRIBUTES/VARIABLE_VALUE")
-        model.fc.kernel.assign(weight)
-        weight = tf.train.load_variable(ckpt_path, "model/fc_ckpt_ignored/bias/.ATTRIBUTES/VARIABLE_VALUE")
-        model.fc.bias.assign(weight)
+        load_fc_from_checkpoint(model, ckpt_path)
     return status
 
 

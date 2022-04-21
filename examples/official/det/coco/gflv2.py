@@ -14,7 +14,7 @@ from hanser.transform import normalize
 from hanser.transform.detection import random_hflip, random_resize, resize, pad_to, random_crop
 
 from hanser.models.layers import set_defaults
-from hanser.models.backbone.resnet_vd import resnet50
+from hanser.models.backbone.resnet import resnet50
 from hanser.models.detection.gfocal import GFocal
 from hanser.models.utils import load_pretrained_model
 
@@ -86,7 +86,7 @@ backbone = resnet50()
 model = GFocal(backbone, num_classes=80, norm='bn')
 model.build((None, HEIGHT, WIDTH, 3))
 
-load_pretrained_model("resnetvd50_nlb_fp", backbone)
+load_pretrained_model("resnet50", backbone)
 
 criterion = GFLossV2(
     bbox_coder, iou_loss_mode='giou', box_loss_weight=2.0)

@@ -43,13 +43,15 @@ def check_model(model, tflite_path, input_shape=(224, 224, 3)):
     np.testing.assert_allclose(y1, y2, rtol=1e-5, atol=1e-5)
 
 
-def convert_checkpoint(ckpt_path, import_name, tflite_path, input_shape=(224, 224, 3), check=True):
+def convert_checkpoint(ckpt_path, import_name, tflite_path, input_shape=(224, 224, 3), check=True, from_hub=False):
     import tensorflow as tf
-    from hanser.models.utils import load_checkpoint
+    from hanser.models.utils import load_checkpoint, load_fc_from_checkpoint
 
     model = import_model(import_name)
     model.build((None, *input_shape))
     load_checkpoint(ckpt_path, model=model)
+    if from_hub:
+        load_fc_from_checkpoint(model, ckpt_path)
 
     x = np.random.uniform(size=(1, *input_shape)).astype(np.float32)
     x = tf.convert_to_tensor(x)
@@ -95,8 +97,9 @@ def cmd_checkpoint(
     ckpt_path: Path = typer.Argument(..., help="Path to checkpoint, i.e. ./mobilenetv3_large/ckpt"),
     import_name: str = typer.Argument(..., help="Model name, i.e. hanser.models.imagenet.mobilenet_v3.mobilenet_v3_large"),
     tflite_path: Optional[Path] = typer.Option(None, help="Target directory to save tflite model file"),
-    check: bool = typer.Option(True, "-f", help="Whether to do sanity check"),
+    check: bool = typer.Option(True, "-c", help="Whether to do sanity check"),
     input_shape: str = typer.Option("224,224,3", "-i", help="Input shape, i.e. 224,224,3"),
+    from_hub: bool = typer.Option(False, "-h", help="Whether from hub"),
 ):
     ckpt_path = fmt_path(ckpt_path)
     if tflite_path is None:
@@ -104,14 +107,14 @@ def cmd_checkpoint(
     tflite_path = fmt_path(tflite_path)
 
     input_shape = tuple(map(int, input_shape.split(",")))
-    convert_checkpoint(ckpt_path, import_name, tflite_path, input_shape=input_shape, check=check)
+    convert_checkpoint(ckpt_path, import_name, tflite_path, input_shape=input_shape, check=check, from_hub=from_hub)
 
 
 @app.command("saved_model")
 def cmd_saved_model(
     saved_model_path: Path = typer.Argument(..., help="Path to saved model, i.e. ./mobilenetv3_large"),
     tflite_path: Optional[Path] = typer.Option(None, help="Target directory to save tflite model file"),
-    check: bool = typer.Option(True, "-f", help="Whether to do sanity check"),
+    check: bool = typer.Option(True, "-c", help="Whether to do sanity check"),
     input_shape: str = typer.Option("224,224,3", "-i", help="Input shape, i.e. 224,224,3"),
 ):
     saved_model_path = fmt_path(saved_model_path)
