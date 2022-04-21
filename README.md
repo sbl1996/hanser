@@ -59,5 +59,5 @@ EMA is a simple and efficient way to stabilize training and improve performance.
 - [Optuna](/examples/hpo/optuna)
   - [MNIST](/examples/hpo/optuna/mnist.py)
 - [Microsoft NNI](/examples/hpo/nni)
-  - [MNIST](/examples/hpo/nni/mnist.py)
-  - [CIFAR100](/examples/hpo/nni/wrn.py)
+  - [MNIST](/examples/hpo/nni/mnist)
+  - [CIFAR100](/examples/hpo/nni/wrn)
