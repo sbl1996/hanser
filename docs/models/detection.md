@@ -10,7 +10,7 @@
 | ResNet-50 | 1024 |   R(0.5, 2.0)    | 64  |  50   | 41.06 |  [79](/configs/COCO/79.py)  |                                                 [1](/configs/COCO/log/79.log)                                                 |
 
 - All above are trained with horizontal flip augmentation.
-- Pad (random) is a new way to pad the input image which reduces overfitting. Only with it, we could achieve similar AP as mmdetection, becuase mmdetection actually pads the input images randomly.
+- Pad (random) is a new way to pad the input image which reduces overfitting. Only with it, we could achieve similar AP as mmdetection, because mmdetection actually pads the input images randomly.
 
 
 ## GFLV2

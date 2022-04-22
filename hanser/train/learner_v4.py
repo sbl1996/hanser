@@ -5,47 +5,25 @@ import tensorflow as tf
 from tensorflow.keras.metrics import Mean
 
 from hanser.train.callbacks import Callback
-from hanser.distribute import is_distribute_strategy
+from hanser.distribute import is_distribute_strategy, reduce_per_replica
 from hanser.train.learner import find_most_recent, cast, parse_freq
 from hanser.train.metric_history import MetricHistory
 
 from hhutil.io import time_now, eglob, fmt_path, rm
 
 
-def _is_per_replica_instance(obj):
-    return (isinstance(obj, tf.distribute.DistributedValues) and
-            isinstance(obj, tf.__internal__.CompositeTensor))
-
-
-def reduce_per_replica(values, strategy, reduction='first'):
-    def _reduce(v):
-        if not _is_per_replica_instance(v):
-            return v
-        elif reduction == 'first':
-            return strategy.experimental_local_results(v)[0]
-        elif reduction == 'concat':
-            return tf.concat(strategy.experimental_local_results(v), axis=0)
-        else:
-            raise ValueError('`reduction` must be "first" or "concat". Received: '
-                             f'reduction={reduction}.')
-
-    return tf.nest.map_structure(_reduce, values)
-
-
 class TrainableModel(tf.keras.Model):
 
-    def __init__(self, model, criterion, train_metrics, eval_metrics, output_transform=lambda x: x):
+    def __init__(self, model, criterion, train_metrics, eval_metrics):
         super().__init__()
         self.model = model
         self.criterion = criterion
         self.train_metrics = train_metrics
         self.eval_metrics = eval_metrics
-        self.output_transform = output_transform
 
         self._num_replicas = tf.distribute.get_strategy().num_replicas_in_sync
 
     def update_metrics(self, metrics, y_true, y_pred, per_example_loss=None):
-        y_pred = self.output_transform(y_pred)
         for name, metric in metrics.items():
             if 'loss' in name and type(metric) == Mean:
                 metric.update_state(per_example_loss)
@@ -177,7 +155,7 @@ def split_callbacks(callbacks):
 class SuperLearner:
 
     def __init__(self, model, criterion, optimizer, train_metrics, eval_metrics,
-                 steps_per_loop=None, jit_compile=True, output_transform=lambda x: x, work_dir=None):
+                 steps_per_loop=None, jit_compile=True, work_dir=None):
         super().__init__()
         self.model = model
         self.criterion = criterion
@@ -187,10 +165,9 @@ class SuperLearner:
         assert steps_per_loop is not None, "You must set steps_per_loop for LearnerV4"
         self.steps_per_loop = steps_per_loop
         self.jit_compile = jit_compile
-        self.output_transform = output_transform
         self.work_dir = fmt_path(work_dir)
 
-        self._trainable = TrainableModel(model, criterion, train_metrics, eval_metrics, output_transform)
+        self._trainable = TrainableModel(model, criterion, train_metrics, eval_metrics)
         if vparse(tf.__version__) >= vparse("2.8"):
             self._trainable.compile(optimizer, steps_per_execution=steps_per_loop, jit_compile=self.jit_compile)
         elif vparse(tf.__version__) < vparse("2.4"):

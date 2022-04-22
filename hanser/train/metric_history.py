@@ -14,9 +14,24 @@ class MetricHistory:
             h[epoch] = {}
         h[epoch][metric] = value
 
+    def __getitem__(self, item):
+        if not isinstance(item, tuple):
+            stage = item
+            return self._history[stage]
+        if len(item) == 2:
+            stage, metric = item
+            return self.get_metric(metric, stage)
+        elif len(item) == 3:
+            stage, metric, range = item
+            if isinstance(range, int):
+                start, end = range, range
+            elif isinstance(range, slice):
+                start, end = range.start, range.stop - 1
+            else:
+                raise ValueError(f"Invalid range: {range}")
+            return self.get_metric(metric, stage, start, end)
+
     def get_metric(self, metric, stage=None, start=None, end=None):
-        # Epochs is 0-based
-        # Get metric from [start, end]
         if stage is None:
             return {
                 stage: self.get_metric(metric, stage, start, end)
@@ -30,7 +45,9 @@ class MetricHistory:
             min_epoch, max_epochs = min(epochs), max(epochs)
             if start is None:
                 start = min_epoch
-            if end is None:
+            if start == -1:
+                start = max_epochs
+            if end is None or end == -1:
                 end = max_epochs
             values = []
             for e in range(start, end + 1):
@@ -38,7 +55,7 @@ class MetricHistory:
                     values.append(h[e].get(metric))
             if all(v is None for v in values):
                 return None
-            elif len(values) == 1:
+            elif start == end:
                 return values[0]
             else:
                 return values
