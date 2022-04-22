@@ -92,6 +92,9 @@ class SuperLearner:
             dtype='int64',
             aggregation=tf.VariableAggregation.ONLY_FIRST_REPLICA)
 
+        agg = tf.VariableAggregation.ONLY_FIRST_REPLICA
+        self._train_counter = tf.Variable(0, dtype='int64', aggregation=agg)
+
     def train_step(self, batch):
         model = self.model
         optimizer = self.optimizer
@@ -106,6 +109,7 @@ class SuperLearner:
         grads = tape.gradient(loss, model.trainable_variables)
         optimizer.apply_gradients(zip(grads, model.trainable_variables))
         update_metrics(self.train_metrics, target, preds, per_example_loss)
+        return {k: m.result() for k, m in self.train_metrics.items()}
 
     def eval_step(self, batch):
         inputs, target = batch
@@ -113,6 +117,7 @@ class SuperLearner:
         preds = self.model(inputs, training=False)
         preds = cast(preds, tf.float32)
         update_metrics(self.eval_metrics, target, preds)
+        return {k: m.result() for k, m in self.eval_metrics.items()}
 
     def make_train_function(self):
         if self._train_function is not None:
@@ -123,9 +128,23 @@ class SuperLearner:
             train_step = tf.function(
                 train_step, jit_compile=True, experimental_relax_shapes=True)
 
+        def step_function(iterator):
+
+            def run_step(data):
+                outputs = train_step(data)
+                self._train_counter.assign_add(1)
+                return outputs
+
+            data = next(iterator)
+            outputs = self._distribute_strategy.run(run_step, args=(data,))
+            outputs = reduce_per_replica(
+                outputs, self._distribute_strategy, reduction='first')
+            return outputs
+
         def train_function(iterator):
             for _ in tf.range(self._steps_per_execution):
-                self._distribute_strategy.run(train_step, args=(next(iterator),))
+                outputs = step_function(iterator)
+            return outputs
 
         train_function = tf.function(
             train_function, experimental_relax_shapes=True)
