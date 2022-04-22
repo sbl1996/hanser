@@ -193,18 +193,18 @@ class SuperLearner:
 
         steps_per_epoch = steps_per_epoch or len(ds_train)
 
-        train_it = iter(ds_train)
-        if ds_val is not None:
-            eval_it = iter(ds_val)
+        with self._distribute_strategy.scope():
+            train_it = iter(ds_train)
+            if ds_val is not None:
+                eval_it = iter(ds_val)
+            print(f"{time_now()} Start training")
+            for epoch in range(epochs):
+                self._epoch = epoch
+                print("Epoch %d/%d" % (epoch + 1, epochs))
 
-        print(f"{time_now()} Start training")
-        for epoch in range(epochs):
-            self._epoch = epoch
-            print("Epoch %d/%d" % (epoch + 1, epochs))
+                logs = self.train_epoch(train_it, steps_per_epoch)
+                log_metrics('train', logs)
 
-            logs = self.train_epoch(train_it, steps_per_epoch)
-            log_metrics('train', logs)
-
-            if ds_val is not None and (epoch + 1) % val_freq == 0:
-                logs = self.evaluate(eval_it, val_steps)
-                log_metrics('valid', logs)
+                if ds_val is not None and (epoch + 1) % val_freq == 0:
+                    logs = self.evaluate(eval_it, val_steps)
+                    log_metrics('valid', logs)
