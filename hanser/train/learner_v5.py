@@ -94,6 +94,7 @@ class SuperLearner:
 
         agg = tf.VariableAggregation.ONLY_FIRST_REPLICA
         self._train_counter = tf.Variable(0, dtype='int64', aggregation=agg)
+        self._eval_counter = tf.Variable(0, dtype='int64', aggregation=agg)
 
     def train_step(self, batch):
         model = self.model
@@ -160,9 +161,23 @@ class SuperLearner:
             eval_step = tf.function(
                 eval_step, jit_compile=True, experimental_relax_shapes=True)
 
+        def step_function(iterator):
+
+            def run_step(data):
+                outputs = eval_step(data)
+                self._eval_counter.assign_add(1)
+                return outputs
+
+            data = next(iterator)
+            outputs = self._distribute_strategy.run(run_step, args=(data,))
+            outputs = reduce_per_replica(
+                outputs, self._distribute_strategy, reduction='first')
+            return outputs
+
         def eval_function(iterator):
             for _ in tf.range(self._steps_per_execution):
-                self._distribute_strategy.run(eval_step, args=(next(iterator),))
+                outputs = step_function(iterator)
+            return outputs
 
         eval_function = tf.function(
             eval_function, experimental_relax_shapes=True)
