@@ -355,17 +355,19 @@ class SuperLearner:
 
         save_dir = fmt_path(fp).parent
         d = self.load_state(save_dir)
+
+        d = self.load_state(save_dir)
         if d is not None:
             self.metric_history._history = d['metric_history']
             self._train_start = d['train_start']
             self._max_epochs = d['max_epochs']
             epoch = d['epoch']
-            self._epoch = epoch
+            self.set_global_state('epoch', epoch)
             self._print("Load learner at epoch %d from %s" % (self.epoch + 1, fp))
         else:
             self._print("Load learner from %s" % (fp,))
         return True
-
+        
     def recover_log(self):
         train_start = self._train_start
         self._print(f"{train_start} Start training")
