@@ -19,15 +19,6 @@ from hanser.train.metric_history import MetricHistory
 from hanser.train.callbacks import config_callbacks, log_metrics
 
 
-def validate_freq(freqs):
-    if isinstance(freqs, list):
-        assert all([isinstance(f, tuple) and len(f) == 2 for f in freqs])
-        start_epochs = [f[0] for f in freqs]
-        assert start_epochs[0] == 0
-        for i in range(1, len(start_epochs)):
-            assert start_epochs[i - 1] < start_epochs[i]
-
-
 def parse_freq(epoch, freqs):
     # epochs is 0-based
     if freqs is None:
