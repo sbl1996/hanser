@@ -1,6 +1,9 @@
 import tensorflow as tf
 from tensorflow.keras.metrics import Mean
 import tensorflow.keras.mixed_precision as mixed_precision
+
+from hanser.distribute import reduce_per_replica
+
 from hhutil.io import time_now
 
 
@@ -21,33 +24,6 @@ def cast(xs, dtype, whiltelist=(tf.int32, tf.int64, tf.bool)):
             x = tf.cast(x, dtype)
         return x
     return tf.nest.map_structure(func, xs)
-
-
-def _run_steps(step_fn, iterator, n_steps):
-    for _i in tf.range(n_steps):
-        batch = next(iterator)
-        step_fn(batch)
-
-
-def _is_per_replica_instance(obj):
-    return (isinstance(obj, tf.distribute.DistributedValues) and
-            isinstance(obj, tf.__internal__.CompositeTensor))
-
-
-def reduce_per_replica(values, strategy, reduction='first'):
-    def _reduce(v):
-        """Reduce a single `PerReplica` object."""
-        if not _is_per_replica_instance(v):
-            return v
-        elif reduction == 'first':
-            return strategy.experimental_local_results(v)[0]
-        elif reduction == 'concat':
-            return tf.concat(strategy.experimental_local_results(v))
-        else:
-            raise ValueError('`reduction` must be "first" or "concat". Received: '
-                             f'reduction={reduction}.')
-
-    return tf.nest.map_structure(_reduce, values)
 
 
 def reduce_loss(per_example_loss):
@@ -87,10 +63,6 @@ class SuperLearner:
         self._eval_function = None
 
         self._distribute_strategy = tf.distribute.get_strategy()
-
-        agg = tf.VariableAggregation.ONLY_FIRST_REPLICA
-        self._train_counter = tf.Variable(0, dtype='int64', aggregation=agg)
-        self._eval_counter = tf.Variable(0, dtype='int64', aggregation=agg)
 
     def train_step(self, batch):
         model = self.model
@@ -146,22 +118,11 @@ class SuperLearner:
             eval_step = tf.function(
                 eval_step, jit_compile=True, experimental_relax_shapes=True)
 
-        def step_function(iterator):
-
-            def run_step(data):
-                outputs = eval_step(data)
-                self._eval_counter.assign_add(1)
-                return outputs
-
-            data = next(iterator)
-            outputs = self._distribute_strategy.run(run_step, args=(data,))
-            outputs = reduce_per_replica(
-                outputs, self._distribute_strategy, reduction='first')
-            return outputs
-
         def eval_function(iterator, steps):
             for _ in tf.range(steps):
-                outputs = step_function(iterator)
+                outputs = self._distribute_strategy.run(eval_step, args=(next(iterator),))
+                outputs = reduce_per_replica(
+                    outputs, self._distribute_strategy, reduction='first')
             return outputs
 
         eval_function = tf.function(
@@ -208,18 +169,17 @@ class SuperLearner:
 
         steps_per_epoch = steps_per_epoch or len(ds_train)
 
-        # with self._distribute_strategy.scope():
-        train_it = iter(ds_train)
+        train_iter = iter(ds_train)
         if ds_val is not None:
-            eval_it = iter(ds_val)
+            eval_iter = iter(ds_val)
         print(f"{time_now()} Start training")
         for epoch in range(epochs):
             self._epoch = epoch
             print("Epoch %d/%d" % (epoch + 1, epochs))
 
-            logs = self.train_epoch(train_it, steps_per_epoch)
+            logs = self.train_epoch(train_iter, steps_per_epoch)
             log_metrics('train', logs)
 
             if ds_val is not None and (epoch + 1) % val_freq == 0:
-                logs = self.evaluate(eval_it, val_steps)
+                logs = self.evaluate(eval_iter, val_steps)
                 log_metrics('valid', logs)
