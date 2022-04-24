@@ -182,8 +182,6 @@ class ModelCheckpoint(Callback):
         epoch = self.learner.epoch + 1
         if epoch % self.save_freq == 0:
             self.learner.save()
-            # This prevents state mismatch when training stop at eval
-            self.learner.save_state()
 
     # This prevents eval log miss when training is stopped
     def after_eval(self, state):

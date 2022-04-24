@@ -6,7 +6,7 @@ from tensorflow.keras.metrics import Mean
 import tensorflow.keras.mixed_precision as mixed_precision
 
 from hanser.distribute import reduce_per_replica, is_distribute_strategy
-from hanser.train.callbacks import config_callbacks
+from hanser.train.callbacks import config_callbacks, log_metrics
 from hanser.train.learner import parse_freq, find_most_recent
 from hanser.train.metric_history import MetricHistory
 
@@ -71,10 +71,9 @@ class SuperLearner:
         self._state = {
             "train": {},
             "eval": {},
-            "test": {},
         }
 
-        self.metric_history = MetricHistory(["train", "eval", "test"])
+        self.metric_history = MetricHistory(["train", "eval"])
         self._train_start = None
         self._max_epochs = None
 
@@ -107,6 +106,19 @@ class SuperLearner:
         update_metrics(self.eval_metrics, target, preds)
         return {k: m.result() for k, m in self.eval_metrics.items()}
 
+    def local_eval_step(self, batch):
+        inputs, target = batch
+        inputs = cast(inputs, self._dtype)
+        preds = self.model(inputs, training=False)
+        preds = cast(preds, tf.float32)
+        return target, preds
+
+    @tf.function
+    def _local_eval_step(self, batch):
+        outputs = self._distribute_strategy.run(self.local_eval_step, args=(batch,))
+        outputs = reduce_per_replica(
+            outputs, self._distribute_strategy, reduction='concat')
+        return outputs
 
     def make_train_function(self):
         if self._train_function is not None:
@@ -171,12 +183,10 @@ class SuperLearner:
         # State
         # epoch: int, for save and load
         # epochs: int
-        # step: int
-        # steps: int
         self._state[mode][k] = v
 
     def set_global_state(self, k, v):
-        modes = ['train', 'eval', 'test']
+        modes = ['train', 'eval']
         for m in modes:
             self.set_state(k, v, m)
 
@@ -218,9 +228,18 @@ class SuperLearner:
             current_step += run_steps
         return {name: metric.result() for name, metric in metrics.items()}
 
+    def _run_local_eval(self, iterator, steps, metrics):
+        for m in metrics.values():
+            m.reset_states()
+        for step in range(steps):
+            y_true, y_pred = self._local_eval_step(next(iterator))
+            for m in metrics.values():
+                m.update_state(y_true, y_pred, None)
+        return {name: metric.result() for name, metric in metrics.items()}
+
     def fit(self, ds_train, epochs, ds_val=None, val_freq=1,
             steps_per_epoch=None, val_steps=None, max_epochs=None, save_freq=None,
-            callbacks=None):
+            callbacks=None, local_eval_metrics=None, local_eval_freq=None):
 
         if max_epochs is None:
             max_epochs = epochs
@@ -260,14 +279,20 @@ class SuperLearner:
 
             cbks.after_epoch(state)
 
-            do_eval = ds_val is not None and parse_freq(epoch, val_freq)
+            do_local_eval = local_eval_metrics and parse_freq(epoch, local_eval_freq)
+            do_eval = ds_val is not None and (not do_local_eval) and parse_freq(epoch, val_freq)
 
-            if do_eval:
+            if do_eval or do_local_eval:
                 state = self._state['eval']
                 state['metrics'] = {}
                 cbks.begin_eval(state)
 
-                metric_results = self._run_eval(eval_iter, val_steps)
+                if do_eval:
+                    metric_results = self._run_eval(eval_iter, val_steps)
+
+                if do_local_eval:
+                    metric_results = self._run_local_eval(eval_iter, val_steps, local_eval_metrics)
+
                 for name, result in metric_results.items():
                     state['metrics'][name] = result
 
@@ -286,8 +311,30 @@ class SuperLearner:
 
         state = self._state['eval']
         state['metrics'] = {}
+
         cbks.begin_eval(state)
-        self._run_eval(iter(ds_val), val_steps)
+
+        metric_results = self._run_eval(iter(ds_val), val_steps)
+        for name, result in metric_results.items():
+            state['metrics'][name] = result
+
+        cbks.after_eval(state)
+
+    def evaluate_local(self, ds_val, val_steps, local_metrics, callbacks=None):
+        self.init_state('eval')
+
+        val_steps = val_steps or len(ds_val)
+        cbks = config_callbacks(self, callbacks, mode='eval')
+
+        state = self._state['eval']
+        state['metrics'] = {}
+
+        cbks.begin_eval(state)
+
+        metric_results = self._run_local_eval(iter(ds_val), val_steps, local_metrics)
+        for name, result in metric_results.items():
+            state['metrics'][name] = result
+
         cbks.after_eval(state)
 
     def save_state(self, save_dir=None):
