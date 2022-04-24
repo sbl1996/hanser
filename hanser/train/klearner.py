@@ -37,7 +37,24 @@ def update_metrics(metrics, y_true, y_pred, per_example_loss=None):
             metric.update_state(y_true, y_pred, None)
 
 
-class SuperLearner:
+def apply_gradients(optimizer, grads, vars, grad_clip_norm=None, distribute_strategy=None):
+    distribute_strategy = distribute_strategy or tf.distribute.get_strategy()
+    aggregate_grads_outside_optimizer = grad_clip_norm and is_distribute_strategy(distribute_strategy)
+
+    if aggregate_grads_outside_optimizer:
+        grads = tf.distribute.get_replica_context().all_reduce('sum', grads)
+
+    if grad_clip_norm:
+        grads = tf.clip_by_global_norm(grads, grad_clip_norm)[0]
+    if aggregate_grads_outside_optimizer:
+        optimizer.apply_gradients(
+            zip(grads, vars),
+            experimental_aggregate_gradients=False)
+    else:
+        optimizer.apply_gradients(zip(grads, vars))
+
+
+class Learner:
 
     def __init__(self, model, criterion, optimizers, train_metrics, eval_metrics,
                  steps_per_loop=-1, eval_steps_per_loop=None, jit_compile=True, work_dir=None,
@@ -83,41 +100,17 @@ class SuperLearner:
         self.set_global_state("epoch", -1)
 
     def train_batch(self, batch):
-        model = self.model
-        optimizer = self.optimizers[0]
-
-        inputs, target = batch
-        with tf.GradientTape() as tape:
-            inputs = cast(inputs, self._dtype)
-            preds = model(inputs, training=True)
-            preds = cast(preds, tf.float32)
-            per_example_loss = self.criterion(target, preds)
-            loss = reduce_loss(per_example_loss)
-        grads = tape.gradient(loss, model.trainable_variables)
-        optimizer.apply_gradients(zip(grads, model.trainable_variables))
-        update_metrics(self.train_metrics, target, preds, per_example_loss)
-        if hasattr(self, "_ema") and self._ema is not None:
-            self._ema.apply(self._ema_vars)
-        return {k: m.result() for k, m in self.train_metrics.items()}
+        pass
 
     def train_batches(self, *batches):
         batch = tuple(tf.concat(xs, axis=0) for xs in zip(*batches))
         return self.train_batch(batch)
 
     def eval_batch(self, batch):
-        inputs, target = batch
-        inputs = cast(inputs, self._dtype)
-        preds = self.model(inputs, training=False)
-        preds = cast(preds, tf.float32)
-        update_metrics(self.eval_metrics, target, preds)
-        return {k: m.result() for k, m in self.eval_metrics.items()}
+        pass
 
     def local_eval_batch(self, batch):
-        inputs, target = batch
-        inputs = cast(inputs, self._dtype)
-        preds = self.model(inputs, training=False)
-        preds = cast(preds, tf.float32)
-        return target, preds
+        pass
 
     @tf.function
     def _local_eval_batch(self, batch):
@@ -301,6 +294,8 @@ class SuperLearner:
                 state['metrics'] = {}
                 cbks.begin_eval(state)
 
+                # we don't do_eval and do_local_eval at the same time, although it is possible
+
                 if do_eval:
                     metric_results = self._run_eval(eval_iter, val_steps)
 
@@ -452,3 +447,47 @@ class SuperLearner:
                 eval_metric_logs = ", ".join(
                     f"{k}: {eval_metrics[k]:.4f}" for k in eval_metric_keys)
                 print(f"{eval_end} valid - {eval_metric_logs}")
+
+
+class SuperLearner(Learner):
+
+    def __init__(self, model, criterion, optimizer, grad_clip_norm=0.0, **kwargs):
+        self.grad_clip_norm = grad_clip_norm
+        super().__init__(model, criterion, optimizer, **kwargs)
+
+    def train_batch(self, batch):
+        model = self.model
+        optimizer = self.optimizers[0]
+        trainable_variables = model.trainable_variables
+
+        inputs, target = batch
+        with tf.GradientTape() as tape:
+            inputs = cast(inputs, self._dtype)
+            preds = model(inputs, training=True)
+            preds = cast(preds, tf.float32)
+            per_example_loss = self.criterion(target, preds)
+            loss = reduce_loss(per_example_loss)
+        grads = tape.gradient(loss, model.trainable_variables)
+
+        apply_gradients(optimizer, grads, trainable_variables, self.grad_clip_norm,
+                        distribute_strategy=self._distribute_strategy)
+
+        update_metrics(self.train_metrics, target, preds, per_example_loss)
+        if hasattr(self, "_ema") and self._ema is not None:
+            self._ema.apply(self._ema_vars)
+        return {k: m.result() for k, m in self.train_metrics.items()}
+
+    def _eval_batch(self, batch):
+        inputs, target = batch
+        inputs = cast(inputs, self._dtype)
+        preds = self.model(inputs, training=False)
+        preds = cast(preds, tf.float32)
+        return target, preds
+
+    def eval_batch(self, batch):
+        target, preds = self._eval_batch(batch)
+        update_metrics(self.eval_metrics, target, preds)
+        return {k: m.result() for k, m in self.eval_metrics.items()}
+
+    def local_eval_batch(self, batch):
+        return self._eval_batch(batch)
