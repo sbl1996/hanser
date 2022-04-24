@@ -40,7 +40,8 @@ def update_metrics(metrics, y_true, y_pred, per_example_loss=None):
 class SuperLearner:
 
     def __init__(self, model, criterion, optimizers, train_metrics, eval_metrics,
-                 steps_per_loop=-1, eval_steps_per_loop=None, jit_compile=True, work_dir=None):
+                 steps_per_loop=-1, eval_steps_per_loop=None, jit_compile=True, work_dir=None,
+                 n_batches_per_step=None):
         super().__init__()
         if not isinstance(optimizers, Sequence):
             optimizers = [optimizers]
@@ -57,6 +58,7 @@ class SuperLearner:
         self.eval_steps_per_loop = eval_steps_per_loop or steps_per_loop
         self.jit_compile = jit_compile
         self.work_dir = work_dir
+        self.n_batches_per_step = n_batches_per_step
 
         self._dtype = tf.dtypes.as_dtype(mixed_precision.global_policy().compute_dtype)
 
@@ -80,7 +82,7 @@ class SuperLearner:
         self._terminated = False
         self.set_global_state("epoch", -1)
 
-    def train_step(self, batch):
+    def train_batch(self, batch):
         model = self.model
         optimizer = self.optimizers[0]
 
@@ -98,7 +100,11 @@ class SuperLearner:
             self._ema.apply(self._ema_vars)
         return {k: m.result() for k, m in self.train_metrics.items()}
 
-    def eval_step(self, batch):
+    def train_batches(self, *batches):
+        batch = tuple(tf.concat(xs, axis=0) for xs in zip(*batches))
+        return self.train_batch(batch)
+
+    def eval_batch(self, batch):
         inputs, target = batch
         inputs = cast(inputs, self._dtype)
         preds = self.model(inputs, training=False)
@@ -106,7 +112,7 @@ class SuperLearner:
         update_metrics(self.eval_metrics, target, preds)
         return {k: m.result() for k, m in self.eval_metrics.items()}
 
-    def local_eval_step(self, batch):
+    def local_eval_batch(self, batch):
         inputs, target = batch
         inputs = cast(inputs, self._dtype)
         preds = self.model(inputs, training=False)
@@ -114,8 +120,8 @@ class SuperLearner:
         return target, preds
 
     @tf.function
-    def _local_eval_step(self, batch):
-        outputs = self._distribute_strategy.run(self.local_eval_step, args=(batch,))
+    def _local_eval_batch(self, batch):
+        outputs = self._distribute_strategy.run(self.local_eval_batch, args=(batch,))
         outputs = reduce_per_replica(
             outputs, self._distribute_strategy, reduction='concat')
         return outputs
@@ -124,14 +130,22 @@ class SuperLearner:
         if self._train_function is not None:
             return self._train_function
 
-        train_step = self.train_step
+        n_batches_per_step = self.n_batches_per_step
+        if n_batches_per_step is None:
+            train_step = self.train_batch
+        else:
+            train_step = self.train_batches
         if self.jit_compile:
             train_step = tf.function(
                 train_step, jit_compile=True, experimental_relax_shapes=True)
 
         def train_function(iterator, steps):
             for _ in tf.range(steps):
-                outputs = self._distribute_strategy.run(train_step, args=(next(iterator),))
+                if n_batches_per_step is not None:
+                    data = tuple(next(iterator) for bi in range(n_batches_per_step))
+                else:
+                    data = (next(iterator),)
+                outputs = self._distribute_strategy.run(train_step, args=data)
                 outputs = reduce_per_replica(
                     outputs, self._distribute_strategy, reduction='first')
             return outputs
@@ -145,14 +159,14 @@ class SuperLearner:
         if self._eval_function is not None:
             return self._eval_function
 
-        eval_step = self.eval_step
+        eval_batch = self.eval_batch
         if self.jit_compile:
-            eval_step = tf.function(
-                eval_step, jit_compile=True, experimental_relax_shapes=True)
+            eval_batch = tf.function(
+                eval_batch, jit_compile=True, experimental_relax_shapes=True)
 
         def eval_function(iterator, steps):
             for _ in tf.range(steps):
-                outputs = self._distribute_strategy.run(eval_step, args=(next(iterator),))
+                outputs = self._distribute_strategy.run(eval_batch, args=(next(iterator),))
                 outputs = reduce_per_replica(
                     outputs, self._distribute_strategy, reduction='first')
             return outputs
@@ -232,7 +246,7 @@ class SuperLearner:
         for m in metrics.values():
             m.reset_states()
         for step in range(steps):
-            y_true, y_pred = self._local_eval_step(next(iterator))
+            y_true, y_pred = self._local_eval_batch(next(iterator))
             for m in metrics.values():
                 m.update_state(y_true, y_pred, None)
         return {name: metric.result() for name, metric in metrics.items()}
