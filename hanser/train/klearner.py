@@ -216,7 +216,7 @@ class Learner:
             run_steps = min(steps - current_step, steps_per_loop)
             train_function(iterator, tf.convert_to_tensor(run_steps, tf.int64))
             current_step += run_steps
-        return {name: metric.result() for name, metric in metrics.items()}
+        return {name: metric.result().numpy() for name, metric in metrics.items()}
 
     def _run_eval(self, iterator, steps):
         metrics = self.eval_metrics
@@ -233,7 +233,7 @@ class Learner:
             run_steps = min(steps - current_step, steps_per_loop)
             eval_function(iterator, tf.convert_to_tensor(run_steps, tf.int64))
             current_step += run_steps
-        return {name: metric.result() for name, metric in metrics.items()}
+        return {name: metric.result().numpy() for name, metric in metrics.items()}
 
     def _run_local_eval(self, iterator, steps, metrics):
         for m in metrics.values():
