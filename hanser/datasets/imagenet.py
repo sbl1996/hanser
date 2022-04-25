@@ -97,8 +97,7 @@ def make_imagenet_dataset_split(
     options.experimental_deterministic = False
     options.experimental_threading.max_intra_op_parallelism = 1
     # options.experimental_slack = True
-    # options.experimental_threading.private_threadpool_size = 48
-    # options.experimental_distribute.auto_shard_policy = tf.data.experimental.AutoShardPolicy.FILE
+    options.experimental_threading.private_threadpool_size = 48
     ds = ds.with_options(options)
 
     n = NUM_IMAGES[split]
