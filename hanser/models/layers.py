@@ -382,7 +382,7 @@ def Act(type='default', **kwargs):
 
 def Pool2d(kernel_size, stride, padding='same', type='avg', ceil_mode=None):
     assert ceil_mode is None, "ceil_mode not supported"
-    
+
     assert padding == 0 or padding == 'same'
 
     if padding == 0:

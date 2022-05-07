@@ -18,7 +18,7 @@ def subsample(*arrays, ratio):
 def make_numpy_dataset(
     x_train, y_train, x_test, y_test,
     batch_size, eval_batch_size, transform,
-    sub_ratio=None, aug_repeats=None, **kwargs):
+    sub_ratio=None, aug_repeats=None, drop_remainder=None, **kwargs):
     if sub_ratio is not None:
         x_train, y_train = subsample(x_train, y_train, ratio=sub_ratio)
         x_test, y_test = subsample(x_test, y_test, ratio=sub_ratio)
@@ -33,5 +33,6 @@ def make_numpy_dataset(
 
     ds_train = prepare(ds_train, batch_size, transform(training=True), training=True, buffer_size=n_train,
                        aug_repeats=aug_repeats, **kwargs)
-    ds_test = prepare(ds_test, eval_batch_size, transform(training=False), training=False)
+    ds_test = prepare(ds_test, eval_batch_size, transform(training=False), training=False,
+                      drop_remainder=drop_remainder)
     return ds_train, ds_test, steps_per_epoch, test_steps

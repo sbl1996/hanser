@@ -79,15 +79,15 @@ def load_cifar100(label_mode='fine', cache_dir=None):
     return (x_train, y_train), (x_test, y_test)
 
 
-def make_cifar_dataset(load_fn, batch_size, eval_batch_size, transform, **kwargs):
+def make_cifar_dataset(load_fn, batch_size, eval_batch_size, transform, drop_remainder=None, **kwargs):
     (x_train, y_train), (x_test, y_test) = load_fn()
     return make_numpy_dataset(
         x_train, y_train, x_test, y_test,
-        batch_size, eval_batch_size, transform, **kwargs)
+        batch_size, eval_batch_size, transform, drop_remainder, **kwargs)
 
 
-def make_cifar10_dataset(batch_size, eval_batch_size, transform, **kwargs):
-    return make_cifar_dataset(load_cifar10, batch_size, eval_batch_size, transform, **kwargs)
+def make_cifar10_dataset(batch_size, eval_batch_size, transform, drop_remainder=None, **kwargs):
+    return make_cifar_dataset(load_cifar10, batch_size, eval_batch_size, transform, drop_remainder, **kwargs)
 
 
 def make_cifar100_dataset(batch_size, eval_batch_size, transform, **kwargs):
