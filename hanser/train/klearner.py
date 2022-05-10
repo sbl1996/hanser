@@ -132,8 +132,8 @@ class Learner:
             train_step = tf.function(
                 train_step, jit_compile=True, experimental_relax_shapes=True)
 
-        def train_function(iterator, steps):
-            for _ in tf.range(steps):
+        if self.steps_per_loop == 1:
+            def train_function(iterator, steps):
                 if n_batches_per_step is not None:
                     data = tuple(next(iterator) for bi in range(n_batches_per_step))
                 else:
@@ -141,7 +141,18 @@ class Learner:
                 outputs = self._distribute_strategy.run(train_step, args=data)
                 outputs = reduce_per_replica(
                     outputs, self._distribute_strategy, reduction='first')
-            return outputs
+                return outputs
+        else:
+            def train_function(iterator, steps):
+                for _ in tf.range(steps):
+                    if n_batches_per_step is not None:
+                        data = tuple(next(iterator) for bi in range(n_batches_per_step))
+                    else:
+                        data = (next(iterator),)
+                    outputs = self._distribute_strategy.run(train_step, args=data)
+                    outputs = reduce_per_replica(
+                        outputs, self._distribute_strategy, reduction='first')
+                return outputs
 
         train_function = tf.function(
             train_function, experimental_relax_shapes=True)
