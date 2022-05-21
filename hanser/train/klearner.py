@@ -162,6 +162,8 @@ class Learner:
         train_function = tf.function(
             train_function, experimental_relax_shapes=True)
         self._train_function = train_function
+        if self._remake:
+            self._remake = False
         return self._train_function
 
     def make_eval_function(self):
