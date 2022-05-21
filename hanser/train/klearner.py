@@ -99,6 +99,11 @@ class Learner:
         self._terminated = False
         self.set_global_state("epoch", -1)
 
+        self._remake = False
+
+    def remake(self):
+        self._remake = True
+
     def train_batch(self, batch):
         pass
 
@@ -120,7 +125,7 @@ class Learner:
         return outputs
 
     def make_train_function(self):
-        if self._train_function is not None:
+        if self._train_function is not None and not self._remake:
             return self._train_function
 
         n_batches_per_step = self.n_batches_per_step
